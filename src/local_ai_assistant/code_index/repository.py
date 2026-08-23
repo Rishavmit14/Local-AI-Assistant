@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
@@ -11,10 +12,14 @@ import numpy as np
 from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 
-from local_ai_assistant.common.paths import CODE_INDEX_DIR as INDEX_DIR
-from local_ai_assistant.common.paths import CODE_REPO_DIR as REPO_DIR
+from local_ai_assistant.common.config import AppConfig, get_config
+from local_ai_assistant.common.errors import IndexingError
+from local_ai_assistant.common.logging import configure_logging, get_logger
 from local_ai_assistant.llm import LocalLLM
 
+_DEFAULT_CONFIG = get_config()
+REPO_DIR = _DEFAULT_CONFIG.paths.code_repo_dir
+INDEX_DIR = _DEFAULT_CONFIG.paths.code_index_dir
 INDEX_FILE = INDEX_DIR / "code.faiss"
 CHUNKS_FILE = INDEX_DIR / "code_chunks.json"
 MANIFEST_FILE = INDEX_DIR / "manifest.json"
@@ -66,6 +71,7 @@ VECTOR_TOP_K = 12
 BM25_TOP_K = 12
 FINAL_TOP_K = 6
 RRF_K = 60
+logger = get_logger(__name__)
 
 
 def lexical_tokenize(text: str) -> list[str]:
@@ -76,25 +82,41 @@ def lexical_tokenize(text: str) -> list[str]:
 
 
 class CodeRAG:
-    def __init__(self):
-        REPO_DIR.mkdir(
+    def __init__(
+        self,
+        config: AppConfig | None = None,
+        *,
+        embedder=None,
+        llm: LocalLLM | None = None,
+    ) -> None:
+        self.config = config or get_config()
+        self.repo_dir = self.config.paths.code_repo_dir
+        self.index_dir = self.config.paths.code_index_dir
+        self.index_file = self.index_dir / "code.faiss"
+        self.chunks_file = self.index_dir / "code_chunks.json"
+        self.manifest_file = self.index_dir / "manifest.json"
+        self.repo_dir.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        INDEX_DIR.mkdir(
+        self.index_dir.mkdir(
             parents=True,
             exist_ok=True,
         )
 
         print("Loading embedding model...")
 
-        self.embedder = SentenceTransformer(
-            EMBEDDING_MODEL,
-            device="cpu",
+        logger.info(
+            "repository_index_initializing",
+            extra={"event": "code_index.initializing", "repository_dir": self.repo_dir},
+        )
+        self.embedder = embedder or SentenceTransformer(
+            self.config.embedding.model,
+            device=self.config.embedding.device,
         )
 
-        self.llm = LocalLLM()
+        self.llm = llm or LocalLLM(config=self.config)
 
         self.chunks: list[dict[str, Any]] = []
 
@@ -129,7 +151,7 @@ class CodeRAG:
     def discover_files(self):
         files = []
 
-        for path in REPO_DIR.rglob("*"):
+        for path in self.repo_dir.rglob("*"):
             if not path.is_file():
                 continue
 
@@ -147,6 +169,7 @@ class CodeRAG:
         self,
         text: str,
     ) -> list[dict[str, Any]]:
+        settings = getattr(self, "config", _DEFAULT_CONFIG).code_retrieval
         lines = text.splitlines()
 
         chunks = []
@@ -155,7 +178,7 @@ class CodeRAG:
 
         while start < len(lines):
             end = min(
-                start + CHUNK_LINES,
+                start + settings.chunk_lines,
                 len(lines),
             )
 
@@ -175,7 +198,7 @@ class CodeRAG:
             if end >= len(lines):
                 break
 
-            start = end - OVERLAP_LINES
+            start = end - settings.overlap_lines
 
         return chunks
 
@@ -192,7 +215,7 @@ class CodeRAG:
         for path in files:
             relative = str(
                 path.relative_to(
-                    REPO_DIR
+                    self.repo_dir
                 )
             )
 
@@ -232,7 +255,7 @@ class CodeRAG:
 
     def build_vector_index(self):
         if not self.chunks:
-            raise RuntimeError(
+            raise IndexingError(
                 "No code chunks available."
             )
 
@@ -247,7 +270,7 @@ class CodeRAG:
 
         embeddings = self.embedder.encode(
             texts,
-            batch_size=32,
+            batch_size=self.config.embedding.batch_size,
             show_progress_bar=True,
             normalize_embeddings=True,
             convert_to_numpy=True,
@@ -293,10 +316,10 @@ class CodeRAG:
     def save(self):
         faiss.write_index(
             self.index,
-            str(INDEX_FILE),
+            str(self.index_file),
         )
 
-        CHUNKS_FILE.write_text(
+        self.chunks_file.write_text(
             json.dumps(
                 self.chunks,
                 indent=2,
@@ -305,7 +328,7 @@ class CodeRAG:
             encoding="utf-8",
         )
 
-        MANIFEST_FILE.write_text(
+        self.manifest_file.write_text(
             json.dumps(
                 self.manifest,
                 indent=2,
@@ -315,17 +338,17 @@ class CodeRAG:
 
     def load(self) -> bool:
         if (
-            not INDEX_FILE.exists()
-            or not CHUNKS_FILE.exists()
+            not self.index_file.exists()
+            or not self.chunks_file.exists()
         ):
             return False
 
         self.index = faiss.read_index(
-            str(INDEX_FILE)
+            str(self.index_file)
         )
 
         self.chunks = json.loads(
-            CHUNKS_FILE.read_text(
+            self.chunks_file.read_text(
                 encoding="utf-8"
             )
         )
@@ -335,10 +358,19 @@ class CodeRAG:
         return True
 
     def reindex(self):
+        logger.info(
+            "repository_reindex_started",
+            extra={"event": "code_index.reindex.started", "repository_dir": self.repo_dir},
+        )
         self.build_chunks()
         self.build_vector_index()
         self.build_bm25()
         self.save()
+
+        logger.info(
+            "repository_reindex_completed",
+            extra={"event": "code_index.reindex.completed", "chunk_count": len(self.chunks)},
+        )
 
         print()
         print(
@@ -361,7 +393,7 @@ class CodeRAG:
         )
 
         top_k = min(
-            VECTOR_TOP_K,
+            self.config.code_retrieval.vector_top_k,
             len(self.chunks),
         )
 
@@ -400,7 +432,7 @@ class CodeRAG:
         )
 
         top_k = min(
-            BM25_TOP_K,
+            self.config.code_retrieval.bm25_top_k,
             len(self.chunks),
         )
 
@@ -427,6 +459,10 @@ class CodeRAG:
         self,
         question: str,
     ):
+        logger.info(
+            "repository_retrieval_started",
+            extra={"event": "code_index.retrieve.started", "query_characters": len(question)},
+        )
         candidates = {}
 
         for result in self.vector_search(
@@ -450,7 +486,7 @@ class CodeRAG:
             candidates[idx]["rrf"] += (
                 1.0
                 / (
-                    RRF_K
+                    self.config.code_retrieval.rrf_k
                     + result["rank"]
                 )
             )
@@ -476,7 +512,7 @@ class CodeRAG:
             candidates[idx]["rrf"] += (
                 1.0
                 / (
-                    RRF_K
+                    self.config.code_retrieval.rrf_k
                     + result["rank"]
                 )
             )
@@ -496,9 +532,14 @@ class CodeRAG:
             reverse=True,
         )
 
-        return results[
-            :FINAL_TOP_K
+        selected = results[
+            :self.config.code_retrieval.final_top_k
         ]
+        logger.info(
+            "repository_retrieval_completed",
+            extra={"event": "code_index.retrieve.completed", "result_count": len(selected)},
+        )
+        return selected
 
     @staticmethod
     def build_context(
@@ -580,8 +621,21 @@ ANSWER:
         return answer, results
 
 
-def main():
-    rag = CodeRAG()
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Local repository hybrid RAG")
+    parser.add_argument("--reindex", action="store_true", help="Rebuild the repository index")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    config = get_config()
+    configure_logging(config.runtime)
+    args = build_parser().parse_args(argv)
+    rag = CodeRAG(config=config)
+
+    if args.reindex:
+        rag.reindex()
+        return 0
 
     if not rag.load():
         print(
@@ -592,9 +646,9 @@ def main():
             "placing a repository in:"
         )
         print(
-            REPO_DIR
+            rag.repo_dir
         )
-        return
+        return 1
 
     print()
     print("LOCAL CODE RAG READY")
@@ -636,12 +690,8 @@ def main():
 
         print()
 
+    return 0
+
 
 if __name__ == "__main__":
-    import sys
-
-    if "--reindex" in sys.argv:
-        rag = CodeRAG()
-        rag.reindex()
-    else:
-        main()
+    raise SystemExit(main())

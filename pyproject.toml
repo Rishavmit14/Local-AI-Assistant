@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "local-ai-assistant"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local-first Qwen chat, hybrid RAG, and transactional coding assistant"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -24,12 +24,19 @@ rag = [
   "sentence-transformers>=5,<7",
 ]
 ui = ["streamlit>=1.50,<2"]
-coding-agent = ["GitPython>=3.1,<4"]
+coding-agent = [
+  "faiss-cpu>=1.12,<2",
+  "numpy>=2,<3",
+  "rank-bm25>=0.2.2,<1",
+  "sentence-transformers>=5,<7",
+]
 dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
 
 [project.scripts]
+local-ai-chat = "local_ai_assistant.llm.client:main"
 local-ai-code-rag = "local_ai_assistant.code_index.repository:main"
 local-ai-code-agent = "local_ai_assistant.agent.code_agent:main"
+local-ai-ui = "local_ai_assistant.ui.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -42,3 +49,15 @@ testpaths = ["tests"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"app.py" = ["F403", "F401"]
+"local_llm.py" = ["F403", "F401"]
+"rag.py" = ["F403", "F401"]
+"code_rag.py" = ["F403", "F401"]
+"code_agent.py" = ["F403", "F401"]
+"ui/streamlit/app.py" = ["F403", "F401"]
+"tests/integration/test_demo_app.py" = ["E402"]

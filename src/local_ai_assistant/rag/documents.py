@@ -10,21 +10,24 @@ from typing import Any
 import faiss
 import numpy as np
 import pytesseract
-
 from docx import Document
 from pdf2image import convert_from_path
 from pypdf import PdfReader
 from rank_bm25 import BM25Okapi
 from sentence_transformers import SentenceTransformer
 
-from local_ai_assistant.common.paths import DOCUMENT_DIR, RAG_DATA_DIR
+from local_ai_assistant.common.config import AppConfig, OCRConfig, get_config
+from local_ai_assistant.common.errors import IndexingError
+from local_ai_assistant.common.logging import configure_logging, get_logger
 from local_ai_assistant.llm import LocalLLM
-
 
 # ============================================================
 # CONFIGURATION
 # ============================================================
 
+_DEFAULT_CONFIG = get_config()
+DOCUMENT_DIR = _DEFAULT_CONFIG.paths.document_dir
+RAG_DATA_DIR = _DEFAULT_CONFIG.paths.rag_data_dir
 INDEX_FILE = RAG_DATA_DIR / "index.faiss"
 CHUNKS_FILE = RAG_DATA_DIR / "chunks.json"
 MANIFEST_FILE = RAG_DATA_DIR / "manifest.json"
@@ -68,6 +71,8 @@ SUPPORTED_EXTENSIONS = {
     ".pdf",
     ".docx",
 }
+
+logger = get_logger(__name__)
 
 
 # ============================================================
@@ -119,28 +124,44 @@ def normalize_scores(values: list[float]) -> list[float]:
 
 class LocalRAG:
 
-    def __init__(self):
+    def __init__(
+        self,
+        config: AppConfig | None = None,
+        *,
+        embedder=None,
+        llm: LocalLLM | None = None,
+    ) -> None:
+        self.config = config or get_config()
+        self.document_dir = self.config.paths.document_dir
+        self.rag_data_dir = self.config.paths.rag_data_dir
+        self.index_file = self.rag_data_dir / "index.faiss"
+        self.chunks_file = self.rag_data_dir / "chunks.json"
+        self.manifest_file = self.rag_data_dir / "manifest.json"
 
-        DOCUMENT_DIR.mkdir(
+        self.document_dir.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        RAG_DATA_DIR.mkdir(
+        self.rag_data_dir.mkdir(
             parents=True,
             exist_ok=True,
         )
 
         print("Loading embedding model...")
 
-        self.embedder = SentenceTransformer(
-            EMBEDDING_MODEL,
-            device="cpu",
+        logger.info(
+            "document_rag_initializing",
+            extra={"event": "rag.initializing", "document_dir": self.document_dir},
+        )
+        self.embedder = embedder or SentenceTransformer(
+            self.config.embedding.model,
+            device=self.config.embedding.device,
         )
 
         self.tokenizer = self.embedder.tokenizer
 
-        self.llm = LocalLLM()
+        self.llm = llm or LocalLLM(config=self.config)
 
         self.chunks: list[dict[str, Any]] = []
 
@@ -208,9 +229,11 @@ class LocalRAG:
     @staticmethod
     def needs_ocr(
         text: str,
+        config: OCRConfig | None = None,
     ) -> bool:
+        settings = config or OCRConfig()
 
-        if not OCR_ENABLED:
+        if not settings.enabled:
             return False
 
         cleaned = (
@@ -219,7 +242,7 @@ class LocalRAG:
             )
         )
 
-        if len(cleaned) < OCR_MIN_TEXT_LENGTH:
+        if len(cleaned) < settings.minimum_text_length:
             return True
 
         useful_chars = sum(
@@ -229,7 +252,7 @@ class LocalRAG:
 
         if (
             useful_chars
-            < OCR_MIN_TEXT_LENGTH // 2
+            < settings.minimum_text_length // 2
         ):
             return True
 
@@ -239,8 +262,8 @@ class LocalRAG:
     # OCR ONE PDF PAGE
     # ========================================================
 
-    @staticmethod
     def ocr_pdf_page(
+        self,
         path: Path,
         page_number: int,
     ) -> str:
@@ -255,7 +278,7 @@ class LocalRAG:
 
             images = convert_from_path(
                 str(path),
-                dpi=OCR_DPI,
+                dpi=self.config.ocr.dpi,
                 first_page=page_number,
                 last_page=page_number,
                 fmt="png",
@@ -269,7 +292,7 @@ class LocalRAG:
 
             text = pytesseract.image_to_string(
                 image,
-                lang=OCR_LANGUAGE,
+                lang=self.config.ocr.language,
                 config="--psm 3",
             )
 
@@ -280,6 +303,16 @@ class LocalRAG:
             )
 
         except Exception as exc:
+
+            logger.warning(
+                "ocr_page_failed",
+                extra={
+                    "event": "rag.ocr.failed",
+                    "source": path.name,
+                    "page": page_number,
+                    "error": str(exc),
+                },
+            )
 
             print(
                 f"  OCR warning: "
@@ -350,8 +383,8 @@ class LocalRAG:
     # PDF EXTRACTION + OCR FALLBACK
     # ========================================================
 
-    @staticmethod
     def extract_pdf(
+        self,
         path: Path,
     ):
 
@@ -409,9 +442,19 @@ class LocalRAG:
             # OCR fallback
             # ------------------------------------------------
 
-            if LocalRAG.needs_ocr(
-                native_text
+            if self.needs_ocr(
+                native_text,
+                self.config.ocr,
             ):
+
+                logger.info(
+                    "ocr_page_started",
+                    extra={
+                        "event": "rag.ocr.started",
+                        "source": path.name,
+                        "page": page_number,
+                    },
+                )
 
                 print(
                     f"  OCR page "
@@ -420,7 +463,7 @@ class LocalRAG:
                 )
 
                 ocr_text = (
-                    LocalRAG.ocr_pdf_page(
+                    self.ocr_pdf_page(
                         path,
                         page_number,
                     )
@@ -433,6 +476,15 @@ class LocalRAG:
 
                     text = ocr_text
                     extraction_method = "ocr"
+                    logger.info(
+                        "ocr_page_selected",
+                        extra={
+                            "event": "rag.ocr.selected",
+                            "source": path.name,
+                            "page": page_number,
+                            "characters": len(ocr_text),
+                        },
+                    )
 
             # ------------------------------------------------
             # Ignore empty pages
@@ -500,9 +552,12 @@ class LocalRAG:
     def chunk_text(
         self,
         text: str,
-        chunk_size: int = CHUNK_SIZE,
-        overlap: int = CHUNK_OVERLAP,
+        chunk_size: int | None = None,
+        overlap: int | None = None,
     ):
+        chunk_size = chunk_size or self.config.document_retrieval.chunk_size
+        if overlap is None:
+            overlap = self.config.document_retrieval.chunk_overlap
 
         if not text.strip():
             return []
@@ -551,13 +606,12 @@ class LocalRAG:
     # DOCUMENT DISCOVERY
     # ========================================================
 
-    @staticmethod
-    def discover_documents():
+    def discover_documents(self):
 
         files = []
 
         for path in (
-            DOCUMENT_DIR.rglob("*")
+            self.document_dir.rglob("*")
         ):
 
             if (
@@ -576,7 +630,7 @@ class LocalRAG:
 
     def load_manifest(self):
 
-        if not MANIFEST_FILE.exists():
+        if not self.manifest_file.exists():
 
             self.manifest = {}
             return
@@ -585,7 +639,7 @@ class LocalRAG:
 
             self.manifest = (
                 json.loads(
-                    MANIFEST_FILE.read_text(
+                    self.manifest_file.read_text(
                         encoding="utf-8"
                     )
                 )
@@ -597,7 +651,7 @@ class LocalRAG:
 
     def save_manifest(self):
 
-        MANIFEST_FILE.write_text(
+        self.manifest_file.write_text(
             json.dumps(
                 self.manifest,
                 indent=2,
@@ -611,7 +665,7 @@ class LocalRAG:
 
     def save_chunks(self):
 
-        CHUNKS_FILE.write_text(
+        self.chunks_file.write_text(
             json.dumps(
                 self.chunks,
                 ensure_ascii=False,
@@ -622,13 +676,13 @@ class LocalRAG:
 
     def load_chunks(self):
 
-        if not CHUNKS_FILE.exists():
+        if not self.chunks_file.exists():
 
             self.chunks = []
             return
 
         self.chunks = json.loads(
-            CHUNKS_FILE.read_text(
+            self.chunks_file.read_text(
                 encoding="utf-8"
             )
         )
@@ -639,19 +693,19 @@ class LocalRAG:
 
             faiss.write_index(
                 self.index,
-                str(INDEX_FILE),
+                str(self.index_file),
             )
 
     def load_index(self):
 
-        if not INDEX_FILE.exists():
+        if not self.index_file.exists():
             return False
 
         try:
 
             self.index = (
                 faiss.read_index(
-                    str(INDEX_FILE)
+                    str(self.index_file)
                 )
             )
 
@@ -684,7 +738,7 @@ class LocalRAG:
 
             relative_path = str(
                 path.relative_to(
-                    DOCUMENT_DIR
+                    self.document_dir
                 )
             )
 
@@ -783,7 +837,7 @@ class LocalRAG:
 
         if not self.chunks:
 
-            raise RuntimeError(
+            raise IndexingError(
                 "No chunks available."
             )
 
@@ -794,6 +848,11 @@ class LocalRAG:
             for chunk in self.chunks
         ]
 
+        logger.info(
+            "document_embedding_started",
+            extra={"event": "rag.index.embedding_started", "chunk_count": len(texts)},
+        )
+
         print()
         print(
             f"Generating embeddings "
@@ -803,7 +862,7 @@ class LocalRAG:
         embeddings = (
             self.embedder.encode(
                 texts,
-                batch_size=32,
+                batch_size=self.config.embedding.batch_size,
                 show_progress_bar=True,
                 normalize_embeddings=True,
                 convert_to_numpy=True,
@@ -827,6 +886,15 @@ class LocalRAG:
 
         self.index.add(
             embeddings
+        )
+
+        logger.info(
+            "document_index_created",
+            extra={
+                "event": "rag.index.created",
+                "vector_count": int(self.index.ntotal),
+                "dimensions": int(dimension),
+            },
         )
 
         print()
@@ -891,7 +959,7 @@ class LocalRAG:
 
             relative_path = str(
                 path.relative_to(
-                    DOCUMENT_DIR
+                    self.document_dir
                 )
             )
 
@@ -921,9 +989,9 @@ class LocalRAG:
     ):
 
         if (
-            not INDEX_FILE.exists()
-            or not CHUNKS_FILE.exists()
-            or not MANIFEST_FILE.exists()
+            not self.index_file.exists()
+            or not self.chunks_file.exists()
+            or not self.manifest_file.exists()
         ):
             return True
 
@@ -968,6 +1036,8 @@ class LocalRAG:
     def initialize_index(
         self,
     ):
+
+        logger.info("document_index_initializing", extra={"event": "rag.index.initializing"})
 
         if self.index_needs_rebuild():
 
@@ -1157,17 +1227,22 @@ class LocalRAG:
         question: str,
     ):
 
+        logger.info(
+            "document_retrieval_started",
+            extra={"event": "rag.retrieve.started", "query_characters": len(question)},
+        )
+
         vector_results = (
             self.vector_search(
                 question,
-                VECTOR_TOP_K,
+                self.config.document_retrieval.vector_top_k,
             )
         )
 
         bm25_results = (
             self.bm25_search(
                 question,
-                BM25_TOP_K,
+                self.config.document_retrieval.bm25_top_k,
             )
         )
 
@@ -1207,7 +1282,7 @@ class LocalRAG:
             ] += (
                 1.0
                 / (
-                    RRF_K
+                    self.config.document_retrieval.rrf_k
                     + result["rank"]
                 )
             )
@@ -1246,7 +1321,7 @@ class LocalRAG:
             ] += (
                 1.0
                 / (
-                    RRF_K
+                    self.config.document_retrieval.rrf_k
                     + result["rank"]
                 )
             )
@@ -1320,9 +1395,14 @@ class LocalRAG:
             reverse=True,
         )
 
-        return results[
-            :FINAL_TOP_K
+        selected = results[
+            :self.config.document_retrieval.final_top_k
         ]
+        logger.info(
+            "document_retrieval_completed",
+            extra={"event": "rag.retrieve.completed", "result_count": len(selected)},
+        )
+        return selected
 
     # ========================================================
     # CONTEXT CONSTRUCTION
@@ -1588,17 +1668,17 @@ ANSWER:
 
         print(
             f"Vector candidates: "
-            f"{VECTOR_TOP_K}"
+            f"{self.config.document_retrieval.vector_top_k}"
         )
 
         print(
             f"BM25 candidates: "
-            f"{BM25_TOP_K}"
+            f"{self.config.document_retrieval.bm25_top_k}"
         )
 
         print(
             f"Final context chunks: "
-            f"{FINAL_TOP_K}"
+            f"{self.config.document_retrieval.final_top_k}"
         )
 
         ocr_chunks = sum(
@@ -1624,6 +1704,8 @@ ANSWER:
     def force_reindex(
         self,
     ):
+
+        logger.info("document_reindex_forced", extra={"event": "rag.index.force_rebuild"})
 
         print()
         print(
@@ -1804,8 +1886,9 @@ ANSWER:
 # ============================================================
 
 def main():
-
-    rag = LocalRAG()
+    config = get_config()
+    configure_logging(config.runtime)
+    rag = LocalRAG(config=config)
 
     if not rag.initialize_index():
         return

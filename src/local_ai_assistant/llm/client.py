@@ -1,27 +1,35 @@
-import os
+from collections.abc import Iterator
 
 from openai import OpenAI
-from typing import Optional
 
+from local_ai_assistant.common.config import AppConfig, get_config
+from local_ai_assistant.common.errors import LLMError
+from local_ai_assistant.common.logging import configure_logging, get_logger
 
-DEFAULT_BASE_URL = os.environ.get("LOCAL_AI_BASE_URL", "http://127.0.0.1:8080/v1")
-
-DEFAULT_MODEL = os.environ.get(
-    "LOCAL_AI_MODEL",
-    "/AI/models/qwen3.6-q4/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
-)
+_DEFAULTS = get_config().llama
+DEFAULT_BASE_URL = _DEFAULTS.base_url
+DEFAULT_MODEL = _DEFAULTS.model
+logger = get_logger(__name__)
 
 
 class LocalLLM:
     def __init__(
         self,
-        base_url: str = DEFAULT_BASE_URL,
-        model: str = DEFAULT_MODEL,
-    ):
-        self.model = model
+        base_url: str | None = None,
+        model: str | None = None,
+        *,
+        config: AppConfig | None = None,
+    ) -> None:
+        self.config = config or get_config()
+        self.model = model or self.config.llama.model
+        resolved_base_url = base_url or self.config.llama.base_url
         self.client = OpenAI(
-            base_url=base_url,
-            api_key="local",
+            base_url=resolved_base_url,
+            api_key=self.config.llama.api_key,
+        )
+        logger.info(
+            "llm_client_initialized",
+            extra={"event": "llm.client.initialized", "base_url": resolved_base_url},
         )
 
     def chat(
@@ -33,23 +41,36 @@ class LocalLLM:
         temperature: float = 0.2,
         max_tokens: int = 1024,
     ) -> str:
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                },
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
-            ],
-            temperature=temperature,
-            max_tokens=max_tokens,
+        logger.info(
+            "llm_chat_started",
+            extra={
+                "event": "llm.chat.started",
+                "model": self.model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "prompt_characters": len(prompt),
+            },
         )
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        except Exception as exc:
+            logger.exception("llm_chat_failed", extra={"event": "llm.chat.failed"})
+            raise LLMError(f"Local model request failed: {exc}") from exc
 
-        return response.choices[0].message.content or ""
+        content = response.choices[0].message.content or ""
+        logger.info(
+            "llm_chat_completed",
+            extra={"event": "llm.chat.completed", "response_characters": len(content)},
+        )
+        return content
 
     def stream_chat(
         self,
@@ -59,23 +80,25 @@ class LocalLLM:
         ),
         temperature: float = 0.2,
         max_tokens: int = 1024,
-    ):
-        stream = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                },
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
-            ],
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=True,
+    ) -> Iterator[str]:
+        logger.info(
+            "llm_stream_started",
+            extra={"event": "llm.stream.started", "model": self.model},
         )
+        try:
+            stream = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=True,
+            )
+        except Exception as exc:
+            logger.exception("llm_stream_failed", extra={"event": "llm.stream.failed"})
+            raise LLMError(f"Local model streaming request failed: {exc}") from exc
 
         for chunk in stream:
             if not chunk.choices:
@@ -85,10 +108,13 @@ class LocalLLM:
 
             if content:
                 yield content
+        logger.info("llm_stream_completed", extra={"event": "llm.stream.completed"})
 
 
-if __name__ == "__main__":
-    llm = LocalLLM()
+def main() -> int:
+    config = get_config()
+    configure_logging(config.runtime)
+    llm = LocalLLM(config=config)
 
     print("Local Qwen is ready.\n")
 
@@ -98,3 +124,8 @@ if __name__ == "__main__":
         print(token, end="", flush=True)
 
     print()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

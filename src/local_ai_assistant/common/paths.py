@@ -1,18 +1,14 @@
-from __future__ import annotations
+"""Backward-compatible path constants.
 
-import os
-from pathlib import Path
+New code should inject ``PathConfig``. These names preserve Stage 0 imports.
+"""
 
+from .config import get_config
 
-def env_path(name: str, default: Path) -> Path:
-    """Return a path overridden by an environment variable when supplied."""
-    return Path(os.environ.get(name, default)).expanduser().resolve()
-
-
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
-VAR_DIR = env_path("LOCAL_AI_VAR_DIR", PROJECT_ROOT / "var")
-DOCUMENT_DIR = env_path("LOCAL_AI_DOCUMENT_DIR", VAR_DIR / "documents")
-RAG_DATA_DIR = env_path("LOCAL_AI_RAG_DATA_DIR", VAR_DIR / "rag")
-CODE_REPO_DIR = env_path("LOCAL_AI_CODE_REPO_DIR", VAR_DIR / "repos")
-CODE_INDEX_DIR = env_path("LOCAL_AI_CODE_INDEX_DIR", VAR_DIR / "code-index")
-PATCH_DIR = env_path("LOCAL_AI_PATCH_DIR", VAR_DIR / "patches")
+_PATHS = get_config().paths
+VAR_DIR = _PATHS.var_dir
+DOCUMENT_DIR = _PATHS.document_dir
+RAG_DATA_DIR = _PATHS.rag_data_dir
+CODE_REPO_DIR = _PATHS.code_repo_dir
+CODE_INDEX_DIR = _PATHS.code_index_dir
+PATCH_DIR = _PATHS.patch_dir

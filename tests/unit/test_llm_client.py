@@ -1,5 +1,8 @@
 from types import SimpleNamespace
 
+import pytest
+
+from local_ai_assistant.common.errors import LLMError
 from local_ai_assistant.llm import client as client_module
 
 
@@ -53,3 +56,15 @@ def test_stream_chat_yields_only_nonempty_content(monkeypatch):
     llm = client_module.LocalLLM()
 
     assert "".join(llm.stream_chat("question")) == "hello world"
+
+
+def test_client_wraps_transport_failures_in_application_error(monkeypatch):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+    llm = client_module.LocalLLM()
+
+    def fail(**kwargs):
+        raise OSError("connection refused")
+
+    llm.client.chat.completions.create = fail
+    with pytest.raises(LLMError, match="connection refused"):
+        llm.chat("question")

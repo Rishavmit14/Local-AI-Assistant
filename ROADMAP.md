@@ -6,9 +6,9 @@ Status legend: **Done** means evidenced in the imported Stage 0 code; **Partial*
 
 Actual live files inventoried and imported; working behavior organized into a package; service units sanitized; documentation, dependency groups, bootstrap/install scripts, ignore rules, demo fixture, and tests added. Original deployments remain untouched. Bootstrap provenance and discrepancies are recorded under `docs/history/`.
 
-## Stage 1 — Stabilize and package (**Planned**)
+## Stage 1 — Stabilize and package (**Done**)
 
-Configuration, structured logging, typed errors/models, compatibility wrappers, and broader tests. Finish the transactional Git foundation: final success/failure verification and summary, deterministic rollback and cleanup, optional `--keep-failed-branch`, human-review mode, approval-gated auto-merge, then worktrees later.
+Typed environment configuration, structured JSON/text logging, explicit errors/transaction models, dependency-injected package boundaries, canonical console commands, compatibility wrappers, dependency groups, and broad unit/integration/regression tests are implemented. The transactional Git foundation now has final success/failure verification and summaries, deterministic rollback/cleanup, `--keep-failed-branch`, `--human-review`, and approval-gated `--auto-merge`. Worktrees/checkpoints remain correctly scheduled for Stage 8.
 
 ## Stage 2 — Code intelligence (**Planned**)
 

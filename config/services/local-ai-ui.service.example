@@ -9,11 +9,7 @@ User=LOCAL_AI_USER
 WorkingDirectory=REPOSITORY_DIR
 Environment=PYTHONUNBUFFERED=1
 EnvironmentFile=-REPOSITORY_DIR/.env
-ExecStart=REPOSITORY_DIR/.venv/bin/streamlit run REPOSITORY_DIR/ui/streamlit/app.py \
-  --server.address 127.0.0.1 \
-  --server.port 8501 \
-  --server.headless true \
-  --browser.gatherUsageStats false
+ExecStart=REPOSITORY_DIR/.venv/bin/local-ai-ui
 Restart=on-failure
 RestartSec=5
 

@@ -4,11 +4,23 @@ import argparse
 import subprocess
 import sys
 import time
+from functools import partial
 from pathlib import Path
 
 from local_ai_assistant.code_index import CodeRAG
-from local_ai_assistant.common.paths import CODE_REPO_DIR as REPO_ROOT
-from local_ai_assistant.common.paths import PATCH_DIR
+from local_ai_assistant.common.config import AppConfig, get_config
+from local_ai_assistant.common.errors import (
+    DirtyRepositoryError,
+    GitTransactionError,
+    RepositoryError,
+)
+from local_ai_assistant.common.logging import configure_logging, get_logger
+from local_ai_assistant.common.models import GitTransactionSummary
+
+_DEFAULT_CONFIG = get_config()
+REPO_ROOT = _DEFAULT_CONFIG.paths.code_repo_dir
+PATCH_DIR = _DEFAULT_CONFIG.paths.patch_dir
+logger = get_logger(__name__)
 
 PATCH_DIR.mkdir(
     parents=True,
@@ -23,14 +35,37 @@ PATCH_DIR.mkdir(
 def run_command(
     command: list[str],
     cwd: Path,
+    *,
+    timeout: int | None = None,
 ) -> subprocess.CompletedProcess:
-
-    return subprocess.run(
-        command,
-        cwd=cwd,
-        text=True,
-        capture_output=True,
+    logger.info(
+        "command_started",
+        extra={"event": "command.started", "command": command, "cwd": cwd},
     )
+    try:
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            text=True,
+            capture_output=True,
+            timeout=timeout or get_config().runtime.command_timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        logger.error(
+            "command_timed_out",
+            extra={"event": "command.timed_out", "command": command, "cwd": cwd},
+        )
+        raise GitTransactionError(f"Command timed out: {' '.join(command)}") from exc
+    logger.info(
+        "command_completed",
+        extra={
+            "event": "command.completed",
+            "command": command,
+            "cwd": cwd,
+            "return_code": result.returncode,
+        },
+    )
+    return result
 
 
 def ensure_git_repo(
@@ -46,19 +81,20 @@ def ensure_git_repo(
     )
 
     if result.returncode != 0:
-        raise RuntimeError(
+        raise RepositoryError(
             f"{repo} is not a Git repository."
         )
 
 
 def get_repo(
     name: str,
+    repo_root: Path | None = None,
 ) -> Path:
 
-    repo = REPO_ROOT / name
+    repo = (repo_root or REPO_ROOT) / name
 
     if not repo.exists():
-        raise RuntimeError(
+        raise RepositoryError(
             f"Repository not found: {repo}"
         )
 
@@ -138,7 +174,7 @@ def create_agent_branch(
     """
 
     if not git_is_clean(repo):
-        raise RuntimeError(
+        raise DirtyRepositoryError(
             "Repository is not clean. "
             "Commit or discard existing changes first."
         )
@@ -146,7 +182,7 @@ def create_agent_branch(
     original_branch = git_current_branch(repo)
 
     if original_branch.startswith("agent/"):
-        raise RuntimeError(
+        raise GitTransactionError(
             "Refusing to create an agent branch from another "
             "agent branch. Merge, keep, or switch back to your "
             "normal development branch first."
@@ -166,7 +202,7 @@ def create_agent_branch(
     )
 
     if result.returncode != 0:
-        raise RuntimeError(
+        raise GitTransactionError(
             "Could not create agent branch:\n"
             + result.stdout
             + result.stderr
@@ -184,6 +220,7 @@ def rollback_agent_changes(
     starting_commit: str,
     original_branch: str | None = None,
     agent_branch: str | None = None,
+    keep_failed_branch: bool = False,
 ) -> None:
     """
     Restore the repository to the exact commit where the
@@ -193,24 +230,25 @@ def rollback_agent_changes(
     original branch and remove the failed temporary branch.
     """
 
-    run_command(
-        [
-            "git",
-            "reset",
-            "--hard",
-            starting_commit,
-        ],
-        repo,
-    )
+    if keep_failed_branch and agent_branch:
+        run_command(["git", "add", "-A"], repo)
+        preserved = run_command(
+            ["git", "commit", "-m", "agent: preserve failed changes for review"],
+            repo,
+        )
+        if preserved.returncode != 0 and not git_is_clean(repo):
+            raise GitTransactionError("Could not preserve failed agent branch: " + preserved.stderr)
+    else:
+        reset_result = run_command(
+            ["git", "reset", "--hard", starting_commit],
+            repo,
+        )
+        if reset_result.returncode != 0:
+            raise GitTransactionError("Could not reset failed agent changes: " + reset_result.stderr)
 
-    run_command(
-        [
-            "git",
-            "clean",
-            "-fd",
-        ],
-        repo,
-    )
+        clean_result = run_command(["git", "clean", "-fd"], repo)
+        if clean_result.returncode != 0:
+            raise GitTransactionError("Could not clean failed agent changes: " + clean_result.stderr)
 
     if (
         original_branch
@@ -227,9 +265,11 @@ def rollback_agent_changes(
             repo,
         )
 
-        if switch_result.returncode == 0:
+        if switch_result.returncode != 0:
+            raise GitTransactionError("Could not return to original branch: " + switch_result.stderr)
 
-            run_command(
+        if not keep_failed_branch:
+            delete_result = run_command(
                 [
                     "git",
                     "branch",
@@ -238,6 +278,8 @@ def rollback_agent_changes(
                 ],
                 repo,
             )
+            if delete_result.returncode != 0:
+                raise GitTransactionError("Could not delete failed agent branch: " + delete_result.stderr)
 
 
 def commit_agent_changes(
@@ -272,12 +314,30 @@ def commit_agent_changes(
     )
 
     if result.returncode != 0:
-        raise RuntimeError(
+        raise GitTransactionError(
             "Automatic commit failed:\n"
             + result.stdout
             + result.stderr
         )
 
+    return git_head(repo)
+
+
+def merge_agent_branch(
+    repo: Path,
+    original_branch: str,
+    agent_branch: str,
+) -> str:
+    """Fast-forward an approved successful agent branch and remove it."""
+    switch_result = run_command(["git", "switch", original_branch], repo)
+    if switch_result.returncode != 0:
+        raise GitTransactionError("Could not switch to review branch: " + switch_result.stderr)
+    merge_result = run_command(["git", "merge", "--ff-only", agent_branch], repo)
+    if merge_result.returncode != 0:
+        raise GitTransactionError("Approved fast-forward merge failed: " + merge_result.stderr)
+    delete_result = run_command(["git", "branch", "-d", agent_branch], repo)
+    if delete_result.returncode != 0:
+        raise GitTransactionError("Merged agent branch could not be deleted: " + delete_result.stderr)
     return git_head(repo)
 
 
@@ -425,7 +485,10 @@ def finalize_agent_run(
     starting_commit: str | None,
     original_branch: str | None = None,
     agent_branch: str | None = None,
-) -> None:
+    keep_failed_branch: bool = False,
+    auto_merge: bool = False,
+    merge_approved: bool = False,
+) -> GitTransactionSummary:
     """
     Finalize an autonomous coding-agent transaction.
 
@@ -441,14 +504,26 @@ def finalize_agent_run(
     if tests_passed:
 
         if not auto_commit:
-            return
+            return GitTransactionSummary(
+                outcome="review_required",
+                repository=repo,
+                original_branch=original_branch,
+                agent_branch=agent_branch,
+                starting_commit=starting_commit,
+            )
 
         if git_is_clean(repo):
             print(
                 "No repository changes remain; "
                 "nothing to commit."
             )
-            return
+            return GitTransactionSummary(
+                outcome="no_changes",
+                repository=repo,
+                original_branch=original_branch,
+                agent_branch=agent_branch,
+                starting_commit=starting_commit,
+            )
 
         commit_hash = commit_agent_changes(
             repo,
@@ -473,7 +548,33 @@ def finalize_agent_run(
             f"{commit_hash[:12]}"
         )
 
-        return
+        outcome = "committed"
+        if auto_merge:
+            if not merge_approved:
+                raise GitTransactionError("Automatic merge requires explicit approval")
+            if not original_branch or not agent_branch:
+                raise GitTransactionError("Automatic merge requires an isolated agent branch")
+            commit_hash = merge_agent_branch(repo, original_branch, agent_branch)
+            outcome = "merged"
+
+        if git_head(repo) != commit_hash or not git_is_clean(repo):
+            raise GitTransactionError("Final success verification failed")
+
+        summary = GitTransactionSummary(
+            outcome=outcome,
+            repository=repo,
+            original_branch=original_branch,
+            agent_branch=agent_branch,
+            starting_commit=starting_commit,
+            resulting_commit=commit_hash,
+        )
+        logger.info(
+            "git_transaction_completed",
+            extra={"event": "git.transaction.completed", "summary": summary},
+        )
+        print(f"Transaction outcome: {summary.outcome}")
+
+        return summary
 
     if (
         rollback_on_fail
@@ -498,12 +599,37 @@ def finalize_agent_run(
             starting_commit,
             original_branch,
             agent_branch,
+            keep_failed_branch,
         )
 
         print(
             "Final validation/tests failed. "
             "Agent changes were rolled back."
         )
+
+        summary = GitTransactionSummary(
+            outcome="failed_preserved" if keep_failed_branch else "rolled_back",
+            repository=repo,
+            original_branch=original_branch,
+            agent_branch=agent_branch,
+            starting_commit=starting_commit,
+            rolled_back=not keep_failed_branch,
+            failed_branch_kept=keep_failed_branch,
+        )
+        logger.info(
+            "git_transaction_completed",
+            extra={"event": "git.transaction.completed", "summary": summary},
+        )
+        print(f"Transaction outcome: {summary.outcome}")
+        return summary
+
+    return GitTransactionSummary(
+        outcome="failed_unmodified",
+        repository=repo,
+        original_branch=original_branch,
+        agent_branch=agent_branch,
+        starting_commit=starting_commit,
+    )
 
 
 def git_diff(
@@ -579,6 +705,7 @@ def save_patch(
     repo_name: str,
     diff: str,
     suffix: str = "proposed",
+    patch_dir: Path | None = None,
 ) -> Path:
 
     safe_name = repo_name.replace(
@@ -591,8 +718,10 @@ def save_patch(
         diff,
     )
 
+    destination = patch_dir or PATCH_DIR
+    destination.mkdir(parents=True, exist_ok=True)
     patch_file = (
-        PATCH_DIR
+        destination
         / f"{safe_name}_{suffix}.patch"
     )
 
@@ -626,6 +755,11 @@ def check_patch(
 
     if result.returncode == 0:
 
+        logger.info(
+            "patch_validation_passed",
+            extra={"event": "agent.patch.validation_passed", "patch": patch_file},
+        )
+
         print(
             "Patch validation: PASS"
         )
@@ -634,6 +768,10 @@ def check_patch(
 
     print(
         "Patch validation: FAIL"
+    )
+    logger.error(
+        "patch_validation_failed",
+        extra={"event": "agent.patch.validation_failed", "patch": patch_file},
     )
 
     if result.stderr:
@@ -671,6 +809,10 @@ def apply_patch(
     print(
         "Patch applied successfully."
     )
+    logger.info(
+        "patch_applied",
+        extra={"event": "agent.patch.applied", "patch": patch_file},
+    )
 
     return True
 
@@ -686,6 +828,7 @@ def detect_and_run_tests(
     str,
 ]:
 
+    logger.info("test_detection_started", extra={"event": "agent.tests.detection_started"})
     print()
     print(
         "Detecting test environment..."
@@ -721,6 +864,15 @@ def detect_and_run_tests(
             + result.stderr
         ).strip()
 
+        logger.info(
+            "tests_completed",
+            extra={
+                "event": "agent.tests.completed",
+                "framework": "pytest",
+                "return_code": result.returncode,
+            },
+        )
+
         print(output)
 
         return (
@@ -754,6 +906,15 @@ def detect_and_run_tests(
             + "\n"
             + result.stderr
         ).strip()
+
+        logger.info(
+            "tests_completed",
+            extra={
+                "event": "agent.tests.completed",
+                "framework": "cargo",
+                "return_code": result.returncode,
+            },
+        )
 
         print(output)
 
@@ -791,6 +952,15 @@ def detect_and_run_tests(
             + result.stderr
         ).strip()
 
+        logger.info(
+            "tests_completed",
+            extra={
+                "event": "agent.tests.completed",
+                "framework": "npm",
+                "return_code": result.returncode,
+            },
+        )
+
         print(output)
 
         return (
@@ -812,13 +982,13 @@ def detect_and_run_tests(
 # INDEX REFRESH
 # ============================================================
 
-def reindex_repository():
+def reindex_repository(config: AppConfig | None = None):
     print()
     print(
         "Refreshing repository index..."
     )
 
-    rag = CodeRAG()
+    rag = CodeRAG(config=config)
 
     rag.reindex()
 
@@ -1010,8 +1180,7 @@ def print_sources(
 # MAIN
 # ============================================================
 
-def main():
-
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Local Qwen repository coding agent"
@@ -1083,11 +1252,60 @@ def main():
         help="Run structural validation on changed source files.",
     )
 
+    parser.add_argument(
+        "--keep-failed-branch",
+        action="store_true",
+        help="Preserve failed changes in a review commit on the agent branch.",
+    )
 
-    args = parser.parse_args()
+    parser.add_argument(
+        "--human-review",
+        action="store_true",
+        help="Apply and verify changes but never commit or merge automatically.",
+    )
+
+    parser.add_argument(
+        "--auto-merge",
+        action="store_true",
+        help="Fast-forward an isolated successful branch after explicit approval.",
+    )
+
+    parser.add_argument(
+        "--approve-merge",
+        action="store_true",
+        help="Explicit approval required together with --auto-merge.",
+    )
+
+    return parser
+
+
+def main(argv: list[str] | None = None):
+    config = get_config()
+    configure_logging(config.runtime)
+    parser = build_parser()
+
+    args = parser.parse_args(argv)
+
+    if args.human_review:
+        args.auto_commit = False
+        args.auto_merge = False
+    if args.auto_merge and not (
+        args.approve_merge and args.auto_commit and args.branch and args.test
+    ):
+        parser.error(
+            "--auto-merge requires --approve-merge, --auto-commit, --branch, and --test"
+        )
+
+    finalize_run = partial(
+        finalize_agent_run,
+        keep_failed_branch=args.keep_failed_branch,
+        auto_merge=args.auto_merge,
+        merge_approved=args.approve_merge,
+    )
 
     repo = get_repo(
-        args.repo
+        args.repo,
+        config.paths.code_repo_dir,
     )
 
     # --------------------------------------------------------
@@ -1178,7 +1396,7 @@ def main():
         "Loading repository index..."
     )
 
-    rag = CodeRAG()
+    rag = CodeRAG(config=config)
 
     print(
         "Refreshing repository index before patch generation..."
@@ -1235,6 +1453,7 @@ def main():
         args.repo,
         diff,
         "proposed",
+        config.paths.patch_dir,
     )
 
     print()
@@ -1331,21 +1550,16 @@ def main():
                 "Structural validation: FAIL"
             )
 
-            if (
-                args.rollback_on_fail
-                and starting_commit
-            ):
-
-                rollback_agent_changes(
-                    repo,
-                    starting_commit,
-                    original_branch,
-                    agent_branch,
-                )
-
-                print(
-                    "Agent changes rolled back."
-                )
+            finalize_run(
+                repo=repo,
+                request=args.request,
+                tests_passed=False,
+                auto_commit=args.auto_commit,
+                rollback_on_fail=args.rollback_on_fail,
+                starting_commit=starting_commit,
+                original_branch=original_branch,
+                agent_branch=agent_branch,
+            )
 
             sys.exit(1)
 
@@ -1375,7 +1589,7 @@ def main():
     # Re-index immediately after edit.
     # --------------------------------------------------------
 
-    rag = reindex_repository()
+    rag = reindex_repository(config)
 
     # --------------------------------------------------------
     # No tests requested.
@@ -1422,7 +1636,7 @@ def main():
             "Coding-agent cycle completed successfully."
         )
 
-        finalize_agent_run(
+        finalize_run(
             repo=repo,
             request=args.request,
             tests_passed=True,
@@ -1455,7 +1669,7 @@ def main():
             "one repair attempt."
         )
 
-        finalize_agent_run(
+        finalize_run(
             repo=repo,
             request=args.request,
             tests_passed=False,
@@ -1504,7 +1718,7 @@ def main():
             "INSUFFICIENT_CONTEXT."
         )
 
-        finalize_agent_run(
+        finalize_run(
             repo=repo,
             request=args.request,
             tests_passed=False,
@@ -1533,7 +1747,7 @@ def main():
             repair_answer
         )
 
-        finalize_agent_run(
+        finalize_run(
             repo=repo,
             request=args.request,
             tests_passed=False,
@@ -1550,6 +1764,7 @@ def main():
         args.repo,
         repair_diff,
         "repair",
+        config.paths.patch_dir,
     )
 
     print()
@@ -1574,7 +1789,7 @@ def main():
             "Repair patch rejected."
         )
 
-        finalize_agent_run(
+        finalize_run(
             repo=repo,
             request=args.request,
             tests_passed=False,
@@ -1592,7 +1807,7 @@ def main():
         repair_patch,
     ):
 
-        finalize_agent_run(
+        finalize_run(
             repo=repo,
             request=args.request,
             tests_passed=False,
@@ -1637,21 +1852,16 @@ def main():
                 "Repair structural validation: FAIL"
             )
 
-            if (
-                args.rollback_on_fail
-                and starting_commit
-            ):
-
-                rollback_agent_changes(
-                    repo,
-                    starting_commit,
-                    original_branch,
-                    agent_branch,
-                )
-
-                print(
-                    "Agent changes rolled back."
-                )
+            finalize_run(
+                repo=repo,
+                request=args.request,
+                tests_passed=False,
+                auto_commit=args.auto_commit,
+                rollback_on_fail=args.rollback_on_fail,
+                starting_commit=starting_commit,
+                original_branch=original_branch,
+                agent_branch=agent_branch,
+            )
 
             sys.exit(return_code)
 
@@ -1663,7 +1873,7 @@ def main():
     # Refresh index after repair.
     # --------------------------------------------------------
 
-    rag = reindex_repository()
+    rag = reindex_repository(config)
 
     # --------------------------------------------------------
     # Run tests once more.
@@ -1691,7 +1901,7 @@ def main():
             git_diff(repo)
         )
 
-        finalize_agent_run(
+        finalize_run(
             repo=repo,
             request=args.request,
             tests_passed=True,
@@ -1720,7 +1930,7 @@ def main():
         "automatic repair attempt."
     )
 
-    finalize_agent_run(
+    finalize_run(
         repo=repo,
         request=args.request,
         tests_passed=False,

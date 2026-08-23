@@ -1,6 +1,6 @@
 # Architecture
 
-## Current Stage 0 system
+## Current Stage 1 system
 
 ```text
 Qwen GGUF
@@ -12,15 +12,19 @@ TurboQuant llama-server (127.0.0.1:8080)
    └── code RAG ── transactional patch agent ── target Git repository
 ```
 
-`local_ai_assistant.llm` is the only model-client boundary. `rag` extracts supported documents, selectively OCRs PDFs, chunks with the embedding tokenizer, and combines FAISS and BM25 ranks with RRF. `code_index` applies the same hybrid strategy to line-based source chunks. `agent` treats model diffs as untrusted: it checks and optionally applies them, validates Python structure, detects tests, permits one repair, and can transact on an isolated branch with commit or rollback.
+`local_ai_assistant.common.config` is the typed configuration boundary. Frozen dataclasses represent llama-server metadata, runtime paths, embedding, document/code retrieval, OCR, UI, and runtime/test settings. Components accept an `AppConfig` snapshot and injectable model/embedder dependencies; environment variables remain the deployment interface.
 
-`ui/streamlit/app.py` is the document-chat interface. `config/services` contains non-installed sanitized systemd examples. Runtime documents, indexes, patches, repositories, and logs live under environment-selected directories, defaulting to ignored `var/` paths.
+`local_ai_assistant.llm` is the only model-client boundary. `rag` extracts supported documents, selectively OCRs PDFs, chunks with the embedding tokenizer, and combines FAISS and BM25 ranks with RRF. `code_index` applies the same hybrid strategy to line-based source chunks. `agent` treats model diffs as untrusted: it refreshes the index, preflights and optionally applies patches, validates Python structure, detects tests, permits one repair, and transacts on isolated branches with verified commit, deterministic rollback, optional failed-branch retention, or explicitly approved fast-forward merge.
+
+`local_ai_assistant.ui.app` is the canonical document-chat interface and `local-ai-ui` is its configured launcher. Root files and `ui/streamlit/app.py` are thin compatibility wrappers. `config/services` contains non-installed sanitized systemd examples. Runtime documents, indexes, patches, repositories, and logs live under environment-selected directories, defaulting to ignored `var/` paths.
+
+`local_ai_assistant.common.logging` emits structured event records for LLM requests, indexing/retrieval/OCR, commands, tests, patches, UI startup, and Git transaction outcomes. Existing CLI progress text remains intact for compatibility. Expected operational failures use the explicit `LocalAIError` hierarchy.
 
 The `examples/demo-app` fixture is imported without its nested Git database. It demonstrates the existing code-agent test target, not production authentication design.
 
 ## Deployment compatibility
 
-Stage 0 does not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding.
+Stages 0 and 1 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template now invokes the packaged launcher.
 
 ## Target architecture
 
