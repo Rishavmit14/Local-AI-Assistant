@@ -229,6 +229,7 @@ class ImplementationPlan:
 class ScopeGuardPolicy:
     allowed_files: tuple[str, ...]
     allowed_symbols: tuple[str, ...]
+    allowed_new_symbols: tuple[str, ...]
     allowed_new_files: tuple[str, ...]
     allowed_deletes_or_renames: tuple[str, ...]
     max_file_count: int

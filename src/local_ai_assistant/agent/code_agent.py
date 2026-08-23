@@ -17,10 +17,15 @@ from local_ai_assistant.common.errors import (
 from local_ai_assistant.common.logging import configure_logging, get_logger
 from local_ai_assistant.common.models import GitTransactionSummary
 from local_ai_assistant.planning import PlannerService
+from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import (
     ApprovalStatus,
     IssueSeverity,
     plan_approval_token,
+)
+from local_ai_assistant.planning.patch_scope import (
+    extract_patch_scope,
+    validate_patch_scope,
 )
 
 _DEFAULT_CONFIG = get_config()
@@ -1530,6 +1535,23 @@ def main(argv: list[str] | None = None):
     ):
 
         sys.exit(1)
+
+    patch_scope = extract_patch_scope(
+        patch_file.read_text(encoding="utf-8"),
+        tuple(rag.symbol_index.symbols),
+        planner.analyzer.index_prefix or "",
+    )
+    scope_issues = validate_patch_scope(
+        scope_guard_from_plan(artifact.plan),
+        patch_scope,
+    )
+    if scope_issues:
+        print("Patch scope validation: FAIL")
+        for issue in scope_issues:
+            print(f"- {issue}")
+        print("Nothing has been modified.")
+        sys.exit(1)
+    print("Patch scope validation: PASS")
 
     # --------------------------------------------------------
     # Proposal-only mode.

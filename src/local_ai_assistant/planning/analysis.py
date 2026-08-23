@@ -24,17 +24,41 @@ from .models import (
 )
 
 DEPENDENCY_NAMES = {
-    "pyproject.toml", "package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-    "cargo.toml", "cargo.lock", "foundry.toml",
+    "pyproject.toml",
+    "package.json",
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "cargo.toml",
+    "cargo.lock",
+    "foundry.toml",
 }
 PROTECTED_PARTS = {".git", ".venv", "venv", "__pycache__", "node_modules", "var"}
 SECURITY_WORDS = {
-    "auth", "permission", "secret", "credential", "crypto", "token", "password",
-    "shell", "subprocess", "network", "delete", "unlink", "private key", "contract",
+    "auth",
+    "permission",
+    "secret",
+    "credential",
+    "crypto",
+    "token",
+    "password",
+    "shell",
+    "subprocess",
+    "network",
+    "delete",
+    "unlink",
+    "private key",
+    "contract",
 }
 CRITICAL_WORDS = {
-    "drop table", "drop column", "production credential", "private key", "fund transfer",
-    "payment", "irreversible", "selfdestruct",
+    "drop table",
+    "drop column",
+    "production credential",
+    "private key",
+    "fund transfer",
+    "payment",
+    "irreversible",
+    "selfdestruct",
 }
 HIGH_RISK_WORDS = {
     "breaking public api",
@@ -45,8 +69,16 @@ HIGH_RISK_WORDS = {
     "deadlock",
 }
 MIGRATION_WORDS = {
-    "migration", "migrations", "alembic", "schema", "alter table", "drop table",
-    "drop column", "rename column", "django migration", "data migration",
+    "migration",
+    "migrations",
+    "alembic",
+    "schema",
+    "alter table",
+    "drop table",
+    "drop column",
+    "rename column",
+    "django migration",
+    "data migration",
 }
 MAX_NAME_MATCHES = 24
 MAX_GRAPH_RELATIONSHIPS = 12
@@ -55,12 +87,23 @@ MAX_GRAPH_RELATIONSHIPS = 12
 def is_dependency_file(path: str) -> bool:
     value = PurePosixPath(path)
     name = value.name.lower()
-    return name in DEPENDENCY_NAMES or name.startswith("requirements") and name.endswith(".txt") or "requirements" in value.parts and name.endswith(".txt") or "systemd" in path.lower() or path.startswith("scripts/bootstrap/") or path.startswith("scripts/install/")
+    return (
+        name in DEPENDENCY_NAMES
+        or name.startswith("requirements")
+        and name.endswith(".txt")
+        or "requirements" in value.parts
+        and name.endswith(".txt")
+        or "systemd" in path.lower()
+        or path.startswith("scripts/bootstrap/")
+        or path.startswith("scripts/install/")
+    )
 
 
 def is_protected_path(path: str) -> bool:
     parts = PurePosixPath(path).parts
-    return any(part in PROTECTED_PARTS for part in parts) or path.endswith((".min.js", ".generated.py"))
+    return any(part in PROTECTED_PARTS for part in parts) or path.endswith(
+        (".min.js", ".generated.py")
+    )
 
 
 def detect_migration(request: str, paths: tuple[str, ...] = ()) -> tuple[str, ...]:
@@ -73,7 +116,9 @@ def detect_migration(request: str, paths: tuple[str, ...] = ()) -> tuple[str, ..
 
 def detect_security(request: str, paths: tuple[str, ...] = ()) -> tuple[str, ...]:
     text = " ".join((request, *paths)).lower()
-    return tuple(f"Security-sensitive signal: {word}" for word in sorted(SECURITY_WORDS) if word in text)
+    return tuple(
+        f"Security-sensitive signal: {word}" for word in sorted(SECURITY_WORDS) if word in text
+    )
 
 
 class ScopeAnalyzer:
@@ -95,13 +140,29 @@ class ScopeAnalyzer:
             exact = [item for item in self.symbols.find_exact(name) if self._in_repository(item)]
             direct_symbols.extend(exact)
             for symbol in exact:
-                self._add(candidates, symbol, "Identifier appears exactly in request.", "exact_symbol", 1.0, 0.98, ScopeRole.DIRECT)
+                self._add(
+                    candidates,
+                    symbol,
+                    "Identifier appears exactly in request.",
+                    "exact_symbol",
+                    1.0,
+                    0.98,
+                    ScopeRole.DIRECT,
+                )
         name_match_count = 0
         for name in (item for item in identifiers if len(item) >= 3):
             for symbol in self.symbols.search_name(name, 20):
                 if not self._in_repository(symbol):
                     continue
-                self._add(candidates, symbol, "Symbol name matches a request term.", "name_match", None, 0.8, ScopeRole.DIRECT)
+                self._add(
+                    candidates,
+                    symbol,
+                    "Symbol name matches a request term.",
+                    "name_match",
+                    None,
+                    0.8,
+                    ScopeRole.DIRECT,
+                )
                 name_match_count += 1
                 if name_match_count >= MAX_NAME_MATCHES:
                     break
@@ -109,11 +170,25 @@ class ScopeAnalyzer:
                 break
         normalized_request = request.lower()
         for indexed_path in self.symbols.repository_map():
-            if self.index_prefix is None or self.index_prefix and not indexed_path.startswith(self.index_prefix):
+            if (
+                self.index_prefix is None
+                or self.index_prefix
+                and not indexed_path.startswith(self.index_prefix)
+            ):
                 continue
             relative = self._relative_path(indexed_path)
-            if relative.lower() in normalized_request or PurePosixPath(relative).name.lower() in normalized_request:
-                self._add_path(candidates, indexed_path, "Repository map path is explicitly named in the request.", "repository_map", 0.92, ScopeRole.DIRECT)
+            if (
+                relative.lower() in normalized_request
+                or PurePosixPath(relative).name.lower() in normalized_request
+            ):
+                self._add_path(
+                    candidates,
+                    indexed_path,
+                    "Repository map path is explicitly named in the request.",
+                    "repository_map",
+                    0.92,
+                    ScopeRole.DIRECT,
+                )
         for result in self.symbols.hybrid_search(request, 8):
             if not self._in_repository(result["symbol"]):
                 continue
@@ -140,7 +215,15 @@ class ScopeAnalyzer:
                     related_id = call.caller if relationship == "caller" else call.callee
                     related = self._symbol(related_id)
                     if related:
-                        self._add(candidates, related, f"Static {relationship} of {symbol.qualified_name}.", relationship, None, 0.72, ScopeRole.DEPENDENT)
+                        self._add(
+                            candidates,
+                            related,
+                            f"Static {relationship} of {symbol.qualified_name}.",
+                            relationship,
+                            None,
+                            0.72,
+                            ScopeRole.DEPENDENT,
+                        )
                     elif relationship == "callee":
                         self._add_unresolved_call(candidates, symbol, call)
             module = self.symbols.containing_module(symbol.identifier)
@@ -150,11 +233,22 @@ class ScopeAnalyzer:
                 for importer in self.symbols.imported_by(local_module_name)[
                     :MAX_GRAPH_RELATIONSHIPS
                 ]:
-                    if self.index_prefix is None or self.index_prefix and not importer.startswith(self.index_prefix):
+                    if (
+                        self.index_prefix is None
+                        or self.index_prefix
+                        and not importer.startswith(self.index_prefix)
+                    ):
                         continue
                     if self._is_test_path(self._relative_path(importer)):
                         continue
-                    self._add_path(candidates, importer, f"Imports affected module {local_module_name}.", "reverse_import", 0.68, ScopeRole.DEPENDENT)
+                    self._add_path(
+                        candidates,
+                        importer,
+                        f"Imports affected module {local_module_name}.",
+                        "reverse_import",
+                        0.68,
+                        ScopeRole.DEPENDENT,
+                    )
                 for imported in self.symbols.imports_of(module.path):
                     imported_module = next(
                         (
@@ -167,14 +261,29 @@ class ScopeAnalyzer:
                         None,
                     )
                     if imported_module:
-                        self._add(candidates, imported_module, f"Imported by affected module {module_name}.", "import", None, 0.6, ScopeRole.OPTIONAL)
+                        self._add(
+                            candidates,
+                            imported_module,
+                            f"Imported by affected module {module_name}.",
+                            "import",
+                            None,
+                            0.6,
+                            ScopeRole.OPTIONAL,
+                        )
         self._add_tests(candidates, direct_symbols)
-        if not any(item.role is ScopeRole.DIRECT for item in candidates.values()) and self.legacy_retrieve:
+        if (
+            not any(item.role is ScopeRole.DIRECT for item in candidates.values())
+            and self.legacy_retrieve
+        ):
             for result in self.legacy_retrieve(request):
                 if result.get("retrieval_method") != "line_chunk_fallback":
                     continue
                 source = result["source"]
-                if self.index_prefix is None or self.index_prefix and not source.startswith(self.index_prefix):
+                if (
+                    self.index_prefix is None
+                    or self.index_prefix
+                    and not source.startswith(self.index_prefix)
+                ):
                     continue
                 candidate = ScopeCandidate(
                     self._relative_path(source),
@@ -194,10 +303,24 @@ class ScopeAnalyzer:
                     ScopeRole.OPTIONAL,
                 )
                 candidates[(candidate.path, None, candidate.relationship)] = candidate
-        return tuple(sorted(candidates.values(), key=lambda item: (list(ScopeRole).index(item.role), -item.confidence, item.path, item.qualified_name or "")))
+        return tuple(
+            sorted(
+                candidates.values(),
+                key=lambda item: (
+                    list(ScopeRole).index(item.role),
+                    -item.confidence,
+                    item.path,
+                    item.qualified_name or "",
+                ),
+            )
+        )
 
     def _add_tests(self, candidates, direct_symbols):
-        modules = {self.symbols.containing_module(item.identifier).qualified_name for item in direct_symbols if self.symbols.containing_module(item.identifier)}
+        modules = {
+            self.symbols.containing_module(item.identifier).qualified_name
+            for item in direct_symbols
+            if self.symbols.containing_module(item.identifier)
+        }
         names = {item.name for item in direct_symbols}
         for path in self.repository.rglob("test*.py"):
             if not path.is_file():
@@ -206,7 +329,14 @@ class ScopeAnalyzer:
             text = path.read_text(encoding="utf-8", errors="replace")
             matched = sorted(name for name in names | modules if name and name in text)
             if matched:
-                self._add_path(candidates, relative, f"Test references affected code: {', '.join(matched)}.", "relevant_test", 0.84, ScopeRole.DEPENDENT)
+                self._add_path(
+                    candidates,
+                    relative,
+                    f"Test references affected code: {', '.join(matched)}.",
+                    "relevant_test",
+                    0.84,
+                    ScopeRole.DEPENDENT,
+                )
 
     def _add(
         self,
@@ -227,12 +357,32 @@ class ScopeAnalyzer:
             "symbol_identifier": symbol.identifier,
         }
         provenance.update(extra_provenance or {})
-        candidate = ScopeCandidate(path, symbol.identifier, symbol.qualified_name, reason, relationship, score, provenance, confidence, role)
+        candidate = ScopeCandidate(
+            path,
+            symbol.identifier,
+            symbol.qualified_name,
+            reason,
+            relationship,
+            score,
+            provenance,
+            confidence,
+            role,
+        )
         candidates[(candidate.path, candidate.symbol_id, relationship)] = candidate
 
     def _add_path(self, candidates, path, reason, relationship, confidence, role):
         path = self._relative_path(path)
-        candidate = ScopeCandidate(path, None, None, reason, relationship, None, {"source": path, "line_start": 1, "line_end": 1, "symbol_identifier": None}, confidence, role)
+        candidate = ScopeCandidate(
+            path,
+            None,
+            None,
+            reason,
+            relationship,
+            None,
+            {"source": path, "line_start": 1, "line_end": 1, "symbol_identifier": None},
+            confidence,
+            role,
+        )
         candidates[(path, None, relationship)] = candidate
 
     def _add_unresolved_call(self, candidates, symbol, call):
@@ -259,7 +409,14 @@ class ScopeAnalyzer:
         candidates[key] = candidate
 
     def _symbol(self, identifier):
-        return next((item for item in self.symbols.symbols if identifier and item.identifier == identifier and self._in_repository(item)), None)
+        return next(
+            (
+                item
+                for item in self.symbols.symbols
+                if identifier and item.identifier == identifier and self._in_repository(item)
+            ),
+            None,
+        )
 
     def _in_repository(self, symbol: SymbolRecord) -> bool:
         return self.index_prefix is not None and (
@@ -267,7 +424,11 @@ class ScopeAnalyzer:
         )
 
     def _relative_path(self, path: str) -> str:
-        return path[len(self.index_prefix):] if self.index_prefix and path.startswith(self.index_prefix) else path
+        return (
+            path[len(self.index_prefix) :]
+            if self.index_prefix and path.startswith(self.index_prefix)
+            else path
+        )
 
     def _module_name(self, path: str) -> str:
         from local_ai_assistant.code_index.python_parser import PythonSymbolExtractor
@@ -280,9 +441,16 @@ class ScopeAnalyzer:
         return "tests" in value.parts or value.name.startswith("test_")
 
 
-def assess_confidence(classification: TaskClassification, candidates: tuple[ScopeCandidate, ...], warning_count: int = 0, unresolved_questions: int = 0) -> ConfidenceAssessment:
+def assess_confidence(
+    classification: TaskClassification,
+    candidates: tuple[ScopeCandidate, ...],
+    warning_count: int = 0,
+    unresolved_questions: int = 0,
+) -> ConfidenceAssessment:
     exact = sum(item.relationship == "exact_symbol" for item in candidates)
-    graph = sum(item.relationship in {"caller", "callee", "import", "reverse_import"} for item in candidates)
+    graph = sum(
+        item.relationship in {"caller", "callee", "import", "reverse_import"} for item in candidates
+    )
     tests = sum(item.relationship == "relevant_test" for item in candidates)
     unresolved = sum(item.role is ScopeRole.UNRESOLVED for item in candidates)
     factors = {
@@ -291,12 +459,20 @@ def assess_confidence(classification: TaskClassification, candidates: tuple[Scop
         "graph_support": min(1.0, graph / 3),
         "test_support": min(1.0, tests / 2),
         "unresolved_evidence": min(1.0, unresolved / 3),
-        "ambiguity_penalty": min(
-            1.0, (warning_count + unresolved_questions + unresolved) / 5
-        ),
+        "ambiguity_penalty": min(1.0, (warning_count + unresolved_questions + unresolved) / 5),
     }
-    score = 0.3 * factors["classification"] + 0.35 * factors["exact_symbol_coverage"] + 0.15 * factors["graph_support"] + 0.1 * factors["test_support"] + 0.1 * (1 - factors["ambiguity_penalty"])
-    return ConfidenceAssessment(round(max(0.0, min(1.0, score)), 3), factors, ("Heuristic planning confidence; not a probability.",))
+    score = (
+        0.3 * factors["classification"]
+        + 0.35 * factors["exact_symbol_coverage"]
+        + 0.15 * factors["graph_support"]
+        + 0.1 * factors["test_support"]
+        + 0.1 * (1 - factors["ambiguity_penalty"])
+    )
+    return ConfidenceAssessment(
+        round(max(0.0, min(1.0, score)), 3),
+        factors,
+        ("Heuristic planning confidence; not a probability.",),
+    )
 
 
 def assess_risk(
@@ -315,12 +491,24 @@ def assess_risk(
     reasons: list[str] = []
     if critical:
         level = RiskLevel.CRITICAL
-        reasons.append("Critical irreversible/value/credential signal: " + ", ".join(sorted(critical)))
-    elif security or migration or dependency or elevated or delete_or_rename_targets or classification.category in {
-        TaskCategory.AUTHENTICATION_AUTHORIZATION, TaskCategory.SECURITY_SENSITIVE,
-        TaskCategory.DATABASE_MIGRATION, TaskCategory.DEPLOYMENT_OPERATIONS,
-        TaskCategory.DEPENDENCY_CHANGE,
-    }:
+        reasons.append(
+            "Critical irreversible/value/credential signal: " + ", ".join(sorted(critical))
+        )
+    elif (
+        security
+        or migration
+        or dependency
+        or elevated
+        or delete_or_rename_targets
+        or classification.category
+        in {
+            TaskCategory.AUTHENTICATION_AUTHORIZATION,
+            TaskCategory.SECURITY_SENSITIVE,
+            TaskCategory.DATABASE_MIGRATION,
+            TaskCategory.DEPLOYMENT_OPERATIONS,
+            TaskCategory.DEPENDENCY_CHANGE,
+        }
+    ):
         level = RiskLevel.HIGH
         reasons.extend((*security, *migration))
         if elevated:
@@ -332,25 +520,51 @@ def assess_risk(
                 "Delete/rename targets require review: "
                 + ", ".join(sorted(delete_or_rename_targets))
             )
-    elif paths and all(path.lower().startswith(("docs/", "tests/")) or PurePosixPath(path).name.lower() in {"readme.md"} for path in paths):
+    elif paths and all(
+        path.lower().startswith(("docs/", "tests/"))
+        or PurePosixPath(path).name.lower() in {"readme.md"}
+        for path in paths
+    ):
         level = RiskLevel.LOW
         reasons.append("Scope is limited to documentation/tests.")
     else:
         level = RiskLevel.MEDIUM
         reasons.append("Ordinary application or internal API scope.")
-    return RiskAssessment(level, tuple(dict.fromkeys(reasons)) or ("No elevated deterministic risk signal.",), bool(security), dependency, bool(migration))
+    return RiskAssessment(
+        level,
+        tuple(dict.fromkeys(reasons)) or ("No elevated deterministic risk signal.",),
+        bool(security),
+        dependency,
+        bool(migration),
+    )
 
 
-def decide_approval(risk: RiskAssessment, confidence: ConfidenceAssessment, issues: tuple[ValidationIssue, ...], scope_size: int, unresolved_questions: int) -> ApprovalDecision:
+def decide_approval(
+    risk: RiskAssessment,
+    confidence: ConfidenceAssessment,
+    issues: tuple[ValidationIssue, ...],
+    scope_size: int,
+    unresolved_questions: int,
+) -> ApprovalDecision:
     if any(issue.severity.value == "error" for issue in issues):
         return ApprovalDecision(ApprovalStatus.REJECTED, ("Plan validation contains errors.",))
     if risk.level is RiskLevel.CRITICAL:
-        return ApprovalDecision(ApprovalStatus.BLOCKED, ("Critical-risk work requires explicit approval.",))
+        return ApprovalDecision(
+            ApprovalStatus.BLOCKED, ("Critical-risk work requires explicit approval.",)
+        )
     if risk.level is RiskLevel.HIGH:
-        return ApprovalDecision(ApprovalStatus.REVIEW, ("High-risk work requires human review before patch generation.",))
+        return ApprovalDecision(
+            ApprovalStatus.REVIEW,
+            ("High-risk work requires human review before patch generation.",),
+        )
     if confidence.score < 0.45 or unresolved_questions or scope_size > 12:
-        return ApprovalDecision(ApprovalStatus.REVIEW, ("Low confidence, ambiguity, or broad scope requires review.",))
-    return ApprovalDecision(ApprovalStatus.AUTOMATIC, ("Validated low/medium-risk scope has sufficient deterministic support.",))
+        return ApprovalDecision(
+            ApprovalStatus.REVIEW, ("Low confidence, ambiguity, or broad scope requires review.",)
+        )
+    return ApprovalDecision(
+        ApprovalStatus.AUTOMATIC,
+        ("Validated low/medium-risk scope has sufficient deterministic support.",),
+    )
 
 
 def scope_guard_from_plan(plan: ImplementationPlan) -> ScopeGuardPolicy:
@@ -359,12 +573,28 @@ def scope_guard_from_plan(plan: ImplementationPlan) -> ScopeGuardPolicy:
         "**/*.min.js",
         "**/*.generated.py",
     )
-    return ScopeGuardPolicy(files, tuple(dict.fromkeys(plan.symbols_to_modify)), tuple(dict.fromkeys(plan.files_to_create)), tuple(dict.fromkeys(plan.files_to_delete_or_rename)), max(1, len(set((*files, *plan.files_to_create, *plan.files_to_delete_or_rename)))), max(1, len(set(plan.symbols_to_modify))), protected, "approval_required" if plan.dependency_changes else "deny_unplanned", "deny", "approval_required")
+    return ScopeGuardPolicy(
+        files,
+        tuple(dict.fromkeys(plan.symbols_to_modify)),
+        tuple(dict.fromkeys(plan.symbols_to_create)),
+        tuple(dict.fromkeys(plan.files_to_create)),
+        tuple(dict.fromkeys(plan.files_to_delete_or_rename)),
+        max(1, len(set((*files, *plan.files_to_create, *plan.files_to_delete_or_rename)))),
+        max(1, len(set((*plan.symbols_to_modify, *plan.symbols_to_create)))),
+        protected,
+        "approval_required" if plan.dependency_changes else "deny_unplanned",
+        "deny",
+        "approval_required",
+    )
 
 
-def compare_scope(policy: ScopeGuardPolicy, changed_files: tuple[str, ...], changed_symbols: tuple[str, ...] = ()) -> tuple[str, ...]:
+def compare_scope(
+    policy: ScopeGuardPolicy, changed_files: tuple[str, ...], changed_symbols: tuple[str, ...] = ()
+) -> tuple[str, ...]:
     issues = []
-    allowed = set((*policy.allowed_files, *policy.allowed_new_files, *policy.allowed_deletes_or_renames))
+    allowed = set(
+        (*policy.allowed_files, *policy.allowed_new_files, *policy.allowed_deletes_or_renames)
+    )
     unexpected = set(changed_files) - allowed
     if unexpected:
         issues.append("Unplanned files: " + ", ".join(sorted(unexpected)))

@@ -34,6 +34,7 @@ from local_ai_assistant.planning.models import (
     TaskCategory,
     plan_approval_token,
 )
+from local_ai_assistant.planning.patch_scope import extract_patch_scope, validate_patch_scope
 from local_ai_assistant.planning.service import PlanGenerationError, PlannerService
 from local_ai_assistant.planning.validation import PlanValidator
 
@@ -434,6 +435,43 @@ def test_scope_guard_detects_unplanned_diff(planning_repo):
     assert "app/api.py" not in inspect_policy.allowed_files
     assert compare_scope(inspect_policy, ("app/api.py",))
     assert compare_scope(inspect_policy, ("var/generated.py",))
+
+
+def test_generated_patch_is_checked_against_planned_files_and_symbols(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(
+        repo, index, FakeLLM(response_for(index)), root / "plans"
+    ).generate("Fix login_user")
+    diff = """diff --git a/app/service.py b/app/service.py
+--- a/app/service.py
++++ b/app/service.py
+@@ -1,2 +1,2 @@
+-def login_user(name):
++def login_user(username):
+     return bool(name)
+"""
+    scope = extract_patch_scope(diff, tuple(index.symbols), "demo/")
+    policy = scope_guard_from_plan(artifact.plan)
+    assert scope.modified_files == ("app/service.py",)
+    assert artifact.plan.symbols_to_modify[0] in scope.changed_symbols
+    assert validate_patch_scope(policy, scope) == ()
+
+
+def test_generated_patch_rejects_unplanned_file_before_apply(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(
+        repo, index, FakeLLM(response_for(index)), root / "plans"
+    ).generate("Fix login_user")
+    diff = """diff --git a/app/unplanned.py b/app/unplanned.py
+new file mode 100644
+--- /dev/null
++++ b/app/unplanned.py
+@@ -0,0 +1 @@
++value = 1
+"""
+    scope = extract_patch_scope(diff, tuple(index.symbols), "demo/")
+    issues = validate_patch_scope(scope_guard_from_plan(artifact.plan), scope)
+    assert any("Unplanned created" in issue for issue in issues)
 
 
 def test_unresolved_static_evidence_reduces_confidence(planning_repo):
