@@ -1,6 +1,6 @@
 # Local-AI-Assistant
 
-Local-AI-Assistant is a local-first Qwen platform bootstrapped from a working MSI deployment. Its stabilized Python package preserves three proven workflows: an OpenAI-compatible llama.cpp client, private document RAG with OCR and hybrid FAISS/BM25 retrieval, and a Git-transactional coding assistant.
+Local-AI-Assistant is a local-first Qwen platform combining an OpenAI-compatible llama.cpp client, private document RAG, deterministic Tree-sitter Python code intelligence with local hybrid retrieval, and a Git-transactional coding assistant.
 
 The runtime does not require Codex or paid inference tokens. The default model is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`, served only on `127.0.0.1:8080`; Streamlit binds to `127.0.0.1:8501`.
 
@@ -28,8 +28,12 @@ Index repositories placed under `LOCAL_AI_CODE_REPO_DIR`:
 
 ```bash
 python -m local_ai_assistant.code_index.repository --reindex
+local-ai-code-rag --repository-map
+local-ai-code-rag --find-symbol login_user
 local-ai-code-agent --help
 ```
+
+Tree-sitter/static analysis provides deterministic symbols and graphs. Local BGE + FAISS/BM25/RRF provides semantic retrieval, and Qwen3.6 reasons over that evidence. The original line-chunk index remains fallback. See [code intelligence architecture](docs/architecture/code-intelligence.md) and [index operations](docs/operations/code-index.md).
 
 ## Services
 

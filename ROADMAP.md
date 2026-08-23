@@ -10,11 +10,13 @@ Actual live files inventoried and imported; working behavior organized into a pa
 
 Typed environment configuration, structured JSON/text logging, explicit errors/transaction models, dependency-injected package boundaries, canonical console commands, compatibility wrappers, dependency groups, and broad unit/integration/regression tests are implemented. The transactional Git foundation now has final success/failure verification and summaries, deterministic rollback/cleanup, `--keep-failed-branch`, `--human-review`, and approval-gated `--auto-merge`. Worktrees/checkpoints remain correctly scheduled for Stage 8.
 
-## Stage 2 — Code intelligence (**Planned**)
+## Stage 2 — Code intelligence (**Done**)
 
-Tree-sitter parsers and exact ranges for functions, classes, methods, structs, traits, interfaces, contracts, modules, imports, and exports. Add symbol embeddings, definition/reference/caller/implementation lookup, repository maps, dependency/call graphs, and incremental updates. Priority: Python, Rust, Solidity, TS/JS, SQL, C/C++, Java, Shell.
+Official Tree-sitter Python parsing now provides exact modules, functions, async functions, classes, methods, nested definitions, signatures, decorators, docstrings, imports, ranges, references, and conservative calls. Typed persistent symbols/graphs, content-hash incremental updates, changed-only embeddings, exact/name/semantic/lexical/hybrid queries, dependency/call queries, generated maps, provenance, CLI operations, failures, benchmarks, and deterministic fixtures are implemented.
 
-Current chunk-based code RAG is **Partial**: extensions, ignored directories, 120/20 line chunks, BGE embeddings, FAISS + BM25 + RRF, persistence, and full reindex exist; symbol awareness does not.
+The schema is extensible for structs, traits, interfaces, contracts, enums, implementations, namespaces, and additional languages, but their grammars/extraction remain scheduled for Stage 6. Dynamic Python dispatch and reflective imports remain explicitly unresolved.
+
+The existing multi-extension 120/20 line-chunk BGE + FAISS/BM25/RRF index remains the compatibility fallback beneath exact, graph-related, and hybrid symbol retrieval.
 
 ## Stage 3 — Planning and scope (**Planned**)
 
