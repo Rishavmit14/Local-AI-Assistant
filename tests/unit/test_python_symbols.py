@@ -18,16 +18,26 @@ def test_extracts_exact_python_symbols_ranges_and_metadata():
     assert by_qname["package.sample"].kind is SymbolKind.MODULE
     assert by_qname["package.sample"].documentation == "Fixture module documentation."
     assert by_qname["package.sample.fetch"].kind is SymbolKind.ASYNC_FUNCTION
-    assert by_qname["package.sample.fetch"].start_line == 17
-    assert by_qname["package.sample.fetch"].end_line == 21
+    assert by_qname["package.sample.fetch"].start_line == 22
+    assert by_qname["package.sample.fetch"].end_line == 26
     assert "resource: str" in by_qname["package.sample.fetch"].signature
     service = by_qname["package.sample.Service"]
-    assert service.decorators == ('registry("service")',)
+    assert service.start_line == 29
+    assert service.end_line == 44
+    assert service.source.startswith('@registry(\n    "service"\n)')
+    assert service.decorators == ('registry(\n    "service"\n)',)
     assert service.documentation == "A decorated service."
     assert by_qname["package.sample.Service.duplicate"].kind is SymbolKind.METHOD
     assert by_qname["package.sample.Service.Nested"].parent_identifier == service.identifier
     assert "package.sample.Service.Nested.method.inner" in by_qname
-    assert result.file.imports == ("os", "package.helpers")
+    assert result.file.imports == ("json", "os", "package.helpers", "package.tools")
+
+
+def test_package_init_has_package_qualified_module_identity():
+    result = PythonSymbolExtractor().extract("package/__init__.py", "from . import tools\n")
+
+    assert result.symbols[0].qualified_name == "package"
+    assert result.file.imports == ("package",)
 
 
 def test_duplicate_names_in_distinct_scopes_have_stable_distinct_ids():

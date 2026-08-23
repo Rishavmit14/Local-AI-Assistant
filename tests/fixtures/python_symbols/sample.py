@@ -1,8 +1,13 @@
 """Fixture module documentation."""
 
+import json as js
 import os
 
+from package.tools import thing as aliased_thing
+
 from .helpers import utility
+
+__all__ = ["aliased_thing", "js"]
 
 
 def registry(name):
@@ -21,7 +26,9 @@ async def fetch(
     return await client.get(resource)
 
 
-@registry("service")
+@registry(
+    "service"
+)
 class Service:
     """A decorated service."""
 

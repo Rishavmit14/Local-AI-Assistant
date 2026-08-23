@@ -50,7 +50,9 @@ class PythonSymbolExtractor:
         tree = self.parser.parse(source)
         module_name = self.module_name(path)
         module_id = _identifier(path, module_name, SymbolKind.MODULE)
-        imports = tuple(self._imports(source_text, module_name))
+        imports = tuple(
+            self._imports(source_text, module_name, path.endswith("/__init__.py"))
+        )
         errors = tuple(self._errors(tree.root_node))
         module = SymbolRecord(
             identifier=module_id,
@@ -190,7 +192,9 @@ class PythonSymbolExtractor:
         return errors
 
     @staticmethod
-    def _imports(source_text: str, module_name: str) -> list[str]:
+    def _imports(
+        source_text: str, module_name: str, is_package_module: bool = False
+    ) -> list[str]:
         try:
             tree = ast.parse(source_text)
         except SyntaxError:
@@ -201,7 +205,9 @@ class PythonSymbolExtractor:
                 values.extend(alias.name for alias in node.names)
             elif isinstance(node, ast.ImportFrom):
                 if node.level:
-                    package = module_name.split(".")[:-1]
+                    package = module_name.split(".")
+                    if not is_package_module:
+                        package = package[:-1]
                     keep = max(0, len(package) - (node.level - 1))
                     parts = package[:keep]
                     if node.module:

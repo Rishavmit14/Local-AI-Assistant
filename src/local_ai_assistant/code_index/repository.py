@@ -559,37 +559,43 @@ class CodeRAG:
                 }
             )
 
-        selected = self._symbol_context(question)
+        symbol_limit = self.config.code_retrieval.final_top_k
+        if line_results:
+            symbol_limit = max(0, symbol_limit - 1)
+        selected = self._symbol_context(question, limit=symbol_limit)
         seen = {
             (item["source"], item.get("line_start"), item.get("line_end"))
             for item in selected
         }
         for result in line_results:
+            if len(selected) >= self.config.code_retrieval.final_top_k:
+                break
             key = (result["source"], result.get("line_start"), result.get("line_end"))
             if key not in seen:
                 selected.append(result)
-            if len(selected) >= self.config.code_retrieval.final_top_k:
-                break
         logger.info(
             "repository_retrieval_completed",
             extra={"event": "code_index.retrieve.completed", "result_count": len(selected)},
         )
         return selected
 
-    def _symbol_context(self, question: str) -> list[dict[str, Any]]:
+    def _symbol_context(self, question: str, *, limit: int | None = None) -> list[dict[str, Any]]:
         symbol_index = getattr(self, "symbol_index", None)
         if symbol_index is None or not symbol_index.symbols:
             return []
-        identifiers = set(re.findall(r"\b[A-Za-z_]\w*\b", question))
+        identifiers = dict.fromkeys(re.findall(r"\b[A-Za-z_]\w*\b", question))
         exact = []
         for identifier in identifiers:
             exact.extend(symbol_index.find_exact(identifier))
         ranked = []
         used: set[str] = set()
+        exact_symbols = []
         for symbol in exact:
             if symbol.identifier not in used:
-                ranked.append((symbol, "exact_symbol", None, None, 1.0, None))
+                ranked.append((symbol, "exact_symbol", None, None, None, None))
+                exact_symbols.append(symbol)
                 used.add(symbol.identifier)
+        for symbol in exact_symbols:
             for call in symbol_index.callers(symbol.identifier):
                 related = next((item for item in symbol_index.symbols if item.identifier == call.caller), None)
                 if related and related.identifier not in used:
@@ -618,6 +624,7 @@ class CodeRAG:
                     )
                 )
                 used.add(symbol.identifier)
+        result_limit = self.config.code_retrieval.final_top_k if limit is None else limit
         return [
             {
                 "text": symbol.source,
@@ -637,7 +644,7 @@ class CodeRAG:
                 "rrf": hybrid_score or 0.0,
             }
             for symbol, method, lexical_rank, semantic_rank, hybrid_score, relationship in ranked[
-                : self.config.code_retrieval.final_top_k
+                :result_limit
             ]
         ]
 

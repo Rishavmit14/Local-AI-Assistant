@@ -8,7 +8,7 @@
 
 ## Persistence and refresh
 
-The index uses versioned JSON for metadata, symbols, references, and calls; NumPy stores normalized embedding vectors; FAISS stores the query index. Refresh hashes content rather than trusting timestamps. Unchanged symbols/vectors are retained, changed-file records are replaced, and deleted-file records are removed. A rename is one deletion plus one addition. BM25 and FAISS query structures are reconstructed, but only changed symbols are embedded.
+The index uses versioned JSON for metadata, symbols, references, and calls; NumPy stores normalized embedding vectors; FAISS stores the query index. An atomically replaced metadata manifest is committed last and contains SHA-256 checksums for every artifact, so interrupted or mixed-generation writes fail integrity validation. Refresh hashes source content rather than trusting timestamps. Unchanged symbols/vectors are retained, changed-file records are replaced, and deleted-file records are removed. A rename is one deletion plus one addition. BM25 and FAISS query structures are reconstructed after refresh, but only changed symbols are embedded.
 
 A failed file records an explicit failure while successfully indexed files remain usable. Invalid metadata or symbol/vector mismatch raises `CorruptIndexError` rather than silently serving inconsistent results.
 

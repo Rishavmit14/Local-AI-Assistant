@@ -91,4 +91,50 @@ def test_symbol_context_precedes_line_fallback_with_provenance():
 
     assert results[0]["symbol_identifier"] == "py:login"
     assert results[0]["retrieval_method"] == "exact_symbol"
+    assert results[0]["hybrid_score"] is None
     assert results[1]["retrieval_method"] == "line_chunk_fallback"
+
+
+def test_all_exact_symbols_precede_graph_neighbors():
+    rag = CodeRAG.__new__(CodeRAG)
+    rag.config = AppConfig.from_env({})
+
+    class Symbol:
+        def __init__(self, name):
+            self.identifier = f"py:{name}"
+            self.name = name
+            self.source = f"def {name}(): pass"
+            self.path = "module.py"
+            self.start_line = 1
+            self.end_line = 1
+            self.qualified_name = f"module.{name}"
+
+    alpha, beta, neighbor = Symbol("alpha"), Symbol("beta"), Symbol("neighbor")
+
+    class Edge:
+        caller = neighbor.identifier
+
+    class Symbols:
+        symbols = [alpha, beta, neighbor]
+
+        def find_exact(self, name):
+            return [item for item in self.symbols if item.name == name]
+
+        def callers(self, identifier):
+            return [Edge()] if identifier == alpha.identifier else []
+
+        def callees(self, identifier):
+            return []
+
+        def hybrid_search(self, *args):
+            return []
+
+    rag.symbol_index = Symbols()
+    results = rag._symbol_context("alpha beta", limit=3)
+
+    assert [item["symbol_name"] for item in results] == [
+        "module.alpha",
+        "module.beta",
+        "module.neighbor",
+    ]
+    assert results[2]["graph_relationship"] == "caller"

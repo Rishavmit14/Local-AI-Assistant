@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -27,7 +28,7 @@ from .models import (
 from .python_parser import PythonSymbolExtractor
 
 logger = get_logger(__name__)
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def tokenize(text: str) -> list[str]:
@@ -135,21 +136,74 @@ class SymbolIndex:
 
     def save(self) -> None:
         self.index_dir.mkdir(parents=True, exist_ok=True)
-        self.metadata_file.write_text(json.dumps({"schema_version": SCHEMA_VERSION, "files": {key: value.to_dict() for key, value in self.files.items()}}, indent=2), encoding="utf-8")
-        self.symbols_file.write_text(json.dumps([item.to_dict() for item in self.symbols], indent=2), encoding="utf-8")
-        self.graph_file.write_text(json.dumps({"references": [item.to_dict() for item in self.references], "calls": [item.to_dict() for item in self.calls]}, indent=2), encoding="utf-8")
-        np.save(self.embeddings_file, self.embeddings)
+        symbols = json.dumps(
+            [item.to_dict() for item in self.symbols], indent=2, ensure_ascii=False
+        ).encode()
+        graph = json.dumps(
+            {
+                "references": [item.to_dict() for item in self.references],
+                "calls": [item.to_dict() for item in self.calls],
+            },
+            indent=2,
+            ensure_ascii=False,
+        ).encode()
+        self._atomic_write(self.symbols_file, symbols)
+        self._atomic_write(self.graph_file, graph)
+        embeddings_temp = self._temporary(self.embeddings_file)
+        with embeddings_temp.open("wb") as stream:
+            np.save(stream, self.embeddings)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(embeddings_temp, self.embeddings_file)
         if self.vector_index is not None:
-            faiss.write_index(self.vector_index, str(self.faiss_file))
+            faiss_temp = self._temporary(self.faiss_file)
+            faiss.write_index(self.vector_index, str(faiss_temp))
+            os.replace(faiss_temp, self.faiss_file)
+        elif self.faiss_file.exists():
+            self.faiss_file.unlink()
+        artifacts = {
+            path.name: self._sha256(path)
+            for path in (self.symbols_file, self.graph_file, self.embeddings_file)
+        }
+        if self.faiss_file.exists():
+            artifacts[self.faiss_file.name] = self._sha256(self.faiss_file)
+        metadata = json.dumps(
+            {
+                "schema_version": SCHEMA_VERSION,
+                "files": {key: value.to_dict() for key, value in self.files.items()},
+                "artifacts": artifacts,
+            },
+            indent=2,
+            sort_keys=True,
+        ).encode()
+        # Commit marker written last: interrupted earlier replacements are detected
+        # against the previous manifest rather than accepted as a valid generation.
+        self._atomic_write(self.metadata_file, metadata)
 
     def load(self) -> bool:
-        required = [self.metadata_file, self.symbols_file, self.graph_file, self.embeddings_file]
-        if not all(path.exists() for path in required):
+        if not self.metadata_file.exists():
             return False
         try:
             metadata = json.loads(self.metadata_file.read_text(encoding="utf-8"))
             if metadata.get("schema_version") != SCHEMA_VERSION:
                 raise CorruptIndexError("Unsupported symbol index schema")
+            artifacts = metadata.get("artifacts")
+            if not isinstance(artifacts, dict):
+                raise CorruptIndexError("Symbol index artifact manifest is missing")
+            required_names = {
+                self.symbols_file.name,
+                self.graph_file.name,
+                self.embeddings_file.name,
+            }
+            allowed_names = required_names | {self.faiss_file.name}
+            if not required_names.issubset(artifacts) or not set(artifacts).issubset(
+                allowed_names
+            ):
+                raise CorruptIndexError("Symbol index artifact manifest is invalid")
+            for name, expected_hash in artifacts.items():
+                artifact = self.index_dir / name
+                if not artifact.is_file() or self._sha256(artifact) != expected_hash:
+                    raise CorruptIndexError(f"Symbol index artifact failed integrity check: {name}")
             self.files = {key: FileRecord.from_dict(value) for key, value in metadata["files"].items()}
             self.symbols = [SymbolRecord.from_dict(item) for item in json.loads(self.symbols_file.read_text(encoding="utf-8"))]
             graph = json.loads(self.graph_file.read_text(encoding="utf-8"))
@@ -159,9 +213,19 @@ class SymbolIndex:
             if len(self.symbols) != len(self.embeddings):
                 raise CorruptIndexError("Symbol/embedding count mismatch")
             self._build_search_indexes()
+            if self.symbols:
+                if self.faiss_file.name not in artifacts:
+                    raise CorruptIndexError("FAISS artifact is missing from manifest")
+                persisted_index = faiss.read_index(str(self.faiss_file))
+                if (
+                    persisted_index.ntotal != len(self.symbols)
+                    or persisted_index.d != self.embeddings.shape[1]
+                ):
+                    raise CorruptIndexError("FAISS index does not match symbol embeddings")
+                self.vector_index = persisted_index
         except CorruptIndexError:
             raise
-        except (EOFError, KeyError, ValueError, TypeError, OSError, json.JSONDecodeError) as exc:
+        except (EOFError, KeyError, RuntimeError, ValueError, TypeError, OSError, json.JSONDecodeError) as exc:
             raise CorruptIndexError(f"Corrupted symbol index: {exc}") from exc
         return True
 
@@ -322,3 +386,16 @@ class SymbolIndex:
     @staticmethod
     def _sha256(path: Path) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    @staticmethod
+    def _temporary(path: Path) -> Path:
+        return path.with_name(f".{path.name}.tmp")
+
+    @classmethod
+    def _atomic_write(cls, path: Path, content: bytes) -> None:
+        temporary = cls._temporary(path)
+        with temporary.open("wb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)

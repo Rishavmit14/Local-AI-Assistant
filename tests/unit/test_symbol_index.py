@@ -1,4 +1,5 @@
 import hashlib
+import json
 
 import numpy as np
 import pytest
@@ -64,15 +65,31 @@ def test_persistence_search_graph_map_and_provenance_foundations(indexed, tmp_pa
 
 def test_incremental_refresh_only_embeds_changed_files_and_cleans_deletes(indexed):
     repo, index, embedder, _ = indexed
+    original_login_id = index.find_exact("login")[0].identifier
+    api_ids = {item.identifier for item in index.symbols if item.path == "api.py"}
+    delegate = index.extractors[".py"]
+
+    class CountingExtractor:
+        calls = []
+
+        def extract(self, path, source):
+            self.calls.append(path)
+            return delegate.extract(path, source)
+
+    counter = CountingExtractor()
+    index.extractors[".py"] = counter
     embedder.embedded.clear()
     unchanged = index.refresh()
     assert unchanged.changed_files == 0
     assert embedder.embedded == []
+    assert counter.calls == []
 
     (repo / "service.py").write_text("def login(name):\n    return name\n\ndef logout():\n    pass\n")
     changed = index.refresh()
     assert changed.changed_files == 1
+    assert counter.calls == ["service.py"]
     assert {item.name for item in index.symbols if item.path == "service.py"} == {"service", "login", "logout"}
+    assert index.find_exact("login")[0].identifier == original_login_id
     assert len(embedder.embedded) == 3
 
     (repo / "api.py").rename(repo / "routes.py")
@@ -81,24 +98,66 @@ def test_incremental_refresh_only_embeds_changed_files_and_cleans_deletes(indexe
     assert renamed.deleted_files == 1
     assert not any(item.path == "api.py" for item in index.symbols)
     assert any(item.path == "routes.py" for item in index.symbols)
+    assert not api_ids.intersection(
+        item.identifier for item in index.symbols if item.path == "routes.py"
+    )
 
     (repo / "routes.py").unlink()
     deleted = index.refresh()
     assert deleted.deleted_files == 1
     assert not any(item.path == "routes.py" for item in index.symbols)
+    reloaded = SymbolIndex(repo, index.index_dir, DeterministicEmbedder())
+    assert reloaded.load()
+    assert not any(item.path in {"api.py", "routes.py"} for item in reloaded.symbols)
 
 
 def test_corrupt_metadata_and_embedding_mismatch_are_explicit(indexed):
     repo, index, _, _ = indexed
     np.save(index.embeddings_file, np.ones((1, 8), dtype=np.float32))
     mismatch = SymbolIndex(repo, index.index_dir, DeterministicEmbedder())
-    with pytest.raises(CorruptIndexError, match="count mismatch"):
+    with pytest.raises(CorruptIndexError, match="integrity check"):
         mismatch.load()
 
     index.save()
     index.metadata_file.write_text("not json")
     with pytest.raises(CorruptIndexError):
         index.load()
+
+
+def test_corrupt_faiss_and_partial_artifact_write_fail_explicitly(indexed):
+    repo, index, _, _ = indexed
+    index.faiss_file.write_bytes(b"not faiss")
+    metadata = json.loads(index.metadata_file.read_text())
+    metadata["artifacts"][index.faiss_file.name] = index._sha256(index.faiss_file)
+    index.metadata_file.write_text(json.dumps(metadata))
+    with pytest.raises(CorruptIndexError, match="Corrupted symbol index"):
+        SymbolIndex(repo, index.index_dir, DeterministicEmbedder()).load()
+
+    index.save()
+    index.symbols_file.write_text("[]")
+    with pytest.raises(CorruptIndexError, match="integrity check"):
+        SymbolIndex(repo, index.index_dir, DeterministicEmbedder()).load()
+
+
+def test_stale_vector_metadata_is_rejected_even_with_matching_checksum(indexed):
+    repo, index, _, _ = indexed
+    np.save(index.embeddings_file, np.ones((1, 8), dtype=np.float32))
+    metadata = json.loads(index.metadata_file.read_text())
+    metadata["artifacts"][index.embeddings_file.name] = index._sha256(index.embeddings_file)
+    index.metadata_file.write_text(json.dumps(metadata))
+
+    with pytest.raises(CorruptIndexError, match="count mismatch"):
+        SymbolIndex(repo, index.index_dir, DeterministicEmbedder()).load()
+
+
+def test_artifact_manifest_rejects_unknown_paths(indexed):
+    repo, index, _, _ = indexed
+    metadata = json.loads(index.metadata_file.read_text())
+    metadata["artifacts"]["../../outside"] = "0" * 64
+    index.metadata_file.write_text(json.dumps(metadata))
+
+    with pytest.raises(CorruptIndexError, match="manifest is invalid"):
+        SymbolIndex(repo, index.index_dir, DeterministicEmbedder()).load()
 
 
 def test_unsupported_extensions_are_ignored(tmp_path):
@@ -130,3 +189,25 @@ def test_one_file_failure_preserves_other_indexed_files(tmp_path):
     assert stats.failures == {"bad.py": "fixture parser failure"}
     assert index.find_exact("good")
     assert not index.find_exact("bad")
+
+
+def test_failed_modified_file_does_not_poison_unchanged_records(indexed):
+    repo, index, embedder, _ = indexed
+    api_ids = {item.identifier for item in index.symbols if item.path == "api.py"}
+    delegate = index.extractors[".py"]
+
+    class FailingExtractor:
+        def extract(self, path, source):
+            if path == "service.py":
+                raise ValueError("changed file failed")
+            return delegate.extract(path, source)
+
+    index.extractors[".py"] = FailingExtractor()
+    embedder.embedded.clear()
+    (repo / "service.py").write_text("def changed():\n    pass\n")
+    stats = index.refresh()
+
+    assert stats.failures == {"service.py": "changed file failed"}
+    assert {item.identifier for item in index.symbols if item.path == "api.py"} == api_ids
+    assert not any(item.path == "service.py" for item in index.symbols)
+    assert embedder.embedded == []
