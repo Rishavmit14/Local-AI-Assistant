@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import re
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,8 @@ from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.errors import IndexingError
 from local_ai_assistant.common.logging import configure_logging, get_logger
 from local_ai_assistant.llm import LocalLLM
+
+from .symbol_index import SymbolIndex
 
 _DEFAULT_CONFIG = get_config()
 REPO_DIR = _DEFAULT_CONFIG.paths.code_repo_dir
@@ -117,6 +120,9 @@ class CodeRAG:
         )
 
         self.llm = llm or LocalLLM(config=self.config)
+        self.symbol_index = SymbolIndex(
+            self.repo_dir, self.index_dir / "symbols", self.embedder
+        )
 
         self.chunks: list[dict[str, Any]] = []
 
@@ -355,6 +361,9 @@ class CodeRAG:
 
         self.build_bm25()
 
+        if self.symbol_index.metadata_file.exists():
+            self.symbol_index.load()
+
         return True
 
     def reindex(self):
@@ -366,10 +375,15 @@ class CodeRAG:
         self.build_vector_index()
         self.build_bm25()
         self.save()
+        symbol_stats = self.symbol_index.refresh()
 
         logger.info(
             "repository_reindex_completed",
-            extra={"event": "code_index.reindex.completed", "chunk_count": len(self.chunks)},
+            extra={
+                "event": "code_index.reindex.completed",
+                "chunk_count": len(self.chunks),
+                "symbol_count": symbol_stats.symbol_count,
+            },
         )
 
         print()
@@ -532,14 +546,100 @@ class CodeRAG:
             reverse=True,
         )
 
-        selected = results[
-            :self.config.code_retrieval.final_top_k
-        ]
+        line_results = results[: self.config.code_retrieval.final_top_k]
+        for result in line_results:
+            result.update(
+                {
+                    "symbol_identifier": None,
+                    "retrieval_method": "line_chunk_fallback",
+                    "lexical_rank": result["bm25_rank"],
+                    "semantic_rank": result["vector_rank"],
+                    "hybrid_score": result["rrf"],
+                    "graph_relationship": None,
+                }
+            )
+
+        selected = self._symbol_context(question)
+        seen = {
+            (item["source"], item.get("line_start"), item.get("line_end"))
+            for item in selected
+        }
+        for result in line_results:
+            key = (result["source"], result.get("line_start"), result.get("line_end"))
+            if key not in seen:
+                selected.append(result)
+            if len(selected) >= self.config.code_retrieval.final_top_k:
+                break
         logger.info(
             "repository_retrieval_completed",
             extra={"event": "code_index.retrieve.completed", "result_count": len(selected)},
         )
         return selected
+
+    def _symbol_context(self, question: str) -> list[dict[str, Any]]:
+        symbol_index = getattr(self, "symbol_index", None)
+        if symbol_index is None or not symbol_index.symbols:
+            return []
+        identifiers = set(re.findall(r"\b[A-Za-z_]\w*\b", question))
+        exact = []
+        for identifier in identifiers:
+            exact.extend(symbol_index.find_exact(identifier))
+        ranked = []
+        used: set[str] = set()
+        for symbol in exact:
+            if symbol.identifier not in used:
+                ranked.append((symbol, "exact_symbol", None, None, 1.0, None))
+                used.add(symbol.identifier)
+            for call in symbol_index.callers(symbol.identifier):
+                related = next((item for item in symbol_index.symbols if item.identifier == call.caller), None)
+                if related and related.identifier not in used:
+                    ranked.append((related, "graph", None, None, None, "caller"))
+                    used.add(related.identifier)
+            for call in symbol_index.callees(symbol.identifier):
+                related = next((item for item in symbol_index.symbols if item.identifier == call.callee), None)
+                if related and related.identifier not in used:
+                    ranked.append((related, "graph", None, None, None, "callee"))
+                    used.add(related.identifier)
+        for result in symbol_index.hybrid_search(
+            question,
+            self.config.code_retrieval.final_top_k,
+            self.config.code_retrieval.rrf_k,
+        ):
+            symbol = result["symbol"]
+            if symbol.identifier not in used:
+                ranked.append(
+                    (
+                        symbol,
+                        "symbol_hybrid",
+                        result["lexical_rank"],
+                        result["semantic_rank"],
+                        result["hybrid_score"],
+                        None,
+                    )
+                )
+                used.add(symbol.identifier)
+        return [
+            {
+                "text": symbol.source,
+                "source": symbol.path,
+                "line_start": symbol.start_line,
+                "line_end": symbol.end_line,
+                "extension": Path(symbol.path).suffix,
+                "symbol_identifier": symbol.identifier,
+                "symbol_name": symbol.qualified_name,
+                "retrieval_method": method,
+                "lexical_rank": lexical_rank,
+                "semantic_rank": semantic_rank,
+                "hybrid_score": hybrid_score,
+                "graph_relationship": relationship,
+                "vector_rank": semantic_rank,
+                "bm25_rank": lexical_rank,
+                "rrf": hybrid_score or 0.0,
+            }
+            for symbol, method, lexical_rank, semantic_rank, hybrid_score, relationship in ranked[
+                : self.config.code_retrieval.final_top_k
+            ]
+        ]
 
     @staticmethod
     def build_context(
@@ -623,7 +723,17 @@ ANSWER:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Local repository hybrid RAG")
-    parser.add_argument("--reindex", action="store_true", help="Rebuild the repository index")
+    actions = parser.add_mutually_exclusive_group()
+    actions.add_argument("--reindex", action="store_true", help="Rebuild line and symbol indexes")
+    actions.add_argument("--refresh", action="store_true", help="Incrementally refresh symbols")
+    actions.add_argument("--repository-map", action="store_true", help="Print the indexed map")
+    actions.add_argument("--find-symbol", metavar="NAME", help="Find an exact symbol")
+    actions.add_argument("--search-symbols", metavar="QUERY", help="Hybrid symbol search")
+    actions.add_argument("--callers", metavar="SYMBOL", help="Find callers by identifier/name")
+    actions.add_argument("--callees", metavar="SYMBOL", help="Find callees by identifier/name")
+    actions.add_argument("--imports", metavar="MODULE", help="List imports of a module/path")
+    actions.add_argument("--reverse-imports", metavar="MODULE", help="List modules importing a module")
+    actions.add_argument("--index-stats", action="store_true", help="Print symbol index statistics")
     return parser
 
 
@@ -635,6 +745,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.reindex:
         rag.reindex()
+        return 0
+
+    if args.refresh:
+        print(json.dumps(asdict(rag.symbol_index.refresh()), indent=2, default=str))
         return 0
 
     if not rag.load():
@@ -649,6 +763,38 @@ def main(argv: list[str] | None = None) -> int:
             rag.repo_dir
         )
         return 1
+
+
+    def resolve(value: str):
+        matches = rag.symbol_index.find_exact(value)
+        return matches[0] if matches else None
+
+    if args.repository_map:
+        print(rag.symbol_index.render_map())
+        return 0
+    if args.find_symbol:
+        print(json.dumps([item.to_dict() for item in rag.symbol_index.find_exact(args.find_symbol)], indent=2))
+        return 0
+    if args.search_symbols:
+        print(json.dumps([{**item, "symbol": item["symbol"].to_dict()} for item in rag.symbol_index.hybrid_search(args.search_symbols)], indent=2))
+        return 0
+    if args.callers or args.callees:
+        symbol = resolve(args.callers or args.callees)
+        if symbol is None:
+            print("Symbol not found.")
+            return 1
+        edges = rag.symbol_index.callers(symbol.identifier) if args.callers else rag.symbol_index.callees(symbol.identifier)
+        print(json.dumps([item.to_dict() for item in edges], indent=2))
+        return 0
+    if args.imports:
+        print(json.dumps(rag.symbol_index.imports_of(args.imports), indent=2))
+        return 0
+    if args.reverse_imports:
+        print(json.dumps(rag.symbol_index.imported_by(args.reverse_imports), indent=2))
+        return 0
+    if args.index_stats:
+        print(json.dumps(rag.symbol_index.stats(), indent=2))
+        return 0
 
     print()
     print("LOCAL CODE RAG READY")

@@ -6,6 +6,7 @@ from local_ai_assistant.agent.code_agent import (
     build_parser as build_agent_parser,
 )
 from local_ai_assistant.agent.code_agent import validate_cli_options
+from local_ai_assistant.code_index import repository as repository_module
 from local_ai_assistant.code_index.repository import build_parser as build_rag_parser
 from local_ai_assistant.common.config import AppConfig, UIConfig
 from local_ai_assistant.ui.cli import streamlit_command
@@ -32,6 +33,37 @@ def test_agent_parser_preserves_existing_and_stage1_options():
 
 def test_code_rag_parser_supports_reindex():
     assert build_rag_parser().parse_args(["--reindex"]).reindex is True
+
+
+def test_code_intelligence_cli_commands_are_exposed():
+    parser = build_rag_parser()
+    assert parser.parse_args(["--refresh"]).refresh is True
+    assert parser.parse_args(["--repository-map"]).repository_map is True
+    assert parser.parse_args(["--find-symbol", "login"]).find_symbol == "login"
+    assert parser.parse_args(["--search-symbols", "authentication"]).search_symbols
+    assert parser.parse_args(["--callers", "login"]).callers == "login"
+    assert parser.parse_args(["--callees", "login"]).callees == "login"
+    assert parser.parse_args(["--imports", "api"]).imports == "api"
+    assert parser.parse_args(["--reverse-imports", "service"]).reverse_imports
+    assert parser.parse_args(["--index-stats"]).index_stats is True
+
+
+def test_repository_map_cli_executes_without_llm(monkeypatch, capsys):
+    class FakeSymbols:
+        def render_map(self):
+            return "repo\n└── app.py"
+
+    class FakeRAG:
+        def __init__(self, config):
+            self.symbol_index = FakeSymbols()
+
+        def load(self):
+            return True
+
+    monkeypatch.setattr(repository_module, "CodeRAG", FakeRAG)
+
+    assert repository_module.main(["--repository-map"]) == 0
+    assert "└── app.py" in capsys.readouterr().out
 
 
 def test_streamlit_command_uses_typed_ui_configuration():

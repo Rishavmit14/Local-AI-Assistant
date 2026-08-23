@@ -45,3 +45,50 @@ def test_code_hybrid_retrieval_preserves_rrf_fusion():
     assert {result["source"] for result in results} == {"auth.py", "report.py"}
     assert results[0]["rrf"] == results[1]["rrf"]
     assert results[0]["vector_rank"] == 1
+    assert all(result["retrieval_method"] == "line_chunk_fallback" for result in results)
+    assert all(result["symbol_identifier"] is None for result in results)
+
+
+def test_symbol_context_precedes_line_fallback_with_provenance():
+    rag = CodeRAG.__new__(CodeRAG)
+    rag.config = AppConfig.from_env({"LOCAL_AI_CODE_FINAL_TOP_K": "2"})
+    rag.chunks = [
+        {
+            "text": "unrelated line chunk",
+            "source": "fallback.py",
+            "line_start": 1,
+            "line_end": 1,
+        }
+    ]
+    rag.vector_search = lambda question: [{"index": 0, "rank": 1, "score": 0.2}]
+    rag.bm25_search = lambda question: [{"index": 0, "rank": 1, "score": 0.1}]
+
+    class Symbol:
+        identifier = "py:login"
+        source = "def login(): pass"
+        path = "auth.py"
+        start_line = 10
+        end_line = 10
+        qualified_name = "auth.login"
+
+    class Symbols:
+        symbols = [Symbol()]
+
+        def find_exact(self, name):
+            return self.symbols if name == "login" else []
+
+        def callers(self, identifier):
+            return []
+
+        def callees(self, identifier):
+            return []
+
+        def hybrid_search(self, *args):
+            return []
+
+    rag.symbol_index = Symbols()
+    results = rag.retrieve("explain login")
+
+    assert results[0]["symbol_identifier"] == "py:login"
+    assert results[0]["retrieval_method"] == "exact_symbol"
+    assert results[1]["retrieval_method"] == "line_chunk_fallback"

@@ -17,6 +17,14 @@ class IndexingError(LocalAIError):
     """Raised when a document or repository index cannot be built or loaded."""
 
 
+class ParserUnavailableError(IndexingError):
+    """Raised when a requested deterministic language parser is unavailable."""
+
+
+class CorruptIndexError(IndexingError):
+    """Raised when persisted index state is malformed or internally inconsistent."""
+
+
 class RepositoryError(LocalAIError):
     """Raised when a configured coding repository is unavailable or invalid."""
 

@@ -1,1 +1,3 @@
 -r rag.txt
+tree-sitter>=0.25,<0.26
+tree-sitter-python>=0.25,<0.26

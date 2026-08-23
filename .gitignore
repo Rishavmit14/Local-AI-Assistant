@@ -27,6 +27,7 @@ credentials*.json
 *.ggml
 *.safetensors
 *.faiss
+*.npy
 *.index
 embeddings/
 documents/
