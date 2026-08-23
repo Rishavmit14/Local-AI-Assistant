@@ -161,7 +161,7 @@ class SymbolIndex:
             self._build_search_indexes()
         except CorruptIndexError:
             raise
-        except (KeyError, ValueError, TypeError, OSError, json.JSONDecodeError) as exc:
+        except (EOFError, KeyError, ValueError, TypeError, OSError, json.JSONDecodeError) as exc:
             raise CorruptIndexError(f"Corrupted symbol index: {exc}") from exc
         return True
 

@@ -1,6 +1,6 @@
 # Code Index Operations
 
-The canonical command is `local-ai-code-rag`. `--reindex` rebuilds the legacy line index and refreshes symbols; `--refresh` updates symbols only. Generated indexes remain under `LOCAL_AI_CODE_INDEX_DIR` and must not be committed.
+The canonical command is `local-ai-code-rag`. `--reindex` fully rebuilds both indexes; `--refresh` updates only changed Python symbol files. Coding-agent compatibility refreshes the legacy line fallback and incrementally refreshes symbols. Generated indexes remain under `LOCAL_AI_CODE_INDEX_DIR` and must not be committed.
 
 ```bash
 local-ai-code-rag --reindex

@@ -366,7 +366,7 @@ class CodeRAG:
 
         return True
 
-    def reindex(self):
+    def reindex(self, *, full_symbols: bool = False):
         logger.info(
             "repository_reindex_started",
             extra={"event": "code_index.reindex.started", "repository_dir": self.repo_dir},
@@ -375,7 +375,7 @@ class CodeRAG:
         self.build_vector_index()
         self.build_bm25()
         self.save()
-        symbol_stats = self.symbol_index.refresh()
+        symbol_stats = self.symbol_index.refresh(full=full_symbols)
 
         logger.info(
             "repository_reindex_completed",
@@ -744,7 +744,7 @@ def main(argv: list[str] | None = None) -> int:
     rag = CodeRAG(config=config)
 
     if args.reindex:
-        rag.reindex()
+        rag.reindex(full_symbols=True)
         return 0
 
     if args.refresh:
