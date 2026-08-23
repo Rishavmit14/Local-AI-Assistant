@@ -15,6 +15,8 @@
 | UI | `LOCAL_AI_UI_HOST`, `LOCAL_AI_UI_PORT`, `LOCAL_AI_UI_HEADLESS`, `LOCAL_AI_UI_GATHER_USAGE_STATS` | localhost `8501`, headless, telemetry disabled |
 | runtime/tests | `LOCAL_AI_LOG_LEVEL`, `LOCAL_AI_LOG_FORMAT`, `LOCAL_AI_COMMAND_TIMEOUT`, `LOCAL_AI_TEST_MODE` | INFO, JSON, 900 seconds, false |
 
+`LOCAL_AI_CONTEXT_SIZE` bounds completion-token requests made through `LocalLLM` so client requests cannot exceed the configured server context. `LOCAL_AI_TEST_MODE=true` suppresses embedding progress bars while retaining the same indexing and retrieval algorithms.
+
 Invalid integers, booleans, or overlapping chunk ranges raise `ConfigurationError` at startup. Prompts and document contents are deliberately omitted from structured logs; only operational metadata such as sizes, counts, paths, commands, and outcomes is logged.
 
 ## MSI migration

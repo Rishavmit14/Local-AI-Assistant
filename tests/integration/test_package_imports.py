@@ -21,6 +21,20 @@ def test_public_packages_and_compatibility_modules_import():
         assert importlib.import_module(module) is not None
 
 
+def test_compatibility_wrappers_export_only_historical_public_api():
+    local_llm = importlib.import_module("local_llm")
+    rag = importlib.import_module("rag")
+    code_rag = importlib.import_module("code_rag")
+    code_agent = importlib.import_module("code_agent")
+
+    assert local_llm.__all__ == ["DEFAULT_BASE_URL", "DEFAULT_MODEL", "LocalLLM", "main"]
+    assert rag.__all__ == ["DOCUMENT_DIR", "LocalRAG", "main"]
+    assert code_rag.__all__ == ["CodeRAG", "main"]
+    assert code_agent.__all__ == ["main"]
+    assert not hasattr(local_llm, "OpenAI")
+    assert not hasattr(code_agent, "subprocess")
+
+
 def test_pyproject_is_canonical_and_exposes_supported_commands():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
     package = importlib.import_module("local_ai_assistant")

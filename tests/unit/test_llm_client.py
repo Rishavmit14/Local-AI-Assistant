@@ -2,7 +2,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from local_ai_assistant.common.errors import LLMError
+from local_ai_assistant.common.config import AppConfig
+from local_ai_assistant.common.errors import ConfigurationError, LLMError
 from local_ai_assistant.llm import client as client_module
 
 
@@ -68,3 +69,12 @@ def test_client_wraps_transport_failures_in_application_error(monkeypatch):
     llm.client.chat.completions.create = fail
     with pytest.raises(LLMError, match="connection refused"):
         llm.chat("question")
+
+
+def test_context_configuration_limits_requested_completion(monkeypatch):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+    config = AppConfig.from_env({"LOCAL_AI_CONTEXT_SIZE": "16"})
+    llm = client_module.LocalLLM(config=config)
+
+    with pytest.raises(ConfigurationError, match="configured context size 16"):
+        llm.chat("question", max_tokens=17)

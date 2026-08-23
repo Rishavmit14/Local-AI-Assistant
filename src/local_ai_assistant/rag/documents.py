@@ -863,7 +863,7 @@ class LocalRAG:
             self.embedder.encode(
                 texts,
                 batch_size=self.config.embedding.batch_size,
-                show_progress_bar=True,
+                show_progress_bar=not self.config.runtime.test_mode,
                 normalize_embeddings=True,
                 convert_to_numpy=True,
             )

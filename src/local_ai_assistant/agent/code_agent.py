@@ -1279,6 +1279,29 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def validate_cli_options(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Reject option combinations that bypass the proven Git transaction."""
+    if args.human_review:
+        args.auto_commit = False
+        args.auto_merge = False
+
+    if args.apply:
+        required = {
+            "--branch": args.branch,
+            "--test": args.test,
+            "--validate": args.validate,
+            "--rollback-on-fail": args.rollback_on_fail,
+        }
+        missing = [option for option, enabled in required.items() if not enabled]
+        if missing:
+            parser.error("--apply requires " + ", ".join(missing))
+    elif args.auto_commit or args.auto_merge or args.keep_failed_branch:
+        parser.error("commit, merge, and failed-branch options require --apply")
+
+    if args.auto_merge and not (args.approve_merge and args.auto_commit):
+        parser.error("--auto-merge requires --approve-merge and --auto-commit")
+
+
 def main(argv: list[str] | None = None):
     config = get_config()
     configure_logging(config.runtime)
@@ -1286,15 +1309,7 @@ def main(argv: list[str] | None = None):
 
     args = parser.parse_args(argv)
 
-    if args.human_review:
-        args.auto_commit = False
-        args.auto_merge = False
-    if args.auto_merge and not (
-        args.approve_merge and args.auto_commit and args.branch and args.test
-    ):
-        parser.error(
-            "--auto-merge requires --approve-merge, --auto-commit, --branch, and --test"
-        )
+    validate_cli_options(parser, args)
 
     finalize_run = partial(
         finalize_agent_run,
@@ -1344,49 +1359,9 @@ def main(argv: list[str] | None = None):
 
             sys.exit(1)
 
-    # --------------------------------------------------------
-    # Optional isolated Git branch for autonomous edits.
-    # --------------------------------------------------------
-
     original_branch = None
     starting_commit = None
     agent_branch = None
-
-    if args.apply and args.branch:
-
-        (
-            original_branch,
-            starting_commit,
-            agent_branch,
-        ) = create_agent_branch(
-            repo,
-            args.request,
-        )
-
-        print()
-        print(
-            "=" * 70
-        )
-
-        print(
-            "GIT SAFETY"
-        )
-
-        print(
-            "=" * 70
-        )
-
-        print(
-            f"Original branch: {original_branch}"
-        )
-
-        print(
-            f"Agent branch:    {agent_branch}"
-        )
-
-        print(
-            f"Starting commit: {starting_commit}"
-        )
 
     # --------------------------------------------------------
     # Load repository index.
@@ -1507,6 +1482,25 @@ def main(argv: list[str] | None = None):
 
         return
 
+    # Create the isolated branch only after proposal validation, but before
+    # the first repository mutation. This keeps proposal failures branch-free.
+    (
+        original_branch,
+        starting_commit,
+        agent_branch,
+    ) = create_agent_branch(
+        repo,
+        args.request,
+    )
+
+    print()
+    print("=" * 70)
+    print("GIT SAFETY")
+    print("=" * 70)
+    print(f"Original branch: {original_branch}")
+    print(f"Agent branch:    {agent_branch}")
+    print(f"Starting commit: {starting_commit}")
+
     # --------------------------------------------------------
     # Apply patch.
     # --------------------------------------------------------
@@ -1515,6 +1509,17 @@ def main(argv: list[str] | None = None):
         repo,
         patch_file,
     ):
+
+        finalize_run(
+            repo=repo,
+            request=args.request,
+            tests_passed=False,
+            auto_commit=args.auto_commit,
+            rollback_on_fail=True,
+            starting_commit=starting_commit,
+            original_branch=original_branch,
+            agent_branch=agent_branch,
+        )
 
         sys.exit(1)
 
@@ -1623,7 +1628,17 @@ def main(argv: list[str] | None = None):
             "tests were detected."
         )
 
-        return
+        finalize_run(
+            repo=repo,
+            request=args.request,
+            tests_passed=False,
+            auto_commit=args.auto_commit,
+            rollback_on_fail=True,
+            starting_commit=starting_commit,
+            original_branch=original_branch,
+            agent_branch=agent_branch,
+        )
+        sys.exit(1)
 
     if return_code == 0:
 

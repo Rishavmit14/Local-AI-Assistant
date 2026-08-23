@@ -20,6 +20,8 @@ TurboQuant llama-server (127.0.0.1:8080)
 
 `local_ai_assistant.common.logging` emits structured event records for LLM requests, indexing/retrieval/OCR, commands, tests, patches, UI startup, and Git transaction outcomes. Existing CLI progress text remains intact for compatibility. Expected operational failures use the explicit `LocalAIError` hierarchy.
 
+Coding-agent proposal mode is read-only. Applying a patch requires the isolated-branch, structural-validation, test, and rollback safeguards as one non-bypassable CLI bundle. Automatic merge additionally requires explicit approval; no default path merges an agent branch.
+
 The `examples/demo-app` fixture is imported without its nested Git database. It demonstrates the existing code-agent test target, not production authentication design.
 
 ## Deployment compatibility

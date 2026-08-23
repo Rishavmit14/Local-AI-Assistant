@@ -3,7 +3,7 @@ from collections.abc import Iterator
 from openai import OpenAI
 
 from local_ai_assistant.common.config import AppConfig, get_config
-from local_ai_assistant.common.errors import LLMError
+from local_ai_assistant.common.errors import ConfigurationError, LLMError
 from local_ai_assistant.common.logging import configure_logging, get_logger
 
 _DEFAULTS = get_config().llama
@@ -41,6 +41,11 @@ class LocalLLM:
         temperature: float = 0.2,
         max_tokens: int = 1024,
     ) -> str:
+        if max_tokens < 1 or max_tokens > self.config.llama.context_size:
+            raise ConfigurationError(
+                f"max_tokens must be between 1 and configured context size "
+                f"{self.config.llama.context_size}, got {max_tokens}"
+            )
         logger.info(
             "llm_chat_started",
             extra={
@@ -81,6 +86,11 @@ class LocalLLM:
         temperature: float = 0.2,
         max_tokens: int = 1024,
     ) -> Iterator[str]:
+        if max_tokens < 1 or max_tokens > self.config.llama.context_size:
+            raise ConfigurationError(
+                f"max_tokens must be between 1 and configured context size "
+                f"{self.config.llama.context_size}, got {max_tokens}"
+            )
         logger.info(
             "llm_stream_started",
             extra={"event": "llm.stream.started", "model": self.model},

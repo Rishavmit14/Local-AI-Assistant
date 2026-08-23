@@ -2,7 +2,10 @@ from dataclasses import replace
 
 import pytest
 
-from local_ai_assistant.agent.code_agent import build_parser as build_agent_parser
+from local_ai_assistant.agent.code_agent import (
+    build_parser as build_agent_parser,
+)
+from local_ai_assistant.agent.code_agent import validate_cli_options
 from local_ai_assistant.code_index.repository import build_parser as build_rag_parser
 from local_ai_assistant.common.config import AppConfig, UIConfig
 from local_ai_assistant.ui.cli import streamlit_command
@@ -49,3 +52,29 @@ def test_cli_help_is_available_without_loading_models(capsys):
         build_agent_parser().parse_args(["--help"])
     assert exit_info.value.code == 0
     assert "--human-review" in capsys.readouterr().out
+
+
+def test_apply_requires_complete_transaction_safety_bundle():
+    parser = build_agent_parser()
+    args = parser.parse_args(["demo", "change", "--apply"])
+    with pytest.raises(SystemExit) as exit_info:
+        validate_cli_options(parser, args)
+    assert exit_info.value.code == 2
+
+
+def test_apply_accepts_complete_transaction_safety_bundle():
+    parser = build_agent_parser()
+    args = parser.parse_args(
+        ["demo", "change", "--apply", "--branch", "--test", "--validate", "--rollback-on-fail"]
+    )
+    validate_cli_options(parser, args)
+
+
+def test_auto_merge_requires_explicit_approval_and_commit():
+    parser = build_agent_parser()
+    args = parser.parse_args(
+        ["demo", "change", "--apply", "--branch", "--test", "--validate", "--rollback-on-fail", "--auto-merge"]
+    )
+    with pytest.raises(SystemExit) as exit_info:
+        validate_cli_options(parser, args)
+    assert exit_info.value.code == 2
