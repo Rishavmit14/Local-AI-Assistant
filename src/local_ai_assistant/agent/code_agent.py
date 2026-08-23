@@ -16,6 +16,8 @@ from local_ai_assistant.common.errors import (
 )
 from local_ai_assistant.common.logging import configure_logging, get_logger
 from local_ai_assistant.common.models import GitTransactionSummary
+from local_ai_assistant.planning import PlannerService
+from local_ai_assistant.planning.models import ApprovalStatus, IssueSeverity
 
 _DEFAULT_CONFIG = get_config()
 REPO_ROOT = _DEFAULT_CONFIG.paths.code_repo_dir
@@ -1276,6 +1278,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Explicit approval required together with --auto-merge.",
     )
 
+    parser.add_argument(
+        "--plan-only",
+        action="store_true",
+        help="Generate, validate, persist, and print a plan without generating a patch.",
+    )
+
+    parser.add_argument(
+        "--plan-output",
+        type=Path,
+        help="Optional JSON destination for the planning artifact.",
+    )
+
+    parser.add_argument(
+        "--approve-risk",
+        action="store_true",
+        help="Explicitly approve a validated high/critical-risk plan before patch generation.",
+    )
+
     return parser
 
 
@@ -1378,6 +1398,43 @@ def main(argv: list[str] | None = None):
     )
 
     rag.reindex()
+
+    planner = PlannerService(
+        repo,
+        rag.symbol_index,
+        rag.llm,
+        config.paths.code_index_dir / "plans" / args.repo,
+        getattr(rag, "retrieve", None),
+    )
+    artifact = planner.generate(args.request)
+    plan_path = planner.persist(artifact, args.plan_output)
+    print()
+    print("=" * 70)
+    print("IMPLEMENTATION PLAN")
+    print("=" * 70)
+    print(f"Task:       {artifact.plan.task_id}")
+    print(f"Summary:    {artifact.plan.summary}")
+    print(f"Risk:       {artifact.plan.risk.level.value}")
+    print(f"Confidence: {artifact.plan.confidence.score:.3f}")
+    print(f"Approval:   {artifact.plan.approval.status.value}")
+    print(f"Saved:      {plan_path}")
+    for step in artifact.plan.steps:
+        print(f"{step.order}. {step.description}")
+    errors = [
+        issue for issue in artifact.validation_issues if issue.severity is IssueSeverity.ERROR
+    ]
+    if errors:
+        print("Plan validation: FAIL")
+        for issue in errors:
+            print(f"- {issue.code}: {issue.message}")
+        sys.exit(1)
+    print("Plan validation: PASS")
+    if args.plan_only:
+        print("Planning-only mode: no patch was generated and nothing was modified.")
+        return
+    if artifact.plan.approval.status in {ApprovalStatus.REVIEW, ApprovalStatus.BLOCKED} and not args.approve_risk:
+        print("Patch generation is blocked pending explicit --approve-risk approval.")
+        sys.exit(1)
 
     # --------------------------------------------------------
     # Generate patch.
