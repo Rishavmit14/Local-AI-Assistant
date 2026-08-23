@@ -1,0 +1,14 @@
+git:
+  require_clean_tree: true
+  isolated_branch_prefix: agent/
+  validate_patch_before_apply: true
+  rollback_on_failure: true
+validation:
+  python_ast: true
+  reject_duplicate_top_level_definitions: true
+  tests_required_before_success: true
+repair:
+  maximum_attempts: 1
+security:
+  forbid_tracked_secrets: true
+  forbid_generated_state: true

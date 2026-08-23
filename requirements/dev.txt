@@ -1,0 +1,3 @@
+-r coding-agent.txt
+pytest>=8,<10
+ruff>=0.12,<1

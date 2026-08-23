@@ -1,0 +1,58 @@
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.token
+credentials*.json
+
+# Models and generated AI data
+*.gguf
+*.ggml
+*.safetensors
+*.faiss
+*.index
+embeddings/
+documents/
+rag_data/
+index/
+models/
+
+# Runtime and generated state
+var/*
+!var/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+patches/*.patch
+outputs/
+runs/
+cache/
+tmp/
+
+# Editors and OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Nested repositories used as coding targets
+repos/

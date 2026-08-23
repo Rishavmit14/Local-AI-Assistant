@@ -1,0 +1,3 @@
+extensions: [.ts, .tsx, .js, .jsx]
+test_commands:
+  - [npm, test, --, --runInBand]

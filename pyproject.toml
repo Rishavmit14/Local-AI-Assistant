@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "local-ai-assistant"
+version = "0.1.0"
+description = "Local-first Qwen chat, hybrid RAG, and transactional coding assistant"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["openai>=3,<4"]
+
+[project.optional-dependencies]
+rag = [
+  "faiss-cpu>=1.12,<2",
+  "numpy>=2,<3",
+  "pdf2image>=1.17,<2",
+  "pillow>=11,<13",
+  "pypdf>=6,<7",
+  "pytesseract>=0.3.13,<1",
+  "python-docx>=1.2,<2",
+  "rank-bm25>=0.2.2,<1",
+  "sentence-transformers>=5,<7",
+]
+ui = ["streamlit>=1.50,<2"]
+coding-agent = ["GitPython>=3.1,<4"]
+dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
+
+[project.scripts]
+local-ai-code-rag = "local_ai_assistant.code_index.repository:main"
+local-ai-code-agent = "local_ai_assistant.agent.code_agent:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100

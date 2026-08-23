@@ -1,0 +1,2 @@
+-r rag.txt
+GitPython>=3.1,<4

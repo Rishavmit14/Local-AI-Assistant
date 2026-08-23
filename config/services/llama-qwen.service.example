@@ -1,0 +1,28 @@
+[Unit]
+Description=Local Qwen llama.cpp Server
+After=network.target
+
+[Service]
+Type=simple
+User=LOCAL_AI_USER
+WorkingDirectory=LLAMA_CPP_DIR
+ExecStart=LLAMA_CPP_DIR/build/bin/llama-server \
+  -m MODEL_PATH \
+  -ngl 999 \
+  -ncmoe 34 \
+  -c 262144 \
+  -b 128 \
+  -ub 32 \
+  -t 4 \
+  -tb 4 \
+  -fa off \
+  -ctk turbo4 \
+  -ctv turbo3 \
+  --reasoning off \
+  --host 127.0.0.1 \
+  --port 8080
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

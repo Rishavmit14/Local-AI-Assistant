@@ -1,0 +1,4 @@
+extensions: [.sol]
+test_commands:
+  - [forge, test]
+status: roadmap

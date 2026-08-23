@@ -1,0 +1,18 @@
+model:
+  name: Qwen3.6-35B-A3B-UD-Q4_K_M
+  path_env: LOCAL_AI_MODEL
+  default_path: /AI/models/qwen3.6-q4/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf
+server:
+  host: 127.0.0.1
+  port: 8080
+  gpu_layers: 999
+  cpu_moe_layers: 34
+  context_size: 262144
+  batch_size: 128
+  micro_batch_size: 32
+  threads: 4
+  batch_threads: 4
+  flash_attention: off
+  kv_key_type: turbo4
+  kv_value_type: turbo3
+  reasoning: off

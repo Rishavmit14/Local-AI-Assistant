@@ -1,0 +1,4 @@
+extensions: [.py]
+test_commands:
+  - [python, -m, pytest, -q]
+structural_validation: python_ast
