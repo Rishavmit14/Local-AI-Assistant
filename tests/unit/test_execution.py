@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import pytest
 
+from local_ai_assistant.execution.cli import build_parser
 from local_ai_assistant.execution.commands import parse_allowed_command, run_allowed_command
-from local_ai_assistant.execution.errors import CommandPolicyError, ExecutionHistoryError
+from local_ai_assistant.execution.errors import (
+    CommandPolicyError,
+    ExecutionHistoryError,
+    ToolNotFoundError,
+)
 from local_ai_assistant.execution.history import load_report, persist_report, redact
-from local_ai_assistant.execution.models import ExecutionReport, ToolPermission
+from local_ai_assistant.execution.models import ExecutionReport, ToolPermission, ToolRequest
 from local_ai_assistant.execution.registry import default_registry
 
 
@@ -78,6 +83,32 @@ def test_registry_contains_typed_read_mutation_and_validation_tools():
     assert specs["run_tests"].permission is ToolPermission.VALIDATION
     assert specs["create_file"].mutates
     assert specs["create_file"].approval_required
+
+
+def test_unknown_tool_and_strict_tool_request_schema():
+    with pytest.raises(ToolNotFoundError):
+        default_registry().invoke("does_not_exist", {}, None)
+    request = ToolRequest.from_dict(
+        {
+            "tool": "read_file",
+            "arguments": {"path": "a.py"},
+            "rationale": "Inspect exact code",
+            "expected_outcome": "source",
+            "plan_step": 1,
+            "mutation_intended": False,
+        }
+    )
+    assert request.tool == "read_file"
+    with pytest.raises(ValueError):
+        ToolRequest.from_dict({"tool": "read_file"})
+
+
+def test_execution_cli_exposes_stage_four_commands():
+    parser = build_parser()
+    assert parser.parse_args(["show-tools"]).command == "show-tools"
+    assert parser.parse_args(["show-policy", "plan.json"]).command == "show-policy"
+    args = parser.parse_args(["execute", "demo", "plan.json", "--dry-run", "--max-steps", "3"])
+    assert args.dry_run and args.max_steps == 3
 
 
 def test_execution_history_is_atomic_redacted_and_versioned(tmp_path):

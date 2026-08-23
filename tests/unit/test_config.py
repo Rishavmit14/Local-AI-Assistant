@@ -17,6 +17,8 @@ def test_default_configuration_preserves_local_ports_and_model():
     assert config.document_retrieval.vector_top_k == 10
     assert config.code_retrieval.vector_top_k == 12
     assert config.ocr.language == "eng"
+    assert config.execution.max_steps == 12
+    assert config.execution.max_repairs == 1
 
 
 def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
@@ -30,6 +32,7 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
             "LOCAL_AI_CODE_CHUNK_LINES": "80",
             "LOCAL_AI_LOG_FORMAT": "text",
             "LOCAL_AI_TEST_MODE": "true",
+            "LOCAL_AI_EXECUTION_MAX_STEPS": "7",
         }
     )
 
@@ -42,6 +45,7 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
     assert config.code_retrieval.chunk_lines == 80
     assert config.runtime.log_format == "text"
     assert config.runtime.test_mode is True
+    assert config.execution.max_steps == 7
 
 
 @pytest.mark.parametrize(

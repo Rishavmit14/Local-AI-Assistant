@@ -9,6 +9,9 @@ import numpy as np
 import pytest
 
 from local_ai_assistant.code_index.symbol_index import SymbolIndex
+from local_ai_assistant.execution.loop import ExecutionLoop, LoopLimits
+from local_ai_assistant.execution.models import ToolObservation, ToolPermission, ToolSpec
+from local_ai_assistant.execution.registry import ToolContext, ToolRegistry
 from local_ai_assistant.planning.analysis import (
     ScopeAnalyzer,
     assess_confidence,
@@ -66,8 +69,12 @@ def planning_repo(tmp_path):
     (repo / "app").mkdir(parents=True)
     (repo / "tests").mkdir()
     (repo / "app/service.py").write_text("def login_user(name):\n    return bool(name)\n")
-    (repo / "app/api.py").write_text("from app.service import login_user\n\ndef login_endpoint(name):\n    return login_user(name)\n")
-    (repo / "tests/test_service.py").write_text("from app.service import login_user\n\ndef test_login():\n    assert login_user('a')\n")
+    (repo / "app/api.py").write_text(
+        "from app.service import login_user\n\ndef login_endpoint(name):\n    return login_user(name)\n"
+    )
+    (repo / "tests/test_service.py").write_text(
+        "from app.service import login_user\n\ndef test_login():\n    assert login_user('a')\n"
+    )
     (repo / "pyproject.toml").write_text("[project]\nname='demo'\n")
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.name", "Planner Test"], cwd=repo, check=True)
@@ -91,12 +98,32 @@ def response_for(index, **overrides):
         "symbols_to_modify": [login.identifier],
         "symbols_to_create": [],
         "steps": [
-            {"order": 1, "description": "Update the existing login implementation.", "files": ["app/service.py"], "symbols": [login.identifier]},
-            {"order": 2, "description": "Update focused regression coverage.", "files": ["tests/test_service.py"], "symbols": []},
+            {
+                "order": 1,
+                "description": "Update the existing login implementation.",
+                "files": ["app/service.py"],
+                "symbols": [login.identifier],
+            },
+            {
+                "order": 2,
+                "description": "Update focused regression coverage.",
+                "files": ["tests/test_service.py"],
+                "symbols": [],
+            },
         ],
         "relevant_tests": [
-            {"path": "tests/test_service.py", "reason": "Directly imports login_user.", "command": "python -m pytest tests/test_service.py", "required_full_suite": False},
-            {"path": "full-suite", "reason": "Required final regression suite.", "command": "python -m pytest", "required_full_suite": True},
+            {
+                "path": "tests/test_service.py",
+                "reason": "Directly imports login_user.",
+                "command": "python -m pytest tests/test_service.py",
+                "required_full_suite": False,
+            },
+            {
+                "path": "full-suite",
+                "reason": "Required final regression suite.",
+                "command": "python -m pytest",
+                "required_full_suite": True,
+            },
         ],
         "validation_commands": ["python -m pytest"],
         "dependency_changes": [],
@@ -191,7 +218,9 @@ def test_scope_analysis_uses_exact_calls_importers_and_tests(planning_repo):
 def test_repository_map_and_legacy_fallback_are_explicit_scope_evidence(planning_repo):
     _, repo, index = planning_repo
     mapped = ScopeAnalyzer(repo, index).analyze("Inspect api.py")
-    assert any(item.relationship == "repository_map" and item.path == "app/api.py" for item in mapped)
+    assert any(
+        item.relationship == "repository_map" and item.path == "app/api.py" for item in mapped
+    )
 
     def legacy(request):
         return [
@@ -275,9 +304,7 @@ def test_persisted_plan_is_bound_to_repository_head(planning_repo):
     subprocess.run(["git", "add", "new.txt"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-m", "move head"], cwd=repo, check=True, capture_output=True)
 
-    assert "starting_commit_mismatch" in {
-        issue.code for issue in service.identity_issues(artifact)
-    }
+    assert "starting_commit_mismatch" in {issue.code for issue in service.identity_issues(artifact)}
 
 
 def test_malformed_planner_response_is_rejected(planning_repo):
@@ -301,13 +328,11 @@ def test_model_duplicate_targets_are_normalized(planning_repo):
     response = response_for(index)
     response["files_to_modify"] *= 2
     response["symbols_to_modify"] *= 2
-    artifact = PlannerService(
-        repo, index, FakeLLM(response), root / "plans"
-    ).generate("Fix login_user")
-    assert len(artifact.plan.files_to_modify) == len(set(artifact.plan.files_to_modify))
-    assert len(artifact.plan.symbols_to_modify) == len(
-        set(artifact.plan.symbols_to_modify)
+    artifact = PlannerService(repo, index, FakeLLM(response), root / "plans").generate(
+        "Fix login_user"
     )
+    assert len(artifact.plan.files_to_modify) == len(set(artifact.plan.files_to_modify))
+    assert len(artifact.plan.symbols_to_modify) == len(set(artifact.plan.symbols_to_modify))
 
 
 def test_validation_rejects_missing_symbols_files_and_protected_paths(planning_repo):
@@ -319,7 +344,10 @@ def test_validation_rejects_missing_symbols_files_and_protected_paths(planning_r
         files_to_modify=("missing.py", "var/generated.py"),
         symbols_to_modify=("missing.symbol",),
     )
-    codes = {item.code for item in PlanValidator(repo, index).validate(invalid, artifact.scope_candidates)}
+    codes = {
+        item.code
+        for item in PlanValidator(repo, index).validate(invalid, artifact.scope_candidates)
+    }
     assert {"missing_file", "missing_symbol", "protected_path"} <= codes
 
 
@@ -336,9 +364,7 @@ def test_validation_rejects_symbol_from_another_indexed_repository(planning_repo
 
     assert "missing_symbol" in {
         item.code
-        for item in PlanValidator(repo, index).validate(
-            invalid, artifact.scope_candidates
-        )
+        for item in PlanValidator(repo, index).validate(invalid, artifact.scope_candidates)
     }
 
 
@@ -346,34 +372,66 @@ def test_proposed_new_targets_dependency_and_migration_rules(planning_repo):
     root, repo, index = planning_repo
     service = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans")
     artifact = service.generate("Add login_user feature")
-    new_plan = replace(artifact.plan, files_to_create=("app/new_module.py",), symbols_to_create=("app.new_module.created",))
-    assert not [item for item in PlanValidator(repo, index).validate(new_plan, artifact.scope_candidates) if item.code in {"missing_file", "missing_symbol"}]
+    new_plan = replace(
+        artifact.plan,
+        files_to_create=("app/new_module.py",),
+        symbols_to_create=("app.new_module.created",),
+    )
+    assert not [
+        item
+        for item in PlanValidator(repo, index).validate(new_plan, artifact.scope_candidates)
+        if item.code in {"missing_file", "missing_symbol"}
+    ]
 
-    dependency_plan = replace(artifact.plan, files_to_modify=("pyproject.toml",), dependency_changes=())
-    assert "unmarked_dependency_change" in {item.code for item in PlanValidator(repo, index).validate(dependency_plan, artifact.scope_candidates)}
-    migration_plan = replace(artifact.plan, original_request="Drop table users", files_to_create=("migrations/001.sql",), migration_implications=())
-    assert "unmarked_migration" in {item.code for item in PlanValidator(repo, index).validate(migration_plan, artifact.scope_candidates)}
+    dependency_plan = replace(
+        artifact.plan, files_to_modify=("pyproject.toml",), dependency_changes=()
+    )
+    assert "unmarked_dependency_change" in {
+        item.code
+        for item in PlanValidator(repo, index).validate(dependency_plan, artifact.scope_candidates)
+    }
+    migration_plan = replace(
+        artifact.plan,
+        original_request="Drop table users",
+        files_to_create=("migrations/001.sql",),
+        migration_implications=(),
+    )
+    assert "unmarked_migration" in {
+        item.code
+        for item in PlanValidator(repo, index).validate(migration_plan, artifact.scope_candidates)
+    }
     marked = replace(
         artifact.plan,
         files_to_modify=("pyproject.toml",),
-        dependency_changes=(DependencyChange("pyproject.toml", DependencyChangeKind.VERSION, "Update package version."),),
+        dependency_changes=(
+            DependencyChange(
+                "pyproject.toml", DependencyChangeKind.VERSION, "Update package version."
+            ),
+        ),
     )
-    assert "invalid_dependency_manifest" not in {item.code for item in PlanValidator(repo, index).validate(marked, artifact.scope_candidates)}
+    assert "invalid_dependency_manifest" not in {
+        item.code for item in PlanValidator(repo, index).validate(marked, artifact.scope_candidates)
+    }
     conflicting = replace(
         artifact.plan,
         files_to_modify=("app/service.py",),
         files_to_delete_or_rename=("app/service.py",),
     )
     assert "conflicting_target_roles" in {
-        item.code for item in PlanValidator(repo, index).validate(conflicting, artifact.scope_candidates)
+        item.code
+        for item in PlanValidator(repo, index).validate(conflicting, artifact.scope_candidates)
     }
 
 
 def test_risk_security_dependency_migration_and_approval_policy():
     classification = classify_task("Add ordinary feature")
     confidence = assess_confidence(classification, ())
-    critical = assess_risk("Drop table users with production credential", classification, ("migrations/001.sql",))
-    dependency = assess_risk("Upgrade package", classification, ("pyproject.toml",), ("version change",))
+    critical = assess_risk(
+        "Drop table users with production credential", classification, ("migrations/001.sql",)
+    )
+    dependency = assess_risk(
+        "Upgrade package", classification, ("pyproject.toml",), ("version change",)
+    )
     deletion = assess_risk(
         "Clean up obsolete code",
         classification,
@@ -422,9 +480,13 @@ def test_dependency_migration_and_security_flags_overlap_conservatively():
 
 def test_scope_guard_detects_unplanned_diff(planning_repo):
     root, repo, index = planning_repo
-    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate("Fix login_user")
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
     policy = scope_guard_from_plan(artifact.plan)
-    issues = compare_scope(policy, ("app/service.py", "unplanned.py"), (artifact.plan.symbols_to_modify[0],))
+    issues = compare_scope(
+        policy, ("app/service.py", "unplanned.py"), (artifact.plan.symbols_to_modify[0],)
+    )
     assert any("Unplanned files" in item for item in issues)
     inspect_only = replace(
         artifact.plan,
@@ -439,9 +501,9 @@ def test_scope_guard_detects_unplanned_diff(planning_repo):
 
 def test_generated_patch_is_checked_against_planned_files_and_symbols(planning_repo):
     root, repo, index = planning_repo
-    artifact = PlannerService(
-        repo, index, FakeLLM(response_for(index)), root / "plans"
-    ).generate("Fix login_user")
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
     diff = """diff --git a/app/service.py b/app/service.py
 --- a/app/service.py
 +++ b/app/service.py
@@ -459,9 +521,9 @@ def test_generated_patch_is_checked_against_planned_files_and_symbols(planning_r
 
 def test_generated_patch_rejects_unplanned_file_before_apply(planning_repo):
     root, repo, index = planning_repo
-    artifact = PlannerService(
-        repo, index, FakeLLM(response_for(index)), root / "plans"
-    ).generate("Fix login_user")
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
     diff = """diff --git a/app/unplanned.py b/app/unplanned.py
 new file mode 100644
 --- /dev/null
@@ -474,16 +536,45 @@ new file mode 100644
     assert any("Unplanned created" in issue for issue in issues)
 
 
+def test_multifile_patch_classifies_create_delete_rename_and_symbols(planning_repo):
+    _, _, index = planning_repo
+    diff = """diff --git a/app/new.py b/app/new.py
+new file mode 100644
+--- /dev/null
++++ b/app/new.py
+@@ -0,0 +1,2 @@
++def created_symbol():
++    return True
+diff --git a/app/old.py b/app/old.py
+deleted file mode 100644
+--- a/app/old.py
++++ /dev/null
+@@ -1 +0,0 @@
+-value = 1
+diff --git a/app/api.py b/app/routes.py
+similarity index 100%
+rename from app/api.py
+rename to app/routes.py
+"""
+    scope = extract_patch_scope(diff, tuple(index.symbols), "demo/")
+    assert scope.created_files == ("app/new.py",)
+    assert scope.deleted_files == ("app/old.py",)
+    assert scope.renamed_files == (("app/api.py", "app/routes.py"),)
+    assert any(
+        item.effect == "symbol_added" and item.symbol == "created_symbol"
+        for item in scope.symbol_effects
+    )
+
+
 def test_unresolved_static_evidence_reduces_confidence(planning_repo):
     _, repo, index = planning_repo
     classification = classify_task("Fix login_user")
     candidates = ScopeAnalyzer(repo, index).analyze("Fix login_user")
-    without_unresolved = tuple(
-        item for item in candidates if item.role.value != "unresolved"
+    without_unresolved = tuple(item for item in candidates if item.role.value != "unresolved")
+    assert (
+        assess_confidence(classification, candidates).score
+        < assess_confidence(classification, without_unresolved).score
     )
-    assert assess_confidence(classification, candidates).score < assess_confidence(
-        classification, without_unresolved
-    ).score
 
 
 def test_instruction_precedence_uses_nested_override(tmp_path):
@@ -501,17 +592,96 @@ def test_instruction_precedence_uses_nested_override(tmp_path):
     _, sources, truncated = discover_project_instructions(repo, ("app/module.py",))
     assert sources == ("AGENTS.md", "app/AGENTS.override.md")
     assert truncated is False
-    _, bounded_sources, truncated = discover_project_instructions(
-        repo, ("app/module.py",), limit=5
-    )
+    _, bounded_sources, truncated = discover_project_instructions(repo, ("app/module.py",), limit=5)
     assert truncated is True
     assert bounded_sources == ("app/AGENTS.override.md",)
 
 
 def test_approval_token_changes_with_plan_content(planning_repo):
     root, repo, index = planning_repo
-    artifact = PlannerService(
-        repo, index, FakeLLM(response_for(index)), root / "plans"
-    ).generate("Fix login_user")
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
     changed = replace(artifact.plan, summary="A different reviewed plan")
     assert plan_approval_token(artifact.plan) != plan_approval_token(changed)
+
+
+def test_bounded_tool_loop_inspects_validates_and_finishes(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    registry = ToolRegistry()
+    registry.register(
+        ToolSpec("inspect", "inspect", ToolPermission.READ_ONLY, False, 1),
+        lambda context, args: ToolObservation("inspection", True, "inspected"),
+    )
+    registry.register(
+        ToolSpec("validate", "validate", ToolPermission.VALIDATION, False, 1),
+        lambda context, args: ToolObservation("command", True, "tests passed"),
+    )
+    actions = iter(
+        [
+            {
+                "tool": "inspect",
+                "arguments": {},
+                "rationale": "inspect",
+                "expected_outcome": "facts",
+                "plan_step": 1,
+                "mutation_intended": False,
+            },
+            {
+                "tool": "validate",
+                "arguments": {},
+                "rationale": "test",
+                "expected_outcome": "pass",
+                "plan_step": 2,
+                "mutation_intended": False,
+            },
+            {
+                "tool": "finish",
+                "arguments": {},
+                "rationale": "done",
+                "expected_outcome": "complete",
+                "plan_step": 2,
+                "mutation_intended": False,
+            },
+        ]
+    )
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: json.dumps(next(actions))
+    context = ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index)
+    result = ExecutionLoop(model, registry, context, LoopLimits(max_steps=4)).run()
+    assert result.status == "complete"
+    assert result.steps == 3
+    assert len(context.events) == 2
+
+
+def test_tool_loop_stops_at_max_steps(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    registry = ToolRegistry()
+    registry.register(
+        ToolSpec("inspect", "inspect", ToolPermission.READ_ONLY, False, 1),
+        lambda context, args: ToolObservation("inspection", True, "ok"),
+    )
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: json.dumps(
+        {
+            "tool": "inspect",
+            "arguments": {},
+            "rationale": "again",
+            "expected_outcome": "facts",
+            "plan_step": 1,
+            "mutation_intended": False,
+        }
+    )
+    result = ExecutionLoop(
+        model,
+        registry,
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+        LoopLimits(max_steps=2),
+    ).run()
+    assert result.status == "max_steps"

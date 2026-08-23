@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "local-ai-assistant"
-version = "0.4.0"
+version = "0.5.0"
 description = "Local-first Qwen chat, hybrid RAG, and transactional coding assistant"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -39,6 +39,7 @@ local-ai-chat = "local_ai_assistant.llm.client:main"
 local-ai-code-rag = "local_ai_assistant.code_index.repository:main"
 local-ai-code-agent = "local_ai_assistant.agent.code_agent:main"
 local-ai-plan = "local_ai_assistant.planning.cli:main"
+local-ai-execute = "local_ai_assistant.execution.cli:main"
 local-ai-ui = "local_ai_assistant.ui.cli:main"
 
 [tool.setuptools.packages.find]

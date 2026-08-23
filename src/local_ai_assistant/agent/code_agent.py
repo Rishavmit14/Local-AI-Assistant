@@ -26,6 +26,7 @@ from local_ai_assistant.planning.models import (
 from local_ai_assistant.planning.patch_scope import (
     extract_patch_scope,
     validate_patch_scope,
+    worktree_diff,
 )
 
 _DEFAULT_CONFIG = get_config()
@@ -1553,6 +1554,11 @@ def main(argv: list[str] | None = None):
         sys.exit(1)
     print("Patch scope validation: PASS")
 
+    if args.human_review:
+        print("Human review stop: plan, patch, scope, risk, confidence, and tests are available.")
+        print("Nothing has been modified.")
+        return
+
     # --------------------------------------------------------
     # Proposal-only mode.
     # --------------------------------------------------------
@@ -1611,6 +1617,32 @@ def main(argv: list[str] | None = None):
         )
 
         sys.exit(1)
+
+    post_apply_scope = extract_patch_scope(
+        worktree_diff(repo),
+        tuple(rag.symbol_index.symbols),
+        planner.analyzer.index_prefix or "",
+    )
+    post_apply_issues = validate_patch_scope(
+        scope_guard_from_plan(artifact.plan),
+        post_apply_scope,
+    )
+    if post_apply_issues:
+        print("Post-apply scope validation: FAIL")
+        for issue in post_apply_issues:
+            print(f"- {issue}")
+        finalize_run(
+            repo=repo,
+            request=args.request,
+            tests_passed=False,
+            auto_commit=args.auto_commit,
+            rollback_on_fail=True,
+            starting_commit=starting_commit,
+            original_branch=original_branch,
+            agent_branch=agent_branch,
+        )
+        sys.exit(1)
+    print("Post-apply scope validation: PASS")
 
     if args.validate:
 

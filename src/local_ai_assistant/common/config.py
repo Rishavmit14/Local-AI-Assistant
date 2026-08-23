@@ -125,6 +125,20 @@ class RuntimeConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ExecutionConfig:
+    inspection_timeout_seconds: int = 15
+    lint_timeout_seconds: int = 180
+    test_timeout_seconds: int = 900
+    build_timeout_seconds: int = 900
+    tool_step_timeout_seconds: int = 120
+    max_steps: int = 12
+    max_mutations: int = 4
+    max_repairs: int = 1
+    max_replans: int = 1
+    context_characters: int = 32_000
+
+
+@dataclass(frozen=True, slots=True)
 class AppConfig:
     llama: LlamaConfig = field(default_factory=LlamaConfig)
     paths: PathConfig = field(default_factory=PathConfig)
@@ -136,6 +150,7 @@ class AppConfig:
     ocr: OCRConfig = field(default_factory=OCRConfig)
     ui: UIConfig = field(default_factory=UIConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
+    execution: ExecutionConfig = field(default_factory=ExecutionConfig)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AppConfig:
@@ -205,6 +220,18 @@ class AppConfig:
                 ),
                 command_timeout_seconds=_integer(values, "LOCAL_AI_COMMAND_TIMEOUT", 900),
                 test_mode=_boolean(values, "LOCAL_AI_TEST_MODE", False),
+            ),
+            execution=ExecutionConfig(
+                inspection_timeout_seconds=_integer(values, "LOCAL_AI_INSPECTION_TIMEOUT", 15),
+                lint_timeout_seconds=_integer(values, "LOCAL_AI_LINT_TIMEOUT", 180),
+                test_timeout_seconds=_integer(values, "LOCAL_AI_TEST_TIMEOUT", 900),
+                build_timeout_seconds=_integer(values, "LOCAL_AI_BUILD_TIMEOUT", 900),
+                tool_step_timeout_seconds=_integer(values, "LOCAL_AI_TOOL_STEP_TIMEOUT", 120),
+                max_steps=_integer(values, "LOCAL_AI_EXECUTION_MAX_STEPS", 12),
+                max_mutations=_integer(values, "LOCAL_AI_EXECUTION_MAX_MUTATIONS", 4),
+                max_repairs=_integer(values, "LOCAL_AI_EXECUTION_MAX_REPAIRS", 1, minimum=0),
+                max_replans=_integer(values, "LOCAL_AI_EXECUTION_MAX_REPLANS", 1, minimum=0),
+                context_characters=_integer(values, "LOCAL_AI_EXECUTION_CONTEXT_CHARACTERS", 32_000),
             ),
         )
 
