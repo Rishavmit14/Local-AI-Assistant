@@ -18,11 +18,13 @@ The schema is extensible for structs, traits, interfaces, contracts, enums, impl
 
 The existing multi-extension 120/20 line-chunk BGE + FAISS/BM25/RRF index remains the compatibility fallback beneath exact, graph-related, and hybrid symbol retrieval.
 
-## Stage 3 — Planning and scope (**Planned**)
+## Stage 3 — Planning and scope (**Done**)
 
-Task classification; affected files/symbols; ordered and revisable plans; existence/consistency validation; risk/scope estimates; dependency-change detection; approval policy. First-class multi-file diffs with summaries, file-count and symbol-scope guards, plan-vs-diff and unrelated-change checks, unaffected-code preservation, and safe create/delete/rename.
+Typed task classification, deterministic affected-file/symbol/test candidates, bounded structured Qwen plans, existence/consistency validation, risk/confidence/approval decisions, dependency/migration/security awareness, instruction precedence, JSON persistence, CLI inspection, and the pre-patch coding-agent planning gate are implemented.
 
-Add project instruction/memory support for root/nested `AGENTS.md`, `AGENTS.override.md`, conventions, commands, architecture/generated-file/dependency rules, persistent memory, local config, and ADRs. Gate requirements, `pyproject`, package/lock files, Cargo/Foundry files, and system packages.
+The plan-vs-diff `ScopeGuardPolicy` foundation defines file/symbol/new/delete/rename/count/protected/dependency/generated/security constraints. Actual first-class multi-file editing, diff enforcement, unrelated-change checks, and unaffected-code enforcement remain explicitly scheduled for Stage 4 rather than being silently performed in Stage 3.
+
+Root/nested `AGENTS.md` and `AGENTS.override.md`, relevant architecture, conventions, commands, generated/protected paths, and dependency rules feed planning with defined precedence. Full persistent project memory remains a later product capability; Stage 3 persists scoped plan artifacts only.
 
 ## Stage 4 — Tool-driven loop (**Planned**)
 
