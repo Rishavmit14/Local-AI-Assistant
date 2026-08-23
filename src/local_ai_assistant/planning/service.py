@@ -17,7 +17,7 @@ from local_ai_assistant.common.logging import get_logger
 
 from .analysis import ScopeAnalyzer, assess_confidence, assess_risk, decide_approval
 from .classification import classify_task
-from .instructions import load_project_instructions
+from .instructions import discover_project_instructions
 from .models import (
     ApprovalDecision,
     ApprovalStatus,
@@ -37,6 +37,24 @@ from .validation import PlanValidator
 
 logger = get_logger(__name__)
 CONTEXT_CHARACTER_BUDGET = 24_000
+REQUIRED_PLAN_FIELDS = {
+    "summary",
+    "assumptions",
+    "files_to_inspect",
+    "files_to_modify",
+    "files_to_create",
+    "files_to_delete_or_rename",
+    "symbols_to_modify",
+    "symbols_to_create",
+    "steps",
+    "relevant_tests",
+    "validation_commands",
+    "dependency_changes",
+    "migration_implications",
+    "security_implications",
+    "rollback_considerations",
+    "unresolved_questions",
+}
 
 
 class PlanGenerationError(LocalAIError):
@@ -61,8 +79,11 @@ class PlannerService:
         classification, candidates = self.analyze(request)
         starting_commit = self._head()
         task_id = hashlib.sha256(f"{self.repository}\0{starting_commit}\0{request}".encode()).hexdigest()[:16]
+        prompt, instruction_sources, context_truncated = self._prompt(
+            request, classification.category.value, candidates
+        )
         response = self.llm.chat(
-            prompt=self._prompt(request, classification.category.value, candidates),
+            prompt=prompt,
             system_prompt="You are a planning-only senior engineer. Return valid JSON and never generate a patch.",
             temperature=0.0,
             max_tokens=3000,
@@ -74,6 +95,7 @@ class PlannerService:
             classification,
             tuple((*preliminary.files_to_modify, *preliminary.files_to_create, *preliminary.files_to_delete_or_rename)),
             preliminary.dependency_changes,
+            preliminary.files_to_delete_or_rename,
         )
         issues = list(self.validator.validate(preliminary, candidates))
         if risk.level in {RiskLevel.HIGH, RiskLevel.CRITICAL} and not any(
@@ -110,6 +132,8 @@ class PlannerService:
             candidates,
             plan,
             issues_tuple,
+            instruction_sources,
+            context_truncated,
         )
         logger.info("plan_generated", extra={"event": "planning.generated", "task_id": task_id, "risk": risk.level.value, "approval": approval.status.value, "candidate_count": len(candidates), "issue_count": len(issues)})
         return artifact
@@ -133,12 +157,41 @@ class PlannerService:
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise PlanGenerationError(f"Invalid persisted plan: {exc}") from exc
 
-    def _prompt(self, request: str, category: str, candidates: tuple[ScopeCandidate, ...]) -> str:
+    def identity_issues(self, artifact: PlanningArtifact) -> tuple[ValidationIssue, ...]:
+        issues = []
+        if Path(artifact.repository).resolve() != self.repository:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.ERROR,
+                    "repository_mismatch",
+                    "Persisted plan belongs to a different repository.",
+                    artifact.repository,
+                )
+            )
+        current_commit = self._head()
+        if artifact.starting_commit != current_commit:
+            issues.append(
+                ValidationIssue(
+                    IssueSeverity.ERROR,
+                    "starting_commit_mismatch",
+                    "Repository HEAD changed after this plan was generated; regenerate the plan.",
+                    f"planned={artifact.starting_commit}, current={current_commit}",
+                )
+            )
+        return tuple(issues)
+
+    def _prompt(
+        self, request: str, category: str, candidates: tuple[ScopeCandidate, ...]
+    ) -> tuple[str, tuple[str, ...], bool]:
         candidate_data = []
         remaining = CONTEXT_CHARACTER_BUDGET
+        context_truncated = False
         for candidate in candidates:
             symbol = next((item for item in self.symbol_index.symbols if item.identifier == candidate.symbol_id), None)
             source = symbol.source if symbol else ""
+            source_limit = min(4000, remaining)
+            if len(source) > source_limit:
+                context_truncated = True
             entry = {
                 "path": candidate.path,
                 "symbol_id": candidate.symbol_id,
@@ -147,15 +200,19 @@ class PlannerService:
                 "reason": candidate.reason,
                 "confidence": candidate.confidence,
                 "provenance": candidate.provenance,
-                "source": source[: min(4000, remaining)],
+                "source": source[:source_limit],
             }
             encoded = json.dumps(entry)
             if len(encoded) > remaining:
+                context_truncated = True
                 break
             candidate_data.append(entry)
             remaining -= len(encoded)
         paths = tuple(dict.fromkeys(item.path for item in candidates))
-        instructions = load_project_instructions(self.repository, paths, min(8000, remaining))
+        instructions, instruction_sources, instructions_truncated = discover_project_instructions(
+            self.repository, paths, 8000
+        )
+        context_truncated = context_truncated or instructions_truncated
         architecture = ""
         architecture_file = self.repository / "ARCHITECTURE.md"
         if architecture_file.is_file() and remaining > len(instructions):
@@ -178,7 +235,7 @@ class PlannerService:
             "rollback_considerations": ["string"],
             "unresolved_questions": ["string"],
         }
-        return f"""Create an implementation plan only. Do not generate code, patches, or commands that mutate the repository.
+        prompt = f"""Create an implementation plan only. Do not generate code, patches, or commands that mutate the repository.
 
 REQUEST: {request}
 DETERMINISTIC CLASSIFICATION: {category}
@@ -196,6 +253,7 @@ Return exactly one JSON object matching this shape:
 {json.dumps(schema, indent=2)}
 
 Rules: existing targets must come from evidence or be justified in assumptions; new files/symbols must appear only in the explicit proposed-new arrays; keep scope minimal; cite paths/symbol IDs in steps; identify tests, dependency, migration, security, and rollback implications. Unknowns belong in unresolved_questions."""
+        return prompt, instruction_sources, context_truncated
 
     @staticmethod
     def _parse_response(response: str) -> dict[str, Any]:
@@ -213,6 +271,11 @@ Rules: existing targets must come from evidence or be justified in assumptions; 
 
     @staticmethod
     def _build_plan(task_id, request, classification, candidates, raw):
+        missing = sorted(REQUIRED_PLAN_FIELDS - raw.keys())
+        if missing:
+            raise PlanGenerationError(
+                "Planner response is missing required fields: " + ", ".join(missing)
+            )
         direct = tuple(item for item in candidates if item.role.value == "direct")
         dependent = tuple(item for item in candidates if item.role.value == "dependent")
         try:
@@ -220,9 +283,12 @@ Rules: existing targets must come from evidence or be justified in assumptions; 
             return ImplementationPlan(
                 task_id, request, classification, str(raw["summary"]),
                 tuple(raw.get("assumptions", ())), direct, dependent,
-                tuple(raw.get("files_to_inspect", ())), tuple(raw.get("files_to_modify", ())),
-                tuple(raw.get("files_to_create", ())), tuple(raw.get("files_to_delete_or_rename", ())),
-                tuple(raw.get("symbols_to_modify", ())), tuple(raw.get("symbols_to_create", ())), steps,
+                tuple(dict.fromkeys(raw.get("files_to_inspect", ()))),
+                tuple(dict.fromkeys(raw.get("files_to_modify", ()))),
+                tuple(dict.fromkeys(raw.get("files_to_create", ()))),
+                tuple(dict.fromkeys(raw.get("files_to_delete_or_rename", ()))),
+                tuple(dict.fromkeys(raw.get("symbols_to_modify", ()))),
+                tuple(dict.fromkeys(raw.get("symbols_to_create", ()))), steps,
                 tuple(PlannedTest.from_dict(item) for item in raw.get("relevant_tests", ())), tuple(raw.get("validation_commands", ())),
                 tuple(DependencyChange.from_dict(item) for item in raw.get("dependency_changes", ())), tuple(raw.get("migration_implications", ())),
                 tuple(raw.get("security_implications", ())), tuple(raw.get("rollback_considerations", ())),

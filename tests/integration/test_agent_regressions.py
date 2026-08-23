@@ -90,6 +90,7 @@ def test_fresh_index_precedes_every_patch_proposal(monkeypatch, tmp_path):
     monkeypatch.setattr(code_agent, "CodeRAG", FakeRAG)
     monkeypatch.setattr(code_agent, "propose_patch", fake_proposal)
     monkeypatch.setattr(code_agent, "PlannerService", FakePlanner)
+    monkeypatch.setattr(code_agent, "plan_approval_token", lambda plan: "reviewed-token")
 
     with pytest.raises(SystemExit) as exit_info:
         code_agent.main(["demo", "change something"])
@@ -99,14 +100,26 @@ def test_fresh_index_precedes_every_patch_proposal(monkeypatch, tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("artifact", "expected_code"),
+    ("artifact", "extra_args", "expected_code", "proposal_count"),
     [
-        (fake_artifact(errors=True), 1),
-        (fake_artifact(approval=ApprovalStatus.REVIEW), 1),
+        (fake_artifact(errors=True), (), 1, 0),
+        (fake_artifact(approval=ApprovalStatus.REVIEW), (), 1, 0),
+        (
+            fake_artifact(approval=ApprovalStatus.REVIEW),
+            ("--approve-risk", "different-plan-token"),
+            1,
+            0,
+        ),
+        (
+            fake_artifact(approval=ApprovalStatus.REVIEW),
+            ("--approve-risk", "reviewed-token"),
+            1,
+            1,
+        ),
     ],
 )
 def test_agent_blocks_invalid_or_unapproved_high_risk_plan(
-    monkeypatch, tmp_path, artifact, expected_code
+    monkeypatch, tmp_path, artifact, extra_args, expected_code, proposal_count
 ):
     repo_root = tmp_path / "repos"
     init_repo(repo_root / "demo")
@@ -147,13 +160,18 @@ def test_agent_blocks_invalid_or_unapproved_high_risk_plan(
     monkeypatch.setattr(code_agent, "get_config", lambda: config)
     monkeypatch.setattr(code_agent, "CodeRAG", FakeRAG)
     monkeypatch.setattr(code_agent, "PlannerService", FakePlanner)
-    monkeypatch.setattr(code_agent, "propose_patch", lambda *args: proposals.append(True))
+    monkeypatch.setattr(code_agent, "plan_approval_token", lambda plan: "reviewed-token")
+    def proposal(*args):
+        proposals.append(True)
+        return "INSUFFICIENT_CONTEXT", []
+
+    monkeypatch.setattr(code_agent, "propose_patch", proposal)
 
     with pytest.raises(SystemExit) as exit_info:
-        code_agent.main(["demo", "change something"])
+        code_agent.main(["demo", "change something", *extra_args])
 
     assert exit_info.value.code == expected_code
-    assert proposals == []
+    assert len(proposals) == proposal_count
 
 
 def test_agent_planning_only_mode_stops_before_patch_generation(monkeypatch, tmp_path):
@@ -188,6 +206,7 @@ def test_agent_planning_only_mode_stops_before_patch_generation(monkeypatch, tmp
     monkeypatch.setattr(code_agent, "get_config", lambda: config)
     monkeypatch.setattr(code_agent, "CodeRAG", FakeRAG)
     monkeypatch.setattr(code_agent, "PlannerService", FakePlanner)
+    monkeypatch.setattr(code_agent, "plan_approval_token", lambda plan: "reviewed-token")
     monkeypatch.setattr(code_agent, "propose_patch", lambda *args: proposals.append(True))
 
     assert code_agent.main(["demo", "change something", "--plan-only"]) is None

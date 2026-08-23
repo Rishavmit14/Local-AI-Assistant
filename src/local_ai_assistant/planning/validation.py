@@ -14,6 +14,11 @@ class PlanValidator:
     def __init__(self, repository: Path, symbols: SymbolIndex) -> None:
         self.repository = repository.resolve()
         self.symbols = symbols
+        try:
+            relative = self.repository.relative_to(symbols.repository).as_posix()
+            self.index_prefix = "" if relative == "." else relative + "/"
+        except ValueError:
+            self.index_prefix = None
 
     def validate(
         self, plan: ImplementationPlan, evidence: tuple[ScopeCandidate, ...]
@@ -36,8 +41,14 @@ class PlanValidator:
                 issues.append(self._error("new_file_exists", "File marked proposed-new already exists.", path))
             elif is_protected_path(path):
                 issues.append(self._error("protected_new_path", "Protected/generated path cannot be created.", path))
-        known_symbols = {item.identifier for item in self.symbols.symbols} | {
-            item.qualified_name for item in self.symbols.symbols
+        repository_symbols = tuple(
+            item
+            for item in self.symbols.symbols
+            if self.index_prefix is not None
+            and (not self.index_prefix or item.path.startswith(self.index_prefix))
+        )
+        known_symbols = {item.identifier for item in repository_symbols} | {
+            item.qualified_name for item in repository_symbols
         }
         for symbol in plan.symbols_to_modify:
             if symbol not in known_symbols:
@@ -46,6 +57,24 @@ class PlanValidator:
             if symbol in known_symbols:
                 issues.append(self._error("new_symbol_exists", "Symbol marked proposed-new already exists.", symbol))
         all_files = tuple(dict.fromkeys((*plan.files_to_modify, *plan.files_to_create, *plan.files_to_delete_or_rename)))
+        target_groups = {
+            "modify": set(plan.files_to_modify),
+            "create": set(plan.files_to_create),
+            "delete_or_rename": set(plan.files_to_delete_or_rename),
+        }
+        overlap = (
+            target_groups["modify"] & target_groups["create"]
+            | target_groups["modify"] & target_groups["delete_or_rename"]
+            | target_groups["create"] & target_groups["delete_or_rename"]
+        )
+        if overlap:
+            issues.append(
+                self._error(
+                    "conflicting_target_roles",
+                    "A path cannot be simultaneously modified, created, or deleted/renamed.",
+                    ", ".join(sorted(overlap)),
+                )
+            )
         dependency_files = tuple(path for path in all_files if is_dependency_file(path))
         if dependency_files and not plan.dependency_changes:
             issues.append(self._error("unmarked_dependency_change", "Dependency manifest is in modification scope but dependency impact is not declared.", ", ".join(dependency_files)))

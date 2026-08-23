@@ -25,7 +25,7 @@ Validation checks containment, file/symbol existence, explicit new targets, dupl
 
 Low risk covers documentation/tests. Medium covers ordinary internal logic. High covers auth/security, dependencies, migrations, deployment, and similar sensitive scope. Critical covers destructive migrations, production credentials/private keys, financial/value transfer, and irreversible operations.
 
-Confidence is a heuristic—not a probability—combining classifier confidence, exact-symbol coverage, graph support, test support, ambiguity, warnings, unresolved questions, and scope size. Validation errors reject; critical blocks; high requires review; ambiguous/broad or low-confidence work requires review; sufficiently supported low/medium work may proceed to patch generation.
+Confidence is a heuristic—not a probability—combining classifier confidence, exact-symbol coverage, graph support, test support, ambiguity, warnings, unresolved static evidence/questions, and scope size. Validation errors reject; critical blocks; high requires review; ambiguous/broad or low-confidence work requires review; sufficiently supported low/medium work may proceed to patch generation.
 
 ## Instructions and context
 
@@ -33,4 +33,6 @@ Root-to-leaf `AGENTS.md` files are loaded for affected paths. `AGENTS.override.m
 
 ## Persistence
 
-Planning artifacts use schema-versioned JSON and include the request, evidence, plan, validation, risk/approval results, repository, starting commit, and timestamp. Unknown schemas fail explicitly. Persistence uses a temporary file, `fsync`, and atomic replacement so an interrupted write does not masquerade as a valid plan.
+Planning artifacts use schema-versioned JSON and include the request, evidence, plan, validation, risk/approval results, instruction-source paths, context-truncation state, repository, starting commit, and timestamp. Schema 1 artifacts migrate on read; unknown schemas fail explicitly. Validation rejects reuse against another repository or Git HEAD. Persistence uses a temporary file, `fsync`, and atomic replacement so an interrupted write does not masquerade as a valid plan.
+
+Explicit high/critical approval is bound to a hash of the complete validated plan. A bare boolean cannot approve a newly generated or changed plan. Scope-guard mutation allowances contain only files proposed for modification—not inspect-only context—and protected/generated paths remain deny rules.

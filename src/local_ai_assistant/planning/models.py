@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -247,7 +249,9 @@ class PlanningArtifact:
     scope_candidates: tuple[ScopeCandidate, ...]
     plan: ImplementationPlan
     validation_issues: tuple[ValidationIssue, ...] = field(default_factory=tuple)
-    schema_version: int = 1
+    instruction_sources: tuple[str, ...] = field(default_factory=tuple)
+    context_truncated: bool = False
+    schema_version: int = 2
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -255,7 +259,7 @@ class PlanningArtifact:
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> PlanningArtifact:
         schema_version = value.get("schema_version")
-        if schema_version != 1:
+        if schema_version not in {1, 2}:
             raise ValueError(f"Unsupported planning artifact schema: {schema_version!r}")
         return cls(
             timestamp=value["timestamp"],
@@ -266,5 +270,13 @@ class PlanningArtifact:
             scope_candidates=tuple(ScopeCandidate.from_dict(item) for item in value.get("scope_candidates", ())),
             plan=ImplementationPlan.from_dict(value["plan"]),
             validation_issues=tuple(ValidationIssue.from_dict(item) for item in value.get("validation_issues", ())),
-            schema_version=schema_version,
+            instruction_sources=tuple(value.get("instruction_sources", ())),
+            context_truncated=bool(value.get("context_truncated", False)),
+            schema_version=2,
         )
+
+
+def plan_approval_token(plan: ImplementationPlan) -> str:
+    """Bind explicit approval to the exact validated plan contents."""
+    payload = json.dumps(plan.to_dict(), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode()).hexdigest()

@@ -17,7 +17,11 @@ from local_ai_assistant.common.errors import (
 from local_ai_assistant.common.logging import configure_logging, get_logger
 from local_ai_assistant.common.models import GitTransactionSummary
 from local_ai_assistant.planning import PlannerService
-from local_ai_assistant.planning.models import ApprovalStatus, IssueSeverity
+from local_ai_assistant.planning.models import (
+    ApprovalStatus,
+    IssueSeverity,
+    plan_approval_token,
+)
 
 _DEFAULT_CONFIG = get_config()
 REPO_ROOT = _DEFAULT_CONFIG.paths.code_repo_dir
@@ -1292,8 +1296,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--approve-risk",
-        action="store_true",
-        help="Explicitly approve a validated high/critical-risk plan before patch generation.",
+        metavar="PLAN_TOKEN",
+        help="Approve only the exact validated high/critical-risk plan with this printed token.",
     )
 
     return parser
@@ -1417,6 +1421,8 @@ def main(argv: list[str] | None = None):
     print(f"Risk:       {artifact.plan.risk.level.value}")
     print(f"Confidence: {artifact.plan.confidence.score:.3f}")
     print(f"Approval:   {artifact.plan.approval.status.value}")
+    approval_token = plan_approval_token(artifact.plan)
+    print(f"Plan token: {approval_token}")
     print(f"Saved:      {plan_path}")
     for step in artifact.plan.steps:
         print(f"{step.order}. {step.description}")
@@ -1432,9 +1438,13 @@ def main(argv: list[str] | None = None):
     if args.plan_only:
         print("Planning-only mode: no patch was generated and nothing was modified.")
         return
-    if artifact.plan.approval.status in {ApprovalStatus.REVIEW, ApprovalStatus.BLOCKED} and not args.approve_risk:
-        print("Patch generation is blocked pending explicit --approve-risk approval.")
-        sys.exit(1)
+    if artifact.plan.approval.status in {ApprovalStatus.REVIEW, ApprovalStatus.BLOCKED}:
+        if args.approve_risk != approval_token:
+            print(
+                "Patch generation is blocked. Review this exact plan, then pass "
+                f"--approve-risk {approval_token}."
+            )
+            sys.exit(1)
 
     # --------------------------------------------------------
     # Generate patch.

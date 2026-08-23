@@ -21,7 +21,10 @@ from local_ai_assistant.planning.analysis import (
     scope_guard_from_plan,
 )
 from local_ai_assistant.planning.classification import classify_task
-from local_ai_assistant.planning.instructions import load_project_instructions
+from local_ai_assistant.planning.instructions import (
+    discover_project_instructions,
+    load_project_instructions,
+)
 from local_ai_assistant.planning.models import (
     ApprovalStatus,
     DependencyChange,
@@ -29,6 +32,7 @@ from local_ai_assistant.planning.models import (
     IssueSeverity,
     RiskLevel,
     TaskCategory,
+    plan_approval_token,
 )
 from local_ai_assistant.planning.service import PlanGenerationError, PlannerService
 from local_ai_assistant.planning.validation import PlanValidator
@@ -174,6 +178,11 @@ def test_scope_analysis_uses_exact_calls_importers_and_tests(planning_repo):
     assert "caller" in relationships
     assert "reverse_import" in relationships
     assert "relevant_test" in relationships
+    assert "unresolved_call" in relationships
+    assert not any(
+        item.relationship == "reverse_import" and item.path.startswith("tests/")
+        for item in candidates
+    )
     assert all(not item.path.startswith("demo/") for item in candidates)
     assert all(item.reason and item.provenance["source"] for item in candidates)
 
@@ -200,6 +209,7 @@ def test_repository_map_and_legacy_fallback_are_explicit_scope_evidence(planning
 
 def test_plan_generation_parsing_validation_confidence_and_persistence(planning_repo):
     root, repo, index = planning_repo
+    (repo / "AGENTS.md").write_text("Keep deterministic facts authoritative.")
     llm = FakeLLM(response_for(index))
     service = PlannerService(repo, index, llm, root / "plans")
     artifact = service.generate("Fix login_user bug")
@@ -213,6 +223,8 @@ def test_plan_generation_parsing_validation_confidence_and_persistence(planning_
     assert artifact.plan.confidence.factors["exact_symbol_coverage"] > 0
     assert artifact.plan.risk.level is RiskLevel.HIGH
     assert artifact.plan.approval.status is ApprovalStatus.REVIEW
+    assert artifact.schema_version == 2
+    assert artifact.instruction_sources == ("AGENTS.md",)
     assert not [item for item in artifact.validation_issues if item.severity is IssueSeverity.ERROR]
     assert "DETERMINISTIC SCOPE EVIDENCE" in llm.calls[0]["prompt"]
     assert len(llm.calls[0]["prompt"]) < 40_000
@@ -230,11 +242,71 @@ def test_plan_reload_rejects_unknown_schema(planning_repo):
         service.load(saved)
 
 
+def test_plan_reload_rejects_truncated_json(planning_repo):
+    root, _, _ = planning_repo
+    path = root / "truncated-plan.json"
+    path.write_text('{"schema_version": 2, "plan":')
+    with pytest.raises(PlanGenerationError, match="Invalid persisted plan"):
+        PlannerService.load(path)
+
+
+def test_schema_one_plan_migrates_on_reload(planning_repo):
+    root, repo, index = planning_repo
+    service = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans")
+    content = service.generate("Fix login_user bug").to_dict()
+    content["schema_version"] = 1
+    content.pop("instruction_sources")
+    content.pop("context_truncated")
+    path = root / "plans" / "old.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps(content))
+
+    loaded = service.load(path)
+    assert loaded.schema_version == 2
+    assert loaded.instruction_sources == ()
+
+
+def test_persisted_plan_is_bound_to_repository_head(planning_repo):
+    root, repo, index = planning_repo
+    service = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans")
+    artifact = service.generate("Fix login_user bug")
+    (repo / "new.txt").write_text("change")
+    subprocess.run(["git", "add", "new.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "move head"], cwd=repo, check=True, capture_output=True)
+
+    assert "starting_commit_mismatch" in {
+        issue.code for issue in service.identity_issues(artifact)
+    }
+
+
 def test_malformed_planner_response_is_rejected(planning_repo):
     root, repo, index = planning_repo
     service = PlannerService(repo, index, FakeLLM("not JSON"), root / "plans")
     with pytest.raises(PlanGenerationError, match="malformed JSON"):
         service.generate("Fix login_user")
+
+
+def test_missing_required_planner_fields_are_rejected(planning_repo):
+    root, repo, index = planning_repo
+    response = response_for(index)
+    response.pop("files_to_modify")
+    service = PlannerService(repo, index, FakeLLM(response), root / "plans")
+    with pytest.raises(PlanGenerationError, match="missing required fields"):
+        service.generate("Fix login_user")
+
+
+def test_model_duplicate_targets_are_normalized(planning_repo):
+    root, repo, index = planning_repo
+    response = response_for(index)
+    response["files_to_modify"] *= 2
+    response["symbols_to_modify"] *= 2
+    artifact = PlannerService(
+        repo, index, FakeLLM(response), root / "plans"
+    ).generate("Fix login_user")
+    assert len(artifact.plan.files_to_modify) == len(set(artifact.plan.files_to_modify))
+    assert len(artifact.plan.symbols_to_modify) == len(
+        set(artifact.plan.symbols_to_modify)
+    )
 
 
 def test_validation_rejects_missing_symbols_files_and_protected_paths(planning_repo):
@@ -248,6 +320,25 @@ def test_validation_rejects_missing_symbols_files_and_protected_paths(planning_r
     )
     codes = {item.code for item in PlanValidator(repo, index).validate(invalid, artifact.scope_candidates)}
     assert {"missing_file", "missing_symbol", "protected_path"} <= codes
+
+
+def test_validation_rejects_symbol_from_another_indexed_repository(planning_repo):
+    root, repo, index = planning_repo
+    other = root / "repos" / "other"
+    other.mkdir()
+    (other / "module.py").write_text("def foreign_symbol():\n    return True\n")
+    index.refresh()
+    foreign = next(item for item in index.find_exact("foreign_symbol"))
+    service = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans")
+    artifact = service.generate("Fix login_user")
+    invalid = replace(artifact.plan, symbols_to_modify=(foreign.identifier,))
+
+    assert "missing_symbol" in {
+        item.code
+        for item in PlanValidator(repo, index).validate(
+            invalid, artifact.scope_candidates
+        )
+    }
 
 
 def test_proposed_new_targets_dependency_and_migration_rules(planning_repo):
@@ -267,6 +358,14 @@ def test_proposed_new_targets_dependency_and_migration_rules(planning_repo):
         dependency_changes=(DependencyChange("pyproject.toml", DependencyChangeKind.VERSION, "Update package version."),),
     )
     assert "invalid_dependency_manifest" not in {item.code for item in PlanValidator(repo, index).validate(marked, artifact.scope_candidates)}
+    conflicting = replace(
+        artifact.plan,
+        files_to_modify=("app/service.py",),
+        files_to_delete_or_rename=("app/service.py",),
+    )
+    assert "conflicting_target_roles" in {
+        item.code for item in PlanValidator(repo, index).validate(conflicting, artifact.scope_candidates)
+    }
 
 
 def test_risk_security_dependency_migration_and_approval_policy():
@@ -274,9 +373,17 @@ def test_risk_security_dependency_migration_and_approval_policy():
     confidence = assess_confidence(classification, ())
     critical = assess_risk("Drop table users with production credential", classification, ("migrations/001.sql",))
     dependency = assess_risk("Upgrade package", classification, ("pyproject.toml",), ("version change",))
+    deletion = assess_risk(
+        "Clean up obsolete code",
+        classification,
+        ("app/legacy.py",),
+        (),
+        ("app/legacy.py",),
+    )
 
     assert critical.level is RiskLevel.CRITICAL
     assert dependency.level is RiskLevel.HIGH
+    assert deletion.level is RiskLevel.HIGH
     assert is_dependency_file("requirements/dev.txt")
     assert detect_migration("rename column", ())
     assert detect_security("rotate auth token", ())
@@ -289,12 +396,56 @@ def test_risk_security_dependency_migration_and_approval_policy():
     assert decide_approval(medium, strong, (), 2, 0).status is ApprovalStatus.AUTOMATIC
 
 
+def test_model_cannot_downgrade_deterministic_risk(planning_repo):
+    root, repo, index = planning_repo
+    response = response_for(index, risk={"level": "low", "reasons": ["model says safe"]})
+    artifact = PlannerService(repo, index, FakeLLM(response), root / "plans").generate(
+        "Change login_user authentication"
+    )
+    assert artifact.plan.risk.level is RiskLevel.HIGH
+    assert artifact.plan.approval.status is ApprovalStatus.REVIEW
+
+
+def test_dependency_migration_and_security_flags_overlap_conservatively():
+    result = assess_risk(
+        "Drop table storing auth tokens while upgrading a dependency",
+        classify_task("Drop table storing auth tokens while upgrading a dependency"),
+        ("migrations/001.sql", "pyproject.toml"),
+        ("version change",),
+    )
+    assert result.level is RiskLevel.CRITICAL
+    assert result.security_sensitive
+    assert result.dependency_change
+    assert result.migration
+
+
 def test_scope_guard_detects_unplanned_diff(planning_repo):
     root, repo, index = planning_repo
     artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate("Fix login_user")
     policy = scope_guard_from_plan(artifact.plan)
     issues = compare_scope(policy, ("app/service.py", "unplanned.py"), (artifact.plan.symbols_to_modify[0],))
     assert any("Unplanned files" in item for item in issues)
+    inspect_only = replace(
+        artifact.plan,
+        files_to_inspect=("app/api.py",),
+        files_to_modify=("app/service.py",),
+    )
+    inspect_policy = scope_guard_from_plan(inspect_only)
+    assert "app/api.py" not in inspect_policy.allowed_files
+    assert compare_scope(inspect_policy, ("app/api.py",))
+    assert compare_scope(inspect_policy, ("var/generated.py",))
+
+
+def test_unresolved_static_evidence_reduces_confidence(planning_repo):
+    _, repo, index = planning_repo
+    classification = classify_task("Fix login_user")
+    candidates = ScopeAnalyzer(repo, index).analyze("Fix login_user")
+    without_unresolved = tuple(
+        item for item in candidates if item.role.value != "unresolved"
+    )
+    assert assess_confidence(classification, candidates).score < assess_confidence(
+        classification, without_unresolved
+    ).score
 
 
 def test_instruction_precedence_uses_nested_override(tmp_path):
@@ -309,3 +460,20 @@ def test_instruction_precedence_uses_nested_override(tmp_path):
     assert "root rules" in instructions
     assert "override rules" in instructions
     assert "nested rules" not in instructions
+    _, sources, truncated = discover_project_instructions(repo, ("app/module.py",))
+    assert sources == ("AGENTS.md", "app/AGENTS.override.md")
+    assert truncated is False
+    _, bounded_sources, truncated = discover_project_instructions(
+        repo, ("app/module.py",), limit=5
+    )
+    assert truncated is True
+    assert bounded_sources == ("app/AGENTS.override.md",)
+
+
+def test_approval_token_changes_with_plan_content(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(
+        repo, index, FakeLLM(response_for(index)), root / "plans"
+    ).generate("Fix login_user")
+    changed = replace(artifact.plan, summary="A different reviewed plan")
+    assert plan_approval_token(artifact.plan) != plan_approval_token(changed)

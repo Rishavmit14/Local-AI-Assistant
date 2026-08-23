@@ -87,7 +87,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Plan saved: {destination}")
         return 0
     artifact = PlannerService.load(args.plan)
-    issues = service.validator.validate(artifact.plan, artifact.scope_candidates)
+    issues = (
+        *service.identity_issues(artifact),
+        *service.validator.validate(artifact.plan, artifact.scope_candidates),
+    )
     print(json.dumps([asdict(issue) for issue in issues], indent=2))
     return 1 if any(issue.severity.value == "error" for issue in issues) else 0
 

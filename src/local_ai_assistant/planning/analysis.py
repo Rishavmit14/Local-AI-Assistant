@@ -48,6 +48,8 @@ MIGRATION_WORDS = {
     "migration", "migrations", "alembic", "schema", "alter table", "drop table",
     "drop column", "rename column", "django migration", "data migration",
 }
+MAX_NAME_MATCHES = 24
+MAX_GRAPH_RELATIONSHIPS = 12
 
 
 def is_dependency_file(path: str) -> bool:
@@ -83,7 +85,7 @@ class ScopeAnalyzer:
             relative = self.repository.relative_to(symbols.repository).as_posix()
             self.index_prefix = "" if relative == "." else relative + "/"
         except ValueError:
-            self.index_prefix = ""
+            self.index_prefix = None
 
     def analyze(self, request: str) -> tuple[ScopeCandidate, ...]:
         candidates: dict[tuple[str, str | None, str], ScopeCandidate] = {}
@@ -94,14 +96,20 @@ class ScopeAnalyzer:
             direct_symbols.extend(exact)
             for symbol in exact:
                 self._add(candidates, symbol, "Identifier appears exactly in request.", "exact_symbol", 1.0, 0.98, ScopeRole.DIRECT)
+        name_match_count = 0
         for name in (item for item in identifiers if len(item) >= 3):
             for symbol in self.symbols.search_name(name, 20):
                 if not self._in_repository(symbol):
                     continue
                 self._add(candidates, symbol, "Symbol name matches a request term.", "name_match", None, 0.8, ScopeRole.DIRECT)
+                name_match_count += 1
+                if name_match_count >= MAX_NAME_MATCHES:
+                    break
+            if name_match_count >= MAX_NAME_MATCHES:
+                break
         normalized_request = request.lower()
         for indexed_path in self.symbols.repository_map():
-            if self.index_prefix and not indexed_path.startswith(self.index_prefix):
+            if self.index_prefix is None or self.index_prefix and not indexed_path.startswith(self.index_prefix):
                 continue
             relative = self._relative_path(indexed_path)
             if relative.lower() in normalized_request or PurePosixPath(relative).name.lower() in normalized_request:
@@ -128,17 +136,23 @@ class ScopeAnalyzer:
                 (self.symbols.callers(symbol.identifier), "caller"),
                 (self.symbols.callees(symbol.identifier), "callee"),
             ):
-                for call in edge:
+                for call in edge[:MAX_GRAPH_RELATIONSHIPS]:
                     related_id = call.caller if relationship == "caller" else call.callee
                     related = self._symbol(related_id)
                     if related:
                         self._add(candidates, related, f"Static {relationship} of {symbol.qualified_name}.", relationship, None, 0.72, ScopeRole.DEPENDENT)
+                    elif relationship == "callee":
+                        self._add_unresolved_call(candidates, symbol, call)
             module = self.symbols.containing_module(symbol.identifier)
             if module:
                 module_name = module.qualified_name
                 local_module_name = self._module_name(module.path)
-                for importer in self.symbols.imported_by(local_module_name):
-                    if self.index_prefix and not importer.startswith(self.index_prefix):
+                for importer in self.symbols.imported_by(local_module_name)[
+                    :MAX_GRAPH_RELATIONSHIPS
+                ]:
+                    if self.index_prefix is None or self.index_prefix and not importer.startswith(self.index_prefix):
+                        continue
+                    if self._is_test_path(self._relative_path(importer)):
                         continue
                     self._add_path(candidates, importer, f"Imports affected module {local_module_name}.", "reverse_import", 0.68, ScopeRole.DEPENDENT)
                 for imported in self.symbols.imports_of(module.path):
@@ -160,7 +174,7 @@ class ScopeAnalyzer:
                 if result.get("retrieval_method") != "line_chunk_fallback":
                     continue
                 source = result["source"]
-                if self.index_prefix and not source.startswith(self.index_prefix):
+                if self.index_prefix is None or self.index_prefix and not source.startswith(self.index_prefix):
                     continue
                 candidate = ScopeCandidate(
                     self._relative_path(source),
@@ -221,11 +235,36 @@ class ScopeAnalyzer:
         candidate = ScopeCandidate(path, None, None, reason, relationship, None, {"source": path, "line_start": 1, "line_end": 1, "symbol_identifier": None}, confidence, role)
         candidates[(path, None, relationship)] = candidate
 
+    def _add_unresolved_call(self, candidates, symbol, call):
+        path = self._relative_path(call.path)
+        candidate = ScopeCandidate(
+            path,
+            symbol.identifier,
+            symbol.qualified_name,
+            f"Static call target {call.callee_name} could not be resolved.",
+            "unresolved_call",
+            None,
+            {
+                "source": path,
+                "line_start": call.line,
+                "line_end": call.line,
+                "symbol_identifier": symbol.identifier,
+                "target_name": call.callee_name,
+                "resolution": "unresolved",
+            },
+            0.3,
+            ScopeRole.UNRESOLVED,
+        )
+        key = (path, f"{symbol.identifier}:{call.callee_name}:{call.line}", candidate.relationship)
+        candidates[key] = candidate
+
     def _symbol(self, identifier):
         return next((item for item in self.symbols.symbols if identifier and item.identifier == identifier and self._in_repository(item)), None)
 
     def _in_repository(self, symbol: SymbolRecord) -> bool:
-        return not self.index_prefix or symbol.path.startswith(self.index_prefix)
+        return self.index_prefix is not None and (
+            not self.index_prefix or symbol.path.startswith(self.index_prefix)
+        )
 
     def _relative_path(self, path: str) -> str:
         return path[len(self.index_prefix):] if self.index_prefix and path.startswith(self.index_prefix) else path
@@ -235,23 +274,38 @@ class ScopeAnalyzer:
 
         return PythonSymbolExtractor.module_name(self._relative_path(path))
 
+    @staticmethod
+    def _is_test_path(path: str) -> bool:
+        value = PurePosixPath(path)
+        return "tests" in value.parts or value.name.startswith("test_")
+
 
 def assess_confidence(classification: TaskClassification, candidates: tuple[ScopeCandidate, ...], warning_count: int = 0, unresolved_questions: int = 0) -> ConfidenceAssessment:
     exact = sum(item.relationship == "exact_symbol" for item in candidates)
     graph = sum(item.relationship in {"caller", "callee", "import", "reverse_import"} for item in candidates)
     tests = sum(item.relationship == "relevant_test" for item in candidates)
+    unresolved = sum(item.role is ScopeRole.UNRESOLVED for item in candidates)
     factors = {
         "classification": classification.confidence,
         "exact_symbol_coverage": min(1.0, exact / 2),
         "graph_support": min(1.0, graph / 3),
         "test_support": min(1.0, tests / 2),
-        "ambiguity_penalty": min(1.0, (warning_count + unresolved_questions) / 5),
+        "unresolved_evidence": min(1.0, unresolved / 3),
+        "ambiguity_penalty": min(
+            1.0, (warning_count + unresolved_questions + unresolved) / 5
+        ),
     }
     score = 0.3 * factors["classification"] + 0.35 * factors["exact_symbol_coverage"] + 0.15 * factors["graph_support"] + 0.1 * factors["test_support"] + 0.1 * (1 - factors["ambiguity_penalty"])
     return ConfidenceAssessment(round(max(0.0, min(1.0, score)), 3), factors, ("Heuristic planning confidence; not a probability.",))
 
 
-def assess_risk(request: str, classification: TaskClassification, paths: tuple[str, ...], dependency_changes: tuple[str, ...] = ()) -> RiskAssessment:
+def assess_risk(
+    request: str,
+    classification: TaskClassification,
+    paths: tuple[str, ...],
+    dependency_changes: tuple[str, ...] = (),
+    delete_or_rename_targets: tuple[str, ...] = (),
+) -> RiskAssessment:
     security = detect_security(request, paths)
     migration = detect_migration(request, paths)
     dependency = bool(dependency_changes or any(is_dependency_file(path) for path in paths))
@@ -262,7 +316,7 @@ def assess_risk(request: str, classification: TaskClassification, paths: tuple[s
     if critical:
         level = RiskLevel.CRITICAL
         reasons.append("Critical irreversible/value/credential signal: " + ", ".join(sorted(critical)))
-    elif security or migration or dependency or elevated or classification.category in {
+    elif security or migration or dependency or elevated or delete_or_rename_targets or classification.category in {
         TaskCategory.AUTHENTICATION_AUTHORIZATION, TaskCategory.SECURITY_SENSITIVE,
         TaskCategory.DATABASE_MIGRATION, TaskCategory.DEPLOYMENT_OPERATIONS,
         TaskCategory.DEPENDENCY_CHANGE,
@@ -273,6 +327,11 @@ def assess_risk(request: str, classification: TaskClassification, paths: tuple[s
             reasons.append("High-risk API/concurrency signal: " + ", ".join(sorted(elevated)))
         if dependency:
             reasons.append("Dependency or deployment manifest is in scope.")
+        if delete_or_rename_targets:
+            reasons.append(
+                "Delete/rename targets require review: "
+                + ", ".join(sorted(delete_or_rename_targets))
+            )
     elif paths and all(path.lower().startswith(("docs/", "tests/")) or PurePosixPath(path).name.lower() in {"readme.md"} for path in paths):
         level = RiskLevel.LOW
         reasons.append("Scope is limited to documentation/tests.")
@@ -295,8 +354,11 @@ def decide_approval(risk: RiskAssessment, confidence: ConfidenceAssessment, issu
 
 
 def scope_guard_from_plan(plan: ImplementationPlan) -> ScopeGuardPolicy:
-    files = tuple(dict.fromkeys((*plan.files_to_modify, *plan.files_to_inspect)))
-    protected = tuple(path for path in files if is_protected_path(path))
+    files = tuple(dict.fromkeys(plan.files_to_modify))
+    protected = tuple(f"**/{part}/**" for part in sorted(PROTECTED_PARTS)) + (
+        "**/*.min.js",
+        "**/*.generated.py",
+    )
     return ScopeGuardPolicy(files, tuple(dict.fromkeys(plan.symbols_to_modify)), tuple(dict.fromkeys(plan.files_to_create)), tuple(dict.fromkeys(plan.files_to_delete_or_rename)), max(1, len(set((*files, *plan.files_to_create, *plan.files_to_delete_or_rename)))), max(1, len(set(plan.symbols_to_modify))), protected, "approval_required" if plan.dependency_changes else "deny_unplanned", "deny", "approval_required")
 
 
@@ -306,6 +368,9 @@ def compare_scope(policy: ScopeGuardPolicy, changed_files: tuple[str, ...], chan
     unexpected = set(changed_files) - allowed
     if unexpected:
         issues.append("Unplanned files: " + ", ".join(sorted(unexpected)))
+    protected = {path for path in changed_files if is_protected_path(path)}
+    if protected:
+        issues.append("Protected/generated files: " + ", ".join(sorted(protected)))
     if len(set(changed_files)) > policy.max_file_count:
         issues.append("Patch exceeds planned file count.")
     unexpected_symbols = set(changed_symbols) - set(policy.allowed_symbols)

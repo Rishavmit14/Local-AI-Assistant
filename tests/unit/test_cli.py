@@ -31,6 +31,13 @@ def test_agent_parser_preserves_existing_and_stage1_options():
     } <= options
 
 
+def test_risk_approval_requires_a_specific_plan_token():
+    args = build_agent_parser().parse_args(
+        ["demo", "change", "--approve-risk", "abc123"]
+    )
+    assert args.approve_risk == "abc123"
+
+
 def test_code_rag_parser_supports_reindex():
     assert build_rag_parser().parse_args(["--reindex"]).reindex is True
 

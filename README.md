@@ -36,7 +36,7 @@ local-ai-plan --help
 
 Tree-sitter/static analysis provides deterministic symbols and graphs. Local BGE + FAISS/BM25/RRF provides semantic retrieval, and Qwen3.6 reasons over that evidence. The original line-chunk index remains fallback. See [code intelligence architecture](docs/architecture/code-intelligence.md) and [index operations](docs/operations/code-index.md).
 
-Generate a no-edit plan with `local-ai-code-agent REPO REQUEST --plan-only` or use the dedicated [`local-ai-plan` workflow](docs/operations/planner.md). Deterministic validation and risk policy gate patch generation; high/critical work cannot silently proceed.
+Generate a no-edit plan with `local-ai-code-agent REPO REQUEST --plan-only` or use the dedicated [`local-ai-plan` workflow](docs/operations/planner.md). Deterministic validation and risk policy gate patch generation; high/critical approval is bound to the exact printed plan token and cannot silently transfer to a changed plan.
 
 ## Services
 
