@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import os
+import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -219,6 +221,43 @@ def test_native_sandbox_fails_closed_for_network_and_strips_secrets(tmp_path):
     assert result.return_code == 0
 
 
+def test_network_policy_uses_local_listener_without_public_network(tmp_path):
+    try:
+        listener = socket.socket()
+    except PermissionError:
+        pytest.skip("test runner policy forbids creating a local listener")
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    accepted = []
+    thread = threading.Thread(
+        target=lambda: accepted.append(listener.accept()[0].recv(8)), daemon=True
+    )
+    thread.start()
+    result = NativeProcessSandbox().run(
+        (
+            sys.executable,
+            "-c",
+            f"import socket;s=socket.create_connection(('127.0.0.1',{port}));s.send(b'ok')",
+        ),
+        tmp_path,
+        tmp_path / "network-task",
+        resources=ResourcePolicy(wall_seconds=2),
+        network=NetworkPolicy.ALLOWED,
+    )
+    thread.join(timeout=2)
+    listener.close()
+    assert result.return_code == 0 and accepted == [b"ok"]
+    with pytest.raises(SandboxUnavailableError):
+        NativeProcessSandbox().run(
+            (sys.executable, "-c", "pass"),
+            tmp_path,
+            tmp_path / "loopback-task",
+            resources=ResourcePolicy(wall_seconds=2),
+            network=NetworkPolicy.LOOPBACK_ONLY,
+        )
+
+
 def test_process_timeout_output_bound_and_cancellation(tmp_path):
     sandbox = NativeProcessSandbox()
     result = sandbox.run(
@@ -286,6 +325,38 @@ def test_file_size_resource_limit_is_bounded(tmp_path):
     )
     assert result.return_code != 0
     assert (tmp_path / "large.bin").stat().st_size <= 1024
+
+
+def test_cpu_memory_and_open_file_limits_are_enforced(tmp_path):
+    sandbox = NativeProcessSandbox()
+    cpu = sandbox.run(
+        (sys.executable, "-c", "while True: pass"),
+        tmp_path,
+        tmp_path / "cpu-task",
+        resources=ResourcePolicy(wall_seconds=4, cpu_seconds=1),
+        network=NetworkPolicy.ALLOWED,
+    )
+    assert cpu.return_code != 0 and not cpu.timed_out
+    memory = sandbox.run(
+        (sys.executable, "-c", "x=bytearray(1024**3)"),
+        tmp_path,
+        tmp_path / "memory-task",
+        resources=ResourcePolicy(wall_seconds=3, memory_bytes=256 * 1024**2),
+        network=NetworkPolicy.ALLOWED,
+    )
+    assert memory.return_code != 0
+    files = sandbox.run(
+        (
+            sys.executable,
+            "-c",
+            "xs=[]\nwhile True: xs.append(open('/dev/null'))",
+        ),
+        tmp_path,
+        tmp_path / "files-task",
+        resources=ResourcePolicy(wall_seconds=3, max_open_files=32),
+        network=NetworkPolicy.ALLOWED,
+    )
+    assert files.return_code != 0
 
 
 def test_backend_capability_is_honest_and_strong_backend_is_fail_closed():
