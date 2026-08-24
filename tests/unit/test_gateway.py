@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import io
+import json
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -30,6 +32,7 @@ from local_ai_assistant.gateway.models import (
     RepositoryMapping,
 )
 from local_ai_assistant.gateway.service import IntegrationGatewayService
+from local_ai_assistant.gateway.evidence import review_summary, validation_summary
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 
@@ -131,9 +134,40 @@ def test_mcp_protocol_exposes_only_typed_tools(tmp_path):
     protocol = MCPProtocolServer(MCPGateway(gateway, auth))
     assert protocol.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize"})["result"]["capabilities"] == {"tools": {}}
     tools = protocol.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})["result"]["tools"]
-    assert {item["name"] for item in tools} == {"get_task_status", "create_task", "request_cancel"}
+    assert {item["name"] for item in tools} == {"get_task_status", "get_task_timeline", "get_plan", "create_task", "request_plan", "request_cancel"}
     denied = protocol.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "create_task", "arguments": {"repository_id": "r1", "request": "x"}}}, token)
     assert denied["error"]["code"] == -32001
+
+
+def test_mcp_stdio_local_trust_is_explicit_and_protocol_only(tmp_path):
+    gateway, _ = service(tmp_path)
+    auth = GatewayAuth(hashlib.sha256(b"unused").hexdigest(), frozenset())
+    protocol = MCPProtocolServer(MCPGateway(gateway, auth, trusted_local=True))
+    output = io.StringIO()
+    protocol.serve_stdio(io.StringIO('{"jsonrpc":"2.0","id":1,"method":"tools/list"}\n'), output)
+    assert '"tools"' in output.getvalue()
+    assert "token" not in output.getvalue().lower()
+
+
+def test_normalized_validation_and_review_evidence_is_bounded(tmp_path):
+    gateway, path = service(tmp_path)
+    task = gateway.create_task("r1", "safe fixture")
+    report = {
+        "schema_version": 1,
+        "plan": {"schema_version": 1, "targeted_steps": [{"step_id": "pytest", "requirement": "required"}], "final_steps": [], "timeout_policy": {}},
+        "results": [{"step_id": "pytest", "success": True, "skipped": False, "summary": "ok", "cached": True}],
+        "failures": [], "decision": {"status": "pass"},
+        "review": {"findings": [{"category": "security", "severity": "critical", "blocking": True, "origin": "deterministic", "evidence": "x" * 5000, "check_name": "security.scan"}]},
+    }
+    artifact = tmp_path / "validation.json"
+    artifact.write_text(json.dumps(report))
+    gateway.history.store.attach_artifact("validations", task.task_id, "v1", str(artifact), hashlib.sha256(artifact.read_bytes()).hexdigest(), {"validation_id": "v", "decision": "pass", "required_passed": 1})
+    validation = validation_summary(gateway.history, task.task_id)
+    review = review_summary(gateway.history, task.task_id)
+    assert validation["overall_decision"] == "pass"
+    assert validation["results"][0]["status"] == "passed"
+    assert review["blocking_count"] == 1
+    assert len(review["findings"][0]["evidence"]) == 500
 
 
 def test_execution_service_uses_existing_code_agent_boundary(tmp_path, monkeypatch):

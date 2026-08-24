@@ -16,6 +16,7 @@ class GitHubTransport(Protocol):
     def get_issue(self, owner: str, repo: str, number: int) -> dict[str, Any]: ...
     def create_pull_request(self, owner: str, repo: str, *, head: str, base: str, title: str, body: str) -> dict[str, Any]: ...
     def find_pull_requests(self, owner: str, repo: str, *, head: str, marker: str) -> list[dict[str, Any]]: ...
+    def get_branch_sha(self, owner: str, repo: str, branch: str) -> str | None: ...
 
 
 class GitHubHttpTransport:
@@ -59,11 +60,16 @@ class GitHubHttpTransport:
         values = self._request("GET", f"/repos/{quote(owner)}/{quote(repo)}/pulls?state=all&head={quote(owner + ':' + head)}")
         return [item for item in values if marker in str(item.get("body", ""))]
 
+    def get_branch_sha(self, owner: str, repo: str, branch: str) -> str | None:
+        value = self._request("GET", f"/repos/{quote(owner)}/{quote(repo)}/branches/{quote(branch, safe='')}")
+        return str(value.get("commit", {}).get("sha")) if value.get("commit", {}).get("sha") else None
+
 
 class FakeGitHubTransport:
     def __init__(self):
         self.issues: dict[tuple[str, str, int], dict[str, Any]] = {}
         self.pull_requests: list[dict[str, Any]] = []
+        self.branches: dict[tuple[str, str, str], str] = {}
 
     def get_issue(self, owner, repo, number):
         return dict(self.issues[(owner, repo, number)])
@@ -78,6 +84,9 @@ class FakeGitHubTransport:
 
     def find_pull_requests(self, owner, repo, *, head, marker):
         return [dict(item) for item in self.pull_requests if item["repo"] == (owner, repo) and item["head"] == head and marker in item["body"]]
+
+    def get_branch_sha(self, owner, repo, branch):
+        return self.branches.get((owner, repo, branch))
 
 
 def verify_webhook_signature(raw_body: bytes, signature: str | None, secret: str) -> bool:

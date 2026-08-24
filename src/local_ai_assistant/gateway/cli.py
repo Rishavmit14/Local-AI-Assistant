@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.common.config import get_config
@@ -10,6 +11,8 @@ from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
 from local_ai_assistant.gateway.models import GatewayScope, RepositoryMapping
 from local_ai_assistant.gateway.service import IntegrationGatewayService
+from local_ai_assistant.gateway.mcp import MCPGateway
+from local_ai_assistant.gateway.mcp_server import MCPProtocolServer
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.planning.service import PlannerService
@@ -22,14 +25,11 @@ def main(argv=None):
     sub.add_parser("status")
     sub.add_parser("auth-token-check")
     sub.add_parser("serve")
+    sub.add_parser("mcp-stdio")
     args = parser.parse_args(argv)
     app_config = get_config()
     config = app_config.gateway
-    if args.command == "serve":
-        try:
-            import uvicorn
-        except ImportError as exc:
-            raise SystemExit("Gateway serving requires the 'gateway' extra") from exc
+    if args.command in {"serve", "mcp-stdio"}:
         mappings = tuple(
             RepositoryMapping(path.name, str(path), "", "")
             for path in app_config.paths.code_repo_dir.iterdir()
@@ -48,8 +48,16 @@ def main(argv=None):
             auth = GatewayAuth(config.token_hash, scopes)
         except ValueError as exc:
             raise SystemExit(f"gateway authentication configuration is invalid: {exc}") from exc
-        app = create_app(service, auth=auth, max_body_bytes=config.max_body_bytes, max_task_text=config.max_task_text, requests_per_minute=config.request_rate)
-        uvicorn.run(app, host=config.host, port=config.port, log_level="info")
+        if args.command == "mcp-stdio":
+            # stdio inherits the authority of the local process owner; stdout is protocol only.
+            MCPProtocolServer(MCPGateway(service, auth, trusted_local=True)).serve_stdio(sys.stdin, sys.stdout)
+        else:
+            try:
+                import uvicorn
+            except ImportError as exc:
+                raise SystemExit("Gateway serving requires the 'gateway' extra") from exc
+            app = create_app(service, auth=auth, max_body_bytes=config.max_body_bytes, max_task_text=config.max_task_text, requests_per_minute=config.request_rate)
+            uvicorn.run(app, host=config.host, port=config.port, log_level="info", workers=1)
     elif args.command == "config-check":
         if config.host not in {"127.0.0.1", "localhost", "::1"}:
             print("warning: gateway is configured for non-loopback exposure")

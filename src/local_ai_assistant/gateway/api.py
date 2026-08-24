@@ -20,6 +20,7 @@ from .github import verify_webhook_signature
 from .models import ExternalProvenance, GatewayScope
 from .publication import GitHubPublicationService
 from .service import IntegrationGatewayService
+from .evidence import review_summary, validation_summary
 
 
 def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_body_bytes: int = 1_048_576, max_task_text: int = 20_000, requests_per_minute: int = 30, webhook_secret: str | None = None, publication: GitHubPublicationService | None = None):
@@ -166,14 +167,18 @@ def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_bod
         require(authorization, GatewayScope.READ_HISTORY)
         if service.get_task(task_id) is None:
             raise HTTPException(404, "task not found")
-        return list(service.history.store.artifact_records(task_id, "validations", limit))
+        if limit < 1 or limit > 100:
+            raise HTTPException(400, "invalid limit")
+        return validation_summary(service.history, task_id, limit=limit)
 
     @app.get("/api/v1/tasks/{task_id}/review")
     def review(task_id: str, authorization: str | None = Header(default=None), limit: int = 20):
         require(authorization, GatewayScope.READ_HISTORY)
         if service.get_task(task_id) is None:
             raise HTTPException(404, "task not found")
-        return list(service.history.store.artifact_records(task_id, "reviews", limit))
+        if limit < 1 or limit > 100:
+            raise HTTPException(400, "invalid limit")
+        return review_summary(service.history, task_id, limit=limit)
 
     @app.get("/api/v1/tasks/{task_id}/artifacts")
     def artifacts(task_id: str, authorization: str | None = Header(default=None), limit: int = 20):
@@ -218,8 +223,14 @@ def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_bod
         return {"approval_id": approval_id, "task_id": task_id}
 
     @app.post("/api/v1/tasks/{task_id}/execute", status_code=202)
-    def execute(task_id: str, authorization: str | None = Header(default=None)):
+    def execute(task_id: str, body: dict[str, Any], authorization: str | None = Header(default=None)):
         require(authorization, GatewayScope.REQUEST_EXECUTION)
+        task = service.get_task(task_id)
+        if task is None:
+            raise HTTPException(404, "task not found")
+        expected_repo = next((m.repository_id for m in service.mappings if Path(m.local_path).resolve() == Path(task.repository).resolve()), None)
+        if body.get("repository_id") != expected_repo:
+            raise HTTPException(409, "repository identity mismatch")
         try:
             result = service.request_execution(task_id)
         except KeyError as exc:
