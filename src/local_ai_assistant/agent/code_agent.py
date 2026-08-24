@@ -36,12 +36,16 @@ from local_ai_assistant.planning.patch_scope import (
     worktree_diff,
 )
 from local_ai_assistant.validation.decision import decide_final
-from local_ai_assistant.validation.errors import ValidationIntelligenceError
+from local_ai_assistant.validation.errors import TestGenerationError, ValidationIntelligenceError
 from local_ai_assistant.validation.models import DecisionStatus, ValidationReport
 from local_ai_assistant.validation.repair import BoundedRepairEngine
 from local_ai_assistant.validation.service import (
     ValidationService,
     persist_validation_report,
+)
+from local_ai_assistant.validation.tests import (
+    generate_test_patch,
+    meaningful_tdd_failure,
 )
 
 _DEFAULT_CONFIG = get_config()
@@ -63,7 +67,7 @@ def run_intelligent_validation(
     *,
     context: ToolContext | None = None,
     max_repairs: int = 0,
-) -> tuple[bool, str]:
+) -> tuple[bool, str, str]:
     """Run targeted checks, bounded repair, final checks, and review in that order."""
     service = ValidationService(
         repo,
@@ -99,13 +103,22 @@ def run_intelligent_validation(
         index_prefix=index_prefix,
         max_attempts=max_repairs,
     )
+    repair_stop_reason = None
     while targeted.failures and context is not None and len(repair_engine.attempts) < max_repairs:
         failure = targeted.failures[0]
         try:
+            repair_context = rag.build_context(
+                rag.retrieve(
+                    artifact.plan.original_request + "\n" + failure.relevant_output[-4000:]
+                )
+            )[:10_000]
             attempt = repair_engine.propose(
                 artifact.plan,
                 failure,
-                {"current_diff": worktree_diff(repo)[-12000:]},
+                {
+                    "current_diff": worktree_diff(repo)[-12_000:],
+                    "affected_source_context": repair_context,
+                },
             )
             observation = default_registry(config.execution).invoke(
                 "apply_patch",
@@ -119,8 +132,10 @@ def run_intelligent_validation(
                 context,
             )
             if not observation.success:
+                repair_stop_reason = observation.summary
                 break
-        except (ToolExecutionError, ValidationIntelligenceError):
+        except (ToolExecutionError, ValidationIntelligenceError) as exc:
+            repair_stop_reason = str(exc)
             break
         targeted = service.run(
             artifact,
@@ -139,13 +154,27 @@ def run_intelligent_validation(
             targeted.review,
             targeted.decision,
             repair_attempts=len(repair_engine.attempts),
-            metadata={"phase": "targeted"},
+            metadata={
+                **targeted.metadata,
+                "phase": "targeted",
+                "repair_history": [
+                    {
+                        "number": item.number,
+                        "rationale": item.rationale,
+                        "patch_hash": item.patch_hash,
+                        "status": item.status.value,
+                    }
+                    for item in repair_engine.attempts
+                ],
+                "repair_stop_reason": repair_stop_reason,
+            },
         )
     else:
         required = service.run(
             artifact,
             validation_plan,
             required_only=True,
+            prior_results=targeted.results,
             model=rag.llm,
             symbols=tuple(rag.symbol_index.symbols),
             index_prefix=index_prefix,
@@ -161,7 +190,21 @@ def run_intelligent_validation(
             required.review,
             decision,
             repair_attempts=len(repair_engine.attempts),
-            metadata={"phase": "final", "sequence_enforced": True},
+            metadata={
+                **required.metadata,
+                "phase": "final",
+                "sequence_enforced": True,
+                "repair_history": [
+                    {
+                        "number": item.number,
+                        "rationale": item.rationale,
+                        "patch_hash": item.patch_hash,
+                        "status": item.status.value,
+                    }
+                    for item in repair_engine.attempts
+                ],
+                "repair_stop_reason": repair_stop_reason,
+            },
         )
     persist_validation_report(
         report,
@@ -170,7 +213,73 @@ def run_intelligent_validation(
         / f"{artifact.plan.task_id}.json",
     )
     allowed = {DecisionStatus.PASS, DecisionStatus.PASS_WITH_WARNINGS}
-    return report.decision.status in allowed, "; ".join(report.decision.reasons)
+    return (
+        report.decision.status in allowed,
+        "; ".join(report.decision.reasons),
+        report.review.diff_hash,
+    )
+
+
+def prepare_generated_test(
+    repo,
+    artifact,
+    rag,
+    config,
+    context: ToolContext,
+    *,
+    tdd: bool,
+) -> tuple[bool, str]:
+    """Generate/apply an approved test mutation and optionally prove a meaningful RED phase."""
+    evidence = rag.build_context(rag.retrieve(artifact.plan.original_request))[:12_000]
+    try:
+        generated = generate_test_patch(
+            rag.llm,
+            artifact.plan,
+            context.policy,
+            evidence,
+            tdd=tdd,
+        )
+        observation = default_registry(config.execution).invoke(
+            "apply_patch",
+            {
+                "patch": generated.patch,
+                "_rationale": generated.rationale,
+                "_expected_outcome": "Approved regression/feature test is added",
+                "_plan_step": "test-generation",
+                "_mutation_intended": True,
+            },
+            context,
+        )
+    except (TestGenerationError, ToolExecutionError) as exc:
+        return False, f"Generated test rejected: {exc}"
+    if not observation.success:
+        return False, observation.summary
+    if not tdd:
+        return True, f"Generated test patch applied: {generated.patch_hash}"
+    service = ValidationService(repo)
+    validation_plan = service.build(artifact, tdd=True)
+    red = service.run(
+        artifact,
+        validation_plan,
+        targeted_only=True,
+        perform_review=False,
+    )
+    if not red.failures:
+        return False, "TDD RED phase failed: generated test did not fail before implementation"
+    meaningful = [meaningful_tdd_failure(item) for item in red.failures]
+    if not all(item[0] for item in meaningful):
+        return False, "TDD RED phase failed: " + "; ".join(item[1] for item in meaningful)
+    target_failure = any(
+        any(
+            path in failure.command
+            or any(path in affected for affected in failure.affected_tests)
+            for path in generated.target_files
+        )
+        for failure in red.failures
+    )
+    if not target_failure:
+        return False, "TDD RED phase failed outside the generated test target"
+    return True, "TDD RED phase confirmed by behavior assertion failure"
 
 
 # ============================================================
@@ -426,6 +535,7 @@ def rollback_agent_changes(
 def commit_agent_changes(
     repo: Path,
     request: str,
+    expected_diff_hash: str | None = None,
 ) -> str:
     """
     Commit successful autonomous changes.
@@ -435,6 +545,15 @@ def commit_agent_changes(
         ["git", "add", "-A"],
         repo,
     )
+    if expected_diff_hash is not None:
+        staged = run_command(
+            ["git", "diff", "--cached", "HEAD", "--binary", "--find-renames"],
+            repo,
+        )
+        staged_hash = hashlib.sha256(staged.stdout.encode()).hexdigest()
+        if staged.returncode != 0 or staged_hash != expected_diff_hash:
+            run_command(["git", "restore", "--staged", "."], repo)
+            raise GitTransactionError("Staged commit diff differs from reviewed validation diff")
 
     message = request.strip()
 
@@ -601,6 +720,7 @@ def finalize_agent_run(
     keep_failed_branch: bool = False,
     auto_merge: bool = False,
     merge_approved: bool = False,
+    expected_diff_hash: str | None = None,
 ) -> GitTransactionSummary:
     """
     Finalize an autonomous coding-agent transaction.
@@ -613,6 +733,19 @@ def finalize_agent_run(
         switch back to the original branch,
         and delete the failed agent branch.
     """
+
+    if tests_passed and expected_diff_hash is not None:
+        actual_diff_hash = hashlib.sha256(worktree_diff(repo).encode()).hexdigest()
+        if actual_diff_hash != expected_diff_hash:
+            logger.error(
+                "reviewed_diff_changed_before_commit",
+                extra={
+                    "event": "validation.diff_stale",
+                    "expected_diff_hash": expected_diff_hash,
+                    "actual_diff_hash": actual_diff_hash,
+                },
+            )
+            tests_passed = False
 
     if tests_passed:
         if not auto_commit:
@@ -634,10 +767,31 @@ def finalize_agent_run(
                 starting_commit=starting_commit,
             )
 
-        commit_hash = commit_agent_changes(
-            repo,
-            request,
-        )
+        try:
+            commit_hash = commit_agent_changes(
+                repo,
+                request,
+                expected_diff_hash,
+            )
+        except GitTransactionError:
+            if rollback_on_fail and starting_commit:
+                rollback_agent_changes(
+                    repo,
+                    starting_commit,
+                    original_branch,
+                    agent_branch,
+                    keep_failed_branch,
+                )
+                return GitTransactionSummary(
+                    outcome="failed_preserved" if keep_failed_branch else "rolled_back",
+                    repository=repo,
+                    original_branch=original_branch,
+                    agent_branch=agent_branch,
+                    starting_commit=starting_commit,
+                    rolled_back=not keep_failed_branch,
+                    failed_branch_kept=keep_failed_branch,
+                )
+            raise
 
         print()
         print("=" * 70)
@@ -1301,6 +1455,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-steps", type=int, help="Bound tool-loop steps for this run.")
     parser.add_argument("--max-repairs", type=int, help="Bound repair observations for this run.")
+    parser.add_argument(
+        "--generate-tests",
+        action="store_true",
+        help="Generate an approved, scope-checked test before tool-driven implementation.",
+    )
+    parser.add_argument(
+        "--tdd",
+        action="store_true",
+        help="Require the generated test to fail meaningfully before implementation.",
+    )
 
     return parser
 
@@ -1326,6 +1490,10 @@ def validate_cli_options(parser: argparse.ArgumentParser, args: argparse.Namespa
 
     if args.auto_merge and not (args.approve_merge and args.auto_commit):
         parser.error("--auto-merge requires --approve-merge and --auto-commit")
+    if (args.generate_tests or args.tdd) and not (args.tool_loop and args.apply):
+        parser.error("--generate-tests/--tdd require --tool-loop and the complete --apply bundle")
+    if args.tdd:
+        args.generate_tests = True
 
 
 def main(argv: list[str] | None = None):
@@ -1470,6 +1638,45 @@ def main(argv: list[str] | None = None):
             rag.symbol_index,
             args.approve_risk,
         )
+        if args.generate_tests:
+            generated_ok, generated_output = prepare_generated_test(
+                repo,
+                artifact,
+                rag,
+                config,
+                context,
+                tdd=args.tdd,
+            )
+            print(generated_output)
+            if not generated_ok:
+                transaction = finalize_run(
+                    repo=repo,
+                    request=args.request,
+                    tests_passed=False,
+                    auto_commit=args.auto_commit,
+                    rollback_on_fail=True,
+                    starting_commit=starting_commit,
+                    original_branch=original_branch,
+                    agent_branch=agent_branch,
+                )
+                persist_report(
+                    ExecutionReport(
+                        1,
+                        artifact.plan.task_id,
+                        approval_token,
+                        str(repo),
+                        starting_commit,
+                        transaction.outcome,
+                        (approval_token,),
+                        tuple(context.events),
+                        final_diff=worktree_diff(repo),
+                        final_commit=transaction.resulting_commit,
+                    ),
+                    config.paths.code_index_dir
+                    / "executions"
+                    / f"{artifact.plan.task_id}.json",
+                )
+                sys.exit(1)
         try:
             result = ExecutionLoop(
                 rag.llm,
@@ -1528,7 +1735,7 @@ def main(argv: list[str] | None = None):
             repairs=result.repairs,
             replans=result.replans,
         )
-        validation_ok, validation_output = run_intelligent_validation(
+        validation_ok, validation_output, reviewed_diff_hash = run_intelligent_validation(
             repo,
             artifact,
             rag,
@@ -1548,6 +1755,7 @@ def main(argv: list[str] | None = None):
             starting_commit=starting_commit,
             original_branch=original_branch,
             agent_branch=agent_branch,
+            expected_diff_hash=reviewed_diff_hash,
         )
         final_report = ExecutionReport(
             report.schema_version,

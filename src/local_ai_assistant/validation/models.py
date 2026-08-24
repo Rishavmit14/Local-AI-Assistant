@@ -98,6 +98,7 @@ class ValidationPlan:
     timeout_policy: dict[str, int]
     failure_policy: str
     tdd_enabled: bool = False
+    configuration_identity: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)

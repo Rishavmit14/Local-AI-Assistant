@@ -45,6 +45,21 @@ def test_agent_exposes_bounded_tool_loop_options():
     assert args.max_repairs == 1
 
 
+def test_test_generation_and_tdd_require_scoped_apply_bundle():
+    parser = build_agent_parser()
+    args = parser.parse_args(["demo", "change", "--tdd"])
+    with pytest.raises(SystemExit):
+        validate_cli_options(parser, args)
+    args = parser.parse_args(
+        [
+            "demo", "change", "--tool-loop", "--tdd", "--apply", "--branch",
+            "--test", "--validate", "--rollback-on-fail",
+        ]
+    )
+    validate_cli_options(parser, args)
+    assert args.generate_tests and args.tdd
+
+
 def test_code_rag_parser_supports_reindex():
     assert build_rag_parser().parse_args(["--reindex"]).reindex is True
 

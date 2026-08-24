@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import subprocess
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from local_ai_assistant.agent.code_agent import (
     validate_python_structure,
 )
 from local_ai_assistant.common.errors import DirtyRepositoryError
+from local_ai_assistant.planning.patch_scope import worktree_diff
 
 
 def git(repo: Path, *args: str) -> str:
@@ -78,6 +80,48 @@ def test_successful_transaction_commits_and_verifies_clean_tree(repository):
     assert summary.resulting_commit == git(repository, "rev-parse", "HEAD")
     assert git_current_branch(repository) == branch
     assert git_is_clean(repository)
+
+
+def test_successful_transaction_commits_only_exact_reviewed_diff(repository):
+    original, starting, branch = create_agent_branch(repository, "exact reviewed value")
+    (repository / "module.py").write_text("def value():\n    return 4\n", encoding="utf-8")
+    reviewed_hash = hashlib.sha256(worktree_diff(repository).encode()).hexdigest()
+    summary = finalize_agent_run(
+        repository,
+        "exact reviewed value",
+        tests_passed=True,
+        auto_commit=True,
+        rollback_on_fail=True,
+        starting_commit=starting,
+        original_branch=original,
+        agent_branch=branch,
+        expected_diff_hash=reviewed_hash,
+    )
+    assert summary.outcome == "committed"
+
+
+def test_commit_gate_rolls_back_when_diff_changed_after_review(repository):
+    original, starting, branch = create_agent_branch(repository, "reviewed value")
+    (repository / "module.py").write_text("def value():\n    return 2\n", encoding="utf-8")
+    reviewed = git(repository, "diff") + "\n"
+    reviewed_hash = hashlib.sha256(reviewed.encode()).hexdigest()
+    (repository / "module.py").write_text("def value():\n    return 999\n", encoding="utf-8")
+
+    summary = finalize_agent_run(
+        repository,
+        "reviewed value",
+        tests_passed=True,
+        auto_commit=True,
+        rollback_on_fail=True,
+        starting_commit=starting,
+        original_branch=original,
+        agent_branch=branch,
+        expected_diff_hash=reviewed_hash,
+    )
+
+    assert summary.outcome == "rolled_back"
+    assert git_current_branch(repository) == original
+    assert "return 1" in (repository / "module.py").read_text()
 
 
 def test_failed_transaction_rolls_back_switches_and_cleans_branch(repository):

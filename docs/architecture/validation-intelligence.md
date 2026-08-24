@@ -15,3 +15,5 @@ The final decision is one of `PASS`, `PASS_WITH_WARNINGS`, `REPAIR_REQUIRED`, `R
 ## Limitations
 
 Static review is heuristic, not formal verification or a vulnerability audit. Targeted-test inference can be incomplete. Flaky classification requires repeated no-change rerun evidence and does not dismiss the original failure. External security and coverage tools run only when already installed and configured.
+
+Validators execute through the Stage 4 parsed command policy. Stage 5 detects repository mutations and restores exact tracked, staged, untracked, mode, and symlink state, but it is not an operating-system sandbox: untrusted test code can still attempt external side effects. Filesystem/container isolation remains explicitly scheduled for Stage 8, so repositories and validation commands must be trusted until that boundary exists.

@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from local_ai_assistant.execution.history import redact
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import (
     ApprovalDecision,
     ApprovalStatus,
     ConfidenceAssessment,
+    DependencyChange,
+    DependencyChangeKind,
     ImplementationPlan,
     PlannedTest,
+    PlanningArtifact,
     RiskAssessment,
     RiskLevel,
     TaskCategory,
@@ -43,6 +48,7 @@ from local_ai_assistant.validation.models import (
     ReviewResult,
     ReviewSeverity,
     ValidationKind,
+    ValidationReport,
     ValidationResult,
     ValidationStep,
 )
@@ -55,9 +61,15 @@ from local_ai_assistant.validation.security import (
 from local_ai_assistant.validation.service import (
     ValidationService,
     load_validation_plan,
+    load_validation_report,
     persist_validation_plan,
+    persist_validation_report,
 )
-from local_ai_assistant.validation.tests import generate_test_patch, validate_test_patch
+from local_ai_assistant.validation.tests import (
+    generate_test_patch,
+    meaningful_tdd_failure,
+    validate_test_patch,
+)
 
 
 class FakeModel:
@@ -120,6 +132,26 @@ def make_plan(repo: Path, risk=RiskLevel.MEDIUM):
     )
 
 
+def make_artifact(repo: Path, plan=None):
+    plan = plan or make_plan(repo)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+    return PlanningArtifact(
+        "2026-08-24T00:00:00Z",
+        str(repo),
+        head,
+        plan.original_request,
+        plan.classification,
+        (),
+        plan,
+    )
+
+
 def test_validation_plan_detection_selection_and_policy(validation_repo):
     plan = make_plan(validation_repo)
     validation = build_validation_plan(validation_repo, plan, "abc")
@@ -158,6 +190,9 @@ def test_language_validator_adapters(tmp_path):
     (repo / "eslint.config.js").write_text("export default []")
     steps = {item.step_id for item in detect_validators(repo, ("script.sh",))}
     assert {"cargo-check", "cargo-test", "forge-build", "forge-test", "node-test", "typescript", "eslint", "shellcheck"} <= steps
+    unsupported = detect_validators(repo, ("service.go",))
+    missing = next(item for item in unsupported if item.step_id == "unsupported-source-validation")
+    assert missing.requirement is Requirement.REQUIRED and missing.command is None
 
 
 def test_missing_required_validator_fails_closed(validation_repo):
@@ -191,22 +226,22 @@ def test_missing_recommended_validator_is_observable_but_nonblocking(validation_
 
 
 def test_validation_command_side_effect_is_immediately_restored(validation_repo):
-    intended = validation_repo / "app/service.py"
-    intended.write_text("def login_user(name):\n    return bool(name.strip())\n")
-    before = subprocess.run(
-        ["git", "diff", "HEAD", "--binary", "--find-renames"],
-        cwd=validation_repo,
-        text=True,
-        capture_output=True,
-        check=True,
-    ).stdout
     (validation_repo / "tests/test_mutation.py").write_text(
-        "from pathlib import Path\n"
+        "import os\nfrom pathlib import Path\n"
         "def test_mutates_repository():\n"
         "    Path('app/service.py').write_text('contaminated')\n"
+        "    Path('pyproject.toml').write_text('contaminated')\n"
+        "    Path('notes.txt').unlink()\n"
+        "    Path('link').unlink()\n"
+        "    Path('link').write_text('not a symlink')\n"
+        "    Path('created.txt').write_text('side effect')\n"
+        "    Path('.env').write_text('TOKEN=validator-leak')\n"
     )
+    (validation_repo / ".gitignore").write_text(".env\n")
     subprocess.run(
-        ["git", "add", "tests/test_mutation.py"], cwd=validation_repo, check=True
+        ["git", "add", "tests/test_mutation.py", ".gitignore"],
+        cwd=validation_repo,
+        check=True,
     )
     subprocess.run(
         ["git", "commit", "-m", "validator fixture"],
@@ -214,8 +249,31 @@ def test_validation_command_side_effect_is_immediately_restored(validation_repo)
         check=True,
         capture_output=True,
     )
-    # Recreate the intended diff relative to the new HEAD.
+    intended = validation_repo / "app/service.py"
     intended.write_text("def login_user(name):\n    return bool(name.strip())\n")
+    (validation_repo / "pyproject.toml").write_text(
+        "[project]\nname='demo'\n[tool.pytest.ini_options]\n[tool.ruff]\n# staged\n"
+    )
+    subprocess.run(["git", "add", "pyproject.toml"], cwd=validation_repo, check=True)
+    notes = validation_repo / "notes.txt"
+    notes.write_text("keep me")
+    os.chmod(notes, 0o700)
+    (validation_repo / "link").symlink_to("notes.txt")
+    (validation_repo / ".env").write_text("TOKEN=original-secret")
+    status_before = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=validation_repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout
+    staged_before = subprocess.run(
+        ["git", "diff", "--cached", "--binary"],
+        cwd=validation_repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout
     before = subprocess.run(
         ["git", "diff", "HEAD", "--binary", "--find-renames"],
         cwd=validation_repo,
@@ -234,6 +292,26 @@ def test_validation_command_side_effect_is_immediately_restored(validation_repo)
     assert not result.success
     assert "changed repository state" in result.output
     assert intended.read_text() == "def login_user(name):\n    return bool(name.strip())\n"
+    assert notes.read_text() == "keep me"
+    assert os.stat(notes).st_mode & 0o777 == 0o700
+    assert (validation_repo / "link").is_symlink()
+    assert os.readlink(validation_repo / "link") == "notes.txt"
+    assert not (validation_repo / "created.txt").exists()
+    assert (validation_repo / ".env").read_text() == "TOKEN=original-secret"
+    assert subprocess.run(
+        ["git", "diff", "--cached", "--binary"],
+        cwd=validation_repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout == staged_before
+    assert subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=validation_repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout == status_before
 
 
 def test_low_risk_can_use_targeted_policy(validation_repo):
@@ -251,6 +329,39 @@ def test_validation_plan_persistence_and_corruption(validation_repo, tmp_path):
         load_validation_plan(path)
 
 
+def test_validation_plan_rejects_policy_config_and_risk_tampering(validation_repo):
+    artifact = make_artifact(validation_repo)
+    service = ValidationService(validation_repo)
+    validation = service.build(artifact)
+    weakened = replace(
+        validation,
+        final_steps=tuple(
+            replace(item, requirement=Requirement.OPTIONAL)
+            for item in validation.final_steps
+        ),
+    )
+    with pytest.raises(ValidationArtifactError, match="commands or requirements"):
+        service._verify_identity(artifact, weakened)
+    with pytest.raises(ValidationArtifactError, match="stale"):
+        service._verify_identity(artifact, replace(validation, risk_level="low"))
+    (validation_repo / "ruff.toml").write_text("line-length = 88\n")
+    with pytest.raises(ValidationArtifactError, match="stale"):
+        service._verify_identity(artifact, validation)
+
+
+def test_validation_report_persistence_redaction_and_corruption(validation_repo, tmp_path):
+    plan = build_validation_plan(validation_repo, make_plan(validation_repo), "abc")
+    review = ReviewResult(plan.plan_hash, "diff", ())
+    result = ValidationResult("x", False, False, 1, "failed", "Authorization: Bearer abcdefghijkl")
+    report = ValidationReport(1, plan, (result,), (), review, decide_final(plan, (result,), review))
+    path = persist_validation_report(report, tmp_path / "report.json")
+    assert "abcdefghijkl" not in path.read_text()
+    assert load_validation_report(path)["schema_version"] == 1
+    path.write_text("{broken")
+    with pytest.raises(ValidationArtifactError):
+        load_validation_report(path)
+
+
 def test_validation_cache_invalidates_for_diff_command_and_config(tmp_path):
     cache = ValidationCache(tmp_path / "cache.json")
     repo = tmp_path / "repo"
@@ -261,6 +372,9 @@ def test_validation_cache_invalidates_for_diff_command_and_config(tmp_path):
     assert cache.get(cache.key(repo, "abc", "diff-two", "pytest", "config")) is None
     assert cache.get(cache.key(repo, "abc", "diff-one", "ruff", "config")) is None
     assert cache.get(cache.key(repo, "abc", "diff-one", "pytest", "changed")) is None
+    other = tmp_path / "other"
+    other.mkdir()
+    assert cache.get(cache.key(other, "abc", "diff-one", "pytest", "config")) is None
     cache.path.write_text("{broken")
     with pytest.raises(ValidationArtifactError):
         cache.get(first)
@@ -295,6 +409,18 @@ def test_flaky_requires_repeated_passes():
     assert not flaky.repair_appropriate
 
 
+def test_unknown_and_infrastructure_failures_do_not_trigger_repair():
+    assert not classify_failure("pytest", 1, "unknown failure").repair_appropriate
+    assert classify_failure("cargo check", 127, "command not found").category is FailureCategory.ENVIRONMENT
+
+
+def test_tdd_red_phase_accepts_only_behavior_failure():
+    assertion = classify_failure("pytest", 1, "AssertionError expected 2 got 1")
+    imported = classify_failure("pytest", 1, "ModuleNotFoundError: missing")
+    assert meaningful_tdd_failure(assertion)[0]
+    assert not meaningful_tdd_failure(imported)[0]
+
+
 @pytest.mark.parametrize(
     "body",
     [
@@ -302,6 +428,8 @@ def test_flaky_requires_repeated_passes():
         "def test_x():\n    assert True",
         "import pytest\n@pytest.mark.skip\ndef test_x():\n    assert value",
         "def test_x():\n    try:\n        target()\n    except Exception:\n        pass",
+        "def test_x():\n    requests.get('https://example.invalid')\n    assert 1 == 1",
+        "def test_x():\n    assert 1 == 1",
     ],
 )
 def test_generated_test_validity_rejects_weak_patterns(body):
@@ -320,6 +448,21 @@ def test_generated_test_cannot_mutate_production(validation_repo):
      return bool(name)
 """
     with pytest.raises(GeneratedTestError, match="production-code"):
+        generate_test_patch(FakeModel(response), plan, scope_guard_from_plan(plan), "failure")
+
+
+def test_generated_test_cannot_delete_existing_assertion(validation_repo):
+    plan = replace(make_plan(validation_repo), symbols_to_modify=())
+    response = """diff --git a/tests/test_service.py b/tests/test_service.py
+deleted file mode 100644
+--- a/tests/test_service.py
++++ /dev/null
+@@ -1,4 +0,0 @@
+-from app.service import login_user
+-def test_login_user():
+-    assert login_user('a')
+"""
+    with pytest.raises(GeneratedTestError, match="delete or rename"):
         generate_test_patch(FakeModel(response), plan, scope_guard_from_plan(plan), "failure")
 
 
@@ -362,6 +505,19 @@ def test_security_scanner_patterns_and_redaction(line, category, blocking):
     assert finding.blocking is blocking
     if category == "credential":
         assert "123456789" not in finding.evidence
+
+
+def test_provider_token_and_history_redaction_never_retain_secret_value():
+    secret = "sk-abcdefghijklmnopqrstuvwxyz"
+    diff = f"diff --git a/x.py b/x.py\n+++ b/x.py\n@@ -0,0 +1 @@\n+value = '{secret}'\n"
+    finding = next(
+        item for item in scan_changed_content(diff) if item.category == "provider_token"
+    )
+    assert secret not in finding.evidence
+    rendered = redact(
+        f"Authorization: Bearer {secret}\nDATABASE_URL=postgresql://admin:pw@host/db"
+    )
+    assert secret not in rendered and "admin:pw" not in rendered
 
 
 def test_private_key_and_solidity_security():
@@ -412,6 +568,14 @@ def test_model_review_is_bounded_advisory_and_cannot_remove_deterministic_findin
     assert review.context_truncated
     assert review.findings[0].blocking
     assert review.findings[-1].origin == "model"
+    malformed = model_review(
+        FakeModel({"summary": "pretend pass", "findings": [{"blocking": False}]}),
+        plan,
+        "+safe",
+        deterministic,
+    )
+    assert malformed.findings[0].blocking
+    assert malformed.findings[-1].category == "model_review"
 
 
 def test_final_decision_required_failure_security_and_warnings(validation_repo):
@@ -427,6 +591,11 @@ def test_final_decision_required_failure_security_and_warnings(validation_repo):
     warning = ReviewResult(plan.plan_hash, "diff", (ReviewFinding("docs", ReviewSeverity.LOW, None, None, None, None, "docs", "docs", "deterministic", False, "review"),))
     assert decide_final(plan, passing, warning).status is DecisionStatus.PASS_WITH_WARNINGS
     assert decide_final(plan, passing, clean, reapproval_required=True).status is DecisionStatus.REAPPROVAL_REQUIRED
+    optional_failure = ValidationResult("advisory", False, False, 1, "failed")
+    assert (
+        decide_final(plan, (*passing, optional_failure), clean).status
+        is DecisionStatus.PASS_WITH_WARNINGS
+    )
 
 
 def test_repair_termination_policy():
@@ -457,3 +626,45 @@ def test_bounded_repair_success_repeat_and_scope_rejection(validation_repo):
     widened = patch.replace("app/service.py", "app/unplanned.py")
     with pytest.raises(ValidationIntelligenceError, match="reapproval"):
         BoundedRepairEngine(FakeModel({"rationale": "wide", "patch": widened}), scope_guard_from_plan(plan)).propose(plan, classify_failure("pytest", 1, "different AssertionError"), {})
+
+
+def test_repair_rejects_test_weakening_and_validator_disable(validation_repo):
+    plan = replace(make_plan(validation_repo), symbols_to_modify=())
+    failure = classify_failure("pytest", 1, "AssertionError expected true")
+    weakened = """diff --git a/tests/test_service.py b/tests/test_service.py
+--- a/tests/test_service.py
++++ b/tests/test_service.py
+@@ -2,3 +2,2 @@
+ def test_login_user():
+-    assert login_user('a')
++    pass
+"""
+    with pytest.raises(ValidationIntelligenceError, match="test weakening"):
+        BoundedRepairEngine(
+            FakeModel({"rationale": "cheat", "patch": weakened}),
+            scope_guard_from_plan(plan),
+        ).propose(plan, failure, {})
+    config_plan = replace(
+        plan,
+        files_to_modify=(*plan.files_to_modify, "pyproject.toml"),
+        dependency_changes=(
+            DependencyChange(
+                "pyproject.toml",
+                DependencyChangeKind.UNKNOWN,
+                "approved manifest inspection",
+            ),
+        ),
+    )
+    disabled = """diff --git a/pyproject.toml b/pyproject.toml
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -2,3 +2,2 @@
+ name='demo'
+-[tool.pytest.ini_options]
+ [tool.ruff]
+"""
+    with pytest.raises(ValidationIntelligenceError, match="disable validation"):
+        BoundedRepairEngine(
+            FakeModel({"rationale": "disable", "patch": disabled}),
+            scope_guard_from_plan(config_plan),
+        ).propose(config_plan, failure, {})

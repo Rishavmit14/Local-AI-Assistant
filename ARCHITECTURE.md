@@ -1,6 +1,6 @@
 # Architecture
 
-## Current Stage 4 system
+## Current Stage 5 system
 
 ```text
 Qwen GGUF
@@ -28,7 +28,7 @@ The `examples/demo-app` fixture is imported without its nested Git database. It 
 
 ## Deployment compatibility
 
-Stages 0 through 4 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
+Stages 0 through 5 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
 
 ## Target architecture
 

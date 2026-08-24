@@ -28,25 +28,72 @@ def deterministic_review(repository: Path, plan: ImplementationPlan, policy, dif
     for path in sorted(changed - planned):
         findings.append(_finding("unrelated_changes", ReviewSeverity.HIGH, path, "Changed file is outside the approved plan.", True))
     findings.extend(_review_added_lines(diff))
+    for match in re.finditer(r"^new mode (100[0-7]{3})$", diff, re.MULTILINE):
+        if match.group(1) not in {"100644", "100755"}:
+            findings.append(
+                _finding(
+                    "file_permissions",
+                    ReviewSeverity.HIGH,
+                    None,
+                    f"Suspicious tracked file mode introduced: {match.group(1)}",
+                    True,
+                )
+            )
     findings.extend(scan_changed_content(diff))
     findings.extend(enhanced_auth_review(diff, tuple(changed)))
     return ReviewResult(plan_approval_token(plan), hashlib.sha256(diff.encode()).hexdigest(), tuple(findings))
 
 
-def model_review(model, plan: ImplementationPlan, diff: str, deterministic: ReviewResult, *, budget: int = 24_000) -> ReviewResult:
-    payload = redact(
+def model_review(
+    model,
+    plan: ImplementationPlan,
+    diff: str,
+    deterministic: ReviewResult,
+    *,
+    validation_results=(),
+    budget: int = 24_000,
+) -> ReviewResult:
+    priority = redact(
         json.dumps(
             {
-                "plan": plan.to_dict(),
-                "diff": diff,
+                "request": plan.original_request,
+                "plan_hash": deterministic.plan_hash,
+                "plan_summary": plan.summary,
+                "risk": plan.risk.level.value,
+                "files": [
+                    *plan.files_to_modify,
+                    *plan.files_to_create,
+                    *plan.files_to_delete_or_rename,
+                ],
+                "symbols": plan.symbols_to_modify,
                 "deterministic_findings": [
-                    item.evidence for item in deterministic.findings
+                    {
+                        "category": item.category,
+                        "blocking": item.blocking,
+                        "evidence": item.evidence,
+                    }
+                    for item in deterministic.findings
+                ],
+                "validation_results": [
+                    {
+                        "step_id": item.step_id,
+                        "success": item.success,
+                        "skipped": item.skipped,
+                        "summary": item.summary,
+                        "output": item.output[-1000:],
+                    }
+                    for item in validation_results
                 ],
             }
         )
     )
-    truncated = len(payload) > budget
-    raw = model.chat(prompt=payload[:budget], system_prompt="Review bounded code changes. Return JSON object with summary and findings. Findings contain category, severity, file, symbol, evidence, rationale, blocking. Never override deterministic failures.", temperature=0.0, max_tokens=1200)
+    priority_truncated = len(priority) > budget // 2
+    priority = priority[: min(len(priority), budget // 2)]
+    redacted_diff = redact(diff)
+    remaining = max(0, budget - len(priority) - 20)
+    payload = priority + "\nRELEVANT_DIFF:\n" + redacted_diff[:remaining]
+    truncated = priority_truncated or len(priority) + 20 + len(redacted_diff) > budget
+    raw = model.chat(prompt=payload, system_prompt="Review bounded code changes. Return JSON object with summary and findings. Findings contain category, severity, file, symbol, evidence, rationale, blocking. Never override deterministic failures.", temperature=0.0, max_tokens=1200)
     try:
         value = json.loads(raw)
         findings = tuple(_model_finding(item) for item in value.get("findings", ()))
@@ -97,6 +144,19 @@ def _review_added_lines(diff: str):
         if count > 1:
             findings.append(_finding("duplicate_definition", ReviewSeverity.HIGH, definition_path, f"Duplicate definition added: {name}", True))
     for deletion_path, content in deletions:
+        if deletion_path and (
+            "/tests/" in f"/{deletion_path}"
+            or deletion_path.rsplit("/", 1)[-1].startswith("test_")
+        ) and re.match(r"\s*(?:assert\b|def\s+test_|async\s+def\s+test_)", content):
+            findings.append(
+                _finding(
+                    "test_weakening",
+                    ReviewSeverity.HIGH,
+                    deletion_path,
+                    "Test behavior or assertion removed.",
+                    True,
+                )
+            )
         match = re.match(r"\s*(?:async\s+def|def|class)\s+([A-Za-z]\w*)", content)
         if match and not match.group(1).startswith("_"):
             findings.append(_finding("public_api", ReviewSeverity.HIGH, deletion_path, f"Public definition removed: {match.group(1)}", True))
@@ -108,6 +168,9 @@ def _review_added_lines(diff: str):
 
 
 def _model_finding(value):
+    required = {"category", "severity", "evidence", "rationale", "blocking"}
+    if not isinstance(value, dict) or required - value.keys():
+        raise ValueError("model review finding is missing required fields")
     severity = ReviewSeverity(str(value.get("severity", "info")).lower())
     blocking = bool(value.get("blocking", False)) and severity in {ReviewSeverity.HIGH, ReviewSeverity.CRITICAL}
     return ReviewFinding(str(value.get("category", "model_review")), severity, value.get("file"), value.get("symbol"), None, None, str(value.get("evidence", ""))[:500], str(value.get("rationale", ""))[:1000], "model", blocking, "model.review")

@@ -26,8 +26,26 @@ def decide_final(plan: ValidationPlan, results: tuple[ValidationResult, ...], re
         return FinalDecision(DecisionStatus.FAILED, tuple([*(f"Required validation missing: {item}" for item in missing), *(f"Required validation failed: {item}" for item in failed)]), tuple((*missing, *failed)))
     if blocking:
         return FinalDecision(DecisionStatus.BLOCKED, tuple(f"Blocking {item.category}: {item.rationale}" for item in blocking), tuple(item.check_name for item in blocking))
+    non_required_failures = [
+        item for item in results if (not item.success or item.skipped) and item.step_id not in required_ids
+    ]
     warnings = [item for item in review.findings if item.severity in {ReviewSeverity.LOW, ReviewSeverity.MEDIUM}]
-    return FinalDecision(DecisionStatus.PASS_WITH_WARNINGS if warnings else DecisionStatus.PASS, ("All deterministic gates passed.",), tuple(item.check_name for item in warnings))
+    warning_evidence = (
+        *(item.check_name for item in warnings),
+        *(item.step_id for item in non_required_failures),
+    )
+    reasons = ["All deterministic required gates passed."]
+    reasons.extend(
+        f"Non-required validation did not pass: {item.step_id}"
+        for item in non_required_failures
+    )
+    return FinalDecision(
+        DecisionStatus.PASS_WITH_WARNINGS
+        if warnings or non_required_failures
+        else DecisionStatus.PASS,
+        tuple(reasons),
+        tuple(warning_evidence),
+    )
 
 
 def repair_decision(category: FailureCategory, attempts: int, max_attempts: int, *, repeated: bool = False, scope_increase: bool = False, risk_increase: bool = False) -> DecisionStatus:

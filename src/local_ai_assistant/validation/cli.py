@@ -8,16 +8,19 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 
 from local_ai_assistant.common.config import get_config
+from local_ai_assistant.execution.history import redact
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.patch_scope import worktree_diff
 from local_ai_assistant.planning.service import PlannerService
 
+from .errors import ValidationArtifactError
 from .failures import classify_failure
 from .review import deterministic_review
 from .security import scan_changed_content
 from .service import (
     ValidationService,
     load_validation_plan,
+    load_validation_report,
     persist_validation_plan,
     persist_validation_report,
 )
@@ -66,12 +69,13 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(_json(value), indent=2))
         return 0
     if args.command == "show-findings":
-        value = json.loads(args.report.read_text())
+        value = load_validation_report(args.report)
         print(json.dumps(value.get("review", {}).get("findings", ()), indent=2))
         return 0
     if args.command == "export-report":
-        value = json.loads(args.report.read_text())
-        args.destination.write_text(json.dumps(value, indent=2) + "\n")
+        value = load_validation_report(args.report)
+        destination = _safe_output_path(args.destination)
+        destination.write_text(redact(json.dumps(value, indent=2)) + "\n")
         return 0
     config = get_config()
     if args.command == "security-scan":
@@ -87,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.command == "build-plan":
         plan = service.build(artifact)
-        persist_validation_plan(plan, args.output)
+        persist_validation_plan(plan, _safe_output_path(args.output))
         print(json.dumps(plan.to_dict(), indent=2))
         return 0
     if args.command == "review-diff":
@@ -104,17 +108,27 @@ def main(argv: list[str] | None = None) -> int:
         artifact,
         validation_plan,
         targeted_only=args.command == "run-targeted",
-        required_only=args.command == "run-required",
         perform_review=args.command == "run-required",
     )
     if args.output:
-        persist_validation_report(report, args.output)
+        persist_validation_report(report, _safe_output_path(args.output))
     print(json.dumps(report.to_dict(), indent=2))
     return 0 if report.decision.status.value.startswith("pass") else 1
 
 
 def _json(value):
     return asdict(value) if is_dataclass(value) else value
+
+
+def _safe_output_path(path: Path) -> Path:
+    if path.is_absolute() or ".." in path.parts:
+        raise ValidationArtifactError("Export destination must be repository-relative")
+    destination = (Path.cwd() / path).resolve()
+    root = Path.cwd().resolve()
+    if destination != root and root not in destination.parents:
+        raise ValidationArtifactError("Export destination escapes the working repository")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    return destination
 
 
 if __name__ == "__main__":

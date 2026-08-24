@@ -167,6 +167,22 @@ def detect_validators(repository: Path, affected_files: tuple[str, ...]) -> tupl
                 "A local gitleaks configuration was detected.",
             )
         )
+    supported = {".py", ".rs", ".sol", ".js", ".jsx", ".ts", ".tsx", ".sh", ".bash"}
+    source_like = {
+        ".go", ".java", ".c", ".cc", ".cpp", ".h", ".hpp", ".sql", ".rb", ".php",
+    }
+    unsupported = sorted(suffixes.intersection(source_like) - supported)
+    if unsupported:
+        steps.append(
+            _step(
+                "unsupported-source-validation",
+                ValidationKind.STRUCTURAL,
+                Requirement.REQUIRED,
+                None,
+                "No configured deterministic validator for affected source extensions: "
+                + ", ".join(unsupported),
+            )
+        )
     return tuple(_dedupe(steps))
 
 
@@ -176,7 +192,12 @@ def select_targeted_tests(
     selected: dict[str, tuple[str, str, str]] = {}
     for test in plan.relevant_tests:
         if test.path not in {".", "full-suite"} and (repository / test.path).is_file():
-            selected[test.path] = (test.path, test.reason, test.command)
+            selected[test.path] = (
+                test.path,
+                "Approved plan test candidate; path existence verified deterministically. "
+                + test.reason,
+                _target_command(repository, test.path),
+            )
     production = [PurePosixPath(path) for path in plan.files_to_modify if not _is_test(path)]
     tests = sorted(
         path.relative_to(repository).as_posix()

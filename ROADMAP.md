@@ -42,7 +42,7 @@ Typed validation plans, repository-driven Python/Rust/Solidity/Node/Shell adapte
 
 Self-review: task satisfaction, unrelated changes, architecture, security, performance, test adequacy, confidence, and risk. Low risk includes docs/tests; medium includes business logic; high includes auth, migrations, payments, security, smart contracts, and deployment and always needs approval.
 
-Security: secret/key/token/password/private-key scanning and gitleaks evaluation; path traversal, SQL/command injection, unsafe deserialization, SSRF, auth bypass, weak crypto/randomness; Solidity reentrancy, access control, unchecked calls, oracle/accounting, and upgradeability checks.
+Security foundation: secret/key/token/password/private-key scanning and optional configured gitleaks; conservative path traversal, SQL/command construction, unsafe deserialization, auth bypass, weak crypto, and Solidity external-call/access/upgrade/signature heuristics are implemented. SSRF, insecure-randomness depth, oracle/accounting analysis, and comprehensive language-aware security review remain later hardening rather than being overstated as complete.
 
 Confidence/risk scoring covers retrieval, symbol/context coverage, tests, plan consistency, scope, static validation, results, security flags, and change risk, gating apply/commit. Database awareness detects schema/framework migrations, destructive SQL, ordering, validation, and rollback strategy. A policy engine combines risk, confidence, file/dependency/security/migration/deployment state, and user config.
 
