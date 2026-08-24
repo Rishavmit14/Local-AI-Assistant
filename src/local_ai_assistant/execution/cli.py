@@ -9,6 +9,8 @@ from pathlib import Path
 
 from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.common.config import get_config
+from local_ai_assistant.history.service import TaskHistoryService
+from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import plan_approval_token
 from local_ai_assistant.planning.service import PlannerService
@@ -90,6 +92,9 @@ def main(argv: list[str] | None = None) -> int:
             max_replans=limits.max_replans,
             context_characters=limits.context_characters,
         ),
+        cancel_check=lambda: TaskHistoryService(
+            TaskHistoryStore(config.paths.task_history_db)
+        ).cancel_requested(artifact.plan.task_id),
     ).run(dry_run=args.dry_run)
     report = ExecutionReport(
         1,

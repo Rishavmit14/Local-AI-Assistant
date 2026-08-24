@@ -22,6 +22,10 @@ from local_ai_assistant.execution.history import persist_report
 from local_ai_assistant.execution.loop import ExecutionLoop, LoopLimits
 from local_ai_assistant.execution.models import ExecutionReport
 from local_ai_assistant.execution.registry import ToolContext, default_registry
+from local_ai_assistant.history.importer import ArtifactImporter
+from local_ai_assistant.history.models import TaskStatus
+from local_ai_assistant.history.service import TaskHistoryService
+from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.planning import PlannerService
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import (
@@ -59,6 +63,135 @@ PATCH_DIR.mkdir(
 )
 
 
+def _history_service(config: AppConfig) -> TaskHistoryService:
+    return TaskHistoryService(TaskHistoryStore(config.paths.task_history_db))
+
+
+def _record_plan(config: AppConfig, artifact, path: Path, repo: Path, branch: str) -> None:
+    """Index a canonical plan without changing planner/execution authority."""
+    try:
+        service = _history_service(config)
+        task = service.get(artifact.plan.task_id)
+        if task is None:
+            service.create_task(
+                artifact.request,
+                repo,
+                artifact.starting_commit,
+                branch,
+                task_id=artifact.plan.task_id,
+                created_at=artifact.timestamp,
+                metadata={
+                    "runtime": {
+                        "model": Path(config.llama.model).name,
+                        "endpoint_profile": config.llama.base_url,
+                        "context_size": config.llama.context_size,
+                    }
+                },
+            )
+            service.transition(
+                artifact.plan.task_id, TaskStatus.PLANNING, "Plan generation completed",
+                subsystem="planning",
+            )
+        service.attach_plan(artifact.plan.task_id, artifact, path)
+        task = service.get(artifact.plan.task_id)
+        if task and task.status is TaskStatus.PLANNING:
+            target = (
+                TaskStatus.APPROVED
+                if artifact.plan.approval.status is ApprovalStatus.AUTOMATIC
+                else TaskStatus.AWAITING_APPROVAL
+            )
+            service.transition(
+                task.task_id, target, artifact.plan.approval.status.value,
+                subsystem="approval",
+            )
+    except Exception as exc:
+        logger.error(
+            "task_history_plan_failed",
+            extra={"event": "history.plan.failed", "error": str(exc)},
+        )
+
+
+def _persist_execution(config: AppConfig, report: ExecutionReport, path: Path) -> None:
+    persist_report(report, path)
+    try:
+        ArtifactImporter(_history_service(config)).import_path(
+            path, repository=Path(report.repository)
+        )
+    except Exception as exc:
+        logger.error(
+            "task_history_execution_failed",
+            extra={"event": "history.execution.failed", "error": str(exc)},
+        )
+
+
+def _cancel_requested(config: AppConfig, task_id: str) -> bool:
+    try:
+        return _history_service(config).cancel_requested(task_id)
+    except Exception:
+        return False
+
+
+def _mark_execution_started(
+    config: AppConfig,
+    task_id: str,
+    approval_token: str,
+    explicit_approval: str | None,
+) -> None:
+    """Expose lifecycle progress without becoming an execution authority."""
+    try:
+        service = _history_service(config)
+        task = service.get(task_id)
+        if task is None:
+            return
+        if task.status in {TaskStatus.AWAITING_APPROVAL, TaskStatus.REAPPROVAL_REQUIRED}:
+            if explicit_approval != approval_token:
+                return
+            service.attach_approval(
+                task_id,
+                approval_token,
+                "explicitly_approved",
+                actor="code_agent",
+                reason="Execution started with the exact approved plan hash",
+            )
+            service.transition(
+                task_id,
+                TaskStatus.APPROVED,
+                "Exact-plan approval accepted by the existing code-agent policy",
+                subsystem="approval",
+            )
+            task = service.get(task_id)
+        if task and task.status is TaskStatus.APPROVED:
+            service.transition(
+                task_id,
+                TaskStatus.EXECUTING,
+                "Tool-driven execution started",
+                subsystem="execution",
+            )
+    except Exception as exc:
+        logger.error(
+            "task_history_execution_start_failed",
+            extra={"event": "history.execution.start_failed", "error": str(exc)},
+        )
+
+
+def _mark_validation_started(config: AppConfig, task_id: str) -> None:
+    try:
+        service = _history_service(config)
+        task = service.get(task_id)
+        if task and task.status is TaskStatus.EXECUTING:
+            service.transition(
+                task_id,
+                TaskStatus.VALIDATING,
+                "Intelligent validation started",
+                subsystem="validation",
+            )
+    except Exception as exc:
+        logger.error(
+            "task_history_validation_start_failed",
+            extra={"event": "history.validation.start_failed", "error": str(exc)},
+        )
+
+
 def run_intelligent_validation(
     repo,
     artifact,
@@ -69,6 +202,7 @@ def run_intelligent_validation(
     max_repairs: int = 0,
 ) -> tuple[bool, str, str]:
     """Run targeted checks, bounded repair, final checks, and review in that order."""
+    _mark_validation_started(config, artifact.plan.task_id)
     service = ValidationService(
         repo,
         config.paths.code_index_dir / "validation-cache.json",
@@ -206,12 +340,19 @@ def run_intelligent_validation(
                 "repair_stop_reason": repair_stop_reason,
             },
         )
-    persist_validation_report(
-        report,
-        config.paths.code_index_dir
-        / "validations"
-        / f"{artifact.plan.task_id}.json",
+    validation_path = (
+        config.paths.code_index_dir / "validations" / f"{artifact.plan.task_id}.json"
     )
+    persist_validation_report(report, validation_path)
+    try:
+        ArtifactImporter(_history_service(config)).import_path(
+            validation_path, repository=Path(artifact.repository)
+        )
+    except Exception as exc:
+        logger.error(
+            "task_history_validation_failed",
+            extra={"event": "history.validation.failed", "error": str(exc)},
+        )
     allowed = {DecisionStatus.PASS, DecisionStatus.PASS_WITH_WARNINGS}
     return (
         report.decision.status in allowed,
@@ -1564,6 +1705,8 @@ def main(argv: list[str] | None = None):
     )
     artifact = planner.generate(args.request)
     plan_path = planner.persist(artifact, args.plan_output)
+    current_branch = run_command(["git", "branch", "--show-current"], repo).stdout.strip()
+    _record_plan(config, artifact, plan_path, repo, current_branch)
     print()
     print("=" * 70)
     print("IMPLEMENTATION PLAN")
@@ -1621,6 +1764,7 @@ def main(argv: list[str] | None = None):
                     max_replans=limits.max_replans,
                     context_characters=limits.context_characters,
                 ),
+                cancel_check=lambda: _cancel_requested(config, artifact.plan.task_id),
             ).run(dry_run=True)
             print(
                 f"Tool-loop {'human review' if args.human_review else 'dry run'}: {result.status}; nothing modified."
@@ -1631,6 +1775,12 @@ def main(argv: list[str] | None = None):
                     print(f"  Patch hash: {observation.data['patch_sha256']}")
             return
         original_branch, starting_commit, agent_branch = create_agent_branch(repo, args.request)
+        _mark_execution_started(
+            config,
+            artifact.plan.task_id,
+            approval_token,
+            args.approve_risk,
+        )
         context = ToolContext(
             repo,
             artifact,
@@ -1659,7 +1809,8 @@ def main(argv: list[str] | None = None):
                     original_branch=original_branch,
                     agent_branch=agent_branch,
                 )
-                persist_report(
+                _persist_execution(
+                    config,
                     ExecutionReport(
                         1,
                         artifact.plan.task_id,
@@ -1691,6 +1842,7 @@ def main(argv: list[str] | None = None):
                     max_replans=limits.max_replans,
                     context_characters=limits.context_characters,
                 ),
+                cancel_check=lambda: _cancel_requested(config, artifact.plan.task_id),
             ).run()
         except ToolExecutionError as exc:
             transaction = finalize_run(
@@ -1703,7 +1855,8 @@ def main(argv: list[str] | None = None):
                 original_branch=original_branch,
                 agent_branch=agent_branch,
             )
-            persist_report(
+            _persist_execution(
+                config,
                 ExecutionReport(
                     1,
                     artifact.plan.task_id,
@@ -1771,7 +1924,8 @@ def main(argv: list[str] | None = None):
             repairs=report.repairs,
             replans=report.replans,
         )
-        persist_report(
+        _persist_execution(
+            config,
             final_report,
             config.paths.code_index_dir / "executions" / f"{artifact.plan.task_id}.json",
         )

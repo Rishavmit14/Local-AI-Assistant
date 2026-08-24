@@ -961,6 +961,32 @@ def test_tool_loop_stops_at_max_repairs(planning_repo):
     assert result.status == "max_repairs"
 
 
+def test_execution_loop_honors_cooperative_cancel_before_model_action(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(
+        repo, index, FakeLLM(response_for(index)), root / "plans"
+    ).generate("Fix login_user")
+    context = ToolContext(
+        repo, artifact, scope_guard_from_plan(artifact.plan), index
+    )
+
+    class ModelMustNotRun:
+        def chat(self, **kwargs):
+            raise AssertionError("model was called after cancellation")
+
+    result = ExecutionLoop(
+        ModelMustNotRun(),
+        default_registry(),
+        context,
+        LoopLimits(max_steps=4),
+        cancel_check=lambda: True,
+    ).run()
+
+    assert result.status == "cancelled"
+    assert result.steps == 0
+    assert result.observations[0].kind == "cancelled"
+
+
 def test_plan_bound_create_file_enforces_scope_and_approval(planning_repo):
     root, repo, index = planning_repo
     artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(

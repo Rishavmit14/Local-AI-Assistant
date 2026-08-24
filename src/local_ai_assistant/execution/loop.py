@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from local_ai_assistant.planning.models import ApprovalStatus, IssueSeverity
@@ -33,9 +34,15 @@ class LoopResult:
 
 class ExecutionLoop:
     def __init__(
-        self, model, registry: ToolRegistry, context: ToolContext, limits: LoopLimits = LoopLimits()
+        self,
+        model,
+        registry: ToolRegistry,
+        context: ToolContext,
+        limits: LoopLimits = LoopLimits(),
+        cancel_check: Callable[[], bool] | None = None,
     ) -> None:
         self.model, self.registry, self.context, self.limits = model, registry, context, limits
+        self.cancel_check = cancel_check
 
     def run(self, *, dry_run: bool = False) -> LoopResult:
         if any(
@@ -48,6 +55,13 @@ class ExecutionLoop:
         observations: list[ToolObservation] = []
         mutations = repairs = replans = 0
         for step in range(1, self.limits.max_steps + 1):
+            if self.cancel_check and self.cancel_check():
+                observations.append(
+                    ToolObservation("cancelled", False, "Cooperative cancellation requested")
+                )
+                return LoopResult(
+                    "cancelled", tuple(observations), step - 1, mutations, repairs, replans
+                )
             request = self._next_request(observations)
             if request.tool == "finish":
                 if dry_run:
