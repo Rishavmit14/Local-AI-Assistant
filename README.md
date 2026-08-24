@@ -38,6 +38,8 @@ Tree-sitter/static analysis provides deterministic symbols and graphs. Local BGE
 
 Generate a no-edit plan with `local-ai-code-agent REPO REQUEST --plan-only` or use the dedicated [`local-ai-plan` workflow](docs/operations/planner.md). Deterministic validation and risk policy gate patch generation; high/critical approval is bound to the exact printed plan token and cannot silently transfer to a changed plan.
 
+Stage 5 validation is available through `local-ai-validate`. It detects configured validators, selects evidence-backed targeted tests, runs required final checks, performs deterministic/security review, and produces an auditable final decision. In tool-loop apply mode this quality gate runs before commit; failure rolls back through the existing Git transaction. See [validation operations](docs/operations/validation.md).
+
 Run the bounded tool workflow with `local-ai-code-agent REPO REQUEST --tool-loop` (dry run) or the existing complete `--apply --branch --test --validate --rollback-on-fail` safety bundle. See [controlled tool execution](docs/operations/tool-execution.md). Actual patch and post-apply Git scope are deterministic hard gates.
 
 ## Services

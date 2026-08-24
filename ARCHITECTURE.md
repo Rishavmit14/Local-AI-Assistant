@@ -22,6 +22,8 @@ TurboQuant llama-server (127.0.0.1:8080)
 
 Coding-agent proposal mode is read-only. Applying a patch requires the isolated-branch, structural-validation, test, and rollback safeguards as one non-bypassable CLI bundle. Automatic merge additionally requires explicit approval; no default path merges an agent branch.
 
+Stage 5 adds a plan-bound validation-intelligence layer after scoped execution. It performs structural and targeted checks, bounded scope-enforced repair, required final validation, deterministic and security review, then bounded model review. A typed final decision controls commit versus rollback; required failures and deterministic policy findings cannot be overridden. See [validation intelligence](docs/architecture/validation-intelligence.md).
+
 The `examples/demo-app` fixture is imported without its nested Git database. It demonstrates the existing code-agent test target, not production authentication design.
 
 ## Deployment compatibility

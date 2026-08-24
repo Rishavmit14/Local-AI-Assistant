@@ -34,11 +34,11 @@ Typed registry metadata, permission classes, strict tool-choice/observation reco
 
 Controlled shell begins with an allowlist; approval/block rules cover sudo, destructive removal, force push, `curl|bash`, credentials, and destructive DB operations. Add timeouts, child cleanup, cancellation, audit logs, optional Docker/bubblewrap/firejail, and CPU/RAM/disk limits.
 
-## Stage 5 — Validation, tests, review, security, confidence (**Planned**)
+## Stage 5 — Validation, tests, review, security, confidence (**Implemented on Stage 5 branch**)
 
 Static registry: untracked/new files; reliable undefined-name and import checks; Python AST/syntax, Ruff, mypy, optional Pyright; Rust `cargo check`/Clippy; Solidity Forge build/test; JS/TS ESLint and `tsc --noEmit`; ShellCheck. The existing AST syntax/duplicate-definition validator is **Partial**.
 
-Test intelligence: regression-test generation, optional TDD, relevant/affected-test selection, targeted-first then full suite, flaky handling, failure classification, bounded 1/2/3 repairs, never infinite loops. Existing detected Python/Rust/Node tests and one repair are **Partial**.
+Typed validation plans, repository-driven Python/Rust/Solidity/Node/Shell adapters, ranked targeted tests, targeted-first/full-final policy, scoped test generation and optional TDD primitives, deterministic test-validity checks, failure/flaky classification, validation caching, bounded evidence-driven repair, deterministic/security/model review, provenance, final decisions, CLI operations, and coding-agent quality gating are implemented. Repairs and generated tests cannot widen approved scope. External scanners and coverage are used only when already configured.
 
 Self-review: task satisfaction, unrelated changes, architecture, security, performance, test adequacy, confidence, and risk. Low risk includes docs/tests; medium includes business logic; high includes auth, migrations, payments, security, smart contracts, and deployment and always needs approval.
 
