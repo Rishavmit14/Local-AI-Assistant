@@ -36,7 +36,9 @@ Stages 0 through 7 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-ass
 
 ## Target architecture
 
-The target remains one local platform around llama-server: chat, document and repository RAG, symbol intelligence, planner/coder/reviewer/debugger/test/security roles, controlled tools, validation and policy engines, Git transactions/worktrees, history/metrics, and the Streamlit UI. Git diffs remain mutation truth; deterministic inspection precedes inference; risk and confidence gates constrain automation. Later stages in `ROADMAP.md` introduce these pieces sequentially rather than redesigning Stage 0.
+The target remains one local platform around llama-server: chat, document and repository RAG, symbol intelligence, planner/coder/reviewer/debugger/test/security roles, controlled tools, validation and policy engines, Git transactions/worktrees, history/metrics, Friday-native integration interfaces, and user interfaces. Git diffs remain mutation truth; deterministic inspection precedes inference; risk and confidence gates constrain automation. Later stages in `ROADMAP.md` introduce these pieces sequentially rather than redesigning Stage 0.
+
+Stage 11 may add conversational voice and a cinematic frontend only above the native API/event boundary: voice/UI → Friday native API/events → existing planner, risk, approval, executor, validator, and audit services. It receives no privileged direct shell, filesystem, Git, model-tool, or approval-bypass path. Streamlit remains the engineering/admin surface and the CLI remains the recovery/power-user surface.
 
 ## Trust boundaries
 

@@ -64,13 +64,21 @@ Git worktree per task, isolated filesystems, checkpoint commits, staged rollback
 
 ## Stage 9 — Native Integration Gateway / GitHub / External Interfaces (**Planned**)
 
-Build a Friday-native internal integration/service API, then add native GitHub issue/branch/PR/CI integration. Prefer MCP-compatible external tool/interface integration where a standard protocol is useful, add a WebSocket/event interface where justified, and use direct external adapters only when they preserve Friday's deterministic policy boundaries. Friday remains independently operable and has no OpenClaw dependency.
+Build a Friday-native internal integration/service API, then add native GitHub issue → task → branch → validation → commit → PR, PR-review, and CI-status integration. Prefer MCP-compatible external tool/interface integration where a standard protocol is useful, add a WebSocket/event interface where justified, and use direct external adapters only when justified. Friday remains independently operable and has no OpenClaw dependency. Every external action remains behind Friday's risk gates, exact plan approval, ScopeGuard, Git transaction safety, validation, Stage 8 sandbox/isolation policy, and audit/history.
 
 ## Stage 10 — Real-repository hardening (**Planned**)
 
 Onboarding detects languages, builds, tests, linters, typecheckers, frameworks, repo map, symbol index, candidate `AGENTS.md`, local config, and baseline health. Exercise real repositories and a benchmark suite; measure/tune retrieval, prompts, repairs, and local model adapters.
 
 Context management becomes budget-aware: repo map first, exact symbols/dependencies/tests next, no blind 256K filling, cached summaries/symbols, incremental/changed-only embeddings, and provenance. Runtime work adds coding and deterministic/low-temperature profiles, generation config, health/startup checks, fallbacks, context profiles, benchmark harness, and alternative local model adapters.
+
+## Stage 11 — Conversational Voice & Cinematic UI (**Planned**)
+
+Add local microphone input, wake-word activation, voice activity detection, local Whisper speech-to-text, streaming response text, sentence/chunk streaming TTS with an original Friday assistant voice, barge-in, and immediate speech stop. The project must not clone or impersonate an identifiable actor or public figure.
+
+Expose deterministic assistant states—`SLEEPING`, `LISTENING`, `TRANSCRIBING`, `THINKING`, `PLANNING`, `WAITING_FOR_APPROVAL`, `EXECUTING`, `VALIDATING`, `REVIEWING`, `SPEAKING`, `COMPLETED`, `ERROR`, and `CANCELLED`—through Friday's native WebSocket/event boundary. Build a richer React/Next.js-style frontend with WebGL/Three.js/Canvas cinematic and audio-reactive visualization of real task, planner, executor, test, review, approval, and system-health state. Retain Streamlit as the engineering/admin interface and the CLI as the recovery and power-user interface.
+
+The authority boundary is permanent: voice/UI → Friday native API/event boundary → existing planning, risk, approval, execution, validation, and audit systems. Voice and UI code receives no privileged direct path to shell execution, filesystem or Git mutation, model tool execution, or approval bypass.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 

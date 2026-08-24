@@ -4,7 +4,7 @@ Status: Accepted
 
 ## Context
 
-Friday already owns deterministic planning, approval, execution, validation, review, Git transactions, task history, and operational policy. Adding a second orchestration runtime would duplicate sessions, routing, configuration, lifecycle ownership, and runtime dependencies while making Friday's policy boundary less clear.
+OpenClaw was previously considered as a possible future integration; that direction is superseded and abandoned. Friday already owns deterministic planning, approval, execution, validation, review, Git transactions, task history, and operational policy. Adding a second orchestration runtime would duplicate sessions, routing, configuration, lifecycle ownership, and runtime dependencies while making Friday's policy boundary less clear.
 
 ## Decision
 

@@ -9,7 +9,7 @@ These instructions apply to the entire repository. Read this file and `CODEX_HAN
 - Never track GGUF or other model weights, virtual environments, FAISS indexes, embeddings, user documents, caches, secrets, generated logs, patches, or temporary/database state.
 - Do not bypass Git isolation for coding-agent mutations. Patch preflight, structural/static validation, tests, bounded repair, auditability, and deterministic rollback are foundational requirements.
 - Prefer parsers, Git, tests, linters, and build tools over model inference for deterministic facts.
-- OpenClaw is not part of the target architecture. Do not add OpenClaw dependencies, integrations, adapters, roadmap items, or implementation work unless the project owner explicitly reverses this decision.
+- OpenClaw is not part of Friday's target architecture. Do not add OpenClaw dependencies, integrations, adapters, roadmap items, implementation work, or design assumptions unless the project owner explicitly reverses this decision.
 - Never silently remove roadmap capabilities. Update status without deleting scope.
 - Work one roadmap stage at a time. Stage 0 must be reviewed before Stage 1 begins.
 

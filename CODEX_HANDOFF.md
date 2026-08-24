@@ -813,6 +813,9 @@ llama-server
     └── Streamlit UI
 ```
 
+### AH. Conversational voice and cinematic UI
+After final real-repository hardening, add local microphone/wake-word/VAD/Whisper input, streaming text and sentence/chunk TTS with an original non-impersonating Friday voice, barge-in and immediate speech stop, deterministic assistant states, and a React/Next.js-style WebGL/Three.js/Canvas frontend driven by real runtime events. Streamlit remains the engineering/admin UI and the CLI remains the recovery/power-user interface. Voice/UI communicates only through Friday's native API/event boundary and has no direct authority over shell, filesystem or Git mutation, model tools, or approval.
+
 ## 15. Recommended implementation sequence
 
 ### Stage 0 — Bootstrap actual current system
@@ -849,10 +852,13 @@ Coding UI, task DB, streaming, diff, metrics.
 Worktrees, checkpoints, sandbox/resource control, queue.
 
 ### Stage 9 — Native Integration Gateway / GitHub / External Interfaces
-Friday-native service APIs, native GitHub issue/branch/PR/CI integration, MCP-compatible interfaces, optional WebSocket/events, and justified direct adapters. No OpenClaw dependency.
+Friday-native service APIs, native GitHub issue/task/branch/validation/commit/PR, PR-review and CI-status integration, MCP-compatible interfaces, optional WebSocket/events, and justified direct adapters. No OpenClaw dependency; all external actions remain behind risk gates, exact plan approval, ScopeGuard, Git transactions, validation, sandbox/isolation, and audit/history.
 
 ### Stage 10 — Real-repo hardening
 Onboard real repos, agent benchmark suite, measure/tune retrieval/prompts/repair/model adapters.
+
+### Stage 11 — Conversational Voice & Cinematic UI
+Local microphone, wake word, VAD, local Whisper, streaming text/TTS with an original Friday voice, barge-in/stop, deterministic runtime states, WebSocket/events, and a richer cinematic frontend. Keep Streamlit for engineering/admin use and CLI for recovery/power users. The UI/voice layer has no privileged path around Friday's planning, risk, approval, execution, validation, or audit boundary.
 
 ## 16. First Codex bootstrap instructions
 
@@ -966,6 +972,7 @@ The final assistant should support:
 - multi-language work
 - Friday-native integration gateway with optional GitHub, MCP-compatible, WebSocket/event, and justified direct external adapters
 - optional queued autonomy
+- local conversational voice and cinematic UI through Friday's non-privileged native API/event boundary
 
 Still require explicit human review for high-risk production/security/payment/smart-contract/destructive migration/deployment changes.
 
