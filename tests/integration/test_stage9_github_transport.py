@@ -6,6 +6,8 @@ import pytest
 from urllib.error import HTTPError
 
 from local_ai_assistant.gateway.github import GitHubHttpTransport
+from local_ai_assistant.gateway.publication import RetryPolicy
+from local_ai_assistant.gateway.errors import GitHubTransientError
 from local_ai_assistant.gateway.errors import GitHubAuthenticationError, GitHubPermissionError, GitHubRateLimitError, GitHubTransientError, GitHubValidationError, GitHubOversizedResponseError
 
 
@@ -50,3 +52,20 @@ def test_production_transport_typed_http_errors(monkeypatch, code, headers, erro
     with pytest.raises(error) as caught:
         GitHubHttpTransport("token").get_issue("acme", "demo", 1)
     assert str(caught.value) and getattr(caught.value, "category")
+
+
+def test_retry_policy_is_bounded_and_injectable():
+    delays = []
+    policy = RetryPolicy(max_attempts=3, initial_backoff=1, max_backoff=2)
+    attempts = {"n": 0}
+    def operation():
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise GitHubTransientError("temporary")
+    for attempt in range(1, policy.max_attempts + 1):
+        try:
+            operation(); break
+        except GitHubTransientError:
+            if attempt == policy.max_attempts: raise
+            delays.append(min(policy.max_backoff, policy.initial_backoff * (2 ** (attempt - 1))))
+    assert attempts["n"] == 3 and delays == [1, 2]

@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import subprocess
+import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from local_ai_assistant.history.errors import HistoryDatabaseError
@@ -9,12 +11,25 @@ from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.isolation.gitops import git_argv, safe_git_environment
 
 from .github import GitHubTransport, validate_remote
+from .errors import GitHubError
 from .models import PublicationState, RepositoryMapping
 
 
+@dataclass(frozen=True, slots=True)
+class RetryPolicy:
+    max_attempts: int = 3
+    initial_backoff: float = 0.25
+    max_backoff: float = 2.0
+
+    def __post_init__(self):
+        if self.max_attempts < 1 or self.initial_backoff < 0 or self.max_backoff < self.initial_backoff:
+            raise ValueError("invalid publication retry policy")
+
+
 class GitHubPublicationService:
-    def __init__(self, history: TaskHistoryService, mappings: tuple[RepositoryMapping, ...], transport: GitHubTransport, *, push=None):
+    def __init__(self, history: TaskHistoryService, mappings: tuple[RepositoryMapping, ...], transport: GitHubTransport, *, push=None, retry_policy: RetryPolicy | None = None, sleeper=time.sleep):
         self.history, self.mappings, self.transport, self._push = history, mappings, transport, push
+        self.retry_policy, self._sleeper = retry_policy or RetryPolicy(), sleeper
 
     def status(self, task_id: str):
         return self.history.store.publication(task_id)
@@ -43,10 +58,7 @@ class GitHubPublicationService:
                 self.history.store.upsert_publication(task_id, repository_id, PublicationState.RECONCILIATION_REQUIRED.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1, last_error="Remote branch points to an unexpected commit")
                 raise HistoryDatabaseError("Remote task branch has unexpected commit")
             if remote_sha != task.final_commit:
-                if self._push:
-                    self._push(repository, task.branch, task.final_commit)
-                else:
-                    subprocess.run(git_argv("push", "origin", f"{task.branch}:{task.branch}"), cwd=repository, env=safe_git_environment(), check=True, capture_output=True, text=True, timeout=60)
+                self._push_with_retry(repository, task.branch, task.final_commit)
             self.history.store.upsert_publication(task_id, repository_id, PublicationState.PR_CREATING.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1)
             marker = f"Friday-Task-ID: {task_id}"
             candidates = self.transport.find_pull_requests(mapping.github_owner, mapping.github_name, head=task.branch, marker=marker)
@@ -59,6 +71,19 @@ class GitHubPublicationService:
         except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as exc:
             self.history.store.upsert_publication(task_id, repository_id, PublicationState.RETRYABLE_FAILURE.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1, last_error=str(exc))
             raise
+
+    def _push_with_retry(self, repository: Path, branch: str, commit: str) -> None:
+        for attempt in range(1, self.retry_policy.max_attempts + 1):
+            try:
+                if self._push:
+                    self._push(repository, branch, commit)
+                else:
+                    subprocess.run(git_argv("push", "origin", f"{branch}:{branch}"), cwd=repository, env=safe_git_environment(), check=True, capture_output=True, text=True, timeout=60)
+                return
+            except GitHubError as exc:
+                if not exc.retryable or attempt >= self.retry_policy.max_attempts:
+                    raise
+                self._sleeper(min(self.retry_policy.max_backoff, self.retry_policy.initial_backoff * (2 ** (attempt - 1))))
 
 
 def _remote(repository: Path) -> str:
