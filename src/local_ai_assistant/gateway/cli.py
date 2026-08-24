@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import sys
 
 from local_ai_assistant.code_index.repository import CodeRAG
@@ -45,7 +46,12 @@ def main(argv=None):
         service = IntegrationGatewayService(history, mappings, max_events=config.max_events, planner_factory=planner_factory, executor=execution.execute_task)
         scopes = frozenset(GatewayScope(value) for value in config.scopes)
         try:
-            auth = GatewayAuth(config.token_hash, scopes)
+            # Stdio is explicitly local-trust; a configured bearer digest is still used
+            # when present, while an inert valid digest keeps offline stdio usable.
+            if args.command == "serve" and not config.token_hash:
+                raise ValueError("LOCAL_AI_GATEWAY_TOKEN_HASH is required for HTTP serving")
+            digest = config.token_hash or hashlib.sha256(b"friday-local-stdio-inert").hexdigest()
+            auth = GatewayAuth(digest, scopes)
         except ValueError as exc:
             raise SystemExit(f"gateway authentication configuration is invalid: {exc}") from exc
         if args.command == "mcp-stdio":
