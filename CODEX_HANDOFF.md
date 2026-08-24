@@ -849,7 +849,7 @@ Python → Rust → Solidity → TS/JS → SQL → C/C++ → Java → Shell.
 Coding UI, task DB, streaming, diff, metrics.
 
 ### Stage 8 — Advanced isolation/autonomy
-Worktrees, checkpoints, sandbox/resource control, queue.
+Task-bound worktrees, exact checkpoints/rollback, capability-aware sandbox/resource/network controls, crash recovery, and explicit promotion. Concurrent-task locks are a safety foundation only; no autonomous queue is implemented.
 
 ### Stage 9 — Native Integration Gateway / GitHub / External Interfaces
 Friday-native service APIs, native GitHub issue/task/branch/validation/commit/PR, PR-review and CI-status integration, MCP-compatible interfaces, optional WebSocket/events, and justified direct adapters. No OpenClaw dependency; all external actions remain behind risk gates, exact plan approval, ScopeGuard, Git transactions, validation, sandbox/isolation, and audit/history.

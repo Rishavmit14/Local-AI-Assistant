@@ -1,6 +1,6 @@
 # Architecture
 
-## Current Stage 7 system
+## Current Stage 8 system
 
 ```text
 Qwen GGUF
@@ -28,11 +28,13 @@ Stage 6 generalizes Stage 2 through a typed language registry and adapters while
 
 Stage 7 indexes compact task, plan, execution, validation, review, approval, scope, and metric records in a local versioned SQLite store while preserving Stage 3–5 JSON artifacts as canonical evidence. Streamlit coding/history/metrics/system workspaces and `local-ai-history` consume this service; they do not duplicate or weaken planner, execution, approval, validation, or Git policy. See [task history and operational UI](docs/architecture/task-history.md).
 
+Stage 8 routes autonomous mutation into task/plan/repository/commit-bound Git worktrees, creates exact rollback checkpoints, and places repository commands behind both the Stage 4 allowlist and a capability-aware sandbox policy. Strong isolation fails closed when mount/network namespaces are unavailable. Successful work remains on its isolated branch for explicit promotion; main is never auto-merged. See [repository isolation](docs/architecture/isolation.md).
+
 The `examples/demo-app` fixture is imported without its nested Git database. It demonstrates the existing code-agent test target, not production authentication design.
 
 ## Deployment compatibility
 
-Stages 0 through 7 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
+Stages 0 through 8 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
 
 ## Target architecture
 

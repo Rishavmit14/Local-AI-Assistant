@@ -52,15 +52,17 @@ A single typed language registry and capability-aware adapter architecture now p
 
 Rust has the strongest new coverage: nested modules, functions/async functions, structs, enums/variants, traits, impls/trait impls, methods/associated functions, aliases/constants/statics/macros, visibility, attributes/docs/generics/where clauses, imports/modules, test attributes, and conservative calls/references. Later adapters extract their roadmap declarations and explicit relationships while reporting partial/unavailable semantics rather than overstating runtime resolution. Legacy line chunks remain the fallback for unsupported/uncertain constructs.
 
-## Stage 7 — UI, history, and metrics (**Implemented on Stage 7 branch**)
+## Stage 7 — UI, history, and metrics (**Done**)
 
 Streamlit now preserves Documents and adds Coding, History, Metrics, and System workspaces with an allowlisted repository selector, task creation, existing-planner invocation, exact-plan approval binding, scope/artifact/timeline detail, operational metrics, health visibility, and cooperative cancellation between tool steps. Mutating execution remains exclusively behind the existing Stage 4 coding-agent transaction rather than being reimplemented in UI code.
 
 A versioned SQLite history store normalizes tasks, lifecycle events, plans, executions, tools, validations, reviews, approvals, affected scope, imports, and metrics while retaining JSON evidence by path/hash. Deterministic search, timeline, audit, JSON/Markdown export, migration, storage/vacuum operations, redaction, concurrent readers, and synthetic multi-thousand-task benchmarking are implemented. Metrics never invent missing token/model timing data. Prompt versioning and benchmark-task quality comparisons remain Stage 10 hardening.
 
-## Stage 8 — Isolation and bounded autonomy (**Planned**)
+## Stage 8 — Isolation and bounded autonomy (**Implemented on Stage 8 branch**)
 
-Git worktree per task, isolated filesystems, checkpoint commits, staged rollback, concurrent-task safety. Evaluate Docker/bubblewrap/firejail, CPU/RAM/disk and command/generation limits, hung-child termination, and untrusted-repo mode. Only after single-task reliability: sequential priority queue, pause/cancel, per-task isolation, conflict prevention, and approvals.
+Task/plan/repository/commit-bound Git worktrees keep autonomous mutations away from the canonical checkout. Exact staged/unstaged/untracked/mode/symlink checkpoints, scoped rollback, deterministic task branches, local locks, crash-recovery classification, cleanup, exact promotion identities, task history, CLI, and UI visibility are implemented.
+
+A typed sandbox boundary probes Bubblewrap and otherwise reports a constrained native backend honestly. Task HOME/TMP/cache, allowlisted environments, process-tree cancellation, bounded output, wall/CPU/process/open-file/file-size/address-space limits, and explicit network policy are implemented. On the current host Bubblewrap user namespaces are unavailable; strong isolation therefore fails closed rather than silently downgrading to native process limits. Disk quotas, seccomp, delegated cgroups, automatic conflict resolution, and task scheduling remain limitations/later work. Stage 8 never auto-merges main.
 
 ## Stage 9 — Native Integration Gateway / GitHub / External Interfaces (**Planned**)
 

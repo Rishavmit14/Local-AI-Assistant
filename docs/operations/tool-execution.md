@@ -22,6 +22,8 @@ local-ai-code-agent demo "request" --tool-loop \
   --auto-commit --approve-risk PRINTED_PLAN_TOKEN
 ```
 
+Stage 8 requires `--tool-loop` for every autonomous `--apply`. Legacy one-shot proposal and human-review modes remain available without mutation, but canonical-checkout application is rejected. Mutating runs create a task worktree and never auto-merge main.
+
 Use the existing `--approve-risk PRINTED_PLAN_TOKEN` spelling with the coding agent. `--human-review` runs the proposed actions without mutation. High/critical plans require the exact hash printed for that plan.
 
 Allowed command families cover pytest, Ruff, mypy/Pyright, Cargo, Forge, npm/pnpm/yarn tests, TypeScript, ESLint, read-only Git, and bounded search. Pipes, chaining, redirects, substitutions, environment injection, absolute/out-of-repository arguments, package installation, service control, force push, and destructive filesystem commands are rejected.
