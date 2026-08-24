@@ -30,6 +30,7 @@ SAFE_ENVIRONMENT = {
     "TERM",
     "TZ",
 }
+TRUSTED_PATH = "/usr/local/bin:/usr/bin:/bin"
 
 
 def isolated_environment(
@@ -44,13 +45,19 @@ def isolated_environment(
     }
     environment.update(
         {
-            "PATH": source.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+            "PATH": TRUSTED_PATH,
             "HOME": str(home),
             "TMPDIR": str(temporary),
+            "XDG_CONFIG_HOME": str(home / ".config"),
+            "XDG_DATA_HOME": str(home / ".local" / "share"),
+            "XDG_STATE_HOME": str(home / ".local" / "state"),
             "XDG_CACHE_HOME": str(home / ".cache"),
             "PIP_CACHE_DIR": str(home / ".cache" / "pip"),
+            "PIP_CONFIG_FILE": "/dev/null",
             "npm_config_cache": str(home / ".cache" / "npm"),
+            "NPM_CONFIG_USERCONFIG": str(home / ".npmrc"),
             "CARGO_HOME": str(home / ".cargo"),
+            "RUSTUP_HOME": str(home / ".rustup"),
             "GIT_CONFIG_NOSYSTEM": "1",
             "GIT_CONFIG_GLOBAL": "/dev/null",
         }
@@ -243,6 +250,7 @@ def _run_process(
         start_new_session=True,
         env=environment,
         preexec_fn=lambda: _set_limits(resources),
+        close_fds=True,
     )
     stdout = bytearray()
     stderr = bytearray()

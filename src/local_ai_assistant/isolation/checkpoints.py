@@ -11,13 +11,21 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
 from .errors import CheckpointError
+from .gitops import git_argv, safe_git_environment
 from .models import CheckpointRecord
 from .paths import contained_path, safe_identifier
 
 
 class CheckpointManager:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, *, max_files: int = 10_000,
+                 max_file_bytes: int = 512 * 1024**2,
+                 max_total_bytes: int = 2 * 1024**3) -> None:
         self.root = root.resolve()
+        if min(max_files, max_file_bytes, max_total_bytes) < 1:
+            raise CheckpointError("Checkpoint limits must be positive")
+        self.max_files = max_files
+        self.max_file_bytes = max_file_bytes
+        self.max_total_bytes = max_total_bytes
 
     def create(
         self, repository: Path, task_id: str, plan_hash: str, label: str
@@ -33,17 +41,38 @@ class CheckpointManager:
             for item in _git(repository, "ls-files", "--others").splitlines()
             if item
         )
+        if len(untracked) > self.max_files:
+            raise CheckpointError("Checkpoint untracked file count exceeds policy")
         base = contained_path(self.root, task_id, label)
         if base.exists() or base.is_symlink():
             raise CheckpointError("Checkpoint already exists")
-        base.mkdir(parents=True)
+        base.mkdir(parents=True, mode=0o700)
+        os.chmod(base, 0o700)
         (base / "staged.patch").write_bytes(staged)
         (base / "unstaged.patch").write_bytes(unstaged)
         archive = base / "untracked.tar"
-        with tarfile.open(archive, "w") as bundle:
-            for relative in untracked:
-                path = _safe_repo_path(repository, relative)
-                bundle.add(path, arcname=relative, recursive=False)
+        try:
+            with tarfile.open(archive, "w") as bundle:
+                total = 0
+                for relative in untracked:
+                    path = _safe_repo_path(repository, relative)
+                    metadata = os.lstat(path)
+                    if not (path.is_symlink() or path.is_file()):
+                        raise CheckpointError("Unsupported untracked filesystem entry")
+                    size = 0 if path.is_symlink() else metadata.st_size
+                    if size > self.max_file_bytes:
+                        raise CheckpointError("Checkpoint file exceeds policy")
+                    total += size
+                    if total > self.max_total_bytes:
+                        raise CheckpointError("Checkpoint archive content exceeds policy")
+                    bundle.add(path, arcname=relative, recursive=False)
+            if archive.stat().st_size > self.max_total_bytes + 1024 * 1024:
+                raise CheckpointError("Checkpoint archive exceeds policy")
+        except (OSError, tarfile.TarError, CheckpointError):
+            _discard_incomplete_checkpoint(base)
+            raise
+        for artifact in base.iterdir():
+            os.chmod(artifact, 0o600)
         archive_hash = _sha256(archive.read_bytes())
         checkpoint_id = _sha256(
             f"{task_id}\0{plan_hash}\0{head}\0{label}\0{_sha256(staged)}\0{_sha256(unstaged)}\0{archive_hash}".encode()
@@ -129,7 +158,8 @@ class CheckpointManager:
         with tarfile.open(archive, "r") as bundle:
             for member in bundle.getmembers():
                 _validate_tar_member(member)
-            bundle.extractall(repository, members=bundle.getmembers())
+            for member in bundle.getmembers():
+                _extract_member_safely(bundle, member, repository)
 
 
 def _safe_repo_path(repository: Path, relative: str) -> Path:
@@ -148,7 +178,7 @@ def _safe_repo_path(repository: Path, relative: str) -> Path:
 
 def _validate_tar_member(member: tarfile.TarInfo) -> None:
     path = PurePosixPath(member.name)
-    if path.is_absolute() or ".." in path.parts or member.isdev():
+    if path.is_absolute() or ".." in path.parts or not (member.isfile() or member.issym()):
         raise CheckpointError("Unsafe checkpoint archive member")
     if (member.issym() or member.islnk()) and (
         PurePosixPath(member.linkname).is_absolute()
@@ -157,10 +187,39 @@ def _validate_tar_member(member: tarfile.TarInfo) -> None:
         raise CheckpointError("Checkpoint symlink escapes worktree")
 
 
+def _extract_member_safely(bundle: tarfile.TarFile, member: tarfile.TarInfo, repository: Path) -> None:
+    """Restore without following attacker-created parent symlinks."""
+    parts = PurePosixPath(member.name).parts
+    parent = repository
+    for part in parts[:-1]:
+        parent = parent / part
+        if parent.is_symlink():
+            raise CheckpointError("Checkpoint restore parent is a symlink")
+        parent.mkdir(exist_ok=True)
+        if not parent.is_dir():
+            raise CheckpointError("Checkpoint restore parent is not a directory")
+    destination = parent / parts[-1]
+    if destination.exists() or destination.is_symlink():
+        if destination.is_dir() and not destination.is_symlink():
+            raise CheckpointError("Checkpoint destination is an unexpected directory")
+        destination.unlink()
+    if member.issym():
+        destination.symlink_to(member.linkname)
+        return
+    source = bundle.extractfile(member)
+    if source is None:
+        raise CheckpointError("Checkpoint member has no file content")
+    with destination.open("xb") as target:
+        while chunk := source.read(1024 * 1024):
+            target.write(chunk)
+    os.chmod(destination, member.mode & 0o777)
+
+
 def _run_git(repository: Path, *arguments: str) -> None:
     result = subprocess.run(
-        ["git", "-c", "core.hooksPath=/dev/null", *arguments],
+        git_argv(*arguments),
         cwd=repository,
+        env=safe_git_environment(),
         text=True,
         capture_output=True,
     )
@@ -169,14 +228,19 @@ def _run_git(repository: Path, *arguments: str) -> None:
 
 
 def _git(repository: Path, *arguments: str) -> str:
-    result = subprocess.run(["git", *arguments], cwd=repository, text=True, capture_output=True)
+    result = subprocess.run(
+        git_argv(*arguments), cwd=repository, env=safe_git_environment(),
+        text=True, capture_output=True,
+    )
     if result.returncode:
         raise CheckpointError("Git checkpoint inspection failed: " + result.stderr.strip())
     return result.stdout.strip()
 
 
 def _git_bytes(repository: Path, *arguments: str) -> bytes:
-    result = subprocess.run(["git", *arguments], cwd=repository, capture_output=True)
+    result = subprocess.run(
+        git_argv(*arguments), cwd=repository, env=safe_git_environment(), capture_output=True
+    )
     if result.returncode:
         raise CheckpointError("Git checkpoint inspection failed")
     return result.stdout
@@ -192,3 +256,13 @@ def _atomic_json(path: Path, value: dict) -> None:
     with temporary.open("rb") as stream:
         os.fsync(stream.fileno())
     os.replace(temporary, path)
+    os.chmod(path, 0o600)
+
+
+def _discard_incomplete_checkpoint(base: Path) -> None:
+    for item in base.iterdir():
+        if item.is_symlink() or item.is_file():
+            item.unlink()
+        else:
+            raise CheckpointError("Unsafe object appeared in incomplete checkpoint")
+    base.rmdir()

@@ -21,17 +21,17 @@ Repository code, test hooks, build scripts, package scripts, Makefiles, Cargo `b
 
 `WorktreeManager` stores worktrees only below `LOCAL_AI_WORKTREE_ROOT/<repo-id>/<task-id>`. A separate metadata record binds task, repository, branch, base commit, plan hash, current commit, lifecycle, and cleanup. Safe identifiers, resolved containment, branch collision checks, locks, and Git worktree metadata prevent cross-task attachment.
 
-Checkpoints record HEAD, staged and unstaged binary patches, untracked inventory/archive, modes, symlinks, and hashes. Restore performs a task-worktree-only reset/clean and recreates the exact checkpoint state. It never cleans the canonical repository.
+Checkpoints record HEAD, staged and unstaged binary patches, a bounded untracked inventory/archive, modes, symlinks, and hashes. Archives have file-count, per-file, and total-size ceilings, private permissions, and member-by-member restoration that refuses parent symlinks and non-file objects. Restore performs a task-worktree-only reset/clean and recreates the exact checkpoint state. It never cleans the canonical repository.
 
 ## Sandbox and resources
 
-`SandboxBackend` supports capability-aware Bubblewrap and native implementations. Bubblewrap is selected only if its actual namespace probe works. The native backend provides task HOME/TMP/cache, an allowlisted environment, process sessions, tree termination, bounded output, wall/CPU/process/open-file/file-size/address-space limits, but only partial filesystem isolation and no network isolation.
+`SandboxBackend` supports capability-aware Bubblewrap and native implementations. Bubblewrap is selected only if its actual namespace probe works. The native backend provides task HOME/TMP/cache, a minimal environment and trusted system PATH, closed inherited descriptors, process sessions, tree termination, bounded output, wall/CPU/process/open-file/file-size/address-space limits, but only partial filesystem isolation and no network isolation.
 
 Strong isolation is required by default. If mount/network namespace isolation is unavailable, autonomous repository execution blocks. Explicit lower-trust policy can permit native execution with `network=allowed`, but it must not be described as contained untrusted execution.
 
 ## Promotion and recovery
 
-Reviewed, validated, current, and committed states are bound by a deterministic temporary-index tree identity. Any later file, mode, symlink, untracked, branch, or canonical-HEAD change invalidates promotion. Stage 8 produces a task-branch commit and never merges main.
+Reviewed, validated, current, and committed states are bound by a deterministic temporary-index tree identity. Any later file, mode, symlink, untracked, branch, or canonical-HEAD change invalidates promotion. Isolation-owned Git calls disable hooks, prompts, editors, pagers, signing, system/global configuration, and reject repository/shared Git filter or LFS attributes rather than executing clean/smudge programs. Stage 8 produces a task-branch commit and never merges main.
 
 Interrupted `creating`, `executing`, `validating`, or cleanup states become `recovery_required`. Recovery inspection never auto-resumes. Task-local advisory locks prevent duplicate ownership and cleanup/execution races. Stage 7 timeline events record isolation backend/capability, network policy, checkpoint, cleanup, cancellation, rollback, and promotion readiness without exposing user-facing absolute worktree paths.
 
@@ -40,5 +40,9 @@ Interrupted `creating`, `executing`, `validating`, or cleanup states become `rec
 - The current host denies the Bubblewrap user-namespace probe despite having the binary.
 - Native fallback cannot restrict filesystem reads or networking and therefore fails strong policy.
 - cgroup v2 is visible but delegated controllers are not assumed; rlimits are enforced without root.
+- `RLIMIT_NPROC` is per real UID (and may not constrain privileged users), not a task cgroup PID quota. Native process groups cannot guarantee containment of a deliberately daemonized process that creates a new session.
+- `RLIMIT_AS` limits virtual address space, not GPU memory; mmap-heavy runtimes may fail as resource/environment failures rather than ordinary code defects.
+- Native mode can see host `/proc`, Unix sockets, shared Git administration paths, and devices. This is why the default strong-autonomy policy blocks it.
+- Git LFS/filter repositories are rejected for isolated automated checkout/promotion; no filter process or network download is attempted.
 - Disk-directory quotas and seccomp filters are not implemented.
 - No automatic merge, conflict resolution, package installation, submodule fetch, scheduler, or Stage 9 interface exists.

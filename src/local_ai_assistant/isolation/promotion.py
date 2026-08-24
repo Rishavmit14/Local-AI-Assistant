@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
 from .errors import PromotionError
+from .gitops import ensure_no_git_filters, git_argv, safe_git_environment
 from .models import WorktreeIdentity, WorktreeState
 
 
@@ -43,6 +43,10 @@ def worktree_diff_bytes(repository: Path, starting_commit: str) -> bytes:
 
 def diff_hash(repository: Path, starting_commit: str) -> str:
     repository = repository.resolve(strict=True)
+    try:
+        ensure_no_git_filters(repository, starting_commit)
+    except Exception as exc:
+        raise PromotionError(str(exc)) from exc
     with tempfile.NamedTemporaryFile(prefix="friday-index-", delete=False) as stream:
         index_path = Path(stream.name)
     try:
@@ -57,13 +61,13 @@ def diff_hash(repository: Path, starting_commit: str) -> str:
         if not source_path.is_absolute():
             source_path = repository / source_path
         index_path.write_bytes(source_path.read_bytes())
-        environment = {**os.environ, "GIT_INDEX_FILE": str(index_path)}
+        environment = safe_git_environment({"GIT_INDEX_FILE": str(index_path)})
         subprocess.run(
-            ["git", "add", "-A"], cwd=repository, env=environment, check=True,
+            git_argv("add", "-A"), cwd=repository, env=environment, check=True,
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
         )
         tree = subprocess.run(
-            ["git", "write-tree"], cwd=repository, env=environment, check=True,
+            git_argv("write-tree"), cwd=repository, env=environment, check=True,
             text=True, capture_output=True,
         ).stdout.strip()
         return hashlib.sha256(f"{starting_commit}\0{tree}".encode()).hexdigest()
@@ -98,18 +102,24 @@ def commit_exact(
     repository = Path(identity.worktree)
     if diff_hash(repository, identity.starting_commit) != evidence.current_diff_hash:
         raise PromotionError("Worktree changed after promotion review")
-    add = subprocess.run(["git", "add", "-A"], cwd=repository, capture_output=True)
+    try:
+        ensure_no_git_filters(repository, identity.starting_commit)
+    except Exception as exc:
+        raise PromotionError(str(exc)) from exc
+    environment = safe_git_environment()
+    add = subprocess.run(git_argv("add", "-A"), cwd=repository, env=environment, capture_output=True)
     if add.returncode:
         raise PromotionError("Cannot stage promotion candidate")
     commit = subprocess.run(
-        ["git", "-c", "core.hooksPath=/dev/null", "commit", "-m", message],
+        git_argv("commit", "-m", message),
         cwd=repository,
+        env=environment,
         text=True,
         capture_output=True,
     )
     if commit.returncode:
         subprocess.run(
-            ["git", "restore", "--staged", "."], cwd=repository, capture_output=True
+            git_argv("restore", "--staged", "."), cwd=repository, env=environment, capture_output=True
         )
         raise PromotionError("Cannot commit promotion candidate: " + commit.stderr.strip())
     head = subprocess.run(

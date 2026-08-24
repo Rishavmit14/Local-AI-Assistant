@@ -20,7 +20,10 @@ def _path(value: str) -> Path:
     return Path(value).expanduser().resolve()
 
 
-def _integer(env: Mapping[str, str], name: str, default: int, *, minimum: int = 1) -> int:
+def _integer(
+    env: Mapping[str, str], name: str, default: int, *, minimum: int = 1,
+    maximum: int | None = None,
+) -> int:
     raw = env.get(name)
     if raw is None:
         return default
@@ -30,6 +33,8 @@ def _integer(env: Mapping[str, str], name: str, default: int, *, minimum: int = 
         raise ConfigurationError(f"{name} must be an integer, got {raw!r}") from exc
     if value < minimum:
         raise ConfigurationError(f"{name} must be at least {minimum}, got {value}")
+    if maximum is not None and value > maximum:
+        raise ConfigurationError(f"{name} must be at most {maximum}, got {value}")
     return value
 
 
@@ -273,14 +278,15 @@ class AppConfig:
                     values, "LOCAL_AI_SANDBOX_NETWORK", "deny",
                     {"deny", "loopback_only", "allowed"},
                 ),
-                max_processes=_integer(values, "LOCAL_AI_SANDBOX_MAX_PROCESSES", 64),
-                max_output_bytes=_integer(values, "LOCAL_AI_SANDBOX_MAX_OUTPUT", 20_000),
-                cpu_seconds=_integer(values, "LOCAL_AI_SANDBOX_CPU_SECONDS", 600),
-                wall_seconds=_integer(values, "LOCAL_AI_SANDBOX_WALL_SECONDS", 900),
-                memory_bytes=_integer(values, "LOCAL_AI_SANDBOX_MEMORY_BYTES", 4 * 1024**3),
-                max_open_files=_integer(values, "LOCAL_AI_SANDBOX_MAX_OPEN_FILES", 256),
+                max_processes=_integer(values, "LOCAL_AI_SANDBOX_MAX_PROCESSES", 64, maximum=4096),
+                max_output_bytes=_integer(values, "LOCAL_AI_SANDBOX_MAX_OUTPUT", 20_000, maximum=100 * 1024**2),
+                cpu_seconds=_integer(values, "LOCAL_AI_SANDBOX_CPU_SECONDS", 600, maximum=86_400),
+                wall_seconds=_integer(values, "LOCAL_AI_SANDBOX_WALL_SECONDS", 900, maximum=86_400),
+                memory_bytes=_integer(values, "LOCAL_AI_SANDBOX_MEMORY_BYTES", 4 * 1024**3, maximum=1024**4),
+                max_open_files=_integer(values, "LOCAL_AI_SANDBOX_MAX_OPEN_FILES", 256, maximum=1_048_576),
                 max_file_bytes=_integer(
-                    values, "LOCAL_AI_SANDBOX_MAX_FILE_BYTES", 512 * 1024**2
+                    values, "LOCAL_AI_SANDBOX_MAX_FILE_BYTES", 512 * 1024**2,
+                    maximum=1024**4,
                 ),
                 cache_policy=_choice(
                     values, "LOCAL_AI_SANDBOX_CACHE_POLICY", "task_local",

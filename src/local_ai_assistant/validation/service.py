@@ -304,6 +304,20 @@ class ValidationService:
             if path.is_file():
                 digest.update(name.encode())
                 digest.update(path.read_bytes())
+        if self.sandbox is not None:
+            capabilities = self.sandbox.capabilities()
+            isolation = {
+                "backend": capabilities.backend,
+                "process": capabilities.process.value,
+                "filesystem": capabilities.filesystem.value,
+                "network_capability": capabilities.network.value,
+                "resource_limits": capabilities.resource_limits.value,
+                "user_namespaces": capabilities.user_namespaces.value,
+                "cgroups": capabilities.cgroups.value,
+                "network_policy": getattr(self.sandbox_network, "value", self.sandbox_network),
+                "resources": repr(self.sandbox_resources),
+            }
+            digest.update(json.dumps(isolation, sort_keys=True).encode())
         return digest.hexdigest()
 
     def _environment_identity(self, executable: str) -> str:

@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .errors import IsolationError, WorktreeIdentityError
+from .gitops import ensure_no_git_filters, git_argv, safe_git_environment
 from .locks import task_lock
 from .models import WorktreeIdentity, WorktreeState
 from .paths import contained_path, safe_identifier
@@ -50,17 +51,21 @@ class WorktreeManager:
     ) -> WorktreeIdentity:
         safe_identifier(task_id, "task ID")
         repository = repository.resolve(strict=True)
+        if self.root == repository or repository in self.root.parents or self.root in repository.parents:
+            raise IsolationError("Worktree runtime root must be separate from the canonical repository")
         if _git(repository, "status", "--porcelain"):
             raise IsolationError("Canonical repository must be clean before isolation")
         if _git(repository, "rev-parse", "HEAD") != starting_commit:
             raise WorktreeIdentityError("Canonical HEAD does not match starting commit")
+        ensure_no_git_filters(repository, starting_commit)
         location = contained_path(self.root, repo_id, task_id)
         if location.exists() or location.is_symlink():
             raise WorktreeIdentityError("Task worktree path already exists")
         branch = f"friday/task/{task_id}"
         existing = subprocess.run(
-            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+            git_argv("show-ref", "--verify", "--quiet", f"refs/heads/{branch}"),
             cwd=repository,
+            env=safe_git_environment(),
         )
         if existing.returncode == 0:
             raise WorktreeIdentityError("Task branch already exists")
@@ -79,16 +84,18 @@ class WorktreeManager:
         )
         self._persist(creating)
         result = subprocess.run(
-            ["git", "worktree", "add", "--no-checkout", "-b", branch, str(location), starting_commit],
+            git_argv("worktree", "add", "--no-checkout", "-b", branch, str(location), starting_commit),
             cwd=repository,
+            env=safe_git_environment(),
             text=True,
             capture_output=True,
         )
         if result.returncode != 0:
             raise IsolationError("Could not create task worktree: " + result.stderr.strip())
         checkout = subprocess.run(
-            ["git", "-c", "core.hooksPath=/dev/null", "checkout", "--detach", starting_commit],
+            git_argv("checkout", "--detach", starting_commit),
             cwd=location,
+            env=safe_git_environment(),
             text=True,
             capture_output=True,
         )
@@ -192,8 +199,9 @@ class WorktreeManager:
             raise IsolationError("Refusing cleanup while task execution is active")
         if path.exists():
             result = subprocess.run(
-                ["git", "worktree", "remove", "--force", str(path)],
+                git_argv("worktree", "remove", "--force", str(path)),
                 cwd=canonical,
+                env=safe_git_environment(),
                 text=True,
                 capture_output=True,
             )
@@ -201,8 +209,9 @@ class WorktreeManager:
                 raise IsolationError("Worktree cleanup failed: " + result.stderr.strip())
         if delete_branch:
             deleted = subprocess.run(
-                ["git", "branch", "-D", identity.branch],
+                git_argv("branch", "-D", identity.branch),
                 cwd=canonical,
+                env=safe_git_environment(),
                 text=True,
                 capture_output=True,
             )
@@ -214,12 +223,14 @@ class WorktreeManager:
 
     def _persist(self, identity: WorktreeIdentity) -> None:
         target = self._metadata_path(identity.repository_id, identity.task_id)
-        target.parent.mkdir(parents=True, exist_ok=True)
+        target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(target.parent, 0o700)
         temporary = target.with_suffix(".tmp")
         temporary.write_text(json.dumps(identity.to_dict(), sort_keys=True, indent=2) + "\n")
         with temporary.open("rb") as stream:
             os.fsync(stream.fileno())
         os.replace(temporary, target)
+        os.chmod(target, 0o600)
 
     def _metadata_path(self, repo_id: str, task_id: str) -> Path:
         return contained_path(self.root, repo_id, "metadata", task_id).with_suffix(".json")
@@ -227,7 +238,7 @@ class WorktreeManager:
 
 def _git(repository: Path, *arguments: str) -> str:
     result = subprocess.run(
-        ["git", *arguments], cwd=repository, text=True, capture_output=True
+        git_argv(*arguments), cwd=repository, env=safe_git_environment(), text=True, capture_output=True
     )
     if result.returncode != 0:
         raise IsolationError("Git isolation operation failed: " + result.stderr.strip())

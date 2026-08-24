@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from local_ai_assistant.common.config import AppConfig, IsolationConfig, PathConfig
+from local_ai_assistant.common.errors import ConfigurationError
 from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
@@ -39,6 +40,7 @@ from local_ai_assistant.isolation.sandbox import (
     select_backend,
 )
 from local_ai_assistant.isolation.worktrees import WorktreeManager, repository_id
+from local_ai_assistant.validation.service import ValidationService
 
 
 def git(repository: Path, *arguments: str) -> str:
@@ -74,6 +76,10 @@ def test_config_has_typed_isolation_defaults(tmp_path):
     assert config.isolation.network_policy == "deny"
     assert config.isolation.require_strong_isolation
     assert config.isolation.max_processes == 64
+    with pytest.raises(ConfigurationError, match="at most"):
+        AppConfig.from_env(
+            {"LOCAL_AI_VAR_DIR": str(tmp_path), "LOCAL_AI_SANDBOX_MAX_PROCESSES": "999999"}
+        )
 
 
 @pytest.mark.parametrize("value", ["../task", "/tmp/task", "a/b", "", ".."])
@@ -181,19 +187,66 @@ def test_checkpoint_hash_tamper_and_plan_mismatch(repository, tmp_path):
 
 def test_environment_is_allowlisted_and_task_scoped(tmp_path):
     parent = {
-        "PATH": "/usr/bin",
         "LANG": "C.UTF-8",
         "API_KEY": "secret",
         "DATABASE_URL": "postgres://secret",
         "SSH_AUTH_SOCK": "/tmp/ssh",
         "AWS_SECRET_ACCESS_KEY": "secret",
         "HOME": "/home/real",
+        "LD_PRELOAD": "/tmp/evil.so",
+        "BASH_ENV": "/tmp/evil.sh",
+        "GIT_CONFIG_COUNT": "1",
+        "HTTP_PROXY": "http://secret",
+        "PATH": str(tmp_path),
     }
     environment = isolated_environment(tmp_path / "home", tmp_path / "tmp", parent)
     assert environment["HOME"] == str(tmp_path / "home")
     assert environment["LANG"] == "C.UTF-8"
     for secret in ("API_KEY", "DATABASE_URL", "SSH_AUTH_SOCK", "AWS_SECRET_ACCESS_KEY"):
         assert secret not in environment
+    for dangerous in ("LD_PRELOAD", "BASH_ENV", "GIT_CONFIG_COUNT", "HTTP_PROXY"):
+        assert dangerous not in environment
+    assert environment["PATH"] == "/usr/local/bin:/usr/bin:/bin"
+    assert environment["PIP_CONFIG_FILE"] == "/dev/null"
+    assert environment["XDG_CONFIG_HOME"].startswith(str(tmp_path / "home"))
+
+
+def test_native_network_policies_fail_closed_without_namespace(tmp_path):
+    sandbox = NativeProcessSandbox()
+    for policy in (NetworkPolicy.DENY, NetworkPolicy.LOOPBACK_ONLY):
+        with pytest.raises(SandboxUnavailableError, match="network"):
+            sandbox.run(
+                (sys.executable, "-c", "pass"), tmp_path, tmp_path / policy.value,
+                resources=ResourcePolicy(wall_seconds=2), network=policy,
+            )
+
+
+def test_validation_identity_includes_isolation_policy(repository, tmp_path):
+    sandbox = NativeProcessSandbox()
+    resources = ResourcePolicy(wall_seconds=2)
+    allowed = ValidationService(
+        repository, sandbox=sandbox, sandbox_task_root=tmp_path / "allowed",
+        sandbox_resources=resources, sandbox_network=NetworkPolicy.ALLOWED,
+    )._config_identity()
+    denied = ValidationService(
+        repository, sandbox=sandbox, sandbox_task_root=tmp_path / "denied",
+        sandbox_resources=resources, sandbox_network=NetworkPolicy.DENY,
+    )._config_identity()
+    assert allowed != denied
+
+
+def test_subprocess_does_not_inherit_parent_file_descriptor(tmp_path):
+    descriptor = os.open(tmp_path / "private.log", os.O_CREAT | os.O_RDWR, 0o600)
+    os.set_inheritable(descriptor, True)
+    try:
+        result = NativeProcessSandbox().run(
+            (sys.executable, "-c", f"import os;\ntry: os.fstat({descriptor}); print('open')\nexcept OSError: print('closed')"),
+            tmp_path, tmp_path / "fd-task", resources=ResourcePolicy(wall_seconds=2),
+            network=NetworkPolicy.ALLOWED,
+        )
+    finally:
+        os.close(descriptor)
+    assert result.stdout.strip() == "closed"
 
 
 def test_native_sandbox_fails_closed_for_network_and_strips_secrets(tmp_path):
@@ -367,6 +420,54 @@ def test_backend_capability_is_honest_and_strong_backend_is_fail_closed():
     assert capabilities.network is CapabilityState.UNAVAILABLE
     auto = select_backend("auto")
     assert auto.capabilities().backend in {"native", "bubblewrap"}
+
+
+def test_bwrap_binary_presence_without_functional_probe_selects_native(monkeypatch):
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox.shutil.which", lambda _: "/usr/bin/bwrap")
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox._bubblewrap_usable", lambda _: False)
+    backend = select_backend("auto")
+    assert isinstance(backend, NativeProcessSandbox)
+    assert backend.capabilities().filesystem is CapabilityState.PARTIAL
+    assert backend.capabilities().network is CapabilityState.UNAVAILABLE
+
+
+def test_worktree_root_must_be_separate_from_repository(repository):
+    manager = WorktreeManager(repository / ".friday-worktrees")
+    with pytest.raises(IsolationError, match="separate"):
+        manager.create(repository, "task-root", git(repository, "rev-parse", "HEAD"), "hash")
+
+
+def test_git_filter_attributes_block_checkout_and_promotion(repository, tmp_path):
+    (repository / ".gitattributes").write_text("*.txt filter=evil\n")
+    git(repository, "add", ".gitattributes")
+    git(repository, "commit", "-m", "attributes")
+    manager = WorktreeManager(tmp_path / "runtime")
+    with pytest.raises(IsolationError, match="filters"):
+        manager.create(repository, "filtered", git(repository, "rev-parse", "HEAD"), "hash")
+
+
+def test_checkpoint_enforces_count_and_size_bounds(repository, tmp_path):
+    _, identity = create_worktree(repository, tmp_path)
+    worktree = Path(identity.worktree)
+    (worktree / "one.bin").write_bytes(b"1234")
+    with pytest.raises(CheckpointError, match="file exceeds"):
+        CheckpointManager(tmp_path / "small", max_file_bytes=3).create(
+            worktree, "task-1", identity.plan_hash, "small"
+        )
+    (worktree / "two.bin").write_bytes(b"x")
+    with pytest.raises(CheckpointError, match="count"):
+        CheckpointManager(tmp_path / "few", max_files=1).create(
+            worktree, "task-1", identity.plan_hash, "few"
+        )
+
+
+def test_checkpoint_files_are_private(repository, tmp_path):
+    _, identity = create_worktree(repository, tmp_path)
+    record = CheckpointManager(tmp_path / "checkpoints").create(
+        Path(identity.worktree), "task-1", identity.plan_hash, "private"
+    )
+    assert os.stat(record.path).st_mode & 0o077 == 0
+    assert all(os.stat(item).st_mode & 0o077 == 0 for item in record.path.iterdir())
 
 
 def test_task_lock_rejects_second_claim(tmp_path):

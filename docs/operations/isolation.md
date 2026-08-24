@@ -22,4 +22,6 @@ local-ai-isolation cleanup REPOSITORY TASK --delete-branch
 
 Worktrees, metadata, locks, checkpoints, task HOME/TMP/cache, and reports belong under the ignored configured runtime roots. Cleanup is explicit and path-contained. Successful task branches remain for review. Do not manually remove a live task directory; inspect locks, Git's worktree list, task history, and recovery findings first.
 
-The child environment retains only PATH, locale/terminal/timezone fields, task HOME/TMP/cache settings, and explicitly approved variables. It excludes SSH/cloud/package-manager credentials, database URLs, tokens, and the user's real HOME. Package installation, submodule update, network access, service commands, and arbitrary shell remain disallowed.
+The child environment starts empty except for a trusted system `PATH`, locale/terminal/timezone fields, task HOME/TMP/XDG/cache settings, Git non-interactive safeguards, and explicitly approved variables. It does not inherit interpreter startup variables, proxies, Git overrides, SSH/cloud/package-manager credentials, database URLs, tokens, or the user's real HOME. Package installation, submodule update, network access, service commands, and arbitrary shell remain disallowed.
+
+Repositories using Git clean/smudge filters or Git LFS fail closed before isolated checkout or promotion. Checkpoint creation also fails explicitly when its configured file-count or byte ceilings would be exceeded. These failures require operator review; do not bypass them by manually staging or copying files.
