@@ -26,6 +26,7 @@ class LocalLLM:
         self.client = OpenAI(
             base_url=resolved_base_url,
             api_key=self.config.llama.api_key,
+            timeout=self.config.llama.timeout_seconds,
         )
         logger.info(
             "llm_client_initialized",

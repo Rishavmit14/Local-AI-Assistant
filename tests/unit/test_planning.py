@@ -9,9 +9,15 @@ import numpy as np
 import pytest
 
 from local_ai_assistant.code_index.symbol_index import SymbolIndex
+from local_ai_assistant.execution.errors import ToolPermissionError
 from local_ai_assistant.execution.loop import ExecutionLoop, LoopLimits
 from local_ai_assistant.execution.models import ToolObservation, ToolPermission, ToolSpec
-from local_ai_assistant.execution.registry import ToolContext, ToolRegistry
+from local_ai_assistant.execution.registry import (
+    ToolContext,
+    ToolRegistry,
+    _enforce_worktree_scope,
+    default_registry,
+)
 from local_ai_assistant.planning.analysis import (
     ScopeAnalyzer,
     assess_confidence,
@@ -617,7 +623,7 @@ def test_bounded_tool_loop_inspects_validates_and_finishes(planning_repo):
         lambda context, args: ToolObservation("inspection", True, "inspected"),
     )
     registry.register(
-        ToolSpec("validate", "validate", ToolPermission.VALIDATION, False, 1),
+        ToolSpec("run_tests", "validate", ToolPermission.VALIDATION, False, 1, ("command",)),
         lambda context, args: ToolObservation("command", True, "tests passed"),
     )
     actions = iter(
@@ -631,8 +637,8 @@ def test_bounded_tool_loop_inspects_validates_and_finishes(planning_repo):
                 "mutation_intended": False,
             },
             {
-                "tool": "validate",
-                "arguments": {},
+                "tool": "run_tests",
+                "arguments": {"command": "python -m pytest"},
                 "rationale": "test",
                 "expected_outcome": "pass",
                 "plan_step": 2,
@@ -655,6 +661,56 @@ def test_bounded_tool_loop_inspects_validates_and_finishes(planning_repo):
     assert result.status == "complete"
     assert result.steps == 3
     assert len(context.events) == 2
+
+
+def test_tool_loop_requires_each_plan_validation_command(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    artifact = replace(
+        artifact,
+        plan=replace(
+            artifact.plan,
+            validation_commands=("python -m pytest", "ruff check ."),
+        ),
+    )
+    registry = ToolRegistry()
+    registry.register(
+        ToolSpec("run_tests", "validate", ToolPermission.VALIDATION, False, 1, ("command",)),
+        lambda context, args: ToolObservation("command", True, "tests passed"),
+    )
+    actions = iter(
+        [
+            {
+                "tool": "run_tests",
+                "arguments": {"command": "python -m pytest"},
+                "rationale": "test",
+                "expected_outcome": "pass",
+                "plan_step": 1,
+                "mutation_intended": False,
+            },
+            {
+                "tool": "finish",
+                "arguments": {},
+                "rationale": "done",
+                "expected_outcome": "complete",
+                "plan_step": 2,
+                "mutation_intended": False,
+            },
+        ]
+    )
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: json.dumps(next(actions))
+    result = ExecutionLoop(
+        model,
+        registry,
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+        LoopLimits(max_steps=2),
+    ).run()
+    assert result.status == "max_steps"
+    assert result.observations[-1].kind == "validation_required"
+    assert "ruff check ." in result.observations[-1].summary
 
 
 def test_tool_loop_stops_at_max_steps(planning_repo):
@@ -685,3 +741,100 @@ def test_tool_loop_stops_at_max_steps(planning_repo):
         LoopLimits(max_steps=2),
     ).run()
     assert result.status == "max_steps"
+
+
+def test_tool_loop_stops_at_max_repairs(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    registry = ToolRegistry()
+    registry.register(
+        ToolSpec("validate", "validate", ToolPermission.VALIDATION, False, 1),
+        lambda context, args: ToolObservation("command", False, "tests failed"),
+    )
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: json.dumps(
+        {
+            "tool": "validate",
+            "arguments": {},
+            "rationale": "retry",
+            "expected_outcome": "pass",
+            "plan_step": 2,
+            "mutation_intended": False,
+        }
+    )
+    result = ExecutionLoop(
+        model,
+        registry,
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+        LoopLimits(max_steps=4, max_repairs=1),
+    ).run()
+    assert result.status == "max_repairs"
+
+
+def test_plan_bound_create_file_enforces_scope_and_approval(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    plan = replace(
+        artifact.plan,
+        files_to_create=("app/new.py",),
+        symbols_to_create=("app.new.created_symbol",),
+    )
+    artifact = replace(artifact, plan=plan)
+    context = ToolContext(
+        repo, artifact, scope_guard_from_plan(plan), index, plan_approval_token(plan)
+    )
+    observation = default_registry().invoke(
+        "create_file",
+        {"path": "app/new.py", "content": "def created_symbol():\n    return True\n"},
+        context,
+    )
+    assert observation.success
+    assert (repo / "app/new.py").is_file()
+    (repo / "app/new.py").unlink()
+
+    with pytest.raises(ToolPermissionError):
+        default_registry().invoke(
+            "create_file",
+            {"path": "app/unplanned.py", "content": "value = 1\n"},
+            context,
+        )
+    assert not (repo / "app/unplanned.py").exists()
+
+
+def test_mutation_rejects_stale_git_head(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    (repo / "head.txt").write_text("new head")
+    subprocess.run(["git", "add", "head.txt"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "advance"], cwd=repo, check=True, capture_output=True)
+    context = ToolContext(
+        repo,
+        artifact,
+        scope_guard_from_plan(artifact.plan),
+        index,
+        plan_approval_token(artifact.plan),
+    )
+    with pytest.raises(ToolPermissionError, match="stale"):
+        default_registry().invoke(
+            "replace_file",
+            {"path": "app/service.py", "content": "value = 1\n"},
+            context,
+        )
+
+
+def test_post_apply_scope_expansion_rolls_back_immediately(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    context = ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index)
+    (repo / "outside.py").write_text("value = 1\n")
+    with pytest.raises(ToolPermissionError, match="Post-mutation scope violation"):
+        _enforce_worktree_scope(context)
+    assert not (repo / "outside.py").exists()

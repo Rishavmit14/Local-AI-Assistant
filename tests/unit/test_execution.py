@@ -8,10 +8,11 @@ from local_ai_assistant.execution.errors import (
     CommandPolicyError,
     ExecutionHistoryError,
     ToolNotFoundError,
+    ToolPermissionError,
 )
 from local_ai_assistant.execution.history import load_report, persist_report, redact
 from local_ai_assistant.execution.models import ExecutionReport, ToolPermission, ToolRequest
-from local_ai_assistant.execution.registry import default_registry
+from local_ai_assistant.execution.registry import _safe_path, default_registry
 
 
 @pytest.mark.parametrize(
@@ -61,6 +62,11 @@ def test_command_allowlist_accepts_engineering_commands(command):
         "/bin/sh -c pytest",
         "pip install package",
         "systemctl restart app",
+        "find . -exec rm {} ;",
+        "find . -delete",
+        "rg --pre command pattern",
+        "grep token /etc/passwd",
+        "rg token ../outside",
     ],
 )
 def test_command_policy_rejects_shell_and_dangerous_commands(command):
@@ -80,6 +86,7 @@ def test_registry_contains_typed_read_mutation_and_validation_tools():
     specs = {item.name: item for item in default_registry().specs()}
     assert specs["read_file"].permission is ToolPermission.READ_ONLY
     assert specs["create_file"].permission is ToolPermission.SAFE_MUTATION
+    assert specs["delete_file"].permission is ToolPermission.HIGH_RISK
     assert specs["run_tests"].permission is ToolPermission.VALIDATION
     assert specs["create_file"].mutates
     assert specs["create_file"].approval_required
@@ -119,3 +126,10 @@ def test_execution_history_is_atomic_redacted_and_versioned(tmp_path):
     path.write_text("{broken")
     with pytest.raises(ExecutionHistoryError):
         load_report(path)
+
+
+def test_sensitive_and_escaping_paths_are_rejected(tmp_path):
+    with pytest.raises(ToolPermissionError):
+        _safe_path(tmp_path, ".env")
+    with pytest.raises(ToolPermissionError):
+        _safe_path(tmp_path, "../outside")

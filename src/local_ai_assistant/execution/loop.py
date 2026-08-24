@@ -48,14 +48,14 @@ class ExecutionLoop:
         for step in range(1, self.limits.max_steps + 1):
             request = self._next_request(observations)
             if request.tool == "finish":
-                if self.context.artifact.plan.validation_commands and not any(
-                    item.kind == "command" and item.success for item in observations
-                ):
+                missing_commands = self._missing_validation_commands()
+                if missing_commands:
                     observations.append(
                         ToolObservation(
                             "validation_required",
                             False,
-                            "Plan-required validation has not run successfully.",
+                            "Plan-required validation has not run successfully: "
+                            + ", ".join(missing_commands),
                         )
                     )
                     continue
@@ -75,7 +75,14 @@ class ExecutionLoop:
                         "max_mutations", tuple(observations), step, mutations, repairs, replans
                     )
             try:
-                observation = self.registry.invoke(request.tool, request.arguments, self.context)
+                audit_arguments = {
+                    **request.arguments,
+                    "_rationale": request.rationale,
+                    "_expected_outcome": request.expected_outcome,
+                    "_plan_step": request.plan_step,
+                    "_mutation_intended": request.mutation_intended,
+                }
+                observation = self.registry.invoke(request.tool, audit_arguments, self.context)
             except ToolExecutionError as exc:
                 observation = ToolObservation("tool_error", False, str(exc))
             observations.append(observation)
@@ -104,6 +111,24 @@ class ExecutionLoop:
                     )
         return LoopResult(
             "max_steps", tuple(observations), self.limits.max_steps, mutations, repairs, replans
+        )
+
+    def _missing_validation_commands(self) -> tuple[str, ...]:
+        successful = {
+            str(event.arguments.get("command"))
+            for event in self.context.events
+            if event.success and event.tool_name in {
+                "run_tests",
+                "run_build",
+                "run_lint",
+                "run_typecheck",
+                "run_safe_command",
+            }
+        }
+        return tuple(
+            command
+            for command in self.context.artifact.plan.validation_commands
+            if command not in successful
         )
 
     def _next_request(self, observations: list[ToolObservation]) -> ToolRequest:

@@ -61,6 +61,7 @@ class LlamaConfig:
     model: str = str(DEFAULT_MODEL_PATH)
     context_size: int = 262_144
     api_key: str = "local"
+    timeout_seconds: int = 120
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +193,7 @@ class AppConfig:
                 model=values.get("LOCAL_AI_MODEL", str(DEFAULT_MODEL_PATH)),
                 context_size=_integer(values, "LOCAL_AI_CONTEXT_SIZE", 262_144),
                 api_key=values.get("LOCAL_AI_API_KEY", "local"),
+                timeout_seconds=_integer(values, "LOCAL_AI_LLM_TIMEOUT", 120),
             ),
             paths=paths,
             embedding=EmbeddingConfig(

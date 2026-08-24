@@ -86,6 +86,18 @@ def parse_allowed_command(command: str | list[str]) -> tuple[str, ...]:
         raise CommandPolicyError("Git mutation/force operation is blocked")
     if not any(parts[: len(prefix)] == prefix for prefix in ALLOWED_PREFIXES):
         raise CommandPolicyError("Command family is not allowlisted")
+    if any(
+        Path(part).is_absolute() or ".." in Path(part).parts
+        for part in parts[1:]
+        if not part.startswith("-")
+    ):
+        raise CommandPolicyError("Command arguments must remain repository-relative")
+    if parts[0] == "find" and any(
+        part in {"-exec", "-execdir", "-delete", "-ok", "-okdir"} for part in parts
+    ):
+        raise CommandPolicyError("Mutating/executing find actions are blocked")
+    if parts[0] == "rg" and any(part.startswith("--pre") for part in parts):
+        raise CommandPolicyError("rg preprocessors are blocked")
     return parts
 
 

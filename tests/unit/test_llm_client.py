@@ -44,6 +44,7 @@ def test_chat_preserves_local_openai_client_contract(monkeypatch):
     assert llm.client.kwargs == {
         "base_url": "http://localhost:9999/v1",
         "api_key": "local",
+        "timeout": 120,
     }
     assert llm.chat("question", system_prompt="system", max_tokens=17) == "answer"
     call = llm.client.chat.completions.calls[0]

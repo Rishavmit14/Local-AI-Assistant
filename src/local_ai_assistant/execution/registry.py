@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 import tempfile
 import time
@@ -13,6 +12,7 @@ from pathlib import Path
 
 from local_ai_assistant.planning.analysis import is_protected_path
 from local_ai_assistant.planning.models import (
+    ApprovalStatus,
     PlanningArtifact,
     ScopeGuardPolicy,
     plan_approval_token,
@@ -117,7 +117,11 @@ def _authorize_mutation(spec: ToolSpec, arguments: dict, context: ToolContext) -
     ):
         raise ToolPermissionError("Plan repository or starting commit is stale")
     expected = plan_approval_token(context.artifact.plan)
-    if spec.approval_required and context.approval_token != expected:
+    if (
+        spec.approval_required
+        and context.artifact.plan.approval.status is not ApprovalStatus.AUTOMATIC
+        and context.approval_token != expected
+    ):
         raise ToolPermissionError("Exact plan approval token is required")
     path = arguments.get("path")
     if path:
@@ -155,7 +159,7 @@ def _safe_arguments(arguments: dict) -> dict:
     }
 
 
-def default_registry() -> ToolRegistry:
+def default_registry(execution_config=None) -> ToolRegistry:
     registry = ToolRegistry()
     read_tools = {
         "list_tree": (),
@@ -215,20 +219,35 @@ def default_registry() -> ToolRegistry:
                 30,
                 fields,
                 approval_required=True,
+                risk_level=(
+                    "high"
+                    if name in {"delete_file", "rename_file", "revert_current_changes"}
+                    else "medium"
+                ),
             ),
             _handler_for_mutation(name),
         )
     for name in ("run_tests", "run_build", "run_lint", "run_typecheck", "run_safe_command"):
+        timeout = (
+            getattr(execution_config, "test_timeout_seconds", 900)
+            if name == "run_tests"
+            else getattr(execution_config, "build_timeout_seconds", 900)
+            if name == "run_build"
+            else getattr(execution_config, "lint_timeout_seconds", 180)
+            if name in {"run_lint", "run_typecheck"}
+            else getattr(execution_config, "inspection_timeout_seconds", 15)
+        )
         registry.register(
             ToolSpec(
                 name,
                 f"Allowlisted {name.replace('_', ' ')}",
                 ToolPermission.VALIDATION,
                 False,
-                300,
+                timeout,
                 ("command",),
+                risk_level="medium",
             ),
-            _command_handler,
+            _handler_for_command(timeout),
         )
     return registry
 
@@ -350,24 +369,25 @@ def _handler_for_mutation(name: str) -> Handler:
             with tempfile.NamedTemporaryFile("w", suffix=".patch", delete=False) as stream:
                 stream.write(arguments["patch"])
                 patch_path = stream.name
-            check = subprocess.run(
-                ["git", "apply", "--check", "--recount", patch_path],
-                cwd=context.repository,
-                text=True,
-                capture_output=True,
-            )
-            if check.returncode:
-                os.unlink(patch_path)
-                return ToolObservation(
-                    "patch_rejection", False, "Patch preflight failed", stderr=check.stderr
+            try:
+                check = subprocess.run(
+                    ["git", "apply", "--check", "--recount", patch_path],
+                    cwd=context.repository,
+                    text=True,
+                    capture_output=True,
                 )
-            applied = subprocess.run(
-                ["git", "apply", "--recount", patch_path],
-                cwd=context.repository,
-                text=True,
-                capture_output=True,
-            )
-            os.unlink(patch_path)
+                if check.returncode:
+                    return ToolObservation(
+                        "patch_rejection", False, "Patch preflight failed", stderr=check.stderr
+                    )
+                applied = subprocess.run(
+                    ["git", "apply", "--recount", patch_path],
+                    cwd=context.repository,
+                    text=True,
+                    capture_output=True,
+                )
+            finally:
+                Path(patch_path).unlink(missing_ok=True)
             if applied.returncode:
                 return ToolObservation(
                     "patch_failure", False, "Patch application failed", stderr=applied.stderr
@@ -379,14 +399,14 @@ def _handler_for_mutation(name: str) -> Handler:
             )
             post_issues = validate_patch_scope(context.policy, post)
             if post_issues:
-                subprocess.run(["git", "restore", "."], cwd=context.repository)
+                _rollback_worktree(context.repository)
                 return ToolObservation("scope_rejection", False, "; ".join(post_issues))
             return ToolObservation(
                 "mutation", True, "Patch applied within scope", {"files": post.changed_files}
             )
         if name == "revert_current_changes":
-            subprocess.run(["git", "restore", "."], cwd=context.repository, check=True)
-            return ToolObservation("mutation", True, "Tracked changes reverted")
+            _rollback_worktree(context.repository)
+            return ToolObservation("mutation", True, "Current changes reverted")
         if name in {"replace_symbol_body", "insert_before_symbol", "insert_after_symbol"}:
             symbol = _resolve_symbol(context, arguments["symbol"])
             prefix = _index_prefix(context)
@@ -437,7 +457,14 @@ def _handler_for_mutation(name: str) -> Handler:
 
 def _safe_path(repository: Path, value: str) -> Path:
     path = (repository / value).resolve()
-    if repository.resolve() not in path.parents or is_protected_path(value):
+    name = path.name.lower()
+    sensitive = (
+        name == ".env"
+        or name.startswith(".env.")
+        or name in {"id_rsa", "id_ed25519"}
+        or name.endswith((".pem", ".key"))
+    )
+    if repository.resolve() not in path.parents or is_protected_path(value) or sensitive:
         raise ToolPermissionError("Path escapes repository or is protected")
     return path
 
@@ -475,31 +502,36 @@ def _enforce_worktree_scope(context: ToolContext) -> None:
     issues = validate_patch_scope(context.policy, scope)
     if not issues:
         return
-    subprocess.run(["git", "restore", "."], cwd=context.repository)
+    _rollback_worktree(context.repository)
+    raise ToolPermissionError("Post-mutation scope violation: " + "; ".join(issues))
+
+
+def _rollback_worktree(repository: Path) -> None:
+    subprocess.run(["git", "restore", "."], cwd=repository)
     status = subprocess.run(
         ["git", "status", "--porcelain", "--untracked-files=all"],
-        cwd=context.repository,
+        cwd=repository,
         text=True,
         capture_output=True,
     )
     for line in status.stdout.splitlines():
         if line.startswith("?? "):
-            candidate = _safe_path(context.repository, line[3:])
+            candidate = _safe_path(repository, line[3:])
             if candidate.is_file():
                 candidate.unlink()
-    raise ToolPermissionError("Post-mutation scope violation: " + "; ".join(issues))
 
 
-def _command_handler(context: ToolContext, arguments: dict) -> ToolObservation:
-    result = run_allowed_command(
-        arguments["command"], context.repository, int(arguments.get("timeout", 300))
-    )
-    return ToolObservation(
-        "command",
-        result.return_code == 0 and not result.timed_out,
-        "Command completed" if result.return_code == 0 else "Command failed",
-        {"return_code": result.return_code},
-        result.stdout,
-        result.stderr,
-        result.timed_out,
-    )
+def _handler_for_command(timeout: int) -> Handler:
+    def handler(context: ToolContext, arguments: dict) -> ToolObservation:
+        requested = min(timeout, max(1, int(arguments.get("timeout", timeout))))
+        result = run_allowed_command(arguments["command"], context.repository, requested)
+        return ToolObservation(
+            "command",
+            result.return_code == 0 and not result.timed_out,
+            "Command timed out" if result.timed_out else "Command completed" if result.return_code == 0 else "Command failed",
+            {"return_code": result.return_code},
+            result.stdout,
+            result.stderr,
+            result.timed_out,
+        )
+    return handler

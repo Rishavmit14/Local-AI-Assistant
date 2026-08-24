@@ -32,10 +32,17 @@ def test_agent_parser_preserves_existing_and_stage1_options():
 
 
 def test_risk_approval_requires_a_specific_plan_token():
-    args = build_agent_parser().parse_args(
-        ["demo", "change", "--approve-risk", "abc123"]
-    )
+    args = build_agent_parser().parse_args(["demo", "change", "--approve-risk", "abc123"])
     assert args.approve_risk == "abc123"
+
+
+def test_agent_exposes_bounded_tool_loop_options():
+    args = build_agent_parser().parse_args(
+        ["demo", "change", "--tool-loop", "--max-steps", "5", "--max-repairs", "1"]
+    )
+    assert args.tool_loop
+    assert args.max_steps == 5
+    assert args.max_repairs == 1
 
 
 def test_code_rag_parser_supports_reindex():
@@ -112,7 +119,16 @@ def test_apply_accepts_complete_transaction_safety_bundle():
 def test_auto_merge_requires_explicit_approval_and_commit():
     parser = build_agent_parser()
     args = parser.parse_args(
-        ["demo", "change", "--apply", "--branch", "--test", "--validate", "--rollback-on-fail", "--auto-merge"]
+        [
+            "demo",
+            "change",
+            "--apply",
+            "--branch",
+            "--test",
+            "--validate",
+            "--rollback-on-fail",
+            "--auto-merge",
+        ]
     )
     with pytest.raises(SystemExit) as exit_info:
         validate_cli_options(parser, args)

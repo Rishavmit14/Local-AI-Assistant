@@ -53,6 +53,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "show-policy":
         print(json.dumps(asdict(policy), indent=2))
         return 0
+    if not args.dry_run and not args.human_review:
+        raise SystemExit(
+            "Mutating execution requires local-ai-code-agent --tool-loop with the full Git safety bundle."
+        )
     config = get_config()
     repository = (config.paths.code_repo_dir / args.repo).resolve()
     rag = CodeRAG(config=config)
@@ -75,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     limits = config.execution
     result = ExecutionLoop(
         rag.llm,
-        registry,
+        default_registry(config.execution),
         context,
         LoopLimits(
             max_steps=max(1, args.max_steps or limits.max_steps),

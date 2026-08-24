@@ -24,6 +24,7 @@ class ToolSpec:
     timeout_seconds: int
     input_fields: tuple[str, ...] = ()
     approval_required: bool = False
+    risk_level: str = "low"
 
 
 @dataclass(frozen=True, slots=True)

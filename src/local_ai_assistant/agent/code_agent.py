@@ -16,6 +16,11 @@ from local_ai_assistant.common.errors import (
 )
 from local_ai_assistant.common.logging import configure_logging, get_logger
 from local_ai_assistant.common.models import GitTransactionSummary
+from local_ai_assistant.execution.errors import ToolExecutionError
+from local_ai_assistant.execution.history import persist_report
+from local_ai_assistant.execution.loop import ExecutionLoop, LoopLimits
+from local_ai_assistant.execution.models import ExecutionReport
+from local_ai_assistant.execution.registry import ToolContext, default_registry
 from local_ai_assistant.planning import PlannerService
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import (
@@ -25,6 +30,7 @@ from local_ai_assistant.planning.models import (
 )
 from local_ai_assistant.planning.patch_scope import (
     extract_patch_scope,
+    render_patch_scope,
     validate_patch_scope,
     worktree_diff,
 )
@@ -43,6 +49,7 @@ PATCH_DIR.mkdir(
 # ============================================================
 # SHELL / GIT HELPERS
 # ============================================================
+
 
 def run_command(
     command: list[str],
@@ -93,9 +100,7 @@ def ensure_git_repo(
     )
 
     if result.returncode != 0:
-        raise RepositoryError(
-            f"{repo} is not a Git repository."
-        )
+        raise RepositoryError(f"{repo} is not a Git repository.")
 
 
 def get_repo(
@@ -106,9 +111,7 @@ def get_repo(
     repo = (repo_root or REPO_ROOT) / name
 
     if not repo.exists():
-        raise RepositoryError(
-            f"Repository not found: {repo}"
-        )
+        raise RepositoryError(f"Repository not found: {repo}")
 
     ensure_git_repo(repo)
 
@@ -129,7 +132,6 @@ def git_status(
     )
 
     return result.stdout.strip()
-
 
 
 def git_current_branch(repo: Path) -> str:
@@ -187,8 +189,7 @@ def create_agent_branch(
 
     if not git_is_clean(repo):
         raise DirtyRepositoryError(
-            "Repository is not clean. "
-            "Commit or discard existing changes first."
+            "Repository is not clean. Commit or discard existing changes first."
         )
 
     original_branch = git_current_branch(repo)
@@ -215,9 +216,7 @@ def create_agent_branch(
 
     if result.returncode != 0:
         raise GitTransactionError(
-            "Could not create agent branch:\n"
-            + result.stdout
-            + result.stderr
+            "Could not create agent branch:\n" + result.stdout + result.stderr
         )
 
     return (
@@ -256,18 +255,17 @@ def rollback_agent_changes(
             repo,
         )
         if reset_result.returncode != 0:
-            raise GitTransactionError("Could not reset failed agent changes: " + reset_result.stderr)
+            raise GitTransactionError(
+                "Could not reset failed agent changes: " + reset_result.stderr
+            )
 
         clean_result = run_command(["git", "clean", "-fd"], repo)
         if clean_result.returncode != 0:
-            raise GitTransactionError("Could not clean failed agent changes: " + clean_result.stderr)
+            raise GitTransactionError(
+                "Could not clean failed agent changes: " + clean_result.stderr
+            )
 
-    if (
-        original_branch
-        and agent_branch
-        and original_branch != agent_branch
-    ):
-
+    if original_branch and agent_branch and original_branch != agent_branch:
         switch_result = run_command(
             [
                 "git",
@@ -278,7 +276,9 @@ def rollback_agent_changes(
         )
 
         if switch_result.returncode != 0:
-            raise GitTransactionError("Could not return to original branch: " + switch_result.stderr)
+            raise GitTransactionError(
+                "Could not return to original branch: " + switch_result.stderr
+            )
 
         if not keep_failed_branch:
             delete_result = run_command(
@@ -291,7 +291,9 @@ def rollback_agent_changes(
                 repo,
             )
             if delete_result.returncode != 0:
-                raise GitTransactionError("Could not delete failed agent branch: " + delete_result.stderr)
+                raise GitTransactionError(
+                    "Could not delete failed agent branch: " + delete_result.stderr
+                )
 
 
 def commit_agent_changes(
@@ -326,11 +328,7 @@ def commit_agent_changes(
     )
 
     if result.returncode != 0:
-        raise GitTransactionError(
-            "Automatic commit failed:\n"
-            + result.stdout
-            + result.stderr
-        )
+        raise GitTransactionError("Automatic commit failed:\n" + result.stdout + result.stderr)
 
     return git_head(repo)
 
@@ -349,9 +347,10 @@ def merge_agent_branch(
         raise GitTransactionError("Approved fast-forward merge failed: " + merge_result.stderr)
     delete_result = run_command(["git", "branch", "-d", agent_branch], repo)
     if delete_result.returncode != 0:
-        raise GitTransactionError("Merged agent branch could not be deleted: " + delete_result.stderr)
+        raise GitTransactionError(
+            "Merged agent branch could not be deleted: " + delete_result.stderr
+        )
     return git_head(repo)
-
 
 
 def validate_python_structure(repo: Path) -> tuple[bool, str]:
@@ -380,9 +379,7 @@ def validate_python_structure(repo: Path) -> tuple[bool, str]:
     )
 
     changed_files = [
-        line.strip()
-        for line in result.stdout.splitlines()
-        if line.strip().endswith(".py")
+        line.strip() for line in result.stdout.splitlines() if line.strip().endswith(".py")
     ]
 
     if not changed_files:
@@ -391,7 +388,6 @@ def validate_python_structure(repo: Path) -> tuple[bool, str]:
     errors = []
 
     for relative_path in changed_files:
-
         file_path = repo / relative_path
 
         if not file_path.is_file():
@@ -408,21 +404,12 @@ def validate_python_structure(repo: Path) -> tuple[bool, str]:
             )
 
         except SyntaxError as exc:
-
-            errors.append(
-                f"{relative_path}: "
-                f"syntax error at line "
-                f"{exc.lineno}: {exc.msg}"
-            )
+            errors.append(f"{relative_path}: syntax error at line {exc.lineno}: {exc.msg}")
 
             continue
 
         except Exception as exc:
-
-            errors.append(
-                f"{relative_path}: "
-                f"could not validate: {exc}"
-            )
+            errors.append(f"{relative_path}: could not validate: {exc}")
 
             continue
 
@@ -430,7 +417,6 @@ def validate_python_structure(repo: Path) -> tuple[bool, str]:
         classes = {}
 
         for node in tree.body:
-
             if isinstance(
                 node,
                 (
@@ -441,9 +427,7 @@ def validate_python_structure(repo: Path) -> tuple[bool, str]:
                 functions.setdefault(
                     node.name,
                     [],
-                ).append(
-                    node.lineno
-                )
+                ).append(node.lineno)
 
             elif isinstance(
                 node,
@@ -452,30 +436,21 @@ def validate_python_structure(repo: Path) -> tuple[bool, str]:
                 classes.setdefault(
                     node.name,
                     [],
-                ).append(
-                    node.lineno
-                )
+                ).append(node.lineno)
 
         for name, lines in functions.items():
-
             if len(lines) > 1:
                 errors.append(
-                    f"{relative_path}: duplicate "
-                    f"top-level function "
-                    f"{name!r} at lines {lines}"
+                    f"{relative_path}: duplicate top-level function {name!r} at lines {lines}"
                 )
 
         for name, lines in classes.items():
-
             if len(lines) > 1:
                 errors.append(
-                    f"{relative_path}: duplicate "
-                    f"top-level class "
-                    f"{name!r} at lines {lines}"
+                    f"{relative_path}: duplicate top-level class {name!r} at lines {lines}"
                 )
 
     if errors:
-
         return (
             False,
             "\n".join(errors),
@@ -485,7 +460,6 @@ def validate_python_structure(repo: Path) -> tuple[bool, str]:
         True,
         "Python structural validation passed.",
     )
-
 
 
 def finalize_agent_run(
@@ -514,7 +488,6 @@ def finalize_agent_run(
     """
 
     if tests_passed:
-
         if not auto_commit:
             return GitTransactionSummary(
                 outcome="review_required",
@@ -525,10 +498,7 @@ def finalize_agent_run(
             )
 
         if git_is_clean(repo):
-            print(
-                "No repository changes remain; "
-                "nothing to commit."
-            )
+            print("No repository changes remain; nothing to commit.")
             return GitTransactionSummary(
                 outcome="no_changes",
                 repository=repo,
@@ -543,22 +513,13 @@ def finalize_agent_run(
         )
 
         print()
-        print(
-            "=" * 70
-        )
+        print("=" * 70)
 
-        print(
-            "AUTOMATIC COMMIT"
-        )
+        print("AUTOMATIC COMMIT")
 
-        print(
-            "=" * 70
-        )
+        print("=" * 70)
 
-        print(
-            f"Committed successful changes: "
-            f"{commit_hash[:12]}"
-        )
+        print(f"Committed successful changes: {commit_hash[:12]}")
 
         outcome = "committed"
         if auto_merge:
@@ -588,23 +549,13 @@ def finalize_agent_run(
 
         return summary
 
-    if (
-        rollback_on_fail
-        and starting_commit
-    ):
-
+    if rollback_on_fail and starting_commit:
         print()
-        print(
-            "=" * 70
-        )
+        print("=" * 70)
 
-        print(
-            "ROLLBACK"
-        )
+        print("ROLLBACK")
 
-        print(
-            "=" * 70
-        )
+        print("=" * 70)
 
         rollback_agent_changes(
             repo,
@@ -614,10 +565,7 @@ def finalize_agent_run(
             keep_failed_branch,
         )
 
-        print(
-            "Final validation/tests failed. "
-            "Agent changes were rolled back."
-        )
+        print("Final validation/tests failed. Agent changes were rolled back.")
 
         summary = GitTransactionSummary(
             outcome="failed_preserved" if keep_failed_branch else "rolled_back",
@@ -663,6 +611,7 @@ def git_diff(
 # PATCH NORMALIZATION
 # ============================================================
 
+
 def extract_diff(
     text: str,
 ) -> str:
@@ -681,7 +630,6 @@ def normalize_patch(
     repo_name: str,
     diff: str,
 ) -> str:
-
     """
     Convert:
 
@@ -692,13 +640,9 @@ def normalize_patch(
       a/app/api.py
     """
 
-    prefix_a = (
-        f"a/{repo_name}/"
-    )
+    prefix_a = f"a/{repo_name}/"
 
-    prefix_b = (
-        f"b/{repo_name}/"
-    )
+    prefix_b = f"b/{repo_name}/"
 
     diff = diff.replace(
         prefix_a,
@@ -732,10 +676,7 @@ def save_patch(
 
     destination = patch_dir or PATCH_DIR
     destination.mkdir(parents=True, exist_ok=True)
-    patch_file = (
-        destination
-        / f"{safe_name}_{suffix}.patch"
-    )
+    patch_file = destination / f"{safe_name}_{suffix}.patch"
 
     patch_file.write_text(
         diff,
@@ -748,6 +689,7 @@ def save_patch(
 # ============================================================
 # PATCH VALIDATION / APPLICATION
 # ============================================================
+
 
 def check_patch(
     repo: Path,
@@ -766,21 +708,16 @@ def check_patch(
     )
 
     if result.returncode == 0:
-
         logger.info(
             "patch_validation_passed",
             extra={"event": "agent.patch.validation_passed", "patch": patch_file},
         )
 
-        print(
-            "Patch validation: PASS"
-        )
+        print("Patch validation: PASS")
 
         return True
 
-    print(
-        "Patch validation: FAIL"
-    )
+    print("Patch validation: FAIL")
     logger.error(
         "patch_validation_failed",
         extra={"event": "agent.patch.validation_failed", "patch": patch_file},
@@ -808,19 +745,14 @@ def apply_patch(
     )
 
     if result.returncode != 0:
-
-        print(
-            "Patch application failed."
-        )
+        print("Patch application failed.")
 
         if result.stderr:
             print(result.stderr)
 
         return False
 
-    print(
-        "Patch applied successfully."
-    )
+    print("Patch applied successfully.")
     logger.info(
         "patch_applied",
         extra={"event": "agent.patch.applied", "patch": patch_file},
@@ -833,6 +765,7 @@ def apply_patch(
 # TEST RUNNER
 # ============================================================
 
+
 def detect_and_run_tests(
     repo: Path,
 ) -> tuple[
@@ -842,9 +775,7 @@ def detect_and_run_tests(
 
     logger.info("test_detection_started", extra={"event": "agent.tests.detection_started"})
     print()
-    print(
-        "Detecting test environment..."
-    )
+    print("Detecting test environment...")
 
     # --------------------------------------------------------
     # Python
@@ -855,10 +786,7 @@ def detect_and_run_tests(
         or (repo / "pytest.ini").exists()
         or (repo / "pyproject.toml").exists()
     ):
-
-        print(
-            "Running pytest..."
-        )
+        print("Running pytest...")
 
         result = run_command(
             [
@@ -870,11 +798,7 @@ def detect_and_run_tests(
             repo,
         )
 
-        output = (
-            result.stdout
-            + "\n"
-            + result.stderr
-        ).strip()
+        output = (result.stdout + "\n" + result.stderr).strip()
 
         logger.info(
             "tests_completed",
@@ -896,14 +820,8 @@ def detect_and_run_tests(
     # Rust
     # --------------------------------------------------------
 
-    if (
-        repo
-        / "Cargo.toml"
-    ).exists():
-
-        print(
-            "Running cargo test..."
-        )
+    if (repo / "Cargo.toml").exists():
+        print("Running cargo test...")
 
         result = run_command(
             [
@@ -913,11 +831,7 @@ def detect_and_run_tests(
             repo,
         )
 
-        output = (
-            result.stdout
-            + "\n"
-            + result.stderr
-        ).strip()
+        output = (result.stdout + "\n" + result.stderr).strip()
 
         logger.info(
             "tests_completed",
@@ -939,14 +853,8 @@ def detect_and_run_tests(
     # Node / JS / TS
     # --------------------------------------------------------
 
-    if (
-        repo
-        / "package.json"
-    ).exists():
-
-        print(
-            "Running npm test..."
-        )
+    if (repo / "package.json").exists():
+        print("Running npm test...")
 
         result = run_command(
             [
@@ -958,11 +866,7 @@ def detect_and_run_tests(
             repo,
         )
 
-        output = (
-            result.stdout
-            + "\n"
-            + result.stderr
-        ).strip()
+        output = (result.stdout + "\n" + result.stderr).strip()
 
         logger.info(
             "tests_completed",
@@ -980,9 +884,7 @@ def detect_and_run_tests(
             output,
         )
 
-    print(
-        "No recognized test environment found."
-    )
+    print("No recognized test environment found.")
 
     return (
         None,
@@ -994,19 +896,16 @@ def detect_and_run_tests(
 # INDEX REFRESH
 # ============================================================
 
+
 def reindex_repository(config: AppConfig | None = None):
     print()
-    print(
-        "Refreshing repository index..."
-    )
+    print("Refreshing repository index...")
 
     rag = CodeRAG(config=config)
 
     rag.reindex()
 
-    print(
-        "Repository index refreshed."
-    )
+    print("Repository index refreshed.")
 
     return rag
 
@@ -1015,19 +914,16 @@ def reindex_repository(config: AppConfig | None = None):
 # INITIAL PATCH GENERATION
 # ============================================================
 
+
 def propose_patch(
     rag: CodeRAG,
     repo_name: str,
     request: str,
 ):
 
-    results = rag.retrieve(
-        request
-    )
+    results = rag.retrieve(request)
 
-    context = rag.build_context(
-        results
-    )
+    context = rag.build_context(results)
 
     prompt = f"""
 You are modifying a software repository.
@@ -1066,9 +962,7 @@ INSUFFICIENT_CONTEXT
     answer = rag.llm.chat(
         prompt=prompt,
         system_prompt=(
-            "You are a senior software "
-            "engineer producing minimal "
-            "Git-compatible patches."
+            "You are a senior software engineer producing minimal Git-compatible patches."
         ),
         temperature=0.0,
         max_tokens=1800,
@@ -1081,6 +975,7 @@ INSUFFICIENT_CONTEXT
 # REPAIR PATCH GENERATION
 # ============================================================
 
+
 def propose_repair_patch(
     rag: CodeRAG,
     repo_name: str,
@@ -1088,23 +983,13 @@ def propose_repair_patch(
     test_output: str,
 ):
 
-    query = (
-        original_request
-        + "\n\n"
-        + test_output
-    )
+    query = original_request + "\n\n" + test_output
 
-    results = rag.retrieve(
-        query
-    )
+    results = rag.retrieve(query)
 
-    context = rag.build_context(
-        results
-    )
+    context = rag.build_context(results)
 
-    current_diff = git_diff(
-        REPO_ROOT / repo_name
-    )
+    current_diff = git_diff(REPO_ROOT / repo_name)
 
     prompt = f"""
 You previously modified a software repository,
@@ -1169,42 +1054,29 @@ INSUFFICIENT_CONTEXT
 # PRINT RETRIEVED CONTEXT
 # ============================================================
 
+
 def print_sources(
     results,
 ):
 
     print()
-    print(
-        "Retrieved repository context:"
-    )
+    print("Retrieved repository context:")
 
     for result in results:
-
-        print(
-            f"  {result['source']} "
-            f"lines "
-            f"{result['line_start']}-"
-            f"{result['line_end']}"
-        )
+        print(f"  {result['source']} lines {result['line_start']}-{result['line_end']}")
 
 
 # ============================================================
 # MAIN
 # ============================================================
 
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Local Qwen repository coding agent"
-        )
-    )
+    parser = argparse.ArgumentParser(description=("Local Qwen repository coding agent"))
 
     parser.add_argument(
         "repo",
-        help=(
-            "Repository directory name "
-            "inside code-assistant/repos"
-        ),
+        help=("Repository directory name inside code-assistant/repos"),
     )
 
     parser.add_argument(
@@ -1215,28 +1087,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--apply",
         action="store_true",
-        help=(
-            "Apply the proposed patch "
-            "after Git validation"
-        ),
+        help=("Apply the proposed patch after Git validation"),
     )
 
     parser.add_argument(
         "--test",
         action="store_true",
-        help=(
-            "Run tests after applying "
-            "the patch"
-        ),
+        help=("Run tests after applying the patch"),
     )
 
     parser.add_argument(
         "--repair",
         action="store_true",
-        help=(
-            "Allow one automatic repair "
-            "attempt if tests fail"
-        ),
+        help=("Allow one automatic repair attempt if tests fail"),
     )
 
     parser.add_argument(
@@ -1256,7 +1119,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Restore the repository to the starting commit if final tests fail.",
     )
-
 
     parser.add_argument(
         "--validate",
@@ -1305,6 +1167,13 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="PLAN_TOKEN",
         help="Approve only the exact validated high/critical-risk plan with this printed token.",
     )
+    parser.add_argument(
+        "--tool-loop",
+        action="store_true",
+        help="Use bounded plan-bound tool execution instead of one-shot patch generation.",
+    )
+    parser.add_argument("--max-steps", type=int, help="Bound tool-loop steps for this run.")
+    parser.add_argument("--max-repairs", type=int, help="Bound repair observations for this run.")
 
     return parser
 
@@ -1357,35 +1226,21 @@ def main(argv: list[str] | None = None):
     # Protect existing unrelated changes.
     # --------------------------------------------------------
 
-    existing_changes = (
-        git_status(repo)
-    )
+    existing_changes = git_status(repo)
 
     if existing_changes:
+        print()
+        print("Repository currently has uncommitted changes:")
 
         print()
-        print(
-            "Repository currently has "
-            "uncommitted changes:"
-        )
-
-        print()
-        print(
-            existing_changes
-        )
+        print(existing_changes)
 
         print()
 
         if args.apply:
+            print("Automatic application is blocked when the repository is already dirty.")
 
-            print(
-                "Automatic application is blocked "
-                "when the repository is already dirty."
-            )
-
-            print(
-                "Commit or stash existing changes first."
-            )
+            print("Commit or stash existing changes first.")
 
             sys.exit(1)
 
@@ -1397,15 +1252,11 @@ def main(argv: list[str] | None = None):
     # Load repository index.
     # --------------------------------------------------------
 
-    print(
-        "Loading repository index..."
-    )
+    print("Loading repository index...")
 
     rag = CodeRAG(config=config)
 
-    print(
-        "Refreshing repository index before patch generation..."
-    )
+    print("Refreshing repository index before patch generation...")
 
     rag.reindex()
 
@@ -1452,14 +1303,142 @@ def main(argv: list[str] | None = None):
             )
             sys.exit(1)
 
+    if args.tool_loop:
+        limits = config.execution
+        if not args.apply or args.human_review:
+            context = ToolContext(
+                repo,
+                artifact,
+                scope_guard_from_plan(artifact.plan),
+                rag.symbol_index,
+                args.approve_risk,
+            )
+            result = ExecutionLoop(
+                rag.llm,
+                default_registry(config.execution),
+                context,
+                LoopLimits(
+                    max_steps=args.max_steps or limits.max_steps,
+                    max_mutations=limits.max_mutations,
+                    max_repairs=(
+                        args.max_repairs if args.max_repairs is not None else limits.max_repairs
+                    ),
+                    max_replans=limits.max_replans,
+                    context_characters=limits.context_characters,
+                ),
+            ).run(dry_run=True)
+            print(
+                f"Tool-loop {'human review' if args.human_review else 'dry run'}: {result.status}; nothing modified."
+            )
+            return
+        original_branch, starting_commit, agent_branch = create_agent_branch(repo, args.request)
+        context = ToolContext(
+            repo,
+            artifact,
+            scope_guard_from_plan(artifact.plan),
+            rag.symbol_index,
+            args.approve_risk,
+        )
+        try:
+            result = ExecutionLoop(
+                rag.llm,
+                default_registry(config.execution),
+                context,
+                LoopLimits(
+                    max_steps=args.max_steps or limits.max_steps,
+                    max_mutations=limits.max_mutations,
+                    max_repairs=(
+                        args.max_repairs if args.max_repairs is not None else limits.max_repairs
+                    ),
+                    max_replans=limits.max_replans,
+                    context_characters=limits.context_characters,
+                ),
+            ).run()
+        except ToolExecutionError as exc:
+            transaction = finalize_run(
+                repo=repo,
+                request=args.request,
+                tests_passed=False,
+                auto_commit=args.auto_commit,
+                rollback_on_fail=True,
+                starting_commit=starting_commit,
+                original_branch=original_branch,
+                agent_branch=agent_branch,
+            )
+            persist_report(
+                ExecutionReport(
+                    1,
+                    artifact.plan.task_id,
+                    approval_token,
+                    str(repo),
+                    starting_commit,
+                    transaction.outcome,
+                    (approval_token,),
+                    tuple(context.events),
+                    final_diff="",
+                    final_commit=transaction.resulting_commit,
+                ),
+                config.paths.code_index_dir
+                / "executions"
+                / f"{artifact.plan.task_id}.json",
+            )
+            print(f"Tool execution failed: {exc}")
+            sys.exit(1)
+        report = ExecutionReport(
+            1,
+            artifact.plan.task_id,
+            approval_token,
+            str(repo),
+            starting_commit,
+            result.status,
+            (approval_token,),
+            tuple(context.events),
+            final_diff=worktree_diff(repo),
+            repairs=result.repairs,
+            replans=result.replans,
+        )
+        structure_ok, structure_output = validate_python_structure(repo)
+        test_code, _ = detect_and_run_tests(repo) if args.test else (0, "Tests skipped")
+        success = result.status == "complete" and structure_ok and test_code in {0, None}
+        transaction = finalize_run(
+            repo=repo,
+            request=args.request,
+            tests_passed=success,
+            auto_commit=args.auto_commit,
+            rollback_on_fail=args.rollback_on_fail,
+            starting_commit=starting_commit,
+            original_branch=original_branch,
+            agent_branch=agent_branch,
+        )
+        final_report = ExecutionReport(
+            report.schema_version,
+            report.task_id,
+            report.plan_hash,
+            report.repository,
+            report.starting_commit,
+            transaction.outcome,
+            report.plan_versions,
+            report.events,
+            final_diff=report.final_diff,
+            final_commit=transaction.resulting_commit,
+            repairs=report.repairs,
+            replans=report.replans,
+        )
+        persist_report(
+            final_report,
+            config.paths.code_index_dir / "executions" / f"{artifact.plan.task_id}.json",
+        )
+        if not success:
+            print(structure_output)
+            sys.exit(1)
+        return
+
     # --------------------------------------------------------
     # Generate patch.
     # --------------------------------------------------------
 
     print()
-    print(
-        "Generating proposed patch..."
-    )
+    print("Generating proposed patch...")
 
     answer, results = propose_patch(
         rag,
@@ -1467,33 +1446,18 @@ def main(argv: list[str] | None = None):
         args.request,
     )
 
-    if (
-        answer.strip()
-        == "INSUFFICIENT_CONTEXT"
-    ):
-
-        print(
-            "Model reported "
-            "INSUFFICIENT_CONTEXT."
-        )
+    if answer.strip() == "INSUFFICIENT_CONTEXT":
+        print("Model reported INSUFFICIENT_CONTEXT.")
 
         sys.exit(1)
 
-    diff = extract_diff(
-        answer
-    )
+    diff = extract_diff(answer)
 
     if not diff:
-
-        print(
-            "Model did not produce "
-            "a valid Git diff."
-        )
+        print("Model did not produce a valid Git diff.")
 
         print()
-        print(
-            answer
-        )
+        print(answer)
 
         sys.exit(1)
 
@@ -1505,28 +1469,16 @@ def main(argv: list[str] | None = None):
     )
 
     print()
-    print(
-        "=" * 70
-    )
+    print("=" * 70)
 
-    print(
-        "PROPOSED PATCH"
-    )
+    print("PROPOSED PATCH")
 
-    print(
-        "=" * 70
-    )
+    print("=" * 70)
 
     print()
-    print(
-        patch_file.read_text(
-            encoding="utf-8"
-        )
-    )
+    print(patch_file.read_text(encoding="utf-8"))
 
-    print_sources(
-        results
-    )
+    print_sources(results)
 
     print()
 
@@ -1534,7 +1486,6 @@ def main(argv: list[str] | None = None):
         repo,
         patch_file,
     ):
-
         sys.exit(1)
 
     patch_scope = extract_patch_scope(
@@ -1542,6 +1493,7 @@ def main(argv: list[str] | None = None):
         tuple(rag.symbol_index.symbols),
         planner.analyzer.index_prefix or "",
     )
+    print(render_patch_scope(patch_scope))
     scope_issues = validate_patch_scope(
         scope_guard_from_plan(artifact.plan),
         patch_scope,
@@ -1564,16 +1516,10 @@ def main(argv: list[str] | None = None):
     # --------------------------------------------------------
 
     if not args.apply:
-
         print()
-        print(
-            "Nothing has been modified."
-        )
+        print("Nothing has been modified.")
 
-        print(
-            "Rerun with --apply "
-            "to apply this patch."
-        )
+        print("Rerun with --apply to apply this patch.")
 
         return
 
@@ -1604,7 +1550,6 @@ def main(argv: list[str] | None = None):
         repo,
         patch_file,
     ):
-
         finalize_run(
             repo=repo,
             request=args.request,
@@ -1645,36 +1590,20 @@ def main(argv: list[str] | None = None):
     print("Post-apply scope validation: PASS")
 
     if args.validate:
-
         print()
-        print(
-            "=" * 70
-        )
+        print("=" * 70)
 
-        print(
-            "STRUCTURAL VALIDATION"
-        )
+        print("STRUCTURAL VALIDATION")
 
-        print(
-            "=" * 70
-        )
+        print("=" * 70)
 
-        structure_ok, structure_report = (
-            validate_python_structure(
-                repo
-            )
-        )
+        structure_ok, structure_report = validate_python_structure(repo)
 
-        print(
-            structure_report
-        )
+        print(structure_report)
 
         if not structure_ok:
-
             print()
-            print(
-                "Structural validation: FAIL"
-            )
+            print("Structural validation: FAIL")
 
             finalize_run(
                 repo=repo,
@@ -1689,27 +1618,17 @@ def main(argv: list[str] | None = None):
 
             sys.exit(1)
 
-        print(
-            "Structural validation: PASS"
-        )
+        print("Structural validation: PASS")
 
     print()
-    print(
-        "=" * 70
-    )
+    print("=" * 70)
 
-    print(
-        "CURRENT GIT DIFF"
-    )
+    print("CURRENT GIT DIFF")
 
-    print(
-        "=" * 70
-    )
+    print("=" * 70)
 
     print()
-    print(
-        git_diff(repo)
-    )
+    print(git_diff(repo))
 
     # --------------------------------------------------------
     # Re-index immediately after edit.
@@ -1722,12 +1641,8 @@ def main(argv: list[str] | None = None):
     # --------------------------------------------------------
 
     if not args.test:
-
         print()
-        print(
-            "Patch applied and "
-            "repository re-indexed."
-        )
+        print("Patch applied and repository re-indexed.")
 
         return
 
@@ -1735,19 +1650,11 @@ def main(argv: list[str] | None = None):
     # Run tests.
     # --------------------------------------------------------
 
-    return_code, test_output = (
-        detect_and_run_tests(
-            repo
-        )
-    )
+    return_code, test_output = detect_and_run_tests(repo)
 
     if return_code is None:
-
         print()
-        print(
-            "Patch applied, but no "
-            "tests were detected."
-        )
+        print("Patch applied, but no tests were detected.")
 
         finalize_run(
             repo=repo,
@@ -1762,15 +1669,10 @@ def main(argv: list[str] | None = None):
         sys.exit(1)
 
     if return_code == 0:
-
         print()
-        print(
-            "Tests: PASS"
-        )
+        print("Tests: PASS")
 
-        print(
-            "Coding-agent cycle completed successfully."
-        )
+        print("Coding-agent cycle completed successfully.")
 
         finalize_run(
             repo=repo,
@@ -1790,20 +1692,12 @@ def main(argv: list[str] | None = None):
     # --------------------------------------------------------
 
     print()
-    print(
-        "Tests: FAIL"
-    )
+    print("Tests: FAIL")
 
     if not args.repair:
+        print("Automatic repair is disabled.")
 
-        print(
-            "Automatic repair is disabled."
-        )
-
-        print(
-            "Rerun with --repair if you want "
-            "one repair attempt."
-        )
+        print("Rerun with --repair if you want one repair attempt.")
 
         finalize_run(
             repo=repo,
@@ -1823,36 +1717,21 @@ def main(argv: list[str] | None = None):
     # --------------------------------------------------------
 
     print()
-    print(
-        "=" * 70
+    print("=" * 70)
+
+    print("AUTOMATIC REPAIR ATTEMPT 1/1")
+
+    print("=" * 70)
+
+    repair_answer, repair_results = propose_repair_patch(
+        rag,
+        args.repo,
+        args.request,
+        test_output,
     )
 
-    print(
-        "AUTOMATIC REPAIR ATTEMPT 1/1"
-    )
-
-    print(
-        "=" * 70
-    )
-
-    repair_answer, repair_results = (
-        propose_repair_patch(
-            rag,
-            args.repo,
-            args.request,
-            test_output,
-        )
-    )
-
-    if (
-        repair_answer.strip()
-        == "INSUFFICIENT_CONTEXT"
-    ):
-
-        print(
-            "Repair model reported "
-            "INSUFFICIENT_CONTEXT."
-        )
+    if repair_answer.strip() == "INSUFFICIENT_CONTEXT":
+        print("Repair model reported INSUFFICIENT_CONTEXT.")
 
         finalize_run(
             repo=repo,
@@ -1867,21 +1746,13 @@ def main(argv: list[str] | None = None):
 
         sys.exit(return_code)
 
-    repair_diff = extract_diff(
-        repair_answer
-    )
+    repair_diff = extract_diff(repair_answer)
 
     if not repair_diff:
-
-        print(
-            "Repair model did not "
-            "produce a Git diff."
-        )
+        print("Repair model did not produce a Git diff.")
 
         print()
-        print(
-            repair_answer
-        )
+        print(repair_answer)
 
         finalize_run(
             repo=repo,
@@ -1904,15 +1775,9 @@ def main(argv: list[str] | None = None):
     )
 
     print()
-    print(
-        repair_patch.read_text(
-            encoding="utf-8"
-        )
-    )
+    print(repair_patch.read_text(encoding="utf-8"))
 
-    print_sources(
-        repair_results
-    )
+    print_sources(repair_results)
 
     print()
 
@@ -1920,10 +1785,7 @@ def main(argv: list[str] | None = None):
         repo,
         repair_patch,
     ):
-
-        print(
-            "Repair patch rejected."
-        )
+        print("Repair patch rejected.")
 
         finalize_run(
             repo=repo,
@@ -1942,7 +1804,6 @@ def main(argv: list[str] | None = None):
         repo,
         repair_patch,
     ):
-
         finalize_run(
             repo=repo,
             request=args.request,
@@ -1957,36 +1818,20 @@ def main(argv: list[str] | None = None):
         sys.exit(return_code)
 
     if args.validate:
-
         print()
-        print(
-            "=" * 70
-        )
+        print("=" * 70)
 
-        print(
-            "STRUCTURAL VALIDATION AFTER REPAIR"
-        )
+        print("STRUCTURAL VALIDATION AFTER REPAIR")
 
-        print(
-            "=" * 70
-        )
+        print("=" * 70)
 
-        structure_ok, structure_report = (
-            validate_python_structure(
-                repo
-            )
-        )
+        structure_ok, structure_report = validate_python_structure(repo)
 
-        print(
-            structure_report
-        )
+        print(structure_report)
 
         if not structure_ok:
-
             print()
-            print(
-                "Repair structural validation: FAIL"
-            )
+            print("Repair structural validation: FAIL")
 
             finalize_run(
                 repo=repo,
@@ -2001,9 +1846,7 @@ def main(argv: list[str] | None = None):
 
             sys.exit(return_code)
 
-        print(
-            "Repair structural validation: PASS"
-        )
+        print("Repair structural validation: PASS")
 
     # --------------------------------------------------------
     # Refresh index after repair.
@@ -2015,27 +1858,16 @@ def main(argv: list[str] | None = None):
     # Run tests once more.
     # --------------------------------------------------------
 
-    second_code, second_output = (
-        detect_and_run_tests(
-            repo
-        )
-    )
+    second_code, second_output = detect_and_run_tests(repo)
 
     if second_code == 0:
+        print()
+        print("Repair tests: PASS")
 
         print()
-        print(
-            "Repair tests: PASS"
-        )
+        print("Final Git diff:")
 
-        print()
-        print(
-            "Final Git diff:"
-        )
-
-        print(
-            git_diff(repo)
-        )
+        print(git_diff(repo))
 
         finalize_run(
             repo=repo,
@@ -2051,20 +1883,13 @@ def main(argv: list[str] | None = None):
         return
 
     print()
-    print(
-        "Repair tests: FAIL"
-    )
+    print("Repair tests: FAIL")
 
     print()
-    print(
-        second_output
-    )
+    print(second_output)
 
     print()
-    print(
-        "Stopping after one "
-        "automatic repair attempt."
-    )
+    print("Stopping after one automatic repair attempt.")
 
     finalize_run(
         repo=repo,
@@ -2077,11 +1902,7 @@ def main(argv: list[str] | None = None):
         agent_branch=agent_branch,
     )
 
-    sys.exit(
-        second_code
-        if second_code is not None
-        else 1
-    )
+    sys.exit(second_code if second_code is not None else 1)
 
 
 if __name__ == "__main__":

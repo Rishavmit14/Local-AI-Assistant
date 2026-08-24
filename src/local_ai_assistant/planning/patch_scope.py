@@ -204,6 +204,27 @@ def validate_patch_scope(policy: ScopeGuardPolicy, scope: PatchScope) -> tuple[s
         issues.append("Unapproved dependency/config files: " + ", ".join(sorted(dependencies)))
     if len(scope.changed_files) > policy.max_file_count:
         issues.append("Patch exceeds planned file count.")
-    if len(scope.changed_symbols) > policy.max_symbol_count:
+    affected_symbol_count = len(
+        {item.symbol for item in scope.symbol_effects if item.symbol} | set(scope.changed_symbols)
+    )
+    if affected_symbol_count > policy.max_symbol_count:
         issues.append("Patch exceeds planned symbol count.")
     return tuple(issues)
+
+
+def render_patch_scope(scope: PatchScope) -> str:
+    lines = [
+        f"Files changed: {len(scope.changed_files)}",
+        f"Symbols changed: {len(scope.symbol_effects)}",
+    ]
+    effects_by_path: dict[str, list[SymbolEffect]] = {}
+    for effect in scope.symbol_effects:
+        effects_by_path.setdefault(effect.path, []).append(effect)
+    for path in scope.changed_files:
+        lines.append("")
+        lines.append(path)
+        for effect in effects_by_path.get(path, ()):
+            lines.append(f"  - {effect.effect}: {effect.symbol or 'unknown'} [{effect.confidence}]")
+        if path in scope.unknown_effects:
+            lines.append("  - file-level change outside known symbol [unknown]")
+    return "\n".join(lines)
