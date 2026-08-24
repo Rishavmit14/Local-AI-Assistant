@@ -41,4 +41,3 @@ Important limitations include Rust trait/method dispatch and macros, Solidity EV
 CodeRAG keeps exact symbol → graph relationship → hybrid symbol → line-chunk priority and adds optional language/path/kind filters. Repository maps preserve machine-readable parent/language metadata and render nested impl/container structure.
 
 The Stage 3 planner receives Rust impl/import/test evidence, security-sensitive Solidity paths, and migration-sensitive SQL scope. Stage 4 uses exact indexed ranges for existing symbols in every language; unknown new/deleted symbol effects remain file-level and require renewed approval when symbol-scoped. Stage 5 validator authority and command permissions are unchanged; multi-language facts improve test-impact evidence but do not expand executable commands.
-

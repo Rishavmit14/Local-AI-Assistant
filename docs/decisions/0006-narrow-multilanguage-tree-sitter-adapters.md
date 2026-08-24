@@ -18,4 +18,3 @@ No grammar aggregator, cloud parser, cloud embedding, or LLM-created graph is us
 ## Consequences
 
 All languages share `SymbolRecord`, relationship/provenance records, persistence, incremental refresh, retrieval, planner, and scope boundaries. Language adapters remain conservative where runtime binding, preprocessing, dialect semantics, type inference, macros, or dynamic evaluation prevent proof. Solidity's community wheel currently exposes the legacy integer language handle, which Tree-sitter 0.25 accepts with a deprecation warning; this is isolated to parser construction.
-
