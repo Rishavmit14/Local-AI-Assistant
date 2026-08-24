@@ -290,7 +290,7 @@ def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_bod
         require(authorization, GatewayScope.READ_STATUS)
         if limit < 1 or limit > 1000:
             raise HTTPException(400, "invalid limit")
-        replay = service.events_since(cursor, limit)
+        replay = service.persisted_events_since(cursor, limit)
         queue = service.events.subscribe(max_pending=100)
         def lines():
             try:

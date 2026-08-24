@@ -123,6 +123,10 @@ class IntegrationGatewayService:
 
     def events_since(self, sequence: int = 0, limit: int = 100): return self.events.since(sequence, min(limit, 1000))
 
+    def persisted_events_since(self, cursor: int = 0, limit: int = 100):
+        rows = self.history.store.events_after_rowid(max(0, cursor), min(limit, 1000))
+        return [GatewayEvent(str(row["event_id"]), int(row["rowid"]), row["task_id"], str(row["event_type"]).upper(), row["timestamp"], row["summary"], critical=row.get("status") in {"failed", "blocked", "cancelled"}) for row in rows]
+
     def ingest_ci(self, task_id: str, *, repository_id: str, external_repository: str, pr_id: str | None, status, expected_commit: str) -> dict:
         task = self.get_task(task_id)
         mapping = next((item for item in self.mappings if item.repository_id == repository_id), None)
