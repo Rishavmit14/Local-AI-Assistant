@@ -78,6 +78,8 @@ class CodingUIService:
         detail = self.history.summary(task_id)
         detail["artifacts"] = self.history.artifacts(task_id)
         detail["isolation"] = self.isolation_status(task_id)
+        detail["publication"] = self.history.store.publication(task_id)
+        detail["ci"] = list(self.history.store.ci_checks(task_id, 50))
         return detail
 
     def isolation_status(self, task_id: str) -> dict:
@@ -287,6 +289,8 @@ def render_coding_workspace(config: AppConfig, section: str) -> None:
             st.json(detail["artifacts"]["reviews"])
         with tabs[4]:
             st.json(detail["timeline"])
+            st.subheader("External publication")
+            st.json({"publication": detail.get("publication"), "ci": detail.get("ci", [])})
     elif section == "Metrics":
         st.header("Operational metrics")
         metrics = service.metrics()
@@ -313,6 +317,8 @@ def render_coding_workspace(config: AppConfig, section: str) -> None:
     elif section == "System":
         st.header("System health")
         st.json(service.health())
+        st.subheader("Integration gateway")
+        st.json({"enabled": config.gateway.enabled, "bind": f"{config.gateway.host}:{config.gateway.port}", "token_configured": bool(config.gateway.token_hash), "scopes": config.gateway.scopes, "github_enabled": config.gateway.github_enabled})
         st.subheader("Recent incidents")
         st.json(service.history.incidents(limit=50))
 
