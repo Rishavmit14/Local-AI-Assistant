@@ -9,7 +9,13 @@ import numpy as np
 import pytest
 
 from local_ai_assistant.code_index.symbol_index import SymbolIndex
-from local_ai_assistant.execution.errors import ToolPermissionError
+from local_ai_assistant.common.errors import PatchValidationError
+from local_ai_assistant.execution.commands import CommandResult
+from local_ai_assistant.execution.errors import (
+    ToolArgumentError,
+    ToolNotFoundError,
+    ToolPermissionError,
+)
 from local_ai_assistant.execution.loop import ExecutionLoop, LoopLimits
 from local_ai_assistant.execution.models import ToolObservation, ToolPermission, ToolSpec
 from local_ai_assistant.execution.registry import (
@@ -35,6 +41,7 @@ from local_ai_assistant.planning.instructions import (
     load_project_instructions,
 )
 from local_ai_assistant.planning.models import (
+    ApprovalDecision,
     ApprovalStatus,
     DependencyChange,
     DependencyChangeKind,
@@ -43,7 +50,11 @@ from local_ai_assistant.planning.models import (
     TaskCategory,
     plan_approval_token,
 )
-from local_ai_assistant.planning.patch_scope import extract_patch_scope, validate_patch_scope
+from local_ai_assistant.planning.patch_scope import (
+    extract_patch_scope,
+    validate_patch_scope,
+    worktree_diff,
+)
 from local_ai_assistant.planning.service import PlanGenerationError, PlannerService
 from local_ai_assistant.planning.validation import PlanValidator
 
@@ -542,6 +553,15 @@ new file mode 100644
     assert any("Unplanned created" in issue for issue in issues)
 
 
+def test_actual_diff_includes_staged_changes(planning_repo):
+    _, repo, index = planning_repo
+    (repo / "app/service.py").write_text("def login_user(name):\n    return False\n")
+    subprocess.run(["git", "add", "app/service.py"], cwd=repo, check=True)
+    scope = extract_patch_scope(worktree_diff(repo), tuple(index.symbols), "demo/")
+    assert scope.modified_files == ("app/service.py",)
+    subprocess.run(["git", "restore", "--staged", "--worktree", "."], cwd=repo, check=True)
+
+
 def test_multifile_patch_classifies_create_delete_rename_and_symbols(planning_repo):
     _, _, index = planning_repo
     diff = """diff --git a/app/new.py b/app/new.py
@@ -570,6 +590,108 @@ rename to app/routes.py
         item.effect == "symbol_added" and item.symbol == "created_symbol"
         for item in scope.symbol_effects
     )
+
+
+def test_patch_parser_handles_quoted_spaces_and_rename_with_modify(planning_repo):
+    _, _, index = planning_repo
+    diff = '''diff --git "a/app/old name.py" "b/app/new name.py"
+similarity index 80%
+rename from "app/old name.py"
+rename to "app/new name.py"
+--- "a/app/old name.py"
++++ "b/app/new name.py"
+@@ -1 +1 @@
+-value = 1
++value = 2
+'''
+    scope = extract_patch_scope(diff, tuple(index.symbols), "demo/")
+    assert scope.renamed_files == (("app/old name.py", "app/new name.py"),)
+
+
+@pytest.mark.parametrize(
+    "diff",
+    [
+        "diff --git a/file.py b/file.py\n",
+        "diff --git a/../outside.py b/../outside.py\n@@ -1 +1 @@\n-a\n+b\n",
+        "diff --git a//tmp/outside b//tmp/outside\n@@ -1 +1 @@\n-a\n+b\n",
+        "diff --git a/image.bin b/image.bin\nGIT binary patch\nliteral 1\nA\n",
+        "not a unified patch",
+    ],
+)
+def test_patch_parser_rejects_malformed_binary_and_unsafe_paths(diff):
+    with pytest.raises(PatchValidationError):
+        extract_patch_scope(diff, ())
+
+
+def test_structured_symbol_edit_rejects_stale_ranges(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    symbol = index.find_exact("login_user")[0]
+    (repo / "app/service.py").write_text("# shifted\ndef login_user(name):\n    return bool(name)\n")
+    context = ToolContext(
+        repo,
+        artifact,
+        scope_guard_from_plan(artifact.plan),
+        index,
+        plan_approval_token(artifact.plan),
+    )
+    with pytest.raises(ToolPermissionError, match="stale"):
+        default_registry().invoke(
+            "replace_symbol_body",
+            {"symbol": symbol.identifier, "content": "def login_user(name):\n    return True"},
+            context,
+        )
+
+
+def test_patch_target_cannot_escape_through_repository_symlink(planning_repo):
+    root, repo, index = planning_repo
+    outside = root / "outside"
+    outside.mkdir()
+    (repo / "link").symlink_to(outside, target_is_directory=True)
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    plan = replace(artifact.plan, files_to_create=("link/escape.py",), symbols_to_create=())
+    artifact = replace(artifact, plan=plan)
+    patch = """diff --git a/link/escape.py b/link/escape.py
+new file mode 100644
+--- /dev/null
++++ b/link/escape.py
+@@ -0,0 +1 @@
++value = 1
+"""
+    context = ToolContext(repo, artifact, scope_guard_from_plan(plan), index)
+    with pytest.raises(ToolPermissionError, match="escapes repository"):
+        default_registry().invoke("create_patch", {"patch": patch}, context)
+    assert not (outside / "escape.py").exists()
+    (repo / "link").unlink()
+
+
+def test_replace_symbol_body_preserves_signature_and_targets_current_symbol(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    symbol = index.find_exact("login_user")[0]
+    context = ToolContext(
+        repo,
+        artifact,
+        scope_guard_from_plan(artifact.plan),
+        index,
+        plan_approval_token(artifact.plan),
+    )
+    result = default_registry().invoke(
+        "replace_symbol_body",
+        {"symbol": symbol.identifier, "content": "return name == 'allowed'"},
+        context,
+    )
+    source = (repo / "app/service.py").read_text()
+    assert result.success
+    assert "def login_user(name):" in source
+    assert "    return name == 'allowed'" in source
+    subprocess.run(["git", "restore", "."], cwd=repo, check=True)
 
 
 def test_unresolved_static_evidence_reduces_confidence(planning_repo):
@@ -610,6 +732,29 @@ def test_approval_token_changes_with_plan_content(planning_repo):
     )
     changed = replace(artifact.plan, summary="A different reviewed plan")
     assert plan_approval_token(artifact.plan) != plan_approval_token(changed)
+
+
+def test_old_approval_token_cannot_authorize_replanned_content(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    old_token = plan_approval_token(artifact.plan)
+    changed_plan = replace(
+        artifact.plan,
+        summary="Replanned scope",
+        approval=ApprovalDecision(ApprovalStatus.REVIEW, ("Review changed plan",)),
+    )
+    changed_artifact = replace(artifact, plan=changed_plan)
+    context = ToolContext(
+        repo, changed_artifact, scope_guard_from_plan(changed_plan), index, old_token
+    )
+    with pytest.raises(ToolPermissionError, match="Exact plan approval token"):
+        default_registry().invoke(
+            "replace_file",
+            {"path": "app/service.py", "content": "def login_user(name):\n    return True\n"},
+            context,
+        )
 
 
 def test_bounded_tool_loop_inspects_validates_and_finishes(planning_repo):
@@ -713,6 +858,49 @@ def test_tool_loop_requires_each_plan_validation_command(planning_repo):
     assert "ruff check ." in result.observations[-1].summary
 
 
+def test_dry_run_skips_validation_commands_that_may_write_caches(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    invoked = []
+    registry = ToolRegistry()
+    registry.register(
+        ToolSpec("run_tests", "validate", ToolPermission.VALIDATION, False, 1, ("command",)),
+        lambda context, args: invoked.append(args) or ToolObservation("command", True, "ran"),
+    )
+    actions = iter(
+        [
+            {
+                "tool": "run_tests",
+                "arguments": {"command": "python -m pytest"},
+                "rationale": "preview validation",
+                "expected_outcome": "would run",
+                "plan_step": 1,
+                "mutation_intended": False,
+            },
+            {
+                "tool": "finish",
+                "arguments": {},
+                "rationale": "done",
+                "expected_outcome": "preview complete",
+                "plan_step": 1,
+                "mutation_intended": False,
+            },
+        ]
+    )
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: json.dumps(next(actions))
+    result = ExecutionLoop(
+        model,
+        registry,
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+        LoopLimits(max_steps=2),
+    ).run(dry_run=True)
+    assert result.status == "dry_run_complete"
+    assert invoked == []
+
+
 def test_tool_loop_stops_at_max_steps(planning_repo):
     root, repo, index = planning_repo
     artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
@@ -802,6 +990,45 @@ def test_plan_bound_create_file_enforces_scope_and_approval(planning_repo):
             {"path": "app/unplanned.py", "content": "value = 1\n"},
             context,
         )
+
+
+def test_registry_audits_rejections_and_rejects_unknown_arguments(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    context = ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index)
+    with pytest.raises(ToolNotFoundError, match="Unknown tool"):
+        default_registry().invoke("unknown_mutator", {}, context)
+    assert context.events[-1].success is False
+
+
+def test_validation_command_repository_mutation_rolls_back(planning_repo, monkeypatch):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    original = (repo / "app/service.py").read_text()
+
+    def mutate(command, repository, timeout):
+        (repository / "app/service.py").write_text("corrupted by test\n")
+        return CommandResult(("pytest",), 0, "passed", "", False)
+
+    monkeypatch.setattr("local_ai_assistant.execution.registry.run_allowed_command", mutate)
+    context = ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index)
+    result = default_registry().invoke(
+        "run_tests", {"command": "python -m pytest"}, context
+    )
+    assert result.kind == "scope_rejection"
+    assert (repo / "app/service.py").read_text() == original
+    assert subprocess.run(
+        ["git", "status", "--porcelain"], cwd=repo, text=True, capture_output=True
+    ).stdout == ""
+    with pytest.raises(ToolArgumentError, match="Unexpected arguments"):
+        default_registry().invoke("read_file", {"path": "app/service.py", "extra": True}, context)
+    assert context.events[-1].success is False
+    with pytest.raises(ToolPermissionError, match="Exact plan approval token"):
+        default_registry().invoke("revert_current_changes", {}, context)
     assert not (repo / "app/unplanned.py").exists()
 
 

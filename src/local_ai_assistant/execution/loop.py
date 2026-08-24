@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from local_ai_assistant.planning.models import IssueSeverity
+from local_ai_assistant.planning.models import ApprovalStatus, IssueSeverity
 
 from .errors import ToolExecutionError
-from .models import ToolObservation, ToolRequest
+from .models import ToolObservation, ToolPermission, ToolRequest
 from .registry import ToolContext, ToolRegistry
 
 
@@ -43,11 +43,26 @@ class ExecutionLoop:
             for issue in self.context.artifact.validation_issues
         ):
             raise ToolExecutionError("Cannot execute an invalid plan")
+        if self.context.artifact.plan.approval.status is ApprovalStatus.REJECTED:
+            raise ToolExecutionError("Cannot execute a policy-rejected plan")
         observations: list[ToolObservation] = []
         mutations = repairs = replans = 0
         for step in range(1, self.limits.max_steps + 1):
             request = self._next_request(observations)
             if request.tool == "finish":
+                if dry_run:
+                    return LoopResult(
+                        (
+                            "dry_run_complete"
+                            if all(item.success for item in observations)
+                            else "dry_run_failed"
+                        ),
+                        tuple(observations),
+                        step,
+                        mutations,
+                        repairs,
+                        replans,
+                    )
                 missing_commands = self._missing_validation_commands()
                 if missing_commands:
                     observations.append(
@@ -63,17 +78,46 @@ class ExecutionLoop:
                     "complete", tuple(observations), step, mutations, repairs, replans
                 )
             spec = next((item for item in self.registry.specs() if item.name == request.tool), None)
+            if spec and spec.mutates != request.mutation_intended:
+                observations.append(
+                    ToolObservation(
+                        "tool_error",
+                        False,
+                        "Tool mutation intent does not match registered tool metadata.",
+                    )
+                )
+                repairs += 1
+                if repairs > self.limits.max_repairs:
+                    return LoopResult(
+                        "max_repairs", tuple(observations), step, mutations, repairs, replans
+                    )
+                continue
             if spec and spec.mutates:
                 mutations += 1
                 if dry_run:
-                    observations.append(
-                        ToolObservation("dry_run", True, f"Would invoke {request.tool}")
-                    )
+                    if request.tool in {"create_patch", "apply_patch"}:
+                        try:
+                            observations.append(
+                                self.registry.invoke(
+                                    "create_patch", request.arguments, self.context
+                                )
+                            )
+                        except ToolExecutionError as exc:
+                            observations.append(ToolObservation("tool_error", False, str(exc)))
+                    else:
+                        observations.append(
+                            ToolObservation("dry_run", True, f"Would invoke {request.tool}")
+                        )
                     continue
                 if mutations > self.limits.max_mutations:
                     return LoopResult(
                         "max_mutations", tuple(observations), step, mutations, repairs, replans
                     )
+            if dry_run and spec and spec.permission is ToolPermission.VALIDATION:
+                observations.append(
+                    ToolObservation("dry_run", True, f"Would invoke {request.tool}")
+                )
+                continue
             try:
                 audit_arguments = {
                     **request.arguments,

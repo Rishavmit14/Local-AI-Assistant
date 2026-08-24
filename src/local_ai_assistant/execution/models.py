@@ -49,13 +49,28 @@ class ToolRequest:
         missing = required - value.keys()
         if missing:
             raise ValueError("Missing tool request fields: " + ", ".join(sorted(missing)))
+        unexpected = value.keys() - required
+        if unexpected:
+            raise ValueError("Unexpected tool request fields: " + ", ".join(sorted(unexpected)))
+        if not isinstance(value["tool"], str) or not value["tool"].strip():
+            raise ValueError("tool must be a non-empty string")
+        if not isinstance(value["arguments"], dict):
+            raise ValueError("arguments must be an object")
+        if not isinstance(value["rationale"], str) or not isinstance(
+            value["expected_outcome"], str
+        ):
+            raise ValueError("rationale and expected_outcome must be strings")
+        if isinstance(value["plan_step"], bool) or not isinstance(value["plan_step"], int):
+            raise ValueError("plan_step must be an integer")
+        if not isinstance(value["mutation_intended"], bool):
+            raise ValueError("mutation_intended must be a boolean")
         return cls(
-            str(value["tool"]),
-            dict(value["arguments"]),
-            str(value["rationale"]),
-            str(value["expected_outcome"]),
-            int(value["plan_step"]),
-            bool(value["mutation_intended"]),
+            value["tool"],
+            value["arguments"],
+            value["rationale"],
+            value["expected_outcome"],
+            value["plan_step"],
+            value["mutation_intended"],
         )
 
 

@@ -12,6 +12,8 @@ Tools are registered typed capabilities with permission, mutation, timeout, inpu
 
 Commands are parsed into argv and matched against explicit families. Shell composition, redirects, substitution, environment injection, executable paths, package/service operations, and destructive commands are denied. Git diff remains mutation truth.
 
+Executable approval does not imply arbitrary argument approval. Mutating formatter flags, alternate runners/plugins, external Git diff/output modes, symlink-following searches, Forge FFI/network forks, and repository-local wrappers are denied. Resolved path arguments must remain under the active repository.
+
 ## Consequences
 
 Scope rejection cannot be overridden by Qwen. Replanning that would widen scope stops for a newly validated plan and renewed approval. Stage 4 uses lightweight JSON history; databases, worktrees, containers, multi-agent roles, and broad security review remain later stages.

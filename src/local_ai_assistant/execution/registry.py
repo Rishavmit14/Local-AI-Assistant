@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import ast
+import hashlib
 import subprocess
 import tempfile
+import textwrap
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from local_ai_assistant.common.errors import PatchValidationError
 from local_ai_assistant.planning.analysis import is_protected_path
 from local_ai_assistant.planning.models import (
     ApprovalStatus,
@@ -24,7 +28,7 @@ from local_ai_assistant.planning.patch_scope import (
 )
 
 from .commands import run_allowed_command
-from .errors import ToolArgumentError, ToolNotFoundError, ToolPermissionError
+from .errors import ToolArgumentError, ToolExecutionError, ToolNotFoundError, ToolPermissionError
 from .models import ToolEvent, ToolObservation, ToolPermission, ToolSpec
 
 
@@ -55,14 +59,20 @@ class ToolRegistry:
 
     def invoke(self, name: str, arguments: dict, context: ToolContext) -> ToolObservation:
         if name not in self._tools:
+            if context is not None:
+                context.events.append(
+                    _event(context, name, arguments, 0.0, False, "unknown tool rejected", False)
+                )
             raise ToolNotFoundError(f"Unknown tool: {name}")
         spec, handler = self._tools[name]
-        missing = set(spec.input_fields) - arguments.keys()
-        if missing:
-            raise ToolArgumentError("Missing arguments: " + ", ".join(sorted(missing)))
         started = time.monotonic()
         success = False
         observation = None
+        if not isinstance(arguments, dict):
+            context.events.append(
+                _event(context, name, {}, 0.0, False, "invalid arguments rejected", spec.mutates)
+            )
+            raise ToolArgumentError("Tool arguments must be an object")
         affected = tuple(
             dict.fromkeys(
                 str(item)
@@ -75,23 +85,63 @@ class ToolRegistry:
             )
         )
         try:
+            missing = set(spec.input_fields) - arguments.keys()
+            if missing:
+                raise ToolArgumentError("Missing arguments: " + ", ".join(sorted(missing)))
+            allowed_arguments = set(spec.input_fields) | {
+                "_rationale",
+                "_expected_outcome",
+                "_plan_step",
+                "_mutation_intended",
+            }
+            if spec.permission is ToolPermission.VALIDATION:
+                allowed_arguments.add("timeout")
+            unexpected = arguments.keys() - allowed_arguments
+            if unexpected:
+                raise ToolArgumentError(
+                    "Unexpected arguments: " + ", ".join(sorted(unexpected))
+                )
+            for field_name in spec.input_fields:
+                if not isinstance(arguments[field_name], str):
+                    raise ToolArgumentError(f"Argument {field_name!r} must be a string")
+            if "timeout" in arguments and (
+                isinstance(arguments["timeout"], bool)
+                or not isinstance(arguments["timeout"], int)
+                or arguments["timeout"] < 1
+            ):
+                raise ToolArgumentError("Argument 'timeout' must be a positive integer")
             if spec.permission is ToolPermission.BLOCKED:
                 raise ToolPermissionError(f"Tool is blocked: {name}")
             if spec.mutates:
                 _authorize_mutation(spec, arguments, context)
             observation = handler(context, arguments)
             success = observation.success
+            affected = tuple(
+                dict.fromkeys(
+                    item
+                    for item in (
+                        *affected,
+                        *observation.data.get("files", ()),
+                        observation.data.get("path"),
+                    )
+                    if item
+                )
+            )
             return observation
+        except ToolExecutionError:
+            if spec.mutates:
+                _rollback_worktree(context.repository)
+            raise
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            if spec.mutates:
+                _rollback_worktree(context.repository)
+            raise ToolExecutionError(f"Tool {name} failed safely: {exc}") from exc
         finally:
             context.events.append(
-                ToolEvent(
-                    context.artifact.plan.task_id,
-                    plan_approval_token(context.artifact.plan),
-                    str(context.repository),
-                    context.artifact.starting_commit,
+                _event(
+                    context,
                     name,
-                    _safe_arguments(arguments),
-                    datetime.now(UTC).isoformat(),
+                    arguments,
                     round(time.monotonic() - started, 6),
                     success,
                     (
@@ -99,12 +149,38 @@ class ToolRegistry:
                         if observation
                         else "failed/rejected"
                     ),
-                    "mutation requested" if spec.mutates else "read only",
+                    spec.mutates,
                     affected,
-                    context.artifact.plan.risk.level.value,
-                    context.artifact.plan.approval.status.value,
                 )
             )
+
+
+def _event(
+    context: ToolContext,
+    name: str,
+    arguments: dict,
+    duration: float,
+    success: bool,
+    summary: str,
+    mutates: bool,
+    affected: tuple[str, ...] = (),
+) -> ToolEvent:
+    return ToolEvent(
+        context.artifact.plan.task_id,
+        plan_approval_token(context.artifact.plan),
+        str(context.repository),
+        context.artifact.starting_commit,
+        name,
+        _safe_arguments(arguments),
+        datetime.now(UTC).isoformat(),
+        duration,
+        success,
+        summary,
+        "mutation requested" if mutates else "read only/rejected",
+        affected,
+        context.artifact.plan.risk.level.value,
+        context.artifact.plan.approval.status.value,
+    )
 
 
 def _authorize_mutation(spec: ToolSpec, arguments: dict, context: ToolContext) -> None:
@@ -117,9 +193,14 @@ def _authorize_mutation(spec: ToolSpec, arguments: dict, context: ToolContext) -
     ):
         raise ToolPermissionError("Plan repository or starting commit is stale")
     expected = plan_approval_token(context.artifact.plan)
+    if context.artifact.plan.approval.status is ApprovalStatus.REJECTED:
+        raise ToolPermissionError("Policy-rejected plans cannot authorize mutations")
     if (
         spec.approval_required
-        and context.artifact.plan.approval.status is not ApprovalStatus.AUTOMATIC
+        and (
+            context.artifact.plan.approval.status is not ApprovalStatus.AUTOMATIC
+            or spec.permission is ToolPermission.HIGH_RISK
+        )
         and context.approval_token != expected
     ):
         raise ToolPermissionError("Exact plan approval token is required")
@@ -149,14 +230,19 @@ def _authorize_mutation(spec: ToolSpec, arguments: dict, context: ToolContext) -
 
 
 def _safe_arguments(arguments: dict) -> dict:
-    return {
-        key: (
-            "[REDACTED]"
-            if any(word in key.lower() for word in ("token", "password", "secret", "key"))
-            else value
-        )
-        for key, value in arguments.items()
-    }
+    safe = {}
+    for key, value in arguments.items():
+        lowered = key.lower()
+        if any(word in lowered for word in ("token", "password", "secret", "key")):
+            safe[key] = "[REDACTED]"
+        elif key in {"patch", "content"} and isinstance(value, str):
+            safe[key] = {
+                "sha256": hashlib.sha256(value.encode()).hexdigest(),
+                "characters": len(value),
+            }
+        else:
+            safe[key] = value
+    return safe
 
 
 def default_registry(execution_config=None) -> ToolRegistry:
@@ -281,8 +367,16 @@ def _handler_for_read(name: str) -> Handler:
             ]
             return ToolObservation("symbols", True, f"{len(data)} symbols", {"symbols": data})
         if name == "repository_map":
+            prefix = _index_prefix(context)
+            repository_map = index.repository_map()
+            if prefix:
+                repository_map = {
+                    path[len(prefix) :]: value
+                    for path, value in repository_map.items()
+                    if path.startswith(prefix)
+                }
             return ToolObservation(
-                "repository_map", True, "Repository map", {"map": index.repository_map()}
+                "repository_map", True, "Repository map", {"map": repository_map}
             )
         if name == "search_code":
             found = index.hybrid_search(arguments["query"], 10)
@@ -311,15 +405,30 @@ def _handler_for_read(name: str) -> Handler:
                 if name == "find_callers"
                 else index.callees(symbol.identifier)
             )
+            prefix = _index_prefix(context)
+            values = [
+                item
+                for item in values
+                if not prefix or getattr(item, "path", "").startswith(prefix)
+            ]
             return ToolObservation(
                 "graph", True, f"{len(values)} results", {"results": [str(item) for item in values]}
             )
         if name in {"find_imports", "find_reverse_imports"}:
+            local_modules = {
+                item.qualified_name
+                for item in _local_symbols(context, index.symbols)
+                if item.kind.value == "module"
+            }
+            if arguments["module"] not in local_modules:
+                raise ToolArgumentError("Module is outside the active repository")
             values = (
                 index.imports_of(arguments["module"])
                 if name == "find_imports"
                 else index.imported_by(arguments["module"])
             )
+            if name == "find_reverse_imports":
+                values = [item for item in values if item in local_modules]
             return ToolObservation("imports", True, f"{len(values)} results", {"results": values})
         if name == "inspect_plan":
             return ToolObservation(
@@ -356,6 +465,11 @@ def _handler_for_mutation(name: str) -> Handler:
             scope = extract_patch_scope(
                 arguments["patch"], tuple(context.symbol_index.symbols), _index_prefix(context)
             )
+            for candidate in (
+                *scope.changed_files,
+                *(old for old, _ in scope.renamed_files),
+            ):
+                _safe_path(context.repository, candidate)
             issues = validate_patch_scope(context.policy, scope)
             if issues:
                 raise ToolPermissionError("; ".join(issues))
@@ -364,7 +478,11 @@ def _handler_for_mutation(name: str) -> Handler:
                     "patch",
                     True,
                     "Patch scope accepted",
-                    {"files": scope.changed_files, "symbols": scope.changed_symbols},
+                    {
+                        "files": scope.changed_files,
+                        "symbols": scope.changed_symbols,
+                        "patch_sha256": hashlib.sha256(arguments["patch"].encode()).hexdigest(),
+                    },
                 )
             with tempfile.NamedTemporaryFile("w", suffix=".patch", delete=False) as stream:
                 stream.write(arguments["patch"])
@@ -389,6 +507,7 @@ def _handler_for_mutation(name: str) -> Handler:
             finally:
                 Path(patch_path).unlink(missing_ok=True)
             if applied.returncode:
+                _rollback_worktree(context.repository)
                 return ToolObservation(
                     "patch_failure", False, "Patch application failed", stderr=applied.stderr
                 )
@@ -413,11 +532,18 @@ def _handler_for_mutation(name: str) -> Handler:
             relative = symbol.path[len(prefix) :] if prefix else symbol.path
             path = _safe_path(context.repository, relative)
             lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+            current_source = "".join(lines[symbol.start_line - 1 : symbol.end_line]).rstrip("\r\n")
+            if hashlib.sha256(current_source.encode()).hexdigest() != symbol.source_hash:
+                raise ToolPermissionError(
+                    "Symbol source/range is stale; refresh the index and revalidate the plan"
+                )
             content = arguments["content"]
             if content and not content.endswith("\n"):
                 content += "\n"
             if name == "replace_symbol_body":
-                lines[symbol.start_line - 1 : symbol.end_line] = [content]
+                body_start, body_end, indentation = _python_body_range(path, symbol)
+                replacement = textwrap.indent(content.strip("\r\n"), " " * indentation) + "\n"
+                lines[body_start - 1 : body_end] = [replacement]
             elif name == "insert_before_symbol":
                 lines[symbol.start_line - 1 : symbol.start_line - 1] = [content]
             else:
@@ -494,11 +620,15 @@ def _resolve_symbol(context: ToolContext, value: str):
 
 
 def _enforce_worktree_scope(context: ToolContext) -> None:
-    scope = extract_patch_scope(
-        worktree_diff(context.repository),
-        tuple(context.symbol_index.symbols),
-        _index_prefix(context),
-    )
+    try:
+        scope = extract_patch_scope(
+            worktree_diff(context.repository),
+            tuple(context.symbol_index.symbols),
+            _index_prefix(context),
+        )
+    except PatchValidationError as exc:
+        _rollback_worktree(context.repository)
+        raise ToolPermissionError(f"Post-mutation diff could not be validated: {exc}") from exc
     issues = validate_patch_scope(context.policy, scope)
     if not issues:
         return
@@ -507,24 +637,59 @@ def _enforce_worktree_scope(context: ToolContext) -> None:
 
 
 def _rollback_worktree(repository: Path) -> None:
-    subprocess.run(["git", "restore", "."], cwd=repository)
+    subprocess.run(["git", "restore", "--staged", "--worktree", "."], cwd=repository)
     status = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=all"],
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
         cwd=repository,
         text=True,
         capture_output=True,
     )
-    for line in status.stdout.splitlines():
+    for line in status.stdout.split("\0"):
         if line.startswith("?? "):
             candidate = _safe_path(repository, line[3:])
             if candidate.is_file():
                 candidate.unlink()
 
 
+def _python_body_range(path: Path, symbol) -> tuple[int, int, int]:
+    if symbol.language != "python":
+        raise ToolArgumentError("replace_symbol_body currently requires a Python symbol")
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError) as exc:
+        raise ToolArgumentError(f"Cannot resolve current Python symbol body: {exc}") from exc
+    candidates = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        and node.name == symbol.name
+        and node.lineno >= symbol.start_line
+        and node.end_lineno <= symbol.end_line
+    ]
+    if len(candidates) != 1 or not candidates[0].body:
+        raise ToolArgumentError("Symbol body cannot be resolved uniquely")
+    node = candidates[0]
+    first = node.body[0]
+    return first.lineno, node.end_lineno, first.col_offset
+
+
 def _handler_for_command(timeout: int) -> Handler:
     def handler(context: ToolContext, arguments: dict) -> ToolObservation:
         requested = min(timeout, max(1, int(arguments.get("timeout", timeout))))
+        before = worktree_diff(context.repository)
         result = run_allowed_command(arguments["command"], context.repository, requested)
+        after = worktree_diff(context.repository)
+        if after != before:
+            _rollback_worktree(context.repository)
+            return ToolObservation(
+                "scope_rejection",
+                False,
+                "Validation command changed repository state; transaction rolled back",
+                {"return_code": result.return_code},
+                result.stdout,
+                result.stderr,
+                result.timed_out,
+            )
         return ToolObservation(
             "command",
             result.return_code == 0 and not result.timed_out,

@@ -26,4 +26,6 @@ Use the existing `--approve-risk PRINTED_PLAN_TOKEN` spelling with the coding ag
 
 Allowed command families cover pytest, Ruff, mypy/Pyright, Cargo, Forge, npm/pnpm/yarn tests, TypeScript, ESLint, read-only Git, and bounded search. Pipes, chaining, redirects, substitutions, environment injection, absolute/out-of-repository arguments, package installation, service control, force push, and destructive filesystem commands are rejected.
 
+Validation commands intentionally execute repository test/build configuration, including Cargo build scripts and Node package test scripts. Treat an indexed repository as trusted for local execution; container or filesystem sandboxing for untrusted repositories remains Stage 8. Argument policy blocks alternate runners, Forge FFI/fork URLs, pytest plugin selection, Git external/output modes, repository-local executable wrappers, and paths or symlinks resolving outside the repository.
+
 Timeouts and loop limits use `LOCAL_AI_*` execution settings documented in `.env.example`. Timed-out process groups receive termination and then forced termination if needed.

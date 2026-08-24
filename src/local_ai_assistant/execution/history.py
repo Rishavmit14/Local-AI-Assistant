@@ -11,10 +11,14 @@ from .errors import ExecutionHistoryError
 from .models import ExecutionReport
 
 SECRET = re.compile(r"(?i)(token|password|secret|api[_-]?key)(\s*[=:]\s*)([^\s,]+)")
+PRIVATE_KEY = re.compile(
+    r"-----BEGIN [^-\r\n]*PRIVATE KEY-----.*?-----END [^-\r\n]*PRIVATE KEY-----",
+    re.DOTALL,
+)
 
 
 def redact(value: str) -> str:
-    return SECRET.sub(r"\1\2[REDACTED]", value)
+    return PRIVATE_KEY.sub("[REDACTED PRIVATE KEY]", SECRET.sub(r"\1\2[REDACTED]", value))
 
 
 def persist_report(report: ExecutionReport, path: Path) -> Path:

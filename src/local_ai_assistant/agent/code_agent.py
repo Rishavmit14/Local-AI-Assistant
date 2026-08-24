@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import subprocess
 import sys
 import time
@@ -1330,6 +1331,10 @@ def main(argv: list[str] | None = None):
             print(
                 f"Tool-loop {'human review' if args.human_review else 'dry run'}: {result.status}; nothing modified."
             )
+            for observation in result.observations:
+                print(f"- {observation.kind}: {observation.summary}")
+                if observation.data.get("patch_sha256"):
+                    print(f"  Patch hash: {observation.data['patch_sha256']}")
             return
         original_branch, starting_commit, agent_branch = create_agent_branch(repo, args.request)
         context = ToolContext(
@@ -1477,6 +1482,10 @@ def main(argv: list[str] | None = None):
 
     print()
     print(patch_file.read_text(encoding="utf-8"))
+    print(
+        "Patch hash: "
+        + hashlib.sha256(patch_file.read_bytes()).hexdigest()
+    )
 
     print_sources(results)
 
