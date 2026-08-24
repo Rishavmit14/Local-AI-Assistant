@@ -190,6 +190,52 @@ def test_missing_recommended_validator_is_observable_but_nonblocking(validation_
     assert result.provenance and result.provenance.result == "unavailable"
 
 
+def test_validation_command_side_effect_is_immediately_restored(validation_repo):
+    intended = validation_repo / "app/service.py"
+    intended.write_text("def login_user(name):\n    return bool(name.strip())\n")
+    before = subprocess.run(
+        ["git", "diff", "HEAD", "--binary", "--find-renames"],
+        cwd=validation_repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout
+    (validation_repo / "tests/test_mutation.py").write_text(
+        "from pathlib import Path\n"
+        "def test_mutates_repository():\n"
+        "    Path('app/service.py').write_text('contaminated')\n"
+    )
+    subprocess.run(
+        ["git", "add", "tests/test_mutation.py"], cwd=validation_repo, check=True
+    )
+    subprocess.run(
+        ["git", "commit", "-m", "validator fixture"],
+        cwd=validation_repo,
+        check=True,
+        capture_output=True,
+    )
+    # Recreate the intended diff relative to the new HEAD.
+    intended.write_text("def login_user(name):\n    return bool(name.strip())\n")
+    before = subprocess.run(
+        ["git", "diff", "HEAD", "--binary", "--find-renames"],
+        cwd=validation_repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout
+    step = ValidationStep(
+        "mutating-test",
+        ValidationKind.TEST,
+        Requirement.REQUIRED,
+        "pytest -q tests/test_mutation.py",
+        "validator side-effect fixture",
+    )
+    result = ValidationService(validation_repo)._run_step(step, "abc", before)
+    assert not result.success
+    assert "changed repository state" in result.output
+    assert intended.read_text() == "def login_user(name):\n    return bool(name.strip())\n"
+
+
 def test_low_risk_can_use_targeted_policy(validation_repo):
     validation = build_validation_plan(validation_repo, make_plan(validation_repo, RiskLevel.LOW), "abc")
     pytest_step = next(item for item in validation.final_steps if item.step_id == "pytest-full")

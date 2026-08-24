@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -135,6 +136,7 @@ class ValidationService:
         success = result.return_code == 0 and not result.timed_out
         if worktree_diff(self.repository) != diff:
             success = False
+            self._restore_diff(diff)
             result = type(result)(
                 result.command,
                 result.return_code,
@@ -147,6 +149,51 @@ class ValidationService:
         if success and self.cache:
             self.cache.put_success(cache_key, summary)
         return ValidationResult(step.step_id, success, False, result.return_code, summary, output, provenance=_provenance(step, timestamp, "pass" if success else "fail", ReviewSeverity.INFO if success else ReviewSeverity.HIGH, output[-500:]))
+
+    def _restore_diff(self, diff: str) -> None:
+        """Remove validator side effects and restore the exact pre-command working diff."""
+        restored = subprocess.run(
+            ["git", "restore", "--staged", "--worktree", "."],
+            cwd=self.repository,
+            text=True,
+            capture_output=True,
+        )
+        if restored.returncode:
+            raise ValidationArtifactError(
+                "Could not roll back validation side effects: " + restored.stderr.strip()
+            )
+        status = subprocess.run(
+            ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+            cwd=self.repository,
+            text=True,
+            capture_output=True,
+        )
+        for item in status.stdout.split("\0"):
+            if not item.startswith("?? "):
+                continue
+            candidate = (self.repository / item[3:]).resolve()
+            if self.repository not in candidate.parents or not candidate.is_file():
+                raise ValidationArtifactError("Unsafe untracked validation side effect")
+            candidate.unlink()
+        if not diff:
+            return
+        with tempfile.NamedTemporaryFile("w", suffix=".patch", delete=False) as stream:
+            stream.write(diff)
+            patch_path = Path(stream.name)
+        try:
+            applied = subprocess.run(
+                ["git", "apply", "--binary", "--recount", str(patch_path)],
+                cwd=self.repository,
+                text=True,
+                capture_output=True,
+            )
+        finally:
+            patch_path.unlink(missing_ok=True)
+        if applied.returncode or worktree_diff(self.repository) != diff:
+            raise ValidationArtifactError(
+                "Could not restore the pre-validation repository state: "
+                + applied.stderr.strip()
+            )
 
     def _verify_identity(self, artifact, plan):
         head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.repository, text=True, capture_output=True).stdout.strip()
