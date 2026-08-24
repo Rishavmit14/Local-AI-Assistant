@@ -46,17 +46,17 @@ Security foundation: secret/key/token/password/private-key scanning and optional
 
 Confidence/risk scoring covers retrieval, symbol/context coverage, tests, plan consistency, scope, static validation, results, security flags, and change risk, gating apply/commit. Database awareness detects schema/framework migrations, destructive SQL, ordering, validation, and rollback strategy. A policy engine combines risk, confidence, file/dependency/security/migration/deployment state, and user config.
 
-## Stage 6 — Multi-language (**Implemented on Stage 6 branch**)
+## Stage 6 — Multi-language (**Done**)
 
 A single typed language registry and capability-aware adapter architecture now preserves Python and adds Rust, Solidity, TS/JS, SQL, C/C++, Java, and Shell to the shared symbols, graph, persistence, incremental embeddings, repository map, CodeRAG, planner, ScopeGuard, and validation/test-impact evidence.
 
 Rust has the strongest new coverage: nested modules, functions/async functions, structs, enums/variants, traits, impls/trait impls, methods/associated functions, aliases/constants/statics/macros, visibility, attributes/docs/generics/where clauses, imports/modules, test attributes, and conservative calls/references. Later adapters extract their roadmap declarations and explicit relationships while reporting partial/unavailable semantics rather than overstating runtime resolution. Legacy line chunks remain the fallback for unsupported/uncertain constructs.
 
-## Stage 7 — UI, history, and metrics (**Planned**)
+## Stage 7 — UI, history, and metrics (**Implemented on Stage 7 branch**)
 
-Extend Streamlit with Chat/Documents/Coding tabs; repo selector; task/mode; plan/symbol/affected-file/diff views; Apply/Reject; test/repair/commit/rollback actions; branch, risk, confidence, dependency and security indicators; streaming progress.
+Streamlit now preserves Documents and adds Coding, History, Metrics, and System workspaces with an allowlisted repository selector, task creation, existing-planner invocation, exact-plan approval binding, scope/artifact/timeline detail, operational metrics, health visibility, and cooperative cancellation between tool steps. Mutating execution remains exclusively behind the existing Stage 4 coding-agent transaction rather than being reimplemented in UI code.
 
-Task history stores prompt/task, timestamps, repo/start commit/branch, plan/context/patch, validation/tests, repairs, result, and commit. Dashboard tracks tasks, first-pass/repair success, rejections, structural/test failures, files changed, latency, tokens/sec, and prompt/version performance. Version planner/coder/reviewer prompts; add benchmark tasks and a regression suite comparing failure modes.
+A versioned SQLite history store normalizes tasks, lifecycle events, plans, executions, tools, validations, reviews, approvals, affected scope, imports, and metrics while retaining JSON evidence by path/hash. Deterministic search, timeline, audit, JSON/Markdown export, migration, storage/vacuum operations, redaction, concurrent readers, and synthetic multi-thousand-task benchmarking are implemented. Metrics never invent missing token/model timing data. Prompt versioning and benchmark-task quality comparisons remain Stage 10 hardening.
 
 ## Stage 8 — Isolation and bounded autonomy (**Planned**)
 

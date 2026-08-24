@@ -34,12 +34,15 @@ local-ai-code-rag --list-languages
 local-ai-code-rag --show-capabilities rust
 local-ai-code-rag --search-symbols UserService --language rust --kind struct
 local-ai-code-agent --help
+local-ai-history --help
 local-ai-plan --help
 ```
 
 Tree-sitter/static analysis provides deterministic symbols and graphs. Local BGE + FAISS/BM25/RRF provides semantic retrieval, and Qwen3.6 reasons over that evidence. The original line-chunk index remains fallback. See [code intelligence architecture](docs/architecture/code-intelligence.md) and [index operations](docs/operations/code-index.md).
 
 Stage 6 supports Python, Rust, Solidity, TypeScript/JavaScript, SQL, C/C++, Java, and Shell through one capability-aware index. Static limitations are explicit; an unsupported call/reference capability is not reported as “no results.” See the [support matrix](docs/architecture/multi-language-code-intelligence.md).
+
+Stage 7 adds a local SQLite task history, deterministic audit/search/metrics APIs, `local-ai-history`, and Streamlit Coding, History, Metrics, and System workspaces. Existing JSON artifacts remain canonical and can be imported idempotently. See [task history architecture](docs/architecture/task-history.md) and [history operations](docs/operations/task-history.md).
 
 Generate a no-edit plan with `local-ai-code-agent REPO REQUEST --plan-only` or use the dedicated [`local-ai-plan` workflow](docs/operations/planner.md). Deterministic validation and risk policy gate patch generation; high/critical approval is bound to the exact printed plan token and cannot silently transfer to a changed plan.
 

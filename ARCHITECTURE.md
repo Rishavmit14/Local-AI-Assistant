@@ -1,6 +1,6 @@
 # Architecture
 
-## Current Stage 6 system
+## Current Stage 7 system
 
 ```text
 Qwen GGUF
@@ -26,11 +26,13 @@ Stage 5 adds a plan-bound validation-intelligence layer after scoped execution. 
 
 Stage 6 generalizes Stage 2 through a typed language registry and adapters while retaining the shared symbols, provenance, graph, persistence, planner, ScopeGuard, and validation/review pipeline. Capability status prevents unsupported static semantics from masquerading as empty facts. See [multi-language code intelligence](docs/architecture/multi-language-code-intelligence.md).
 
+Stage 7 indexes compact task, plan, execution, validation, review, approval, scope, and metric records in a local versioned SQLite store while preserving Stage 3–5 JSON artifacts as canonical evidence. Streamlit coding/history/metrics/system workspaces and `local-ai-history` consume this service; they do not duplicate or weaken planner, execution, approval, validation, or Git policy. See [task history and operational UI](docs/architecture/task-history.md).
+
 The `examples/demo-app` fixture is imported without its nested Git database. It demonstrates the existing code-agent test target, not production authentication design.
 
 ## Deployment compatibility
 
-Stages 0 through 6 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
+Stages 0 through 7 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
 
 ## Target architecture
 
