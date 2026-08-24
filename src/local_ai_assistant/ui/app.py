@@ -8,6 +8,7 @@ import streamlit as st
 from local_ai_assistant.common.config import get_config
 from local_ai_assistant.common.logging import configure_logging, get_logger
 from local_ai_assistant.rag import LocalRAG
+from local_ai_assistant.ui.coding import render_coding_workspace
 
 CONFIG = get_config()
 configure_logging(CONFIG.runtime)
@@ -29,6 +30,13 @@ st.title("🧠 Local Qwen AI")
 st.caption(
     "Qwen 35B + Hybrid RAG + FAISS + BM25 + OCR — running locally"
 )
+
+workspace = st.sidebar.radio(
+    "Workspace", ("Documents", "Coding", "History", "Metrics", "System")
+)
+if workspace != "Documents":
+    render_coding_workspace(CONFIG, workspace)
+    st.stop()
 
 
 # ============================================================
