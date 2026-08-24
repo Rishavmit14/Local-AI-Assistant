@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import ast
 import hashlib
-import json
 import re
 import textwrap
 from dataclasses import dataclass
 
-from local_ai_assistant.execution.history import redact
+from local_ai_assistant.execution.history import redacted_json
 from local_ai_assistant.planning.models import ImplementationPlan
 from local_ai_assistant.planning.patch_scope import extract_patch_scope, validate_patch_scope
 
@@ -43,7 +42,7 @@ def generate_test_patch(
 ) -> GeneratedTest:
     if not plan.relevant_tests and not plan.files_to_create:
         raise TestGenerationError("The approved plan contains no test target")
-    prompt = redact(json.dumps({"request": plan.original_request, "test_targets": [item.path for item in plan.relevant_tests], "approved_new_files": plan.files_to_create, "symbols": plan.symbols_to_modify, "evidence": evidence[:12000], "tdd": tdd}))
+    prompt = redacted_json({"request": plan.original_request, "test_targets": [item.path for item in plan.relevant_tests], "approved_new_files": plan.files_to_create, "symbols": plan.symbols_to_modify, "evidence": evidence[:12000], "tdd": tdd})
     raw = model.chat(prompt=prompt, system_prompt="Generate only a unified diff for a focused regression/feature test. Do not modify production files, use network access, skip/xfail, unconditional assertions, or invented APIs.", temperature=0.0, max_tokens=1800)
     patch = _extract_diff(raw)
     if not patch:

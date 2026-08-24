@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import urllib.error
@@ -11,7 +12,8 @@ from pathlib import Path
 
 from local_ai_assistant.code_index.languages import build_language_registry
 from local_ai_assistant.common.config import AppConfig
-from local_ai_assistant.execution.history import redact
+from local_ai_assistant.execution.history import redact_data
+from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.history.metrics import aggregate_metrics
 from local_ai_assistant.history.models import TaskFilter
 from local_ai_assistant.history.service import TaskHistoryService
@@ -33,14 +35,19 @@ class CodingUIService:
     def __init__(self, config: AppConfig) -> None:
         self.config = config
         self.repository_root = config.paths.code_repo_dir.resolve()
-        self.history = TaskHistoryService(TaskHistoryStore(config.paths.task_history_db))
+        self.history = TaskHistoryService(
+            TaskHistoryStore(config.paths.task_history_db),
+            artifact_roots=(config.paths.code_index_dir, config.paths.task_history_db.parent),
+        )
 
     def repositories(self) -> tuple[RepositorySnapshot, ...]:
         self.repository_root.mkdir(parents=True, exist_ok=True)
         return tuple(
             self.repository(candidate.name)
             for candidate in sorted(self.repository_root.iterdir())
-            if candidate.is_dir() and (candidate / ".git").is_dir()
+            if not candidate.is_symlink()
+            and candidate.is_dir()
+            and (candidate / ".git").is_dir()
         )
 
     def repository(self, name: str) -> RepositorySnapshot:
@@ -75,19 +82,17 @@ class CodingUIService:
         return aggregate_metrics(self.history.store)
 
     def artifact_preview(self, record: dict, *, limit: int = 1_000_000) -> dict:
-        path = Path(record["artifact_path"]).resolve()
-        allowed_roots = (
-            self.config.paths.code_index_dir.resolve(),
-            self.config.paths.task_history_db.parent.resolve(),
-        )
-        if not any(path == root or root in path.parents for root in allowed_roots):
-            return {"available": False, "error": "Artifact is outside configured runtime roots"}
         try:
-            content = path.read_text(encoding="utf-8", errors="replace")
+            path = self.history.validate_artifact_path(Path(record["artifact_path"]))
+            digest = _file_digest(path)
+            if digest != record.get("artifact_hash"):
+                return {"available": False, "error": "Artifact hash no longer matches history"}
+            with path.open(encoding="utf-8", errors="replace") as stream:
+                content = stream.read(limit + 1)
             truncated = len(content) > limit
-            value = json.loads(redact(content[:limit]))
+            value = redact_data(json.loads(content[:limit]))
             return {"available": True, "truncated": truncated, "content": value}
-        except (OSError, json.JSONDecodeError) as exc:
+        except (OSError, json.JSONDecodeError, HistoryDatabaseError) as exc:
             return {"available": False, "error": str(exc)}
 
     def health(self) -> dict:
@@ -292,6 +297,14 @@ def _git(repository: Path, *arguments: str) -> str:
         ["git", *arguments], cwd=repository, text=True, capture_output=True, timeout=10
     )
     return result.stdout.strip() if result.returncode == 0 else "unknown"
+
+
+def _file_digest(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _http_health(url: str) -> str:

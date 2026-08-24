@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import sqlite3
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from local_ai_assistant.common.config import AppConfig, PathConfig
+from local_ai_assistant.history.cli import _orphan_temporaries
 from local_ai_assistant.history.cli import main as history_main
 from local_ai_assistant.history.errors import (
     ArtifactImportError,
@@ -18,6 +23,7 @@ from local_ai_assistant.history.errors import (
 from local_ai_assistant.history.export import export_task
 from local_ai_assistant.history.importer import ArtifactImporter
 from local_ai_assistant.history.metrics import aggregate_metrics
+from local_ai_assistant.history.migrations import MIGRATIONS, SCHEMA_VERSION
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
@@ -47,6 +53,28 @@ def create(service, tmp_path, request="Fix parser", **kwargs):
     return service.create_task(request, repo, "a" * 40, kwargs.pop("branch", "main"), **kwargs)
 
 
+def planning_artifact(task, repo, *, summary="Fix parser safely", approval=ApprovalStatus.REVIEW):
+    classification = TaskClassification(TaskCategory.BUG_FIX, 0.9, ("bug",), task.original_request)
+    plan = ImplementationPlan(
+        task_id=task.task_id,
+        original_request=task.original_request,
+        classification=classification,
+        summary=summary,
+        assumptions=(), direct_scope=(), dependent_scope=(), files_to_inspect=(),
+        files_to_modify=(), files_to_create=(), files_to_delete_or_rename=(),
+        symbols_to_modify=(), symbols_to_create=(), steps=(), relevant_tests=(),
+        validation_commands=(), dependency_changes=(), migration_implications=(),
+        security_implications=(), rollback_considerations=(), unresolved_questions=(),
+        confidence=ConfidenceAssessment(0.8, {"exact": 1.0}, ("heuristic",)),
+        risk=RiskAssessment(RiskLevel.MEDIUM, ("logic",)),
+        approval=ApprovalDecision(approval, ("bounded",)),
+    )
+    return PlanningArtifact(
+        "2026-01-01T00:00:00+00:00", str(repo), task.starting_commit,
+        task.original_request, classification, (), plan,
+    )
+
+
 def test_task_creation_has_stable_persisted_identity(history, tmp_path):
     task = create(history, tmp_path, created_at="2026-01-01T00:00:00+00:00")
     same_inputs = create(
@@ -64,6 +92,8 @@ def test_status_lifecycle_and_invalid_transition(history, tmp_path):
     task = create(history, tmp_path)
     history.transition(task.task_id, TaskStatus.PLANNING, "planning")
     history.transition(task.task_id, TaskStatus.AWAITING_APPROVAL, "review")
+    history.store.update_task(task.task_id, task.repository, plan_hash="lifecycle-plan")
+    history.attach_approval(task.task_id, "lifecycle-plan", "explicitly_approved")
     history.transition(task.task_id, TaskStatus.APPROVED, "approved")
     history.transition(task.task_id, TaskStatus.EXECUTING, "execute")
     history.transition(task.task_id, TaskStatus.VALIDATING, "validate")
@@ -77,6 +107,27 @@ def test_status_lifecycle_and_invalid_transition(history, tmp_path):
     assert [event.status for event in history.timeline(task.task_id) if event.status][-1] == "succeeded"
     with pytest.raises(InvalidStatusTransition):
         history.transition(task.task_id, TaskStatus.EXECUTING, "invalid")
+    unchanged = history.get(task.task_id)
+    with pytest.raises(InvalidStatusTransition):
+        history.finalize(
+            task.task_id, Path(task.repository), TaskStatus.FAILED,
+            final_commit="c" * 40, outcome="rewritten",
+        )
+    assert history.get(task.task_id) == unchanged
+
+
+def test_awaiting_approval_requires_exact_evidence_and_terminal_states_never_resume(history, tmp_path):
+    task = create(history, tmp_path)
+    history.store.update_task(task.task_id, task.repository, plan_hash="exact-plan")
+    history.transition(task.task_id, TaskStatus.PLANNING, "planning")
+    history.transition(task.task_id, TaskStatus.AWAITING_APPROVAL, "review")
+    with pytest.raises(InvalidStatusTransition, match="approval evidence"):
+        history.transition(task.task_id, TaskStatus.APPROVED, "bypass")
+    history.attach_approval(task.task_id, "exact-plan", "explicitly_approved")
+    history.transition(task.task_id, TaskStatus.APPROVED, "approved")
+    history.transition(task.task_id, TaskStatus.CANCELLED, "cancelled")
+    with pytest.raises(InvalidStatusTransition):
+        history.transition(task.task_id, TaskStatus.EXECUTING, "resume")
 
 
 def test_reapproval_rollback_repair_timeline_is_chronological(history, tmp_path):
@@ -85,6 +136,8 @@ def test_reapproval_rollback_repair_timeline_is_chronological(history, tmp_path)
         history.transition(task.task_id, status, status.value)
     history.store.add_event(task.task_id, "repair", "repair_attempt", "Repair 1")
     history.transition(task.task_id, TaskStatus.REAPPROVAL_REQUIRED, "scope increased")
+    history.store.update_task(task.task_id, task.repository, plan_hash="replanned")
+    history.attach_approval(task.task_id, "replanned", "explicitly_approved")
     history.transition(task.task_id, TaskStatus.APPROVED, "renewed")
     history.transition(task.task_id, TaskStatus.EXECUTING, "resumed")
     rolled_back = history.finalize(
@@ -98,24 +151,102 @@ def test_reapproval_rollback_repair_timeline_is_chronological(history, tmp_path)
     assert {item.event_type for item in events} >= {"repair_attempt", "status_changed"}
 
 
+def test_timeline_uses_insertion_sequence_when_timestamps_match(history, tmp_path):
+    task = create(history, tmp_path)
+    timestamp = "2026-01-01T00:00:01+00:00"
+    for number in range(5):
+        history.store.add_event(
+            task.task_id,
+            "test",
+            f"same_time_{number}",
+            f"event {number}",
+            timestamp=timestamp,
+        )
+    same_time = [item.event_type for item in history.timeline(task.task_id) if item.timestamp == timestamp]
+    assert same_time == [f"same_time_{number}" for number in range(5)]
+
+    history.transition(task.task_id, TaskStatus.PLANNING, "source reason", subsystem="planner")
+    transition = history.timeline(task.task_id)[-1]
+    assert transition.metadata == {
+        "old_state": "created", "new_state": "planning", "source": "planner"
+    }
+
+
 def test_cooperative_cancel_request_is_auditable(history, tmp_path):
     task = create(history, tmp_path)
     history.transition(task.task_id, TaskStatus.PLANNING, "planning")
     history.request_cancel(task.task_id, Path(task.repository), "user requested stop")
 
     assert history.cancel_requested(task.task_id)
-    assert history.timeline(task.task_id)[-1].event_type == "cancel_requested"
+    assert history.get(task.task_id).status is TaskStatus.CANCELLED
+    assert "cancel_requested" in {item.event_type for item in history.timeline(task.task_id)}
+
+
+def test_cancellation_during_validation_remains_pending_until_safe_terminal_state(history, tmp_path):
+    task = create(history, tmp_path)
+    for status in (
+        TaskStatus.PLANNING,
+        TaskStatus.APPROVED,
+        TaskStatus.EXECUTING,
+        TaskStatus.VALIDATING,
+    ):
+        history.transition(task.task_id, status, status.value)
+    pending = history.request_cancel(
+        task.task_id, Path(task.repository), "cancel during validation"
+    )
+    assert pending.status is TaskStatus.VALIDATING
+    assert history.cancel_requested(task.task_id)
+    terminal = history.finalize(
+        task.task_id,
+        Path(task.repository),
+        TaskStatus.CANCELLED,
+        outcome="cancelled after validator boundary",
+    )
+    assert terminal.status is TaskStatus.CANCELLED
 
 
 def test_repository_identity_isolation_and_exact_approval_binding(history, tmp_path):
     task = create(history, tmp_path)
     history.store.update_task(task.task_id, task.repository, plan_hash="hash-one")
     with pytest.raises(HistoryDatabaseError, match="exact current plan"):
-        history.attach_approval(task.task_id, "hash-two", "approved")
+        history.attach_approval(task.task_id, "hash-two", "explicitly_approved")
     with pytest.raises(HistoryDatabaseError, match="identity"):
         history.store.update_task(task.task_id, str(tmp_path / "other"), summary="bad")
-    approval = history.attach_approval(task.task_id, "hash-one", "approved")
+    history.transition(task.task_id, TaskStatus.PLANNING, "planning")
+    history.transition(task.task_id, TaskStatus.AWAITING_APPROVAL, "review")
+    approval = history.attach_approval(task.task_id, "hash-one", "explicitly_approved")
     assert approval.startswith("approval_")
+
+    other_repo = tmp_path / "other-repo"
+    other_repo.mkdir()
+    with pytest.raises(HistoryDatabaseError):
+        history.create_task(
+            "collision", other_repo, "b" * 40, "main", task_id=task.task_id
+        )
+
+
+def test_replacing_an_approved_plan_invalidates_old_approval(history, tmp_path):
+    task = create(history, tmp_path)
+    first = planning_artifact(task, Path(task.repository), summary="First plan")
+    first_path = tmp_path / "first-plan.json"
+    first_path.write_text(json.dumps(first.to_dict()))
+    history.attach_plan(task.task_id, first, first_path)
+    history.transition(task.task_id, TaskStatus.PLANNING, "planning")
+    history.transition(task.task_id, TaskStatus.AWAITING_APPROVAL, "review")
+    old_hash = history.get(task.task_id).plan_hash
+    history.attach_approval(task.task_id, old_hash, "explicitly_approved")
+    history.transition(task.task_id, TaskStatus.APPROVED, "approved")
+
+    second = replace(first, plan=replace(first.plan, summary="Revised plan"))
+    second_path = tmp_path / "second-plan.json"
+    second_path.write_text(json.dumps(second.to_dict()))
+    history.attach_plan(task.task_id, second, second_path)
+
+    revised = history.get(task.task_id)
+    assert revised.status is TaskStatus.REAPPROVAL_REQUIRED
+    assert revised.plan_hash != old_hash
+    with pytest.raises(HistoryDatabaseError, match="exact current plan"):
+        history.attach_approval(task.task_id, old_hash, "explicitly_approved")
 
 
 def test_search_filters_files_symbols_languages_and_text(history, tmp_path):
@@ -131,6 +262,19 @@ def test_search_filters_files_symbols_languages_and_text(history, tmp_path):
     assert history.list(TaskFilter(branch="feature", classification="bug_fix", risk="medium", outcome="fixed"))[0].task_id == first.task_id
     assert history.list(TaskFilter(affected_file="src/lib.rs", language="rust"))[0].task_id == first.task_id
     assert history.list(TaskFilter(affected_symbol="crate::run"))[0].task_id == first.task_id
+    assert history.list(
+        TaskFilter(
+            repository=first.repository,
+            branch="feature",
+            risk="medium",
+            classification="bug_fix",
+            affected_file="src/lib.rs",
+            affected_symbol="crate::run",
+            language="rust",
+            outcome="fixed",
+            text="parser",
+        )
+    )[0].task_id == first.task_id
 
 
 def test_execution_artifact_import_is_idempotent_and_redacted(history, tmp_path):
@@ -154,7 +298,49 @@ def test_execution_artifact_import_is_idempotent_and_redacted(history, tmp_path)
     assert first["imported"] is True and second["duplicate"] is True
     with history.store._connect() as connection:
         summary = connection.execute("SELECT summary FROM tool_events").fetchone()[0]
+        tool_count = connection.execute("SELECT COUNT(*) FROM tool_events").fetchone()[0]
     assert "secret-value" not in summary
+    assert tool_count == 1
+    with pytest.raises(ArtifactImportError, match="repository identity"):
+        importer.import_path(artifact, repository=tmp_path / "different-repo")
+
+
+def test_artifact_import_rejects_symlink_escape_and_preview_detects_changed_content(tmp_path):
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    service = TaskHistoryService(
+        TaskHistoryStore(runtime / "history.sqlite3"), artifact_roots=(runtime,)
+    )
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}")
+    link = runtime / "linked.json"
+    link.symlink_to(outside)
+    with pytest.raises(ArtifactImportError, match="outside configured runtime roots"):
+        ArtifactImporter(service).import_path(link)
+
+    repo_root = tmp_path / "repos"
+    repo = repo_root / "demo"
+    repo.mkdir(parents=True)
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    paths = PathConfig(
+        var_dir=runtime,
+        document_dir=runtime / "documents",
+        rag_data_dir=runtime / "rag",
+        code_repo_dir=repo_root,
+        code_index_dir=runtime / "index",
+        patch_dir=runtime / "patches",
+        task_history_db=runtime / "history/tasks.sqlite3",
+    )
+    ui = CodingUIService(AppConfig(paths=paths))
+    artifact = runtime / "index/artifact.json"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text('{"safe": true}')
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    artifact.write_text('{"safe": false}')
+    preview = ui.artifact_preview(
+        {"artifact_path": str(artifact), "artifact_hash": digest}
+    )
+    assert preview == {"available": False, "error": "Artifact hash no longer matches history"}
 
 
 def test_plan_validation_and_review_artifacts_attach_without_large_blob_duplication(history, tmp_path):
@@ -210,6 +396,11 @@ def test_plan_validation_and_review_artifacts_attach_without_large_blob_duplicat
     assert imported["type"] == "validation"
     assert len(artifacts["plans"]) == len(artifacts["validations"]) == len(artifacts["reviews"]) == 1
     assert "Fix parser safely" not in json.dumps(artifacts["plans"])
+    with history.store._connect() as connection:
+        first_pass = connection.execute(
+            "SELECT first_pass_success FROM metrics_summary WHERE task_id = ?", (task.task_id,)
+        ).fetchone()[0]
+    assert first_pass == 0
 
 
 def test_corrupt_and_cross_repository_artifacts_fail(history, tmp_path):
@@ -255,6 +446,34 @@ def test_json_markdown_exports_redact_secrets(history, tmp_path):
     assert "[REDACTED]" in json_path.read_text()
 
 
+def test_redaction_happens_before_sqlite_persistence(history, tmp_path):
+    private_key = "-----BEGIN PRIVATE KEY-----\nvery-secret-material\n-----END PRIVATE KEY-----"
+    task = history.create_task(
+        "Authorization: Bearer eyJabcdefghijk.abcdefghijkl.abcdefgh",
+        tmp_path / "repo-redaction",
+        "a" * 40,
+        "main",
+        metadata={
+            "password": "plaintext-password",
+            "environment": "DATABASE_PASSWORD=database-secret",
+            "private_key": private_key,
+        },
+    )
+    history.store.add_event(
+        task.task_id,
+        "validation",
+        "error",
+        "api_key=api-secret",
+        metadata={"connection": "postgresql://user:password@localhost/database"},
+    )
+    raw = history.store.path.read_bytes()
+    for secret in (
+        b"plaintext-password", b"database-secret", b"very-secret-material",
+        b"api-secret", b"user:password", b"eyJabcdefghijk",
+    ):
+        assert secret not in raw
+
+
 def test_safe_concurrent_reads_during_writes_and_transaction_rollback(history, tmp_path):
     task = create(history, tmp_path)
 
@@ -272,6 +491,17 @@ def test_safe_concurrent_reads_during_writes_and_transaction_rollback(history, t
     assert history.get(task.task_id).summary == ""
 
 
+def test_wal_reader_remains_available_while_an_immediate_writer_is_open(history, tmp_path):
+    task = create(history, tmp_path)
+    with history.store._connect() as writer:
+        writer.execute("BEGIN IMMEDIATE")
+        writer.execute("UPDATE tasks SET summary='pending' WHERE task_id=?", (task.task_id,))
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            observed = executor.submit(history.get, task.task_id).result(timeout=2)
+        assert observed.summary == ""
+        writer.rollback()
+
+
 def test_corrupt_database_fails_explicitly(tmp_path):
     path = tmp_path / "bad.sqlite3"
     path.write_bytes(b"not sqlite")
@@ -286,11 +516,57 @@ def test_schema_migration_is_ordered_and_newer_schema_is_rejected(tmp_path):
         connection.execute("INSERT INTO schema_version VALUES (0)")
     store = TaskHistoryStore(path)
     store.initialize()
-    assert store.status()["schema_version"] == 1
+    assert store.status()["schema_version"] == SCHEMA_VERSION
     with sqlite3.connect(path) as connection:
         connection.execute("UPDATE schema_version SET version = 999")
     with pytest.raises(HistoryDatabaseError, match="newer"):
         store.initialize()
+
+
+def test_schema_one_upgrades_and_interrupted_migration_rolls_back(tmp_path, monkeypatch):
+    path = tmp_path / "schema-one.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute("CREATE TABLE schema_version(version INTEGER NOT NULL)")
+        connection.execute("INSERT INTO schema_version VALUES (1)")
+        for statement in MIGRATIONS[1]:
+            connection.execute(statement)
+    TaskHistoryStore(path).initialize()
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == 2
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(task_status_events)")}
+    assert "sequence" in columns
+
+    import local_ai_assistant.history.store as store_module
+
+    monkeypatch.setattr(store_module, "SCHEMA_VERSION", 3)
+    monkeypatch.setitem(
+        store_module.MIGRATIONS,
+        3,
+        ("CREATE TABLE interrupted(value TEXT)", "THIS IS NOT VALID SQL"),
+    )
+    with pytest.raises(HistoryDatabaseError):
+        TaskHistoryStore(path).initialize()
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == 2
+        assert connection.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name='interrupted'"
+        ).fetchone()[0] == 0
+
+
+def test_corrupt_schema_version_table_fails_closed(tmp_path):
+    path = tmp_path / "corrupt-version.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute("CREATE TABLE schema_version(version INTEGER NOT NULL)")
+        connection.executemany("INSERT INTO schema_version VALUES (?)", [(1,), (1,)])
+    with pytest.raises(HistoryDatabaseError, match="schema-version table is corrupt"):
+        TaskHistoryStore(path).initialize()
+
+    missing = tmp_path / "missing-schema.sqlite3"
+    with sqlite3.connect(missing) as connection:
+        connection.execute("CREATE TABLE schema_version(version INTEGER NOT NULL)")
+        connection.execute("INSERT INTO schema_version VALUES (?)", (SCHEMA_VERSION,))
+    with pytest.raises(HistoryDatabaseError, match="metadata does not match"):
+        TaskHistoryStore(missing).initialize()
 
 
 def test_ui_service_lists_only_configured_git_repositories(tmp_path):
@@ -321,11 +597,77 @@ def test_ui_service_lists_only_configured_git_repositories(tmp_path):
     assert preview["available"] is False
     assert "do-not-display" not in json.dumps(preview)
 
+    external = tmp_path / "external"
+    external.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=external, check=True, capture_output=True)
+    (roots / "escaped").symlink_to(external, target_is_directory=True)
+    assert [item.name for item in service.repositories()] == ["demo"]
 
-def test_history_cli_create_list_search_status_metrics_and_export(tmp_path, capsys):
-    database = tmp_path / "history.sqlite3"
-    repo = tmp_path / "repo"
-    repo.mkdir()
+    subprocess.run(["git", "checkout", "--detach"], cwd=repo, check=True, capture_output=True)
+    assert service.repository("demo").branch == ""
+
+
+def test_health_tolerates_unavailable_llama_server(tmp_path, monkeypatch):
+    roots = tmp_path / "repos"
+    roots.mkdir()
+    paths = PathConfig(
+        var_dir=tmp_path / "var", document_dir=tmp_path / "docs",
+        rag_data_dir=tmp_path / "rag", code_repo_dir=roots,
+        code_index_dir=tmp_path / "index", patch_dir=tmp_path / "patches",
+        task_history_db=tmp_path / "var/history/tasks.sqlite3",
+    )
+    monkeypatch.setattr(
+        "local_ai_assistant.ui.coding.urllib.request.urlopen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("offline")),
+    )
+    service = CodingUIService(AppConfig(paths=paths))
+    assert service.health()["llama_server"] == "unreachable"
+    assert service.metrics().total_tasks == 0
+
+
+def test_orphan_pruning_candidates_are_old_local_regular_temporary_files(tmp_path):
+    root = tmp_path / "var"
+    root.mkdir()
+    old = root / ".old.json.tmp"
+    old.write_text("temporary")
+    old_time = time.time() - 48 * 3600
+    os.utime(old, (old_time, old_time))
+    young = root / ".young.json.tmp"
+    young.write_text("active")
+    canonical = root / "execution.json"
+    canonical.write_text("canonical")
+    outside = tmp_path / ".outside.json.tmp"
+    outside.write_text("external")
+    escaped = root / ".escaped.json.tmp"
+    escaped.symlink_to(outside)
+
+    candidates = _orphan_temporaries(root, 24)
+    assert candidates == (old,)
+    old.unlink()
+    assert canonical.read_text() == "canonical"
+    assert outside.read_text() == "external"
+
+
+def test_history_cli_create_list_search_status_metrics_and_export(tmp_path, capsys, monkeypatch):
+    roots = tmp_path / "repos"
+    repo = roots / "repo"
+    repo.mkdir(parents=True)
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=repo, check=True)
+    (repo / "README.md").write_text("demo")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "base"], cwd=repo, check=True, capture_output=True)
+    database = tmp_path / "var/history.sqlite3"
+    config = AppConfig(
+        paths=PathConfig(
+            var_dir=tmp_path / "var", document_dir=tmp_path / "documents",
+            rag_data_dir=tmp_path / "rag", code_repo_dir=roots,
+            code_index_dir=tmp_path / "index", patch_dir=tmp_path / "patches",
+            task_history_db=database,
+        )
+    )
+    monkeypatch.setattr("local_ai_assistant.history.cli.get_config", lambda: config)
     prefix = ["--database", str(database)]
     assert history_main([*prefix, "status"]) == 0
     capsys.readouterr()
@@ -343,3 +685,7 @@ def test_history_cli_create_list_search_status_metrics_and_export(tmp_path, caps
     archive = tmp_path / "task.zip"
     assert history_main([*prefix, "archive", created["task_id"], str(archive)]) == 0
     assert archive.is_file()
+    with pytest.raises(SystemExit, match="explicitly configured"):
+        history_main([*prefix, "create", str(tmp_path), "escape"])
+    with pytest.raises(SystemExit):
+        history_main([*prefix, "list", "--risk", "not-a-risk"])

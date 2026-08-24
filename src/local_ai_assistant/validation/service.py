@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from local_ai_assistant.execution.commands import run_allowed_command
-from local_ai_assistant.execution.history import redact
+from local_ai_assistant.execution.history import redact, redacted_json
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import PlanningArtifact, plan_approval_token
 from local_ai_assistant.planning.patch_scope import worktree_diff
@@ -324,7 +324,7 @@ def _persist(value: dict, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name("." + path.name + ".tmp")
     with temporary.open("w") as stream:
-        stream.write(redact(json.dumps(value, indent=2, ensure_ascii=False)))
+        stream.write(redacted_json(value, indent=2, ensure_ascii=False))
         stream.write("\n")
         stream.flush()
         os.fsync(stream.fileno())

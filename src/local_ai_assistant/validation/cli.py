@@ -8,7 +8,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 
 from local_ai_assistant.common.config import get_config
-from local_ai_assistant.execution.history import redact
+from local_ai_assistant.execution.history import redacted_json
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.patch_scope import worktree_diff
 from local_ai_assistant.planning.service import PlannerService
@@ -75,7 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "export-report":
         value = load_validation_report(args.report)
         destination = _safe_output_path(args.destination)
-        destination.write_text(redact(json.dumps(value, indent=2)) + "\n")
+        destination.write_text(redacted_json(value, indent=2) + "\n")
         return 0
     config = get_config()
     if args.command == "security-scan":

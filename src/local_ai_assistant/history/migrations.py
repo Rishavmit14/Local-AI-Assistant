@@ -1,6 +1,6 @@
 """Ordered SQLite migrations for the local task-history store."""
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 MIGRATIONS: dict[int, tuple[str, ...]] = {
     1: (
@@ -94,5 +94,10 @@ MIGRATIONS: dict[int, tuple[str, ...]] = {
         "CREATE INDEX idx_events_task_time ON task_status_events(task_id, timestamp)",
         "CREATE INDEX idx_files_path ON affected_files(path)",
         "CREATE INDEX idx_symbols_name ON affected_symbols(qualified_name)",
-    )
+    ),
+    2: (
+        "ALTER TABLE task_status_events ADD COLUMN sequence INTEGER",
+        "UPDATE task_status_events SET sequence = rowid WHERE sequence IS NULL",
+        "CREATE UNIQUE INDEX idx_events_task_sequence ON task_status_events(task_id, sequence)",
+    ),
 }

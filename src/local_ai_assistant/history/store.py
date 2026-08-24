@@ -9,7 +9,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from local_ai_assistant.execution.history import redact
+from local_ai_assistant.execution.history import redact, redact_data
 
 from .errors import HistoryDatabaseError, InvalidStatusTransition
 from .migrations import MIGRATIONS, SCHEMA_VERSION
@@ -24,7 +24,7 @@ from .models import (
 
 
 def _json(value) -> str:
-    return redact(json.dumps(value, ensure_ascii=False, sort_keys=True))
+    return json.dumps(redact_data(value), ensure_ascii=False, sort_keys=True)
 
 
 class TaskHistoryStore:
@@ -38,7 +38,10 @@ class TaskHistoryStore:
                 connection.execute(
                     "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)"
                 )
-                row = connection.execute("SELECT version FROM schema_version").fetchone()
+                rows = connection.execute("SELECT version FROM schema_version").fetchall()
+                if len(rows) > 1:
+                    raise HistoryDatabaseError("History schema-version table is corrupt")
+                row = rows[0] if rows else None
                 current = int(row[0]) if row else 0
                 if current > SCHEMA_VERSION:
                     raise HistoryDatabaseError(
@@ -57,12 +60,31 @@ class TaskHistoryStore:
                     except Exception:
                         connection.rollback()
                         raise
+                required_tables = {
+                    "tasks", "task_status_events", "plans", "executions", "tool_events",
+                    "validations", "reviews", "approvals", "affected_files",
+                    "affected_symbols", "metrics_summary", "artifact_imports",
+                }
+                actual_tables = {
+                    row[0]
+                    for row in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                }
+                event_columns = {
+                    row[1]
+                    for row in connection.execute("PRAGMA table_info(task_status_events)")
+                }
+                if not required_tables <= actual_tables or "sequence" not in event_columns:
+                    raise HistoryDatabaseError(
+                        "History schema metadata does not match the supported schema"
+                    )
                 integrity = connection.execute("PRAGMA quick_check").fetchone()[0]
                 if integrity != "ok":
                     raise HistoryDatabaseError(f"History database integrity check failed: {integrity}")
         except HistoryDatabaseError:
             raise
-        except sqlite3.DatabaseError as exc:
+        except (sqlite3.DatabaseError, TypeError, ValueError) as exc:
             raise HistoryDatabaseError(f"Cannot initialize history database: {exc}") from exc
 
     @contextmanager
@@ -103,7 +125,10 @@ class TaskHistoryStore:
             connection.execute(
                 "INSERT INTO metrics_summary(task_id) VALUES (?)", (task.task_id,)
             )
-        return task
+            row = connection.execute(
+                "SELECT * FROM tasks WHERE task_id = ?", (task.task_id,)
+            ).fetchone()
+        return self._task(row)
 
     def get_task(self, task_id: str) -> TaskRecord | None:
         try:
@@ -121,13 +146,104 @@ class TaskHistoryStore:
             current = TaskStatus(row["status"])
             if status not in ALLOWED_TRANSITIONS[current]:
                 raise InvalidStatusTransition(f"Invalid task transition: {current.value} -> {status.value}")
+            if (
+                current in {TaskStatus.AWAITING_APPROVAL, TaskStatus.REAPPROVAL_REQUIRED}
+                and status is TaskStatus.APPROVED
+            ):
+                approval = connection.execute(
+                    """SELECT 1 FROM approvals WHERE task_id = ? AND plan_hash = ?
+                       AND state IN ('explicitly_approved', 'historical_execution_evidence')
+                       ORDER BY timestamp DESC LIMIT 1""",
+                    (task_id, row["plan_hash"]),
+                ).fetchone()
+                if approval is None:
+                    raise InvalidStatusTransition(
+                        "Exact-plan approval evidence is required before execution"
+                    )
             timestamp = utc_now()
             connection.execute(
                 "UPDATE tasks SET status = ?, updated_at = ? WHERE task_id = ?",
                 (status.value, timestamp, task_id),
             )
+            if status is TaskStatus.REAPPROVAL_REQUIRED:
+                connection.execute(
+                    "UPDATE metrics_summary SET reapprovals = reapprovals + 1 WHERE task_id = ?",
+                    (task_id,),
+                )
+            if status is TaskStatus.ROLLED_BACK:
+                connection.execute(
+                    "UPDATE metrics_summary SET rollbacks = rollbacks + 1 WHERE task_id = ?",
+                    (task_id,),
+                )
             self._insert_event(
-                connection, task_id, timestamp, subsystem, "status_changed", reason, status=status.value
+                connection,
+                task_id,
+                timestamp,
+                subsystem,
+                "status_changed",
+                reason,
+                status=status.value,
+                metadata={
+                    "old_state": current.value,
+                    "new_state": status.value,
+                    "source": subsystem,
+                },
+            )
+            updated = connection.execute("SELECT * FROM tasks WHERE task_id = ?", (task_id,)).fetchone()
+        return self._task(updated)
+
+    def finalize_task(
+        self,
+        task_id: str,
+        repository: str,
+        status: TaskStatus,
+        *,
+        final_commit: str | None = None,
+        decision: str | None = None,
+        outcome: str | None = None,
+        failure_reason: str | None = None,
+        duration_seconds: float | None = None,
+    ) -> TaskRecord:
+        """Atomically persist terminal details and the terminal transition."""
+        with self.transaction() as connection:
+            row = connection.execute("SELECT * FROM tasks WHERE task_id = ?", (task_id,)).fetchone()
+            if row is None or Path(row["repository"]).resolve() != Path(repository).resolve():
+                raise HistoryDatabaseError("Task/repository identity mismatch")
+            current = TaskStatus(row["status"])
+            if status not in ALLOWED_TRANSITIONS[current]:
+                raise InvalidStatusTransition(
+                    f"Invalid task transition: {current.value} -> {status.value}"
+                )
+            timestamp = utc_now()
+            redacted_outcome = redact(outcome) if outcome else outcome
+            redacted_failure = redact(failure_reason) if failure_reason else failure_reason
+            connection.execute(
+                """UPDATE tasks SET status = ?, updated_at = ?, final_commit = ?,
+                   final_decision = ?, outcome = ?, failure_reason = ?, duration_seconds = ?
+                   WHERE task_id = ?""",
+                (
+                    status.value, timestamp, final_commit, decision, redacted_outcome,
+                    redacted_failure, duration_seconds, task_id,
+                ),
+            )
+            if status is TaskStatus.ROLLED_BACK:
+                connection.execute(
+                    "UPDATE metrics_summary SET rollbacks = rollbacks + 1 WHERE task_id = ?",
+                    (task_id,),
+                )
+            self._insert_event(
+                connection,
+                task_id,
+                timestamp,
+                "history",
+                "status_changed",
+                redacted_outcome or redacted_failure or status.value,
+                status=status.value,
+                metadata={
+                    "old_state": current.value,
+                    "new_state": status.value,
+                    "source": "history",
+                },
             )
             updated = connection.execute("SELECT * FROM tasks WHERE task_id = ?", (task_id,)).fetchone()
         return self._task(updated)
@@ -178,7 +294,8 @@ class TaskHistoryStore:
     def timeline(self, task_id: str) -> tuple[TimelineEvent, ...]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM task_status_events WHERE task_id = ? ORDER BY timestamp, event_id",
+                """SELECT * FROM task_status_events WHERE task_id = ?
+                   ORDER BY timestamp, sequence, event_id""",
                 (task_id,),
             ).fetchall()
         return tuple(self._event(row) for row in rows)
@@ -311,12 +428,24 @@ class TaskHistoryStore:
     @staticmethod
     def _insert_event(connection, task_id, timestamp, subsystem, event_type, summary, *, artifact_id=None, artifact_path=None, status=None, risk_or_severity=None, metadata=None):
         sequence = connection.execute(
-            "SELECT COUNT(*) FROM task_status_events WHERE task_id = ?", (task_id,)
+            "SELECT COALESCE(MAX(sequence), 0) + 1 FROM task_status_events WHERE task_id = ?",
+            (task_id,),
         ).fetchone()[0]
         seed = "\0".join((task_id, timestamp, subsystem, event_type, summary, str(sequence)))
         event_id = "evt_" + hashlib.sha256(seed.encode()).hexdigest()[:20]
+        safe_metadata = json.loads(_json(metadata or {}))
         connection.execute(
-            "INSERT INTO task_status_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (event_id, task_id, timestamp, subsystem, event_type, redact(summary), artifact_id, artifact_path, status, risk_or_severity, _json(metadata or {})),
+            """INSERT INTO task_status_events
+               (event_id, task_id, timestamp, subsystem, event_type, summary,
+                artifact_id, artifact_path, status, risk_or_severity, metadata_json, sequence)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                event_id, task_id, timestamp, subsystem, event_type, redact(summary),
+                artifact_id, artifact_path, status, risk_or_severity,
+                json.dumps(safe_metadata, ensure_ascii=False, sort_keys=True), sequence,
+            ),
         )
-        return TimelineEvent(event_id, task_id, timestamp, subsystem, event_type, redact(summary), artifact_id, artifact_path, status, risk_or_severity, metadata or {})
+        return TimelineEvent(
+            event_id, task_id, timestamp, subsystem, event_type, redact(summary), artifact_id,
+            artifact_path, status, risk_or_severity, safe_metadata,
+        )

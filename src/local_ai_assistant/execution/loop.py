@@ -55,14 +55,13 @@ class ExecutionLoop:
         observations: list[ToolObservation] = []
         mutations = repairs = replans = 0
         for step in range(1, self.limits.max_steps + 1):
-            if self.cancel_check and self.cancel_check():
-                observations.append(
-                    ToolObservation("cancelled", False, "Cooperative cancellation requested")
-                )
-                return LoopResult(
-                    "cancelled", tuple(observations), step - 1, mutations, repairs, replans
-                )
+            cancelled = self._cancelled(observations, step - 1, mutations, repairs, replans)
+            if cancelled:
+                return cancelled
             request = self._next_request(observations)
+            cancelled = self._cancelled(observations, step, mutations, repairs, replans)
+            if cancelled:
+                return cancelled
             if request.tool == "finish":
                 if dry_run:
                     return LoopResult(
@@ -144,6 +143,9 @@ class ExecutionLoop:
             except ToolExecutionError as exc:
                 observation = ToolObservation("tool_error", False, str(exc))
             observations.append(observation)
+            cancelled = self._cancelled(observations, step, mutations, repairs, replans)
+            if cancelled:
+                return cancelled
             if not observation.success:
                 if (
                     observation.kind in {"scope_rejection", "tool_error"}
@@ -169,6 +171,23 @@ class ExecutionLoop:
                     )
         return LoopResult(
             "max_steps", tuple(observations), self.limits.max_steps, mutations, repairs, replans
+        )
+
+    def _cancelled(
+        self,
+        observations: list[ToolObservation],
+        steps: int,
+        mutations: int,
+        repairs: int,
+        replans: int,
+    ) -> LoopResult | None:
+        if not self.cancel_check or not self.cancel_check():
+            return None
+        observations.append(
+            ToolObservation("cancelled", False, "Cooperative cancellation requested")
+        )
+        return LoopResult(
+            "cancelled", tuple(observations), steps, mutations, repairs, replans
         )
 
     def _missing_validation_commands(self) -> tuple[str, ...]:

@@ -7,7 +7,7 @@ import json
 import re
 from dataclasses import dataclass
 
-from local_ai_assistant.execution.history import redact
+from local_ai_assistant.execution.history import redacted_json
 from local_ai_assistant.planning.models import ImplementationPlan
 from local_ai_assistant.planning.patch_scope import extract_patch_scope, validate_patch_scope
 
@@ -44,7 +44,7 @@ class BoundedRepairEngine:
         if status is not DecisionStatus.REPAIR_REQUIRED or not failure.repair_appropriate:
             raise ValidationIntelligenceError(f"Repair stopped: {status.value}")
         self.failure_fingerprints.append(fingerprint)
-        prompt = redact(json.dumps({"request": plan.original_request, "plan": plan.to_dict(), "failure": {"category": failure.category.value, "command": failure.command, "output": failure.relevant_output, "related_files": failure.related_files, "related_symbols": failure.related_symbols}, "evidence": evidence}))[:24000]
+        prompt = redacted_json({"request": plan.original_request, "plan": plan.to_dict(), "failure": {"category": failure.category.value, "command": failure.command, "output": failure.relevant_output, "related_files": failure.related_files, "related_symbols": failure.related_symbols}, "evidence": evidence})[:24000]
         raw = self.model.chat(prompt=prompt, system_prompt="Produce strict JSON with concise rationale and unified diff patch. Make the smallest evidence-backed repair. Never widen scope, weaken tests, add pass/TODO, disable validation, or invent APIs.", temperature=0.0, max_tokens=1800)
         try:
             value = json.loads(raw)

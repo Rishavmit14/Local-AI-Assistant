@@ -6,16 +6,18 @@ import argparse
 import json
 import subprocess
 import tempfile
+import time
 import zipfile
 from dataclasses import asdict
 from pathlib import Path
 
 from local_ai_assistant.common.config import get_config
+from local_ai_assistant.planning.models import RiskLevel, TaskCategory
 
 from .export import export_task
 from .importer import ArtifactImporter
 from .metrics import aggregate_metrics
-from .models import TaskFilter
+from .models import TaskFilter, TaskStatus
 from .service import TaskHistoryService
 from .store import TaskHistoryStore
 
@@ -52,6 +54,7 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser("orphans")
     prune = commands.add_parser("prune-orphans")
     prune.add_argument("--confirm", action="store_true")
+    prune.add_argument("--older-than-hours", type=float, default=24.0)
     commands.add_parser("status")
     commands.add_parser("migrate")
     commands.add_parser("storage")
@@ -62,9 +65,9 @@ def build_parser() -> argparse.ArgumentParser:
 def _filters(parser):
     parser.add_argument("--repository")
     parser.add_argument("--branch")
-    parser.add_argument("--status")
-    parser.add_argument("--classification")
-    parser.add_argument("--risk")
+    parser.add_argument("--status", choices=tuple(item.value for item in TaskStatus))
+    parser.add_argument("--classification", choices=tuple(item.value for item in TaskCategory))
+    parser.add_argument("--risk", choices=("unknown", *(item.value for item in RiskLevel)))
     parser.add_argument("--file", dest="affected_file")
     parser.add_argument("--symbol", dest="affected_symbol")
     parser.add_argument("--language")
@@ -78,7 +81,10 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     config = get_config()
     store = TaskHistoryStore(args.database or config.paths.task_history_db)
-    service = TaskHistoryService(store)
+    service = TaskHistoryService(
+        store,
+        artifact_roots=(config.paths.code_index_dir, store.path.parent),
+    )
     if args.command in {"status", "migrate"}:
         print(json.dumps(store.status(), indent=2))
         return 0
@@ -90,14 +96,15 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(store.status(), indent=2))
         return 0
     if args.command in {"orphans", "prune-orphans"}:
-        candidates = _orphan_temporaries(config.paths.var_dir)
+        minimum_age = args.older_than_hours if args.command == "prune-orphans" else 0.0
+        candidates = _orphan_temporaries(config.paths.var_dir, minimum_age)
         if args.command == "prune-orphans" and args.confirm:
             for path in candidates:
                 path.unlink()
         print(json.dumps({"candidates": [str(path) for path in candidates], "deleted": len(candidates) if args.command == "prune-orphans" and args.confirm else 0}, indent=2))
         return 0
     if args.command == "create":
-        repository = args.repository.resolve()
+        repository = _configured_repository(config.paths.code_repo_dir, args.repository)
         branch = args.branch or _git(repository, "branch", "--show-current")
         commit = args.starting_commit or _git(repository, "rev-parse", "HEAD")
         metadata = {
@@ -159,14 +166,32 @@ def _git(repository: Path, *arguments: str) -> str:
     return result.stdout.strip()
 
 
-def _orphan_temporaries(var_dir: Path) -> tuple[Path, ...]:
+def _configured_repository(root: Path, repository: Path) -> Path:
+    configured_root = root.resolve()
+    resolved = repository.resolve()
+    if (
+        resolved.parent != configured_root
+        or repository.is_symlink()
+        or not (resolved / ".git").is_dir()
+    ):
+        raise SystemExit("Repository is not an explicitly configured Git repository")
+    return resolved
+
+
+def _orphan_temporaries(var_dir: Path, older_than_hours: float = 0.0) -> tuple[Path, ...]:
     root = var_dir.resolve()
     if not root.exists():
         return ()
+    cutoff = time.time() - max(0.0, older_than_hours) * 3600
     candidates = []
     for path in root.rglob(".*.tmp"):
         resolved = path.resolve()
-        if path.is_file() and (resolved.parent == root or root in resolved.parents):
+        if (
+            not path.is_symlink()
+            and path.is_file()
+            and path.stat().st_mtime <= cutoff
+            and (resolved.parent == root or root in resolved.parents)
+        ):
             candidates.append(path)
     return tuple(sorted(candidates))
 

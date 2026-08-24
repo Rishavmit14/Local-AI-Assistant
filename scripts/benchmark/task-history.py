@@ -43,6 +43,24 @@ def main(argv=None):
         task = service.list(TaskFilter(limit=1))[0]
         _, timeline = measure(lambda: service.timeline(task.task_id))
         metrics, aggregation = measure(lambda: aggregate_metrics(service.store))
+        with service.store._connect() as connection:
+            query_plan = [
+                row[3]
+                for row in connection.execute(
+                    """EXPLAIN QUERY PLAN SELECT * FROM tasks
+                       WHERE repository = ? ORDER BY created_at DESC LIMIT 100""",
+                    (str((root / "repo-3").resolve()),),
+                )
+            ]
+        database_bytes = sum(
+            candidate.stat().st_size
+            for candidate in (
+                service.store.path,
+                Path(str(service.store.path) + "-wal"),
+                Path(str(service.store.path) + "-shm"),
+            )
+            if candidate.exists()
+        )
         print(
             {
                 "tasks": args.tasks,
@@ -51,7 +69,8 @@ def main(argv=None):
                 "filtered_query_ms": filtered * 1000,
                 "timeline_ms": timeline * 1000,
                 "metrics_ms": aggregation * 1000,
-                "database_bytes": service.store.path.stat().st_size,
+                "database_bytes": database_bytes,
+                "filtered_query_plan": query_plan,
                 "metrics": asdict(metrics),
             }
         )

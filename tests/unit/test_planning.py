@@ -987,6 +987,43 @@ def test_execution_loop_honors_cooperative_cancel_before_model_action(planning_r
     assert result.observations[0].kind == "cancelled"
 
 
+def test_execution_loop_honors_cancel_race_after_tool_completion(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(
+        repo, index, FakeLLM(response_for(index)), root / "plans"
+    ).generate("Fix login_user")
+    registry = ToolRegistry()
+    invoked = []
+    registry.register(
+        ToolSpec("inspect", "inspect", ToolPermission.READ_ONLY, False, 1),
+        lambda context, args: invoked.append("inspect")
+        or ToolObservation("inspection", True, "finished"),
+    )
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: json.dumps(
+        {
+            "tool": "inspect",
+            "arguments": {},
+            "rationale": "inspect once",
+            "expected_outcome": "facts",
+            "plan_step": 1,
+            "mutation_intended": False,
+        }
+    )
+    checks = iter((False, False, True))
+    result = ExecutionLoop(
+        model,
+        registry,
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+        LoopLimits(max_steps=4),
+        cancel_check=lambda: next(checks),
+    ).run()
+
+    assert invoked == ["inspect"]
+    assert result.status == "cancelled"
+    assert [item.kind for item in result.observations] == ["inspection", "cancelled"]
+
+
 def test_plan_bound_create_file_enforces_scope_and_approval(planning_repo):
     root, repo, index = planning_repo
     artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(

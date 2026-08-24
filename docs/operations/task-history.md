@@ -18,13 +18,13 @@ local-ai-history export TASK_ID /tmp/task.md --format markdown
 local-ai-history archive TASK_ID /tmp/task.zip
 local-ai-history storage
 local-ai-history orphans
-local-ai-history prune-orphans --confirm
+local-ai-history prune-orphans --older-than-hours 24 --confirm
 local-ai-history vacuum
 ```
 
 Import never changes or deletes source artifacts. Duplicate content hashes are ignored. Corrupt, unsupported, cross-repository, and identity-conflicting artifacts fail explicitly.
 
-Before migration or maintenance, stop active writers and copy the database plus its `-wal` and `-shm` companions, or use SQLite's online backup API. Migrations are transactional; downgrade is not supported. `vacuum` is explicit and never deletes tasks. Automatic retention is intentionally absent. Orphaned temporary JSON files may be inspected manually, but Stage 7 does not delete them.
+Before migration or maintenance, stop active writers and copy the database plus its `-wal` and `-shm` companions, or use SQLite's online backup API. Migrations are transactional; downgrade is not supported. `vacuum` is explicit and never deletes tasks. Automatic retention is intentionally absent. Orphan inspection is read-only; pruning requires `--confirm`, only considers old hidden `*.tmp` regular files inside the configured runtime root, and rejects symlinks. Canonical JSON evidence and database rows are never pruning candidates.
 
 The synthetic benchmark is:
 

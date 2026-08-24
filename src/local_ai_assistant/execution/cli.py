@@ -93,7 +93,8 @@ def main(argv: list[str] | None = None) -> int:
             context_characters=limits.context_characters,
         ),
         cancel_check=lambda: TaskHistoryService(
-            TaskHistoryStore(config.paths.task_history_db)
+            TaskHistoryStore(config.paths.task_history_db),
+            artifact_roots=(config.paths.code_index_dir,),
         ).cancel_requested(artifact.plan.task_id),
     ).run(dry_run=args.dry_run)
     report = ExecutionReport(

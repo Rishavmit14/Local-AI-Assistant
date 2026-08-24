@@ -15,8 +15,16 @@ from .store import TaskHistoryStore
 
 
 class TaskHistoryService:
-    def __init__(self, store: TaskHistoryStore) -> None:
+    def __init__(
+        self,
+        store: TaskHistoryStore,
+        *,
+        artifact_roots: tuple[Path, ...] | None = None,
+    ) -> None:
         self.store = store
+        self.artifact_roots = tuple(
+            root.resolve() for root in (artifact_roots or (store.path.parent,))
+        )
         self.store.initialize()
 
     def create_task(
@@ -50,6 +58,18 @@ class TaskHistoryService:
 
     def attach_plan(self, task_id: str, artifact: PlanningArtifact, path: Path) -> bool:
         task = self._identity(task_id, artifact.repository, artifact.starting_commit)
+        if task.status in {
+            TaskStatus.EXECUTING,
+            TaskStatus.VALIDATING,
+            TaskStatus.REVIEWING,
+            TaskStatus.SUCCEEDED,
+            TaskStatus.FAILED,
+            TaskStatus.BLOCKED,
+            TaskStatus.ROLLED_BACK,
+            TaskStatus.CANCELLED,
+        }:
+            raise HistoryDatabaseError("Cannot replace a plan after execution has started")
+        path = self.validate_artifact_path(path)
         digest = _sha256(path)
         plan_hash = plan_approval_token(artifact.plan)
         with self.store._connect() as connection:
@@ -70,6 +90,7 @@ class TaskHistoryService:
             },
         )
         if attached:
+            requires_reapproval = task.status is TaskStatus.APPROVED
             registry = build_language_registry()
             self.store.update_task(
                 task_id,
@@ -81,6 +102,16 @@ class TaskHistoryService:
                 plan_hash=plan_hash,
                 summary=artifact.plan.summary,
             )
+            if requires_reapproval:
+                self.store.update_task(
+                    task_id, task.repository, approval_state="stale_plan_replaced"
+                )
+                self.store.transition(
+                    task_id,
+                    TaskStatus.REAPPROVAL_REQUIRED,
+                    "Plan content changed after approval",
+                    subsystem="approval",
+                )
             for candidate in artifact.scope_candidates:
                 self.store.add_affected_file(
                     task_id,
@@ -121,23 +152,43 @@ class TaskHistoryService:
         return attached
 
     def attach_approval(self, task_id: str, plan_hash: str, state: str, *, actor="human", reason="") -> str:
-        task = self.store.get_task(task_id)
-        if task is None or task.plan_hash != plan_hash:
-            raise HistoryDatabaseError("Approval does not match the task's exact current plan hash")
+        if state not in {"explicitly_approved", "historical_execution_evidence"}:
+            raise HistoryDatabaseError("Unsupported approval evidence state")
         timestamp = utc_now()
         approval_id = "approval_" + hashlib.sha256(
             f"{task_id}\0{plan_hash}\0{timestamp}\0{actor}".encode()
         ).hexdigest()[:20]
         with self.store.transaction() as connection:
+            task = connection.execute(
+                "SELECT status, plan_hash FROM tasks WHERE task_id = ?", (task_id,)
+            ).fetchone()
+            if task is None or task["plan_hash"] != plan_hash:
+                raise HistoryDatabaseError(
+                    "Approval does not match the task's exact current plan hash"
+                )
+            if TaskStatus(task["status"]) not in {
+                TaskStatus.AWAITING_APPROVAL,
+                TaskStatus.REAPPROVAL_REQUIRED,
+            }:
+                raise HistoryDatabaseError("Task is not awaiting exact-plan approval")
             connection.execute(
                 "INSERT INTO approvals VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (approval_id, task_id, plan_hash, state, timestamp, actor, redact(reason), "{}"),
             )
-        self.store.update_task(task_id, task.repository, approval_state=state)
-        self.store.add_event(
-            task_id, "approval", "approval_recorded", f"Approval state: {state}",
-            artifact_id=approval_id, status=state,
-        )
+            connection.execute(
+                "UPDATE tasks SET approval_state = ?, updated_at = ? WHERE task_id = ?",
+                (state, timestamp, task_id),
+            )
+            self.store._insert_event(
+                connection,
+                task_id,
+                timestamp,
+                "approval",
+                "approval_recorded",
+                f"Approval state: {state}",
+                artifact_id=approval_id,
+                status=state,
+            )
         return approval_id
 
     def finalize(
@@ -158,16 +209,27 @@ class TaskHistoryService:
             TaskStatus.ROLLED_BACK, TaskStatus.CANCELLED,
         }:
             raise HistoryDatabaseError("Final status must be terminal")
-        self.store.update_task(
+        return self.store.finalize_task(
             task_id,
             task.repository,
+            status,
             final_commit=final_commit,
-            final_decision=decision,
+            decision=decision,
             outcome=outcome,
             failure_reason=failure_reason,
             duration_seconds=duration_seconds,
         )
-        return self.store.transition(task_id, status, outcome or failure_reason or status.value)
+
+    def validate_artifact_path(self, path: Path) -> Path:
+        try:
+            resolved = path.resolve(strict=True)
+        except OSError as exc:
+            raise HistoryDatabaseError(f"Artifact is unavailable: {exc}") from exc
+        if not resolved.is_file() or not any(
+            resolved == root or root in resolved.parents for root in self.artifact_roots
+        ):
+            raise HistoryDatabaseError("Artifact is outside configured runtime roots")
+        return resolved
 
     def get(self, task_id: str) -> TaskRecord | None:
         return self.store.get_task(task_id)
@@ -195,6 +257,18 @@ class TaskHistoryService:
             task_id, "control", "cancel_requested", reason,
             status="cancel_requested", risk_or_severity="warning",
         )
+        if task.status in {
+            TaskStatus.PLANNING,
+            TaskStatus.AWAITING_APPROVAL,
+            TaskStatus.APPROVED,
+            TaskStatus.REAPPROVAL_REQUIRED,
+        }:
+            return self.store.transition(
+                task_id,
+                TaskStatus.CANCELLED,
+                "Cancelled before execution",
+                subsystem="control",
+            )
         return updated
 
     def cancel_requested(self, task_id: str) -> bool:

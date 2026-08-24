@@ -6,7 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from local_ai_assistant.execution.history import load_report, redact
+from local_ai_assistant.execution.history import load_report, redact, redact_data
 from local_ai_assistant.planning.service import PlannerService
 from local_ai_assistant.validation.service import load_validation_report
 
@@ -20,7 +20,10 @@ class ArtifactImporter:
         self.service = service
 
     def import_path(self, path: Path, *, repository: Path | None = None) -> dict:
-        path = path.resolve()
+        try:
+            path = self.service.validate_artifact_path(path)
+        except Exception as exc:
+            raise ArtifactImportError(str(exc)) from exc
         try:
             raw = path.read_bytes()
             value = json.loads(raw)
@@ -29,10 +32,13 @@ class ArtifactImporter:
         digest = hashlib.sha256(raw).hexdigest()
         with self.service.store._connect() as connection:
             duplicate = connection.execute(
-                "SELECT task_id, artifact_type FROM artifact_imports WHERE artifact_hash = ?",
+                """SELECT i.task_id, i.artifact_type, t.repository, t.starting_commit
+                   FROM artifact_imports i JOIN tasks t USING(task_id)
+                   WHERE i.artifact_hash = ?""",
                 (digest,),
             ).fetchone()
         if duplicate:
+            self._verify_requested_repository(Path(duplicate["repository"]), repository)
             return {"imported": False, "duplicate": True, "task_id": duplicate[0], "type": duplicate[1]}
         artifact_type = self._type(value)
         try:
@@ -46,6 +52,26 @@ class ArtifactImporter:
                     value.get("branch", "unknown"), artifact.timestamp,
                 )
                 self.service.attach_plan(task_id, artifact, path)
+                task = self.service.get(task_id)
+                if task and task.status is TaskStatus.CREATED:
+                    self.service.transition(
+                        task_id,
+                        TaskStatus.PLANNING,
+                        "Imported plan artifact",
+                        subsystem="artifact_import",
+                    )
+                    target = (
+                        TaskStatus.APPROVED
+                        if artifact.plan.approval.status.value
+                        == "safe_to_continue_automatically"
+                        else TaskStatus.AWAITING_APPROVAL
+                    )
+                    self.service.transition(
+                        task_id,
+                        target,
+                        artifact.plan.approval.status.value,
+                        subsystem="approval",
+                    )
                 schema = artifact.schema_version
             elif artifact_type == "execution":
                 report = load_report(path)
@@ -116,12 +142,14 @@ class ArtifactImporter:
                 event_id = "tool_" + hashlib.sha256(f"{digest}:{number}".encode()).hexdigest()[:20]
                 connection.execute(
                     "INSERT INTO tool_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (event_id, task_id, "execution_" + digest[:20], event.get("timestamp", utc_now()), event.get("tool_name", "unknown"), int(bool(event.get("success"))), event.get("duration_seconds"), json.dumps(event.get("affected_files", [])), redact(event.get("output_summary", ""))[:1000], event.get("approval"), "{}"),
+                    (event_id, task_id, "execution_" + digest[:20], event.get("timestamp", utc_now()), event.get("tool_name", "unknown"), int(bool(event.get("success"))), event.get("duration_seconds"), json.dumps(redact_data(event.get("affected_files", []))), redact(event.get("output_summary", ""))[:1000], event.get("approval"), "{}"),
                 )
             connection.execute(
-                "UPDATE metrics_summary SET repairs = ?, reapprovals = ?, tool_calls = ?, commit_success = ? WHERE task_id = ?",
+                """UPDATE metrics_summary SET repairs = ?, reapprovals = ?, rollbacks = ?,
+                   tool_calls = ?, commit_success = ? WHERE task_id = ?""",
                 (
-                    report.get("repairs", 0), report.get("replans", 0),
+                    report.get("repairs", 0), 0,
+                    int(report.get("status") == "cancelled_rolled_back"),
                     len(report.get("events", [])),
                     int(report.get("status") in {"committed", "merged", "no_changes"}), task_id,
                 ),
@@ -133,6 +161,8 @@ class ArtifactImporter:
             if outcome in {"complete", "committed", "merged", "no_changes"}
             else TaskStatus.ROLLED_BACK
             if outcome == "rolled_back"
+            else TaskStatus.CANCELLED
+            if outcome in {"cancelled", "cancelled_rolled_back"}
             else TaskStatus.FAILED
             if outcome and outcome.startswith("failed")
             else None
@@ -152,6 +182,7 @@ class ArtifactImporter:
         results = report.get("results", [])
         failures = report.get("failures", [])
         decision = report.get("decision", {}).get("status")
+        passed_decision = decision in {"pass", "pass_with_warnings"}
         tests_run = sum(1 for result in results if "test" in result.get("step_id", "").lower())
         required_passed = not any(not item.get("success") and not item.get("skipped") for item in results)
         review = report.get("review", {})
@@ -178,7 +209,8 @@ class ArtifactImporter:
                    first_targeted_test_pass = ?, first_full_suite_pass = ?,
                    review_blocking_findings = ? WHERE task_id = ?""",
                 (
-                    len(failures), security, tests_run, int(required_passed and not failures),
+                    len(failures), security, tests_run,
+                    int(passed_decision and required_passed and not failures),
                     int(all(item.get("success") for item in targeted_results)) if targeted_results else None,
                     int(all(item.get("success") for item in final_results)) if final_results else None,
                     blocking, task_id,
@@ -207,15 +239,33 @@ class ArtifactImporter:
             self.service.transition(task_id, TaskStatus.PLANNING, "Imported plan phase", subsystem="planning")
             task = self.service.get(task_id)
         if task.status is TaskStatus.PLANNING:
-            self.service.transition(task_id, TaskStatus.APPROVED, "Imported approved plan", subsystem="approval")
+            if not plan_hash:
+                raise ArtifactImportError("Execution/validation artifact has no plan hash")
+            self.service.transition(
+                task_id,
+                TaskStatus.AWAITING_APPROVAL,
+                "Historical approval evidence must be indexed",
+                subsystem="artifact_import",
+            )
             task = self.service.get(task_id)
         if task.status in {TaskStatus.AWAITING_APPROVAL, TaskStatus.REAPPROVAL_REQUIRED}:
-            if task.plan_hash and plan_hash == task.plan_hash:
-                self.service.attach_approval(
-                    task_id, task.plan_hash, "explicitly_approved", actor="artifact_import",
-                    reason="Execution/validation artifact is bound to this exact plan hash",
+            if not task.plan_hash or plan_hash != task.plan_hash:
+                raise ArtifactImportError(
+                    "Historical execution evidence is not bound to the current plan"
                 )
-            self.service.transition(task_id, TaskStatus.APPROVED, "Imported exact-plan approval", subsystem="approval")
+            self.service.attach_approval(
+                task_id,
+                task.plan_hash,
+                "historical_execution_evidence",
+                actor="artifact_import",
+                reason="Artifact proves historical execution, not human approval",
+            )
+            self.service.transition(
+                task_id,
+                TaskStatus.APPROVED,
+                "Historical artifact proves execution occurred; approval was not reconstructed",
+                subsystem="artifact_import",
+            )
             task = self.service.get(task_id)
         if target in {TaskStatus.EXECUTING, TaskStatus.VALIDATING} and task.status is TaskStatus.APPROVED:
             self.service.transition(task_id, TaskStatus.EXECUTING, "Execution artifact indexed", subsystem="execution")

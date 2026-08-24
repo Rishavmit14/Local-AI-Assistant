@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
-from local_ai_assistant.execution.history import redact
+from local_ai_assistant.execution.history import redact, redacted_json
 
 from .service import TaskHistoryService
 
@@ -14,7 +13,7 @@ def export_task(service: TaskHistoryService, task_id: str, destination: Path, fo
     package = service.summary(task_id)
     package["artifacts"] = service.artifacts(task_id)
     if format == "json":
-        content = json.dumps(package, indent=2, ensure_ascii=False, default=str)
+        content = redacted_json(package, indent=2, ensure_ascii=False, default=str)
     elif format == "markdown":
         task = package["task"]
         lines = [

@@ -11,7 +11,12 @@ from local_ai_assistant.execution.errors import (
     ToolPermissionError,
 )
 from local_ai_assistant.execution.history import load_report, persist_report, redact
-from local_ai_assistant.execution.models import ExecutionReport, ToolPermission, ToolRequest
+from local_ai_assistant.execution.models import (
+    ExecutionReport,
+    ToolEvent,
+    ToolPermission,
+    ToolRequest,
+)
 from local_ai_assistant.execution.registry import _safe_path, default_registry
 
 
@@ -181,6 +186,34 @@ def test_execution_history_is_atomic_redacted_and_versioned(tmp_path):
     path.write_text("{broken")
     with pytest.raises(ExecutionHistoryError):
         load_report(path)
+
+
+def test_execution_history_structural_redaction_preserves_valid_json(tmp_path):
+    event = ToolEvent(
+        task_id="task",
+        plan_hash="hash",
+        repository=str(tmp_path),
+        starting_commit="abc",
+        tool_name="read_file",
+        arguments={"password": 'quoted-\"secret', "path": "safe.py"},
+        timestamp="2026-08-24T00:00:00+00:00",
+        duration_seconds=0.1,
+        success=True,
+        output_summary="Authorization: Bearer eyJaaaaaaaaaaa.bbbbbbbbbbb.cccccccc",
+        mutation_summary="",
+        affected_files=(),
+        risk="low",
+        approval="approved",
+    )
+    report = ExecutionReport(
+        1, "task", "hash", str(tmp_path), "abc", "complete", ("hash",), (event,)
+    )
+    loaded = load_report(persist_report(report, tmp_path / "history.json"))
+    serialized = (tmp_path / "history.json").read_text()
+    assert loaded["events"][0]["arguments"]["password"] == "[REDACTED]"
+    assert loaded["events"][0]["arguments"]["path"] == "safe.py"
+    assert "quoted" not in serialized
+    assert "eyJaaaaaaaaaaa" not in serialized
 
 
 def test_sensitive_and_escaping_paths_are_rejected(tmp_path):

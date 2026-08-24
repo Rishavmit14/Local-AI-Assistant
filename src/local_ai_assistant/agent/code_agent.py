@@ -64,7 +64,10 @@ PATCH_DIR.mkdir(
 
 
 def _history_service(config: AppConfig) -> TaskHistoryService:
-    return TaskHistoryService(TaskHistoryStore(config.paths.task_history_db))
+    return TaskHistoryService(
+        TaskHistoryStore(config.paths.task_history_db),
+        artifact_roots=(config.paths.code_index_dir, config.paths.task_history_db.parent),
+    )
 
 
 def _record_plan(config: AppConfig, artifact, path: Path, repo: Path, branch: str) -> None:
@@ -1888,23 +1891,38 @@ def main(argv: list[str] | None = None):
             repairs=result.repairs,
             replans=result.replans,
         )
-        validation_ok, validation_output, reviewed_diff_hash = run_intelligent_validation(
-            repo,
-            artifact,
-            rag,
-            config,
-            context=context,
-            max_repairs=(
-                args.max_repairs if args.max_repairs is not None else limits.max_repairs
-            ),
+        cancelled_before_validation = result.status == "cancelled" or _cancel_requested(
+            config, artifact.plan.task_id
         )
-        success = result.status == "complete" and validation_ok
+        if cancelled_before_validation:
+            validation_ok = False
+            validation_output = "Execution cancelled before validation; changes were rolled back."
+            reviewed_diff_hash = None
+        else:
+            validation_ok, validation_output, reviewed_diff_hash = run_intelligent_validation(
+                repo,
+                artifact,
+                rag,
+                config,
+                context=context,
+                max_repairs=(
+                    args.max_repairs if args.max_repairs is not None else limits.max_repairs
+                ),
+            )
+        cancelled = cancelled_before_validation or _cancel_requested(
+            config, artifact.plan.task_id
+        )
+        if cancelled:
+            validation_ok = False
+            validation_output = "Execution cancelled; changes were rolled back."
+            reviewed_diff_hash = None
+        success = result.status == "complete" and validation_ok and not cancelled
         transaction = finalize_run(
             repo=repo,
             request=args.request,
             tests_passed=success,
             auto_commit=args.auto_commit,
-            rollback_on_fail=args.rollback_on_fail,
+            rollback_on_fail=True if cancelled else args.rollback_on_fail,
             starting_commit=starting_commit,
             original_branch=original_branch,
             agent_branch=agent_branch,
@@ -1916,7 +1934,11 @@ def main(argv: list[str] | None = None):
             report.plan_hash,
             report.repository,
             report.starting_commit,
-            transaction.outcome,
+            (
+                "cancelled_rolled_back"
+                if cancelled and transaction.outcome == "rolled_back"
+                else transaction.outcome
+            ),
             report.plan_versions,
             report.events,
             final_diff=report.final_diff,

@@ -23,6 +23,9 @@ PRIVATE_KEY = re.compile(
     r"-----BEGIN [^-\r\n]*PRIVATE KEY-----.*?-----END [^-\r\n]*PRIVATE KEY-----",
     re.DOTALL,
 )
+SENSITIVE_KEY = re.compile(
+    r"(?i)(token|password|secret|api[_-]?key|credential|private[_-]?key)"
+)
 
 
 def redact(value: str) -> str:
@@ -34,10 +37,30 @@ def redact(value: str) -> str:
     return SECRET.sub(r"\1\2[REDACTED]", value)
 
 
+def redact_data(value, key: str | None = None):
+    """Redact structured values without corrupting their serialization."""
+    if key and SENSITIVE_KEY.search(key):
+        return "[REDACTED]"
+    if isinstance(value, dict):
+        return {
+            str(item_key): redact_data(item, str(item_key))
+            for item_key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [redact_data(item) for item in value]
+    if isinstance(value, str):
+        return redact(value)
+    return value
+
+
+def redacted_json(value, **kwargs) -> str:
+    return json.dumps(redact_data(value), **kwargs)
+
+
 def persist_report(report: ExecutionReport, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.tmp")
-    content = redact(json.dumps(report.to_dict(), indent=2, ensure_ascii=False)) + "\n"
+    content = redacted_json(report.to_dict(), indent=2, ensure_ascii=False) + "\n"
     with temporary.open("w", encoding="utf-8") as stream:
         stream.write(content)
         stream.flush()
