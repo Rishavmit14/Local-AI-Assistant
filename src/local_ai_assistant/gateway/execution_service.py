@@ -18,15 +18,20 @@ class ExecutionHandle:
 
 class CodeAgentExecutionService:
     """One local worker; code-agent remains the sole mutation/execution authority."""
-    def __init__(self, config, history):
+    def __init__(self, config, history, onboarding=None):
         self.config = config
         self.history = history
+        self.onboarding = onboarding
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="friday-execution")
         self._runs: dict[str, Future] = {}
 
     def execute_task(self, task) -> ExecutionHandle:
         if task.status is not TaskStatus.APPROVED or not task.plan_hash:
             raise ValueError("exact approved plan is required")
+        if self.onboarding is not None:
+            profile = next((item for item in self.onboarding.list_profiles() if Path(item.canonical_root).resolve() == Path(task.repository).resolve()), None)
+            if profile is not None and profile.status.value in {"blocked", "needs_tooling", "unsupported", "partial_readiness"}:
+                raise ValueError("repository readiness does not permit autonomous execution")
         repo_name = Path(task.repository).name
         run_id = f"run_{task.task_id}"
         if run_id in self._runs and not self._runs[run_id].done():

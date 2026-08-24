@@ -38,7 +38,8 @@ def main(argv=None):
             if path.is_dir() and (path / ".git").exists()
         ) if app_config.paths.code_repo_dir.is_dir() else ()
         history = TaskHistoryService(TaskHistoryStore(app_config.paths.task_history_db))
-        execution = CodeAgentExecutionService(app_config, history)
+        onboarding = RepositoryOnboardingService(app_config)
+        execution = CodeAgentExecutionService(app_config, history, onboarding=onboarding)
         def planner_factory(repository):
             rag = CodeRAG(config=app_config)
             if not rag.load():
@@ -63,7 +64,6 @@ def main(argv=None):
                 import uvicorn
             except ImportError as exc:
                 raise SystemExit("Gateway serving requires the 'gateway' extra") from exc
-            onboarding = RepositoryOnboardingService(app_config)
             app = create_app(service, auth=auth, max_body_bytes=config.max_body_bytes, max_task_text=config.max_task_text, requests_per_minute=config.request_rate, onboarding=onboarding)
             uvicorn.run(app, host=config.host, port=config.port, log_level="info", workers=1)
     elif args.command == "config-check":

