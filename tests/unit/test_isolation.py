@@ -7,6 +7,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -36,6 +37,7 @@ from local_ai_assistant.isolation.promotion import commit_exact, diff_hash, veri
 from local_ai_assistant.isolation.recovery import inspect_recovery
 from local_ai_assistant.isolation.sandbox import (
     NativeProcessSandbox,
+    _bubblewrap_usable,
     isolated_environment,
     select_backend,
 )
@@ -429,6 +431,24 @@ def test_bwrap_binary_presence_without_functional_probe_selects_native(monkeypat
     assert isinstance(backend, NativeProcessSandbox)
     assert backend.capabilities().filesystem is CapabilityState.PARTIAL
     assert backend.capabilities().network is CapabilityState.UNAVAILABLE
+
+
+def test_bwrap_probe_matches_required_runtime_namespaces_and_usrmerge(monkeypatch):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox.subprocess.run", fake_run)
+    assert _bubblewrap_usable("/usr/bin/bwrap")
+    command, options = calls[0]
+    assert command[0] == "/usr/bin/bwrap"
+    assert command[-1] == "/usr/bin/true"
+    assert "--unshare-net" in command
+    assert "--unshare-pid" in command
+    assert command[command.index("/usr") - 1] == "--ro-bind"
+    assert options["timeout"] == 2
 
 
 def test_worktree_root_must_be_separate_from_repository(repository):

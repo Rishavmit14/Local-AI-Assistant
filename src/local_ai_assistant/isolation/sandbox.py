@@ -341,9 +341,34 @@ def _read_bounded(stream, output: bytearray, limit: int, flags: list[bool], inde
 def _bubblewrap_usable(executable: str | None) -> bool:
     if not executable:
         return False
+    # Match the namespace and runtime mounts Friday actually requires.  Binding
+    # only /usr and executing /bin/true is a false negative on usr-merged hosts:
+    # the sandbox root has no /bin link and no dynamic-loader paths.
+    command = [
+        executable,
+        "--die-with-parent",
+        "--unshare-pid",
+        "--unshare-ipc",
+        "--unshare-uts",
+        "--unshare-net",
+        "--proc",
+        "/proc",
+        "--dev",
+        "/dev",
+        "--ro-bind",
+        "/usr",
+        "/usr",
+        "--ro-bind",
+        "/bin",
+        "/bin",
+    ]
+    for system_path in ("/lib", "/lib64", "/etc/ld.so.cache"):
+        if Path(system_path).exists():
+            command.extend(("--ro-bind", system_path, system_path))
+    command.append("/usr/bin/true")
     try:
         result = subprocess.run(
-            [executable, "--ro-bind", "/usr", "/usr", "--proc", "/proc", "/bin/true"],
+            command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
