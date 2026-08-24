@@ -72,6 +72,7 @@ class PathConfig:
     code_repo_dir: Path = PROJECT_ROOT / "var/repos"
     code_index_dir: Path = PROJECT_ROOT / "var/code-index"
     patch_dir: Path = PROJECT_ROOT / "var/patches"
+    task_history_db: Path = PROJECT_ROOT / "var/history/tasks.sqlite3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +167,9 @@ class AppConfig:
                 values.get("LOCAL_AI_CODE_INDEX_DIR", str(var_dir / "code-index"))
             ),
             patch_dir=_path(values.get("LOCAL_AI_PATCH_DIR", str(var_dir / "patches"))),
+            task_history_db=_path(
+                values.get("LOCAL_AI_TASK_HISTORY_DB", str(var_dir / "history/tasks.sqlite3"))
+            ),
         )
         document = DocumentRetrievalConfig(
             chunk_size=_integer(values, "LOCAL_AI_RAG_CHUNK_SIZE", 450),
