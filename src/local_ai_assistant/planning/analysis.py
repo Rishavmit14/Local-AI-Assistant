@@ -111,14 +111,19 @@ def detect_migration(request: str, paths: tuple[str, ...] = ()) -> tuple[str, ..
     reasons = [f"Migration signal: {word}" for word in sorted(MIGRATION_WORDS) if word in text]
     if re.search(r"(^|/)(migrations?|alembic)/", text):
         reasons.append("Migration directory is in scope.")
+    if any(PurePosixPath(path).suffix.lower() == ".sql" for path in paths):
+        reasons.append("SQL source is in scope; schema/data migration impact requires review.")
     return tuple(dict.fromkeys(reasons))
 
 
 def detect_security(request: str, paths: tuple[str, ...] = ()) -> tuple[str, ...]:
     text = " ".join((request, *paths)).lower()
-    return tuple(
+    reasons = [
         f"Security-sensitive signal: {word}" for word in sorted(SECURITY_WORDS) if word in text
-    )
+    ]
+    if any(PurePosixPath(path).suffix.lower() == ".sol" for path in paths):
+        reasons.append("Solidity contract scope requires security-sensitive review.")
+    return tuple(dict.fromkeys(reasons))
 
 
 class ScopeAnalyzer:
@@ -226,6 +231,22 @@ class ScopeAnalyzer:
                         )
                     elif relationship == "callee":
                         self._add_unresolved_call(candidates, symbol, call)
+            for edge in self.symbols.relationships:
+                if edge.source != symbol.identifier and edge.target_symbol != symbol.identifier:
+                    continue
+                related_id = edge.target_symbol if edge.source == symbol.identifier else edge.source
+                related = self._symbol(related_id)
+                if related and related.identifier != symbol.identifier:
+                    self._add(
+                        candidates,
+                        related,
+                        f"Syntactic {edge.relationship} relationship with {symbol.qualified_name}.",
+                        edge.relationship,
+                        None,
+                        0.74 if edge.resolution.value == "confirmed_definition" else 0.62,
+                        ScopeRole.DEPENDENT,
+                        {"resolution": edge.resolution.value, "evidence": edge.evidence[:500]},
+                    )
             module = self.symbols.containing_module(symbol.identifier)
             if module:
                 module_name = module.qualified_name
@@ -322,10 +343,12 @@ class ScopeAnalyzer:
             if self.symbols.containing_module(item.identifier)
         }
         names = {item.name for item in direct_symbols}
-        for path in self.repository.rglob("test*.py"):
+        for path in self.repository.rglob("*"):
             if not path.is_file():
                 continue
             relative = path.relative_to(self.repository).as_posix()
+            if not self._is_test_path(relative):
+                continue
             text = path.read_text(encoding="utf-8", errors="replace")
             matched = sorted(name for name in names | modules if name and name in text)
             if matched:
@@ -431,14 +454,37 @@ class ScopeAnalyzer:
         )
 
     def _module_name(self, path: str) -> str:
-        from local_ai_assistant.code_index.python_parser import PythonSymbolExtractor
+        from local_ai_assistant.code_index.adapters import module_identity
 
-        return PythonSymbolExtractor.module_name(self._relative_path(path))
+        relative = self._relative_path(path)
+        language = self.symbols.language_registry.detect(relative)
+        if language == "python":
+            from local_ai_assistant.code_index.python_parser import PythonSymbolExtractor
+
+            return PythonSymbolExtractor.module_name(relative)
+        return module_identity(language or "unknown", relative)
 
     @staticmethod
     def _is_test_path(path: str) -> bool:
         value = PurePosixPath(path)
-        return "tests" in value.parts or value.name.startswith("test_")
+        name = value.name.lower()
+        return (
+            "tests" in value.parts
+            or "test" in value.parts
+            or name.startswith("test_")
+            or name.endswith(
+                (
+                    "_test.py",
+                    "_test.rs",
+                    ".test.js",
+                    ".test.ts",
+                    ".spec.js",
+                    ".spec.ts",
+                    ".t.sol",
+                    "test.java",
+                )
+            )
+        )
 
 
 def assess_confidence(

@@ -8,10 +8,13 @@ from pathlib import Path
 
 from local_ai_assistant.common.errors import ParserUnavailableError
 
+from .adapters import AdapterDescriptor, LanguageAdapter, stable_symbol_id
 from .models import (
     CallRecord,
+    CapabilityStatus,
     ExtractionResult,
     FileRecord,
+    LanguageCapability,
     ReferenceRecord,
     Resolution,
     SymbolKind,
@@ -20,17 +23,57 @@ from .models import (
 
 
 def _identifier(path: str, qualified_name: str, kind: SymbolKind) -> str:
-    identity = f"python\0{path}\0{qualified_name}\0{kind.value}"
-    return "py:" + hashlib.sha256(identity.encode()).hexdigest()[:24]
+    return stable_symbol_id("python", path, qualified_name, kind)
 
 
 def _text(source: bytes, node) -> str:
     return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
 
 
-class PythonSymbolExtractor:
+class PythonSymbolExtractor(LanguageAdapter):
     language = "python"
     extensions = frozenset({".py"})
+    descriptor = AdapterDescriptor(
+        "python",
+        extensions,
+        {
+            LanguageCapability.SYMBOLS: CapabilityStatus.SUPPORTED,
+            LanguageCapability.IMPORTS: CapabilityStatus.SUPPORTED,
+            LanguageCapability.REFERENCES: CapabilityStatus.PARTIAL,
+            LanguageCapability.CALLS: CapabilityStatus.PARTIAL,
+            LanguageCapability.VISIBILITY: CapabilityStatus.PARTIAL,
+            LanguageCapability.MODULES: CapabilityStatus.SUPPORTED,
+            LanguageCapability.TESTS: CapabilityStatus.PARTIAL,
+        },
+        "tree-sitter-python",
+        "0.25",
+    )
+
+    def capability(self, capability: LanguageCapability) -> CapabilityStatus:
+        return self.descriptor.capabilities.get(capability, CapabilityStatus.UNAVAILABLE)
+
+    @property
+    def parser_version(self) -> str:
+        try:
+            from importlib.metadata import version
+
+            return version(self.descriptor.parser_package)
+        except Exception:
+            return self.descriptor.parser_version
+
+    @staticmethod
+    def embedding_text(symbol: SymbolRecord) -> str:
+        return "\n".join(
+            part
+            for part in (
+                "language python",
+                f"{symbol.kind.value} {symbol.qualified_name}",
+                symbol.signature,
+                symbol.documentation,
+                symbol.source[:4000],
+            )
+            if part
+        )
 
     def __init__(self) -> None:
         try:
@@ -50,9 +93,7 @@ class PythonSymbolExtractor:
         tree = self.parser.parse(source)
         module_name = self.module_name(path)
         module_id = _identifier(path, module_name, SymbolKind.MODULE)
-        imports = tuple(
-            self._imports(source_text, module_name, path.endswith("/__init__.py"))
-        )
+        imports = tuple(self._imports(source_text, module_name, path.endswith("/__init__.py")))
         errors = tuple(self._errors(tree.root_node))
         module = SymbolRecord(
             identifier=module_id,
@@ -78,8 +119,18 @@ class PythonSymbolExtractor:
         definitions_by_name: dict[str, list[SymbolRecord]] = {}
         for symbol in symbols:
             definitions_by_name.setdefault(symbol.name, []).append(symbol)
-        self._walk_uses(tree.root_node, source, path, module_id, symbols, definitions_by_name, references, calls)
-        file_record = FileRecord(path, "python", digest, imports, errors)
+        self._walk_uses(
+            tree.root_node, source, path, module_id, symbols, definitions_by_name, references, calls
+        )
+        file_record = FileRecord(
+            path,
+            "python",
+            digest,
+            imports,
+            errors,
+            self.parser_version,
+            {key.value: value.value for key, value in self.descriptor.capabilities.items()},
+        )
         return ExtractionResult(file_record, tuple(symbols), tuple(references), tuple(calls))
 
     @staticmethod
@@ -87,7 +138,9 @@ class PythonSymbolExtractor:
         value = Path(path).with_suffix("").as_posix().replace("/", ".")
         return value[:-9] if value.endswith(".__init__") else value
 
-    def _walk_definitions(self, node, source, path, parent_qname, parent_id, digest, imports, output):
+    def _walk_definitions(
+        self, node, source, path, parent_qname, parent_id, digest, imports, output
+    ):
         for child in node.named_children:
             definition = child
             decorators: tuple[str, ...] = ()
@@ -98,7 +151,11 @@ class PythonSymbolExtractor:
                     if item.type == "decorator"
                 )
                 definition = next(
-                    (item for item in child.named_children if item.type in {"function_definition", "class_definition"}),
+                    (
+                        item
+                        for item in child.named_children
+                        if item.type in {"function_definition", "class_definition"}
+                    ),
                     child,
                 )
             if definition.type in {"function_definition", "class_definition"}:
@@ -119,7 +176,12 @@ class PythonSymbolExtractor:
                 symbol_id = _identifier(path, qname, kind)
                 body = definition.child_by_field_name("body")
                 signature_end = body.start_byte if body is not None else definition.end_byte
-                signature = source[definition.start_byte:signature_end].decode(errors="replace").rstrip().rstrip(":")
+                signature = (
+                    source[definition.start_byte : signature_end]
+                    .decode(errors="replace")
+                    .rstrip()
+                    .rstrip(":")
+                )
                 symbol = SymbolRecord(
                     identifier=symbol_id,
                     path=path,
@@ -134,21 +196,31 @@ class PythonSymbolExtractor:
                     signature=signature,
                     documentation=self._body_docstring(body, source),
                     decorators=decorators,
-                    visibility="private" if name.startswith("_") and not name.startswith("__") else "public",
+                    visibility="private"
+                    if name.startswith("_") and not name.startswith("__")
+                    else "public",
                     imports=imports,
                     source_hash=hashlib.sha256(_text(source, child).encode()).hexdigest(),
                 )
                 output.append(symbol)
                 if body is not None:
-                    self._walk_definitions(body, source, path, qname, symbol_id, digest, imports, output)
+                    self._walk_definitions(
+                        body, source, path, qname, symbol_id, digest, imports, output
+                    )
             elif child.type not in {"function_definition", "class_definition"}:
-                self._walk_definitions(child, source, path, parent_qname, parent_id, digest, imports, output)
+                self._walk_definitions(
+                    child, source, path, parent_qname, parent_id, digest, imports, output
+                )
 
     def _walk_uses(self, root, source, path, module_id, symbols, definitions, references, calls):
-        ranged = sorted(symbols[1:], key=lambda item: (item.end_line - item.start_line, item.start_line))
+        ranged = sorted(
+            symbols[1:], key=lambda item: (item.end_line - item.start_line, item.start_line)
+        )
         for node in self._descendants(root):
             line = node.start_point.row + 1
-            owner = next((item for item in ranged if item.start_line <= line <= item.end_line), None)
+            owner = next(
+                (item for item in ranged if item.start_line <= line <= item.end_line), None
+            )
             owner_id = owner.identifier if owner else module_id
             if node.type == "call":
                 function = node.child_by_field_name("function")
@@ -160,11 +232,40 @@ class PythonSymbolExtractor:
                     if function.type == "identifier"
                     else None
                 )
-                calls.append(CallRecord(owner_id, name, path, line, Resolution.CONFIRMED if target else Resolution.UNRESOLVED, target.identifier if target else None))
-            elif node.type == "identifier" and node.parent and node.parent.type not in {"function_definition", "class_definition", "parameters", "import_statement", "import_from_statement"}:
+                calls.append(
+                    CallRecord(
+                        owner_id,
+                        name,
+                        path,
+                        line,
+                        Resolution.CONFIRMED if target else Resolution.UNRESOLVED,
+                        target.identifier if target else None,
+                    )
+                )
+            elif (
+                node.type == "identifier"
+                and node.parent
+                and node.parent.type
+                not in {
+                    "function_definition",
+                    "class_definition",
+                    "parameters",
+                    "import_statement",
+                    "import_from_statement",
+                }
+            ):
                 name = _text(source, node)
                 target = self._resolve(name, owner, definitions)
-                references.append(ReferenceRecord(owner_id, name, path, line, Resolution.SYNTACTIC, target.identifier if target else None))
+                references.append(
+                    ReferenceRecord(
+                        owner_id,
+                        name,
+                        path,
+                        line,
+                        Resolution.SYNTACTIC,
+                        target.identifier if target else None,
+                    )
+                )
 
     @staticmethod
     def _resolve(name, owner, definitions):
@@ -192,9 +293,7 @@ class PythonSymbolExtractor:
         return errors
 
     @staticmethod
-    def _imports(
-        source_text: str, module_name: str, is_package_module: bool = False
-    ) -> list[str]:
+    def _imports(source_text: str, module_name: str, is_package_module: bool = False) -> list[str]:
         try:
             tree = ast.parse(source_text)
         except SyntaxError:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure deterministic Stage 2 full/no-change/one-file refresh behavior."""
+"""Measure deterministic mixed-language incremental index mechanics."""
 
 from __future__ import annotations
 
@@ -30,12 +30,17 @@ class HashEmbedder:
 def populate(repository: Path, count: int) -> None:
     repository.mkdir(parents=True)
     for number in range(count):
-        (repository / f"module_{number:04}.py").write_text(
-            f"def function_{number}(value: int) -> int:\n"
-            f"    \"\"\"Synthetic function {number}.\"\"\"\n"
-            f"    return value + {number}\n",
-            encoding="utf-8",
-        )
+        language = number % 3
+        if language == 0:
+            path = repository / f"module_{number:04}.py"
+            source = f"def function_{number}(value: int) -> int:\n    return value + {number}\n"
+        elif language == 1:
+            path = repository / f"module_{number:04}.rs"
+            source = f"pub fn function_{number}(value: i32) -> i32 {{ value + {number} }}\n"
+        else:
+            path = repository / f"Contract{number:04}.sol"
+            source = f"contract Contract{number:04} {{ function value() public pure returns(uint) {{ return {number}; }} }}\n"
+        path.write_text(source, encoding="utf-8")
 
 
 def main() -> int:
@@ -49,15 +54,25 @@ def main() -> int:
         index = SymbolIndex(repository, root / "index", HashEmbedder())
         full = index.refresh(full=True)
         unchanged = index.refresh()
-        target = repository / "module_0000.py"
-        target.write_text(target.read_text() + "\ndef added():\n    return True\n")
-        changed = index.refresh()
+        python_target = repository / "module_0000.py"
+        python_target.write_text(
+            python_target.read_text() + "\ndef added_python():\n    return True\n"
+        )
+        python_changed = index.refresh()
+        rust_target = repository / "module_0001.rs"
+        rust_target.write_text(rust_target.read_text() + "\npub fn added_rust() {}\n")
+        rust_changed = index.refresh()
+        solidity_target = repository / "Contract0002.sol"
+        solidity_target.write_text(solidity_target.read_text() + "\ncontract Added {}\n")
+        additional_changed = index.refresh()
         print(
             json.dumps(
                 {
                     "full": asdict(full),
                     "no_change": asdict(unchanged),
-                    "one_file_change": asdict(changed),
+                    "one_python_file_change": asdict(python_changed),
+                    "one_rust_file_change": asdict(rust_changed),
+                    "one_additional_language_file_change": asdict(additional_changed),
                 },
                 indent=2,
             )

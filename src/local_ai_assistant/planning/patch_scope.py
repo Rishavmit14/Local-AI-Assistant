@@ -15,7 +15,22 @@ from .analysis import is_dependency_file, is_protected_path
 from .models import ScopeGuardPolicy
 
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
-DEFINITION = re.compile(r"^[+-]\s*(?:async\s+def|def|class)\s+([A-Za-z_]\w*)")
+DEFINITION_PATTERNS = (
+    re.compile(r"^[+-]\s*(?:async\s+def|def|class)\s+([A-Za-z_]\w*)"),
+    re.compile(
+        r"^[+-]\s*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:fn|struct|trait|enum|type|const|static|mod)\s+([A-Za-z_]\w*)"
+    ),
+    re.compile(
+        r"^[+-]\s*(?:abstract\s+)?(?:contract|interface|library|function|modifier|event|error|struct|enum)\s+([A-Za-z_]\w*)"
+    ),
+    re.compile(
+        r"^[+-]\s*(?:export\s+)?(?:async\s+)?(?:function|class|interface|type|enum|namespace)\s+([A-Za-z_$][\w$]*)"
+    ),
+    re.compile(
+        r"^[+-]\s*(?:public|private|protected|static|final|abstract|async|extern|inline|virtual|constexpr|\s)*\s*(?:class|struct|enum|interface|record|namespace)\s+([A-Za-z_]\w*)"
+    ),
+    re.compile(r"^[+-]\s*(?:function\s+)?([A-Za-z_]\w*)\s*\(\)\s*\{"),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,7 +100,9 @@ def extract_patch_scope(
     if not diff.strip():
         raise PatchValidationError("Patch is empty")
     if "GIT binary patch" in diff or re.search(r"^Binary files .* differ$", diff, re.MULTILINE):
-        raise PatchValidationError("Binary patches are not supported by deterministic scope analysis")
+        raise PatchValidationError(
+            "Binary patches are not supported by deterministic scope analysis"
+        )
     modified, created, deleted, renamed = [], [], [], []
     touched: set[str] = set()
     current_old = current_new = None
@@ -126,7 +143,10 @@ def extract_patch_scope(
                 count = int(match.group(2) or 1)
                 ranges.append((current_old, start, max(start, start + count - 1)))
                 section_changed = True
-            definition = DEFINITION.match(line)
+            definition = next(
+                (pattern.match(line) for pattern in DEFINITION_PATTERNS if pattern.match(line)),
+                None,
+            )
             if definition and (current_new or current_old):
                 definition_changes.append(
                     (
@@ -203,8 +223,7 @@ def extract_patch_scope(
             + [
                 path
                 for path, start, end in ranges
-                if path in analyzable_existing_paths
-                and (path, start, end) not in known_ranges
+                if path in analyzable_existing_paths and (path, start, end) not in known_ranges
             ]
         )
     )
@@ -302,8 +321,7 @@ def _new_symbol_allowed(path: str, name: str, allowed: tuple[str, ...]) -> bool:
     if module.endswith(".__init__"):
         module = module[: -len(".__init__")]
     return any(
-        value.endswith(f".{name}")
-        and (value == f"{module}.{name}" or value.startswith(f"{module}."))
+        value == name or value.endswith((f".{name}", f"::{name}")) or value == f"{module}.{name}"
         for value in allowed
     )
 

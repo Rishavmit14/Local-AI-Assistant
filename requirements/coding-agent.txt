@@ -1,3 +1,12 @@
 -r rag.txt
 tree-sitter>=0.25,<0.26
 tree-sitter-python>=0.25,<0.26
+tree-sitter-rust>=0.24.2,<0.25
+tree-sitter-solidity>=1.2.13,<2
+tree-sitter-javascript>=0.25,<0.26
+tree-sitter-typescript>=0.23.2,<0.24
+tree-sitter-sql>=0.3.11,<0.4
+tree-sitter-c>=0.24.2,<0.25
+tree-sitter-cpp>=0.23.4,<0.24
+tree-sitter-java>=0.23.5,<0.24
+tree-sitter-bash>=0.25.1,<0.26
