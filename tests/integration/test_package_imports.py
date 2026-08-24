@@ -39,13 +39,14 @@ def test_pyproject_is_canonical_and_exposes_supported_commands():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
     package = importlib.import_module("local_ai_assistant")
     assert project["requires-python"] == ">=3.11"
-    assert project["version"] == package.__version__ == "0.5.0"
+    assert project["version"] == package.__version__ == "0.6.0"
     assert set(project["scripts"]) == {
         "local-ai-chat",
         "local-ai-code-rag",
         "local-ai-code-agent",
         "local-ai-plan",
         "local-ai-execute",
-        "local-ai-ui",
-    }
+            "local-ai-ui",
+            "local-ai-validate",
+        }
     assert {"rag", "ui", "coding-agent", "dev"} <= set(project["optional-dependencies"])

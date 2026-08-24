@@ -35,6 +35,14 @@ from local_ai_assistant.planning.patch_scope import (
     validate_patch_scope,
     worktree_diff,
 )
+from local_ai_assistant.validation.decision import decide_final
+from local_ai_assistant.validation.errors import ValidationIntelligenceError
+from local_ai_assistant.validation.models import DecisionStatus, ValidationReport
+from local_ai_assistant.validation.repair import BoundedRepairEngine
+from local_ai_assistant.validation.service import (
+    ValidationService,
+    persist_validation_report,
+)
 
 _DEFAULT_CONFIG = get_config()
 REPO_ROOT = _DEFAULT_CONFIG.paths.code_repo_dir
@@ -45,6 +53,124 @@ PATCH_DIR.mkdir(
     parents=True,
     exist_ok=True,
 )
+
+
+def run_intelligent_validation(
+    repo,
+    artifact,
+    rag,
+    config,
+    *,
+    context: ToolContext | None = None,
+    max_repairs: int = 0,
+) -> tuple[bool, str]:
+    """Run targeted checks, bounded repair, final checks, and review in that order."""
+    service = ValidationService(
+        repo,
+        config.paths.code_index_dir / "validation-cache.json",
+    )
+    validation_plan = service.build(
+        artifact,
+        timeouts={
+            "structural": config.execution.inspection_timeout_seconds,
+            "lint": config.execution.lint_timeout_seconds,
+            "typecheck": config.execution.lint_timeout_seconds,
+            "test": config.execution.test_timeout_seconds,
+            "build": config.execution.build_timeout_seconds,
+        },
+    )
+    try:
+        relative = repo.resolve().relative_to(rag.symbol_index.repository.resolve()).as_posix()
+        index_prefix = "" if relative == "." else relative + "/"
+    except ValueError:
+        index_prefix = ""
+    targeted = service.run(
+        artifact,
+        validation_plan,
+        targeted_only=True,
+        perform_review=False,
+        symbols=tuple(rag.symbol_index.symbols),
+        index_prefix=index_prefix,
+    )
+    repair_engine = BoundedRepairEngine(
+        rag.llm,
+        scope_guard_from_plan(artifact.plan),
+        symbols=tuple(rag.symbol_index.symbols),
+        index_prefix=index_prefix,
+        max_attempts=max_repairs,
+    )
+    while targeted.failures and context is not None and len(repair_engine.attempts) < max_repairs:
+        failure = targeted.failures[0]
+        try:
+            attempt = repair_engine.propose(
+                artifact.plan,
+                failure,
+                {"current_diff": worktree_diff(repo)[-12000:]},
+            )
+            observation = default_registry(config.execution).invoke(
+                "apply_patch",
+                {
+                    "patch": attempt.patch,
+                    "_rationale": attempt.rationale,
+                    "_expected_outcome": "Targeted validation passes",
+                    "_plan_step": "validation-repair",
+                    "_mutation_intended": True,
+                },
+                context,
+            )
+            if not observation.success:
+                break
+        except (ToolExecutionError, ValidationIntelligenceError):
+            break
+        targeted = service.run(
+            artifact,
+            validation_plan,
+            targeted_only=True,
+            perform_review=False,
+            symbols=tuple(rag.symbol_index.symbols),
+            index_prefix=index_prefix,
+        )
+    if targeted.decision.status not in {DecisionStatus.PASS, DecisionStatus.PASS_WITH_WARNINGS}:
+        report = ValidationReport(
+            1,
+            validation_plan,
+            targeted.results,
+            targeted.failures,
+            targeted.review,
+            targeted.decision,
+            repair_attempts=len(repair_engine.attempts),
+            metadata={"phase": "targeted"},
+        )
+    else:
+        required = service.run(
+            artifact,
+            validation_plan,
+            required_only=True,
+            model=rag.llm,
+            symbols=tuple(rag.symbol_index.symbols),
+            index_prefix=index_prefix,
+        )
+        results = (*targeted.results, *required.results)
+        failures = (*targeted.failures, *required.failures)
+        decision = decide_final(validation_plan, results, required.review)
+        report = ValidationReport(
+            1,
+            validation_plan,
+            results,
+            failures,
+            required.review,
+            decision,
+            repair_attempts=len(repair_engine.attempts),
+            metadata={"phase": "final", "sequence_enforced": True},
+        )
+    persist_validation_report(
+        report,
+        config.paths.code_index_dir
+        / "validations"
+        / f"{artifact.plan.task_id}.json",
+    )
+    allowed = {DecisionStatus.PASS, DecisionStatus.PASS_WITH_WARNINGS}
+    return report.decision.status in allowed, "; ".join(report.decision.reasons)
 
 
 # ============================================================
@@ -1402,9 +1528,17 @@ def main(argv: list[str] | None = None):
             repairs=result.repairs,
             replans=result.replans,
         )
-        structure_ok, structure_output = validate_python_structure(repo)
-        test_code, _ = detect_and_run_tests(repo) if args.test else (0, "Tests skipped")
-        success = result.status == "complete" and structure_ok and test_code in {0, None}
+        validation_ok, validation_output = run_intelligent_validation(
+            repo,
+            artifact,
+            rag,
+            config,
+            context=context,
+            max_repairs=(
+                args.max_repairs if args.max_repairs is not None else limits.max_repairs
+            ),
+        )
+        success = result.status == "complete" and validation_ok
         transaction = finalize_run(
             repo=repo,
             request=args.request,
@@ -1434,7 +1568,7 @@ def main(argv: list[str] | None = None):
             config.paths.code_index_dir / "executions" / f"{artifact.plan.task_id}.json",
         )
         if not success:
-            print(structure_output)
+            print(validation_output)
             sys.exit(1)
         return
 
