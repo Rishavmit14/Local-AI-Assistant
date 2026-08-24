@@ -126,9 +126,21 @@ def test_apply_requires_complete_transaction_safety_bundle():
 def test_apply_accepts_complete_transaction_safety_bundle():
     parser = build_agent_parser()
     args = parser.parse_args(
-        ["demo", "change", "--apply", "--branch", "--test", "--validate", "--rollback-on-fail"]
+        [
+            "demo", "change", "--tool-loop", "--apply", "--branch", "--test",
+            "--validate", "--rollback-on-fail",
+        ]
     )
     validate_cli_options(parser, args)
+
+
+def test_stage_eight_rejects_canonical_one_shot_mutation():
+    parser = build_agent_parser()
+    args = parser.parse_args(
+        ["demo", "change", "--apply", "--branch", "--test", "--validate", "--rollback-on-fail"]
+    )
+    with pytest.raises(SystemExit):
+        validate_cli_options(parser, args)
 
 
 def test_auto_merge_requires_explicit_approval_and_commit():

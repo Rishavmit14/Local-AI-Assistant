@@ -474,6 +474,22 @@ def test_redaction_happens_before_sqlite_persistence(history, tmp_path):
         assert secret not in raw
 
 
+def test_isolation_events_are_redacted_and_auditable(history, tmp_path):
+    task = create(history, tmp_path)
+    history.record_isolation_event(
+        task.task_id,
+        "sandbox_started",
+        "Sandbox started",
+        status="running",
+        metadata={"backend": "native", "API_KEY": "secret-value"},
+    )
+    event = history.timeline(task.task_id)[-1]
+    assert event.subsystem == "isolation"
+    assert event.event_type == "sandbox_started"
+    assert event.metadata["backend"] == "native"
+    assert event.metadata["API_KEY"] == "[REDACTED]"
+
+
 def test_safe_concurrent_reads_during_writes_and_transaction_rollback(history, tmp_path):
     task = create(history, tmp_path)
 

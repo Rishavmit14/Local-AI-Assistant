@@ -39,9 +39,24 @@ from .review import deterministic_review, model_review
 
 
 class ValidationService:
-    def __init__(self, repository: Path, cache_path: Path | None = None) -> None:
+    def __init__(
+        self,
+        repository: Path,
+        cache_path: Path | None = None,
+        *,
+        sandbox=None,
+        sandbox_task_root: Path | None = None,
+        sandbox_resources=None,
+        sandbox_network=None,
+        cancel_check=None,
+    ) -> None:
         self.repository = repository.resolve()
         self.cache = ValidationCache(cache_path) if cache_path else None
+        self.sandbox = sandbox
+        self.sandbox_task_root = sandbox_task_root
+        self.sandbox_resources = sandbox_resources
+        self.sandbox_network = sandbox_network
+        self.cancel_check = cancel_check
 
     def build(
         self,
@@ -160,7 +175,20 @@ class ValidationService:
         if self.cache and (cached := self.cache.get(cache_key)):
             return ValidationResult(step.step_id, True, False, 0, cached["summary"], cached=True, provenance=_provenance(step, timestamp, "cached_pass", ReviewSeverity.INFO, "Diff/config-aware cached success"))
         snapshot = self._snapshot()
-        result = run_allowed_command(step.command, self.repository, step.timeout_seconds)
+        sandbox_arguments = (
+            {
+                "sandbox": self.sandbox,
+                "task_root": self.sandbox_task_root,
+                "resources": self.sandbox_resources,
+                "network": self.sandbox_network,
+                "cancel_check": self.cancel_check,
+            }
+            if self.sandbox is not None
+            else {}
+        )
+        result = run_allowed_command(
+            step.command, self.repository, step.timeout_seconds, **sandbox_arguments
+        )
         success = result.return_code == 0 and not result.timed_out
         if (
             worktree_diff(self.repository) != diff

@@ -26,6 +26,16 @@ from local_ai_assistant.history.importer import ArtifactImporter
 from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
+from local_ai_assistant.isolation.checkpoints import CheckpointManager
+from local_ai_assistant.isolation.errors import IsolationError
+from local_ai_assistant.isolation.models import (
+    CapabilityState,
+    NetworkPolicy,
+    ResourcePolicy,
+    WorktreeState,
+)
+from local_ai_assistant.isolation.sandbox import select_backend
+from local_ai_assistant.isolation.worktrees import WorktreeManager
 from local_ai_assistant.planning import PlannerService
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import (
@@ -134,6 +144,25 @@ def _cancel_requested(config: AppConfig, task_id: str) -> bool:
         return False
 
 
+def _record_isolation(config: AppConfig, task_id: str, event: str, summary: str, **metadata) -> None:
+    try:
+        _history_service(config).record_isolation_event(
+            task_id, event, summary, status=event, metadata=metadata
+        )
+    except Exception as exc:
+        raise IsolationError(f"Cannot persist required isolation audit event: {exc}") from exc
+
+
+def _bind_history_worktree(
+    config: AppConfig, task_id: str, repository: Path, branch: str
+) -> None:
+    try:
+        service = _history_service(config)
+        service.store.update_task(task_id, str(repository.resolve()), branch=branch)
+    except Exception as exc:
+        raise IsolationError(f"Cannot bind task history to isolated branch: {exc}") from exc
+
+
 def _mark_execution_started(
     config: AppConfig,
     task_id: str,
@@ -209,6 +238,11 @@ def run_intelligent_validation(
     service = ValidationService(
         repo,
         config.paths.code_index_dir / "validation-cache.json",
+        sandbox=context.sandbox if context else None,
+        sandbox_task_root=context.sandbox_task_root if context else None,
+        sandbox_resources=context.sandbox_resources if context else None,
+        sandbox_network=context.sandbox_network if context else None,
+        cancel_check=context.cancel_check if context else None,
     )
     validation_plan = service.build(
         artifact,
@@ -710,6 +744,8 @@ def commit_agent_changes(
     result = run_command(
         [
             "git",
+            "-c",
+            "core.hooksPath=/dev/null",
             "commit",
             "-m",
             f"agent: {message}",
@@ -1629,11 +1665,19 @@ def validate_cli_options(parser: argparse.ArgumentParser, args: argparse.Namespa
         missing = [option for option, enabled in required.items() if not enabled]
         if missing:
             parser.error("--apply requires " + ", ".join(missing))
+        if not args.tool_loop and not args.human_review:
+            parser.error(
+                "Stage 8 autonomous --apply requires --tool-loop so mutation and validation use the isolated worktree boundary"
+            )
     elif args.auto_commit or args.auto_merge or args.keep_failed_branch:
         parser.error("commit, merge, and failed-branch options require --apply")
 
     if args.auto_merge and not (args.approve_merge and args.auto_commit):
         parser.error("--auto-merge requires --approve-merge and --auto-commit")
+    if args.tool_loop and args.auto_merge:
+        parser.error(
+            "Stage 8 isolated execution never auto-merges; inspect and promote the task branch explicitly"
+        )
     if (args.generate_tests or args.tdd) and not (args.tool_loop and args.apply):
         parser.error("--generate-tests/--tdd require --tool-loop and the complete --apply bundle")
     if args.tdd:
@@ -1777,7 +1821,68 @@ def main(argv: list[str] | None = None):
                 if observation.data.get("patch_sha256"):
                     print(f"  Patch hash: {observation.data['patch_sha256']}")
             return
-        original_branch, starting_commit, agent_branch = create_agent_branch(repo, args.request)
+        canonical_repo = repo
+        starting_commit = artifact.starting_commit
+        isolation_manager = WorktreeManager(config.paths.worktree_dir)
+        sandbox = select_backend(config.isolation.backend)
+        capabilities = sandbox.capabilities()
+        network_policy = NetworkPolicy(config.isolation.network_policy)
+        if (
+            network_policy is not NetworkPolicy.ALLOWED
+            and capabilities.network is not CapabilityState.SUPPORTED
+        ):
+            print(
+                "Requested network isolation is unavailable; autonomous mutation is blocked."
+            )
+            sys.exit(1)
+        if config.isolation.require_strong_isolation and (
+            capabilities.filesystem is not CapabilityState.SUPPORTED
+            or capabilities.network is not CapabilityState.SUPPORTED
+        ):
+            print(
+                "Strong isolation is required but unavailable; autonomous mutation is blocked."
+            )
+            sys.exit(1)
+        isolation_identity = None
+        try:
+            isolation_identity = isolation_manager.create(
+                canonical_repo,
+                artifact.plan.task_id,
+                starting_commit,
+                approval_token,
+            )
+            repo = Path(isolation_identity.worktree)
+            original_branch = None
+            agent_branch = isolation_identity.branch
+            isolation_identity = isolation_manager.transition(
+                isolation_identity, WorktreeState.EXECUTING
+            )
+            baseline = CheckpointManager(
+                config.paths.isolation_dir / "checkpoints"
+            ).create(repo, artifact.plan.task_id, approval_token, "baseline")
+            _bind_history_worktree(
+                config, artifact.plan.task_id, canonical_repo, isolation_identity.branch
+            )
+            _record_isolation(
+                config,
+                artifact.plan.task_id,
+                "worktree_ready",
+                "Task worktree and baseline checkpoint created",
+                worktree_id=isolation_identity.repository_id,
+                branch=isolation_identity.branch,
+                sandbox_backend=capabilities.backend,
+                filesystem_capability=capabilities.filesystem.value,
+                network_policy=network_policy.value,
+                checkpoint_id=baseline.checkpoint_id,
+            )
+        except IsolationError as exc:
+            if isolation_identity is not None:
+                try:
+                    isolation_manager.cleanup(isolation_identity, delete_branch=True)
+                except IsolationError:
+                    pass
+            print(f"Isolation setup failed: {exc}")
+            sys.exit(1)
         _mark_execution_started(
             config,
             artifact.plan.task_id,
@@ -1790,6 +1895,22 @@ def main(argv: list[str] | None = None):
             scope_guard_from_plan(artifact.plan),
             rag.symbol_index,
             args.approve_risk,
+            sandbox=sandbox,
+            sandbox_task_root=(
+                config.paths.isolation_dir / "tasks" / artifact.plan.task_id
+            ),
+            sandbox_resources=ResourcePolicy(
+                wall_seconds=config.isolation.wall_seconds,
+                cpu_seconds=config.isolation.cpu_seconds,
+                max_processes=config.isolation.max_processes,
+                max_open_files=config.isolation.max_open_files,
+                max_output_bytes=config.isolation.max_output_bytes,
+                memory_bytes=config.isolation.memory_bytes,
+                max_file_bytes=config.isolation.max_file_bytes,
+            ),
+            sandbox_network=network_policy,
+            cancel_check=lambda: _cancel_requested(config, artifact.plan.task_id),
+            canonical_repository=canonical_repo,
         )
         if args.generate_tests:
             generated_ok, generated_output = prepare_generated_test(
@@ -1830,6 +1951,11 @@ def main(argv: list[str] | None = None):
                     / "executions"
                     / f"{artifact.plan.task_id}.json",
                 )
+                if not args.keep_failed_branch:
+                    isolation_manager.cleanup(isolation_identity, delete_branch=True)
+                    _record_isolation(
+                        config, artifact.plan.task_id, "cleaned", "Failed task worktree cleaned"
+                    )
                 sys.exit(1)
         try:
             result = ExecutionLoop(
@@ -1877,6 +2003,11 @@ def main(argv: list[str] | None = None):
                 / f"{artifact.plan.task_id}.json",
             )
             print(f"Tool execution failed: {exc}")
+            if not args.keep_failed_branch:
+                isolation_manager.cleanup(isolation_identity, delete_branch=True)
+                _record_isolation(
+                    config, artifact.plan.task_id, "cleaned", "Failed task worktree cleaned"
+                )
             sys.exit(1)
         report = ExecutionReport(
             1,
@@ -1953,7 +2084,24 @@ def main(argv: list[str] | None = None):
         )
         if not success:
             print(validation_output)
+            if not args.keep_failed_branch:
+                isolation_manager.cleanup(isolation_identity, delete_branch=True)
+                _record_isolation(
+                    config, artifact.plan.task_id, "cleaned", "Failed task worktree cleaned"
+                )
             sys.exit(1)
+        isolation_manager.transition(isolation_identity, WorktreeState.PROMOTION_READY)
+        _record_isolation(
+            config,
+            artifact.plan.task_id,
+            "promotion_ready",
+            "Validated task branch is ready for explicit review/promotion",
+            branch=isolation_identity.branch,
+        )
+        print(
+            "Validated task commit remains on its isolated Friday branch; "
+            "canonical checkout was not merged."
+        )
         return
 
     # --------------------------------------------------------

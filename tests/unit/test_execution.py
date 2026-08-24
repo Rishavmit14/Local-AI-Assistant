@@ -18,6 +18,7 @@ from local_ai_assistant.execution.models import (
     ToolRequest,
 )
 from local_ai_assistant.execution.registry import _safe_path, default_registry
+from local_ai_assistant.isolation.models import NetworkPolicy, ResourcePolicy, SandboxResult
 
 
 @pytest.mark.parametrize(
@@ -119,6 +120,28 @@ def test_command_output_capture_is_bounded(tmp_path, monkeypatch):
     )
     assert result.return_code == 0
     assert len(result.stdout.encode()) <= 1024
+
+
+def test_allowed_command_routes_through_explicit_sandbox_policy(tmp_path):
+    class FakeSandbox:
+        def run(self, command, worktree, task_root, **policy):
+            assert worktree == tmp_path.resolve()
+            assert task_root == tmp_path / "task"
+            assert policy["network"] is NetworkPolicy.DENY
+            return SandboxResult(
+                tuple(command), 0, "isolated", "", False, False, False, 0.01, "fake"
+            )
+
+    result = run_allowed_command(
+        "git status --short",
+        tmp_path,
+        2,
+        sandbox=FakeSandbox(),
+        task_root=tmp_path / "task",
+        resources=ResourcePolicy(wall_seconds=2),
+        network=NetworkPolicy.DENY,
+    )
+    assert result.stdout == "isolated"
 
 
 def test_allowed_command_rejects_symlink_argument_escape(tmp_path):

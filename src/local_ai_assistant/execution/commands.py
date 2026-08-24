@@ -10,6 +10,11 @@ import subprocess
 import threading
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from local_ai_assistant.isolation.models import NetworkPolicy, ResourcePolicy
+    from local_ai_assistant.isolation.sandbox import SandboxBackend
 
 from .errors import CommandPolicyError
 
@@ -170,7 +175,13 @@ def parse_allowed_command(command: str | list[str]) -> tuple[str, ...]:
 
 
 def run_allowed_command(
-    command: str | list[str], repository: Path, timeout: int, output_limit: int = 20_000
+    command: str | list[str], repository: Path, timeout: int, output_limit: int = 20_000,
+    *,
+    sandbox: SandboxBackend | None = None,
+    task_root: Path | None = None,
+    resources: ResourcePolicy | None = None,
+    network: NetworkPolicy | None = None,
+    cancel_check=None,
 ) -> CommandResult:
     parts = parse_allowed_command(command)
     repository = repository.resolve()
@@ -191,6 +202,24 @@ def run_allowed_command(
                 raise CommandPolicyError(
                     f"Command argument resolves outside repository: {candidate_value}"
                 )
+    if sandbox is not None:
+        if task_root is None or resources is None or network is None:
+            raise CommandPolicyError("Sandbox execution requires task root and explicit policy")
+        isolated = sandbox.run(
+            (str(executable_path), *parts[1:]),
+            repository,
+            task_root,
+            resources=resources,
+            network=network,
+            cancel_check=cancel_check,
+        )
+        return CommandResult(
+            parts,
+            isolated.return_code,
+            isolated.stdout,
+            isolated.stderr,
+            isolated.timed_out,
+        )
     process = subprocess.Popen(
         (str(executable_path), *parts[1:]),
         cwd=repository,

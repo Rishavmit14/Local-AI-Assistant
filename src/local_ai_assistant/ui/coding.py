@@ -18,6 +18,7 @@ from local_ai_assistant.history.metrics import aggregate_metrics
 from local_ai_assistant.history.models import TaskFilter
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
+from local_ai_assistant.isolation.recovery import inspect_recovery
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,7 +77,31 @@ class CodingUIService:
     def task_detail(self, task_id: str) -> dict:
         detail = self.history.summary(task_id)
         detail["artifacts"] = self.history.artifacts(task_id)
+        detail["isolation"] = self.isolation_status(task_id)
         return detail
+
+    def isolation_status(self, task_id: str) -> dict:
+        if not task_id.replace("_", "").replace("-", "").isalnum():
+            return {"status": "invalid_task_id"}
+        matches = sorted(self.config.paths.worktree_dir.glob(f"*/metadata/{task_id}.json"))
+        if len(matches) != 1:
+            return {"status": "not_found" if not matches else "identity_collision"}
+        try:
+            root = self.config.paths.worktree_dir.resolve()
+            path = matches[0].resolve(strict=True)
+            if root not in path.parents:
+                return {"status": "path_rejected"}
+            value = redact_data(json.loads(path.read_text()))
+            value.pop("canonical_repository", None)
+            value.pop("worktree", None)
+            value["recovery_findings"] = [
+                asdict(item)
+                for item in inspect_recovery(root)
+                if item.task_id == task_id
+            ]
+            return value
+        except (OSError, ValueError, json.JSONDecodeError):
+            return {"status": "unavailable"}
 
     def metrics(self):
         return aggregate_metrics(self.history.store)

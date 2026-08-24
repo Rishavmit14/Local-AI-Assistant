@@ -40,6 +40,12 @@ class ToolContext:
     symbol_index: object
     approval_token: str | None = None
     events: list[ToolEvent] = field(default_factory=list)
+    sandbox: object | None = None
+    sandbox_task_root: Path | None = None
+    sandbox_resources: object | None = None
+    sandbox_network: object | None = None
+    cancel_check: Callable[[], bool] | None = None
+    canonical_repository: Path | None = None
 
 
 Handler = Callable[[ToolContext, dict], ToolObservation]
@@ -188,7 +194,8 @@ def _authorize_mutation(spec: ToolSpec, arguments: dict, context: ToolContext) -
         ["git", "rev-parse", "HEAD"], cwd=context.repository, text=True, capture_output=True
     ).stdout.strip()
     if (
-        Path(context.artifact.repository).resolve() != context.repository.resolve()
+        Path(context.artifact.repository).resolve()
+        != (context.canonical_repository or context.repository).resolve()
         or head != context.artifact.starting_commit
     ):
         raise ToolPermissionError("Plan repository or starting commit is stale")
@@ -677,7 +684,20 @@ def _handler_for_command(timeout: int) -> Handler:
     def handler(context: ToolContext, arguments: dict) -> ToolObservation:
         requested = min(timeout, max(1, int(arguments.get("timeout", timeout))))
         before = worktree_diff(context.repository)
-        result = run_allowed_command(arguments["command"], context.repository, requested)
+        sandbox_arguments = (
+            {
+                "sandbox": context.sandbox,
+                "task_root": context.sandbox_task_root,
+                "resources": context.sandbox_resources,
+                "network": context.sandbox_network,
+                "cancel_check": context.cancel_check,
+            }
+            if context.sandbox is not None
+            else {}
+        )
+        result = run_allowed_command(
+            arguments["command"], context.repository, requested, **sandbox_arguments
+        )
         after = worktree_diff(context.repository)
         if after != before:
             _rollback_worktree(context.repository)

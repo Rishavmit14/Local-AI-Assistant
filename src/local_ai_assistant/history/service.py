@@ -275,6 +275,27 @@ class TaskHistoryService:
         task = self.store.get_task(task_id)
         return bool(task and task.metadata.get("cancel_requested"))
 
+    def record_isolation_event(
+        self,
+        task_id: str,
+        event_type: str,
+        summary: str,
+        *,
+        status: str | None = None,
+        severity: str | None = None,
+        metadata: dict | None = None,
+    ):
+        """Persist bounded isolation evidence without granting execution authority."""
+        return self.store.add_event(
+            task_id,
+            "isolation",
+            event_type,
+            summary,
+            status=status,
+            risk_or_severity=severity,
+            metadata=metadata or {},
+        )
+
     def summary(self, task_id: str) -> dict:
         task = self.store.get_task(task_id)
         if task is None:
