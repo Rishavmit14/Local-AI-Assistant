@@ -62,9 +62,9 @@ A versioned SQLite history store normalizes tasks, lifecycle events, plans, exec
 
 Git worktree per task, isolated filesystems, checkpoint commits, staged rollback, concurrent-task safety. Evaluate Docker/bubblewrap/firejail, CPU/RAM/disk and command/generation limits, hung-child termination, and untrusted-repo mode. Only after single-task reliability: sequential priority queue, pause/cancel, per-task isolation, conflict prevention, and approvals.
 
-## Stage 9 — Integrations (**Planned**)
+## Stage 9 — Native Integration Gateway / GitHub / External Interfaces (**Planned**)
 
-GitHub issue → task → agent branch → validation/tests → commit → PR, plus PR review and CI; never force-push without approval. OpenClaw may expose only the safe coding-agent interface and cannot bypass Git transactions, validation, approvals, sandbox, or risk gates.
+Build a Friday-native internal integration/service API, then add native GitHub issue/branch/PR/CI integration. Prefer MCP-compatible external tool/interface integration where a standard protocol is useful, add a WebSocket/event interface where justified, and use direct external adapters only when they preserve Friday's deterministic policy boundaries. Friday remains independently operable and has no OpenClaw dependency.
 
 ## Stage 10 — Real-repository hardening (**Planned**)
 
@@ -81,4 +81,4 @@ Context management becomes budget-aware: repo map first, exact symbols/dependenc
 - Large-refactor mode: plan → dependency analysis → staged edits → checkpoint → relevant/full tests → next stage; no opaque giant patches.
 - Unified final platform: llama-server feeding local chat, document/repository RAG, code intelligence, planner/coder/reviewer/debugger/test/security roles, Git transaction manager, task history, and Streamlit UI.
 
-The product definition of done includes local chat; private RAG/OCR; repo Q&A and symbol tracing; planning and multi-file safe edits; build/test/lint/typecheck; bounded repair; code/security review; instruction memory; risk/confidence gates; Git isolation/commit/rollback and optional worktrees; history/metrics/UI; multi-language work; optional GitHub/OpenClaw/queue integrations. High-risk changes retain explicit human review.
+The product definition of done includes local chat; private RAG/OCR; repo Q&A and symbol tracing; planning and multi-file safe edits; build/test/lint/typecheck; bounded repair; code/security review; instruction memory; risk/confidence gates; Git isolation/commit/rollback and optional worktrees; history/metrics/UI; multi-language work; a Friday-native integration gateway with optional GitHub/MCP/external adapters; and optional queued autonomy. High-risk changes retain explicit human review.

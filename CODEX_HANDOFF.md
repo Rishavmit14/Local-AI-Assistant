@@ -770,8 +770,8 @@ Budget-aware context assembly, repo map first, exact symbols/deps/tests next, av
 ### X. Model/runtime optimization
 Coding profile, deterministic/low-temp modes, generation config, health checks, startup validation, fallbacks, context profiles, benchmark harness, alternative local model adapters.
 
-### Y. OpenClaw integration
-Expose only the safe coding-agent interface; OpenClaw must not bypass Git transactions, validation, approvals, command sandbox, or risk gates.
+### Y. Native integration gateway
+Expose Friday through its own internal integration/service API. Prefer MCP-compatible interfaces where a standard tool protocol is useful, add WebSocket/event interfaces where justified, and keep direct adapters bounded by Git transactions, validation, approvals, command policy, and risk gates. OpenClaw is intentionally excluded.
 
 ### Z. GitHub integration
 Issue → task → agent branch → tests/validation → commit → PR; PR review, CI, no force push without explicit permission.
@@ -848,8 +848,8 @@ Coding UI, task DB, streaming, diff, metrics.
 ### Stage 8 — Advanced isolation/autonomy
 Worktrees, checkpoints, sandbox/resource control, queue.
 
-### Stage 9 — Integrations
-GitHub, OpenClaw, optional CI/PR automation.
+### Stage 9 — Native Integration Gateway / GitHub / External Interfaces
+Friday-native service APIs, native GitHub issue/branch/PR/CI integration, MCP-compatible interfaces, optional WebSocket/events, and justified direct adapters. No OpenClaw dependency.
 
 ### Stage 10 — Real-repo hardening
 Onboard real repos, agent benchmark suite, measure/tune retrieval/prompts/repair/model adapters.
@@ -964,7 +964,7 @@ The final assistant should support:
 - task history/metrics
 - local coding UI
 - multi-language work
-- optional GitHub/OpenClaw integrations
+- Friday-native integration gateway with optional GitHub, MCP-compatible, WebSocket/event, and justified direct external adapters
 - optional queued autonomy
 
 Still require explicit human review for high-risk production/security/payment/smart-contract/destructive migration/deployment changes.
