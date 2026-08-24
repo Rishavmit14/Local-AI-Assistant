@@ -10,6 +10,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from .models import CIStatus, RepositoryMapping
+from .errors import (GitHubAuthenticationError, GitHubConflictError, GitHubError, GitHubMalformedResponseError, GitHubNotFoundError, GitHubOversizedResponseError, GitHubPermissionError, GitHubRateLimitError, GitHubTransientError, GitHubValidationError)
 
 
 class GitHubTransport(Protocol):
@@ -41,10 +42,34 @@ class GitHubHttpTransport:
             with urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - fixed HTTPS configured host
                 raw = response.read(2 * 1024 * 1024 + 1)
                 if len(raw) > 2 * 1024 * 1024:
-                    raise ValueError("GitHub response exceeds configured bound")
-                return json.loads(raw)
-        except (HTTPError, URLError, TimeoutError) as exc:
-            raise RuntimeError("GitHub request failed") from exc
+                    raise GitHubOversizedResponseError("GitHub response exceeds configured bound")
+                try:
+                    return json.loads(raw)
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise GitHubMalformedResponseError("GitHub returned malformed JSON") from exc
+        except HTTPError as exc:
+            headers = exc.headers or {}
+            remaining = headers.get("X-RateLimit-Remaining")
+            retry_after = headers.get("Retry-After")
+            if exc.code == 401:
+                raise GitHubAuthenticationError("GitHub authentication failed") from exc
+            if exc.code == 403 and (retry_after or remaining == "0"):
+                raise GitHubRateLimitError("GitHub rate limit exceeded") from exc
+            if exc.code == 403:
+                raise GitHubPermissionError("GitHub permission denied") from exc
+            if exc.code == 404:
+                raise GitHubNotFoundError("GitHub resource not found") from exc
+            if exc.code == 429:
+                raise GitHubRateLimitError("GitHub rate limit exceeded") from exc
+            if exc.code == 409:
+                raise GitHubConflictError("GitHub resource conflict") from exc
+            if exc.code == 422 or 400 <= exc.code < 500:
+                raise GitHubValidationError("GitHub request rejected") from exc
+            if exc.code in {500, 502, 503, 504}:
+                raise GitHubTransientError("GitHub service temporarily unavailable") from exc
+            raise GitHubError("GitHub request failed") from exc
+        except (URLError, TimeoutError, ConnectionError) as exc:
+            raise GitHubTransientError("GitHub connection failed") from exc
 
     def get_issue(self, owner: str, repo: str, number: int) -> dict[str, Any]:
         if number < 1 or number > 10_000_000:
