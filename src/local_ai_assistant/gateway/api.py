@@ -21,9 +21,10 @@ from .models import ExternalProvenance, GatewayScope
 from .publication import GitHubPublicationService
 from .service import IntegrationGatewayService
 from .evidence import review_summary, validation_summary
+from local_ai_assistant.onboarding import RepositoryOnboardingError, RepositoryOnboardingService
 
 
-def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_body_bytes: int = 1_048_576, max_task_text: int = 20_000, requests_per_minute: int = 30, webhook_secret: str | None = None, publication: GitHubPublicationService | None = None):
+def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_body_bytes: int = 1_048_576, max_task_text: int = 20_000, requests_per_minute: int = 30, webhook_secret: str | None = None, publication: GitHubPublicationService | None = None, onboarding: RepositoryOnboardingService | None = None):
     try:
         from fastapi import FastAPI, Header, HTTPException, Request
         from fastapi.responses import JSONResponse, StreamingResponse
@@ -102,6 +103,16 @@ def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_bod
              "github": f"{item.github_owner}/{item.github_name}" if item.github_owner else None}
             for item in service.mappings
         ]
+
+    @app.get("/api/v1/repositories/{repository_id}/readiness")
+    def repository_readiness(repository_id: str, authorization: str | None = Header(default=None)):
+        require(authorization, GatewayScope.READ_STATUS)
+        if onboarding is None:
+            raise HTTPException(503, "repository onboarding is not configured")
+        try:
+            return onboarding.readiness(repository_id).to_dict()
+        except RepositoryOnboardingError as exc:
+            raise HTTPException(404, "repository readiness unavailable") from exc
 
     @app.get("/api/v1/tasks")
     def tasks(authorization: str | None = Header(default=None), limit: int = 100):

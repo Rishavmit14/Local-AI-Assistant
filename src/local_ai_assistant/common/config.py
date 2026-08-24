@@ -80,6 +80,7 @@ class PathConfig:
     task_history_db: Path = PROJECT_ROOT / "var/history/tasks.sqlite3"
     worktree_dir: Path = PROJECT_ROOT / "var/worktrees"
     isolation_dir: Path = PROJECT_ROOT / "var/isolation"
+    onboarding_registry: Path = PROJECT_ROOT / "var/onboarding/repositories.json"
 
 
 @dataclass(frozen=True, slots=True)
@@ -218,6 +219,9 @@ class AppConfig:
             ),
             isolation_dir=_path(
                 values.get("LOCAL_AI_ISOLATION_ROOT", str(var_dir / "isolation"))
+            ),
+            onboarding_registry=_path(
+                values.get("LOCAL_AI_ONBOARDING_REGISTRY", str(var_dir / "onboarding/repositories.json"))
             ),
         )
         document = DocumentRetrievalConfig(

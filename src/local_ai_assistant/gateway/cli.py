@@ -17,6 +17,7 @@ from local_ai_assistant.gateway.mcp_server import MCPProtocolServer
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.planning.service import PlannerService
+from local_ai_assistant.onboarding import RepositoryOnboardingService
 
 
 def main(argv=None):
@@ -62,7 +63,8 @@ def main(argv=None):
                 import uvicorn
             except ImportError as exc:
                 raise SystemExit("Gateway serving requires the 'gateway' extra") from exc
-            app = create_app(service, auth=auth, max_body_bytes=config.max_body_bytes, max_task_text=config.max_task_text, requests_per_minute=config.request_rate)
+            onboarding = RepositoryOnboardingService(app_config)
+            app = create_app(service, auth=auth, max_body_bytes=config.max_body_bytes, max_task_text=config.max_task_text, requests_per_minute=config.request_rate, onboarding=onboarding)
             uvicorn.run(app, host=config.host, port=config.port, log_level="info", workers=1)
     elif args.command == "config-check":
         if config.host not in {"127.0.0.1", "localhost", "::1"}:
