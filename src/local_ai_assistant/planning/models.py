@@ -238,6 +238,7 @@ class ScopeGuardPolicy:
     dependency_file_policy: str
     generated_file_policy: str
     security_sensitive_path_policy: str
+    symbol_scoped_files: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

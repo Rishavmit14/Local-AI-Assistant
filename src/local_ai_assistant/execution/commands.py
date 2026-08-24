@@ -17,6 +17,8 @@ SHELL_TOKENS = {"|", "||", "&&", ";", ">", ">>", "<", "<<", "$(", "`"}
 ALLOWED_PREFIXES = (
     ("python", "-m", "pytest"),
     ("python3", "-m", "pytest"),
+    ("python", "-m", "compileall"),
+    ("python3", "-m", "compileall"),
     ("pytest",),
     ("ruff", "check"),
     ("mypy",),
@@ -31,6 +33,8 @@ ALLOWED_PREFIXES = (
     ("yarn", "test"),
     ("tsc", "--noEmit"),
     ("eslint",),
+    ("shellcheck",),
+    ("gitleaks", "detect"),
     ("git", "status"),
     ("git", "diff"),
     ("git", "show"),

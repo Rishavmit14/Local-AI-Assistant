@@ -569,6 +569,14 @@ def decide_approval(
 
 def scope_guard_from_plan(plan: ImplementationPlan) -> ScopeGuardPolicy:
     files = tuple(dict.fromkeys(plan.files_to_modify))
+    symbol_ids = set(plan.symbols_to_modify)
+    symbol_scoped_files = tuple(
+        dict.fromkeys(
+            candidate.path
+            for candidate in (*plan.direct_scope, *plan.dependent_scope)
+            if candidate.symbol_id in symbol_ids and candidate.path in files
+        )
+    )
     protected = tuple(f"**/{part}/**" for part in sorted(PROTECTED_PARTS)) + (
         "**/*.min.js",
         "**/*.generated.py",
@@ -585,6 +593,7 @@ def scope_guard_from_plan(plan: ImplementationPlan) -> ScopeGuardPolicy:
         "approval_required" if plan.dependency_changes else "deny_unplanned",
         "deny",
         "approval_required",
+        symbol_scoped_files,
     )
 
 

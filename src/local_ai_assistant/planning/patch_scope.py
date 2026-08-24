@@ -265,10 +265,11 @@ def validate_patch_scope(policy: ScopeGuardPolicy, scope: PatchScope) -> tuple[s
     )
     if affected_symbol_count > policy.max_symbol_count:
         issues.append("Patch exceeds planned symbol count.")
-    if scope.unknown_effects and policy.allowed_symbols:
+    uncertain_symbol_files = set(scope.unknown_effects) & set(policy.symbol_scoped_files)
+    if uncertain_symbol_files:
         issues.append(
             "Unknown symbol effects require renewed file-level approval: "
-            + ", ".join(sorted(scope.unknown_effects))
+            + ", ".join(sorted(uncertain_symbol_files))
         )
     return tuple(issues)
 
