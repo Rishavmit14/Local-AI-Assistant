@@ -9,9 +9,9 @@ Stage 2 established the official Tree-sitter Python bindings and a persistent sy
 
 ## Decision
 
-Keep `tree-sitter` 0.25 as the common Python runtime and install one grammar wheel per supported language. Rust uses the official `tree-sitter/tree-sitter-rust` grammar (`tree-sitter-rust` 0.24). JavaScript, TypeScript, C, C++, Java, and Bash use their narrow Tree-sitter project wheels. Solidity uses the maintained `tree-sitter-solidity` wheel and SQL uses the maintained `tree-sitter-sql` wheel because neither grammar is maintained in the core Tree-sitter organization.
+Keep `tree-sitter` 0.25 as the common Python runtime and install one grammar wheel per supported language. Rust uses the official `tree-sitter/tree-sitter-rust` grammar (`tree-sitter-rust` 0.24). JavaScript, TypeScript, C, C++, Java, and Bash use their narrow Tree-sitter project wheels. Solidity uses the community `tree-sitter-solidity` wheel (PyPI package `tree-sitter-solidity`, source `JoranHonig/tree-sitter-solidity`) and SQL uses the community `tree-sitter-sql` wheel (PyPI package `tree-sitter-sql`, source `DerekStride/tree-sitter-sql`) because neither grammar is maintained in the core Tree-sitter organization. These are explicitly distinct from official Tree-sitter organization grammars and are bounded by the dependency ranges in `pyproject.toml`.
 
-Adapters declare capability status as `supported`, `partial`, or `unavailable`. A missing grammar disables only that adapter; other languages and legacy line chunks remain usable. Parser package versions are persisted per language so an upgrade invalidates only files of that language.
+Adapters declare capability status as `supported`, `partial`, or `unavailable`. A missing grammar disables only that adapter; other languages and legacy line chunks remain usable. Parser package/version, adapter extraction version, and capability snapshots are persisted so a grammar upgrade or downgrade invalidates only files of that language. Project code never auto-installs a missing grammar.
 
 No grammar aggregator, cloud parser, cloud embedding, or LLM-created graph is used. Tree-sitter/static syntax owns facts; BGE with FAISS/BM25/RRF owns semantic retrieval; Qwen consumes bounded evidence for reasoning and generation.
 

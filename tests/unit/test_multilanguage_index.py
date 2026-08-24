@@ -61,10 +61,23 @@ def test_mixed_index_persistence_filters_maps_capabilities_and_impl_queries(tmp_
     assert index.implementations_for_type("Service")
     service = index.find_exact("run")[0]
     assert index.callers_result(service.identifier).status is CapabilityStatus.PARTIAL
+    sql_file = repo / "schema.sql"
+    sql_file.write_text("CREATE TABLE users(id INT);\n")
+    index.refresh()
+    users = index.find_exact("users", language="sql")[0]
+    unsupported = index.callers_result(users.identifier)
+    assert unsupported.status is CapabilityStatus.UNAVAILABLE
+    assert unsupported.items == ()
+    assert "unavailable" in unsupported.reason
 
     loaded = SymbolIndex(repo, tmp_path / "index", Embedder())
     assert loaded.load()
-    assert {symbol.language for symbol in loaded.symbols} == {"python", "rust", "solidity"}
+    assert {symbol.language for symbol in loaded.symbols} == {
+        "python",
+        "rust",
+        "solidity",
+        "sql",
+    }
     metadata = json.loads(loaded.metadata_file.read_text())
     assert {"python", "rust", "solidity"}.issubset(metadata["languages"])
 
@@ -134,6 +147,68 @@ def test_parser_version_change_invalidates_only_that_language(tmp_path):
     assert all("language rust" in text for text in embedder.embedded)
 
 
+def test_schema_two_load_migrates_without_changing_python_symbol_identity(tmp_path):
+    repo = build_repo(tmp_path)
+    index = SymbolIndex(repo, tmp_path / "index", Embedder())
+    index.refresh(full=True)
+    python_ids = {item.identifier for item in index.symbols if item.language == "python"}
+    metadata = json.loads(index.metadata_file.read_text())
+    metadata["schema_version"] = 2
+    metadata.pop("languages")
+    for record in metadata["files"].values():
+        record.pop("parser_package", None)
+        record.pop("adapter_version", None)
+    index.metadata_file.write_text(json.dumps(metadata))
+
+    migrated = SymbolIndex(repo, tmp_path / "index", Embedder())
+    assert migrated.load()
+    stats = migrated.refresh()
+
+    assert stats.changed_files == 3
+    assert {item.identifier for item in migrated.symbols if item.language == "python"} == python_ids
+    assert json.loads(migrated.metadata_file.read_text())["schema_version"] == 3
+
+
+def test_unavailable_parser_after_reload_preserves_unchanged_language_state(tmp_path):
+    repo = build_repo(tmp_path)
+    index_dir = tmp_path / "index"
+    SymbolIndex(repo, index_dir, Embedder()).refresh(full=True)
+
+    loaded = SymbolIndex(repo, index_dir, Embedder())
+    loaded.adapters.pop("rust")
+    loaded.extractors.pop(".rs")
+    loaded.unavailable_languages["rust"] = "fixture parser unavailable"
+    unchanged = loaded.refresh()
+
+    assert unchanged.deleted_files == 0
+    assert unchanged.changed_files == 0
+    assert loaded.find_exact("Service", language="rust")
+
+    (repo / "src" / "lib.rs").write_text("pub struct Changed;\n")
+    changed = loaded.refresh()
+    assert changed.failures == {"src/lib.rs": "fixture parser unavailable"}
+    assert not any(item.language == "rust" for item in loaded.symbols)
+    assert loaded.find_exact("python_entry", language="python")
+
+
+def test_parser_adapter_identity_change_invalidates_only_its_language(tmp_path):
+    repo = build_repo(tmp_path)
+    embedder = Embedder()
+    index = SymbolIndex(repo, tmp_path / "index", embedder)
+    index.refresh(full=True)
+    rust = index.files["src/lib.rs"]
+    index.files["src/lib.rs"] = type(rust)(
+        **{**rust.to_dict(), "adapter_version": "obsolete"}
+    )
+    index.save()
+    embedder.embedded.clear()
+
+    stats = index.refresh()
+
+    assert stats.changed_files == 1
+    assert all("language rust" in text for text in embedder.embedded)
+
+
 def test_corrupt_language_metadata_fails_explicitly(tmp_path):
     repo = build_repo(tmp_path)
     index = SymbolIndex(repo, tmp_path / "index", Embedder())
@@ -157,6 +232,10 @@ def test_planner_consumes_rust_relationships_and_language_risk_floors(tmp_path):
     )
     assert any(
         item.relationship == "implementation_for" and item.role is ScopeRole.DEPENDENT
+        for item in candidates
+    )
+    assert any(
+        item.relationship == "capability_uncertainty" and item.role is ScopeRole.UNRESOLVED
         for item in candidates
     )
     classification = TaskClassification(TaskCategory.FEATURE, 0.8, ("fixture",), "change")

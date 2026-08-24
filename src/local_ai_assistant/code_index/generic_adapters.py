@@ -98,6 +98,8 @@ class DeclarativeAdapter(TreeSitterAdapter):
             self.errors(tree.root_node),
             self.parser_version,
             {key.value: value.value for key, value in self.descriptor.capabilities.items()},
+            self.descriptor.parser_package,
+            self.descriptor.adapter_version,
         )
         return ExtractionResult(
             file, tuple(symbols), tuple(references), tuple(calls), tuple(relationships)

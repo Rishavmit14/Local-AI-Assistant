@@ -96,7 +96,13 @@ class SymbolIndex:
             path
             for path in self.repository.rglob("*")
             if path.is_file()
-            and self.language_registry.detect(path.as_posix()) in self.adapters
+            and (
+                (registered := self.language_registry.language(
+                    self.language_registry.detect(path.as_posix()) or ""
+                ))
+                is not None
+                and registered.adapter_type is not None
+            )
             and not any(part in SKIP_DIRS for part in path.parts)
         )
 
@@ -125,8 +131,10 @@ class SymbolIndex:
                 path
                 for path in current
                 if path in self.files
-                and self.files[path].parser_version
-                != self.adapters[self.language_registry.detect(path)].parser_version
+                and self.language_registry.detect(path) in self.adapters
+                and not self._parser_identity_matches(
+                    self.files[path], self.adapters[self.language_registry.detect(path)]
+                )
             )
         unchanged = current - changed
         retained_symbols = [item for item in self.symbols if item.path not in changed | deleted]
@@ -152,8 +160,12 @@ class SymbolIndex:
             path = self.repository / relative
             try:
                 language = self.language_registry.detect(relative)
-                if language is None or language not in self.adapters:
+                if language is None:
                     continue
+                if language not in self.adapters:
+                    raise RuntimeError(
+                        self.unavailable_languages.get(language, f"Parser unavailable for {language}")
+                    )
                 result = self.extractors[path.suffix.lower()].extract(
                     relative, path.read_text(encoding="utf-8", errors="replace")
                 )
@@ -238,11 +250,7 @@ class SymbolIndex:
                 "files": {key: value.to_dict() for key, value in self.files.items()},
                 "languages": {
                     name: {
-                        "parser_version": adapter.parser_version,
-                        "capabilities": {
-                            key.value: value.value
-                            for key, value in adapter.descriptor.capabilities.items()
-                        },
+                        **adapter.parser_identity,
                     }
                     for name, adapter in sorted(self.adapters.items())
                 },
@@ -271,6 +279,14 @@ class SymbolIndex:
                         not isinstance(language, str)
                         or not isinstance(details, dict)
                         or not isinstance(details.get("parser_version"), str)
+                        or (
+                            "parser_package" in details
+                            and not isinstance(details.get("parser_package"), str)
+                        )
+                        or (
+                            "adapter_version" in details
+                            and not isinstance(details.get("adapter_version"), str)
+                        )
                         or not isinstance(details.get("capabilities"), dict)
                     ):
                         raise CorruptIndexError("Corrupted language-specific metadata")
@@ -330,6 +346,16 @@ class SymbolIndex:
             raise CorruptIndexError(f"Corrupted symbol index: {exc}") from exc
         return True
 
+    @staticmethod
+    def _parser_identity_matches(record: FileRecord, adapter) -> bool:
+        identity = adapter.parser_identity
+        return (
+            record.parser_package == identity["parser_package"]
+            and record.parser_version == identity["parser_version"]
+            and record.adapter_version == identity["adapter_version"]
+            and record.capabilities == identity["capabilities"]
+        )
+
     def find_exact(
         self,
         name: str,
@@ -338,6 +364,7 @@ class SymbolIndex:
         kind: str | None = None,
         path: str | None = None,
     ) -> list[SymbolRecord]:
+        language = self._normalize_language_filter(language)
         return [
             item
             for item in self.symbols
@@ -350,6 +377,7 @@ class SymbolIndex:
     def search_name(
         self, query: str, limit: int = 10, *, language: str | None = None, kind: str | None = None
     ) -> list[SymbolRecord]:
+        language = self._normalize_language_filter(language)
         query = query.lower()
         return sorted(
             (
@@ -396,6 +424,7 @@ class SymbolIndex:
         kind: str | None = None,
         path: str | None = None,
     ) -> list[dict[str, Any]]:
+        language = self._normalize_language_filter(language)
         candidates: dict[str, dict[str, Any]] = {}
         candidate_limit = len(self.symbols) if language or kind or path else limit * 2
         for method, results in (
@@ -494,6 +523,14 @@ class SymbolIndex:
     def references_to(self, identifier: str) -> list[ReferenceRecord]:
         return [item for item in self.references if item.target_symbol == identifier]
 
+    def references_result(self, identifier: str) -> CapabilityResult:
+        symbol = next((item for item in self.symbols if item.identifier == identifier), None)
+        if symbol is None:
+            return CapabilityResult(CapabilityStatus.UNAVAILABLE, reason="Symbol not found")
+        return self.capability_result(
+            symbol.language, LanguageCapability.REFERENCES, self.references_to(identifier)
+        )
+
     def imported_by(self, module: str) -> list[str]:
         return sorted(
             path
@@ -516,6 +553,23 @@ class SymbolIndex:
                 None,
             )
         return list(record.imports) if record else []
+
+    def imports_result(self, module_or_path: str) -> CapabilityResult:
+        record = self.files.get(module_or_path)
+        if record is None:
+            record = next(
+                (
+                    item
+                    for item in self.files.values()
+                    if self.containing_module_for_path(item.path) == module_or_path
+                ),
+                None,
+            )
+        if record is None:
+            return CapabilityResult(CapabilityStatus.UNAVAILABLE, reason="Module not found")
+        return self.capability_result(
+            record.language, LanguageCapability.IMPORTS, list(record.imports)
+        )
 
     def containing_module_for_path(self, path: str) -> str:
         module = next(
@@ -583,6 +637,7 @@ class SymbolIndex:
         ]
 
     def repository_map(self, *, language: str | None = None) -> dict[str, list[dict[str, Any]]]:
+        language = self._normalize_language_filter(language)
         result: dict[str, list[dict[str, Any]]] = {}
         for symbol in self.symbols:
             if language is not None and symbol.language != language:
@@ -641,6 +696,14 @@ class SymbolIndex:
                 path.stat().st_size for path in self.index_dir.glob("*") if path.is_file()
             ),
         }
+
+    def _normalize_language_filter(self, language: str | None) -> str | None:
+        if language is None:
+            return None
+        normalized = self.language_registry.normalize(language)
+        if normalized is None:
+            raise ValueError(f"Unknown language: {language}")
+        return normalized
 
     def _resolve_graph_edges(self) -> None:
         self.relationships = [edge for edge in self.relationships if edge.relationship != "calls"]

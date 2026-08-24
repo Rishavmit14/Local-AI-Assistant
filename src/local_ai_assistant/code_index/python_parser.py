@@ -132,6 +132,8 @@ class PythonSymbolExtractor(LanguageAdapter):
             errors,
             self.parser_version,
             {key.value: value.value for key, value in self.descriptor.capabilities.items()},
+            self.descriptor.parser_package,
+            self.descriptor.adapter_version,
         )
         return ExtractionResult(file_record, tuple(symbols), tuple(references), tuple(calls))
 

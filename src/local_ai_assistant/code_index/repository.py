@@ -700,9 +700,21 @@ def main(argv: list[str] | None = None) -> int:
     config = get_config()
     configure_logging(config.runtime)
     args = build_parser().parse_args(argv)
+    registry = build_language_registry()
+    if args.language:
+        normalized = registry.normalize(args.language)
+        if normalized is None:
+            print(f"Unknown language: {args.language}")
+            return 2
+        args.language = normalized
+    if args.kind:
+        from .models import SymbolKind
+
+        if args.kind not in {kind.value for kind in SymbolKind}:
+            print(f"Unknown symbol kind: {args.kind}")
+            return 2
 
     if args.list_languages or args.show_capabilities:
-        registry = build_language_registry()
         items = registry.items()
         if args.list_languages:
             print(
@@ -808,12 +820,21 @@ def main(argv: list[str] | None = None) -> int:
         if symbol is None:
             print("Symbol not found.")
             return 1
-        edges = (
-            rag.symbol_index.callers(symbol.identifier)
+        result = (
+            rag.symbol_index.callers_result(symbol.identifier)
             if args.callers
-            else rag.symbol_index.callees(symbol.identifier)
+            else rag.symbol_index.callees_result(symbol.identifier)
         )
-        print(json.dumps([item.to_dict() for item in edges], indent=2))
+        print(
+            json.dumps(
+                {
+                    "status": result.status.value,
+                    "reason": result.reason,
+                    "items": [item.to_dict() for item in result.items],
+                },
+                indent=2,
+            )
+        )
         return 0
     if args.imports:
         print(json.dumps(rag.symbol_index.imports_of(args.imports), indent=2))

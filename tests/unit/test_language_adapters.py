@@ -52,6 +52,10 @@ def test_language_cli_lists_registry_and_capabilities_without_loading_models(cap
     assert code_index_main(["--show-capabilities", "sql"]) == 0
     capabilities = capsys.readouterr().out
     assert '"sql_objects": "partial"' in capabilities
+    assert code_index_main(["--search-symbols", "x", "--language", "unknown"]) == 2
+    assert "Unknown language" in capsys.readouterr().out
+    assert code_index_main(["--find-symbol", "x", "--kind", "not-a-kind"]) == 2
+    assert "Unknown symbol kind" in capsys.readouterr().out
 
 
 RUST = """

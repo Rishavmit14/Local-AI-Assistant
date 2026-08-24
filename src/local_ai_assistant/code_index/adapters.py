@@ -23,6 +23,7 @@ class AdapterDescriptor:
     capabilities: dict[LanguageCapability, CapabilityStatus]
     parser_package: str
     parser_version: str
+    adapter_version: str = "1"
 
 
 class LanguageAdapter(ABC):
@@ -45,6 +46,21 @@ class LanguageAdapter(ABC):
 
     def capability(self, capability: LanguageCapability) -> CapabilityStatus:
         return self.descriptor.capabilities.get(capability, CapabilityStatus.UNAVAILABLE)
+
+    @property
+    def parser_identity(self) -> dict[str, object]:
+        """Return every deterministic input that controls extracted records."""
+        return {
+            "parser_package": self.descriptor.parser_package,
+            "parser_version": self.parser_version,
+            "adapter_version": self.descriptor.adapter_version,
+            "capabilities": {
+                key.value: value.value
+                for key, value in sorted(
+                    self.descriptor.capabilities.items(), key=lambda item: item[0].value
+                )
+            },
+        }
 
     @abstractmethod
     def extract(self, path: str, source_text: str) -> ExtractionResult: ...

@@ -153,6 +153,8 @@ class FileRecord:
     parse_errors: tuple[str, ...] = ()
     parser_version: str = ""
     capabilities: dict[str, str] = field(default_factory=dict)
+    parser_package: str = ""
+    adapter_version: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

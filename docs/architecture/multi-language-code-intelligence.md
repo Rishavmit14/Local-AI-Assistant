@@ -2,12 +2,12 @@
 
 ## Platform boundary
 
-`LanguageRegistry` is the single extension/language authority for symbol indexing and legacy line-chunk discovery. A typed `LanguageAdapter` declares grammar identity, extensions, parser availability, capabilities, extraction, and language-aware embedding text. `TreeSitterAdapter` supplies shared parsing, exact text/range, and malformed-tree handling.
+`LanguageRegistry` is the single extension/language authority for symbol indexing and legacy line-chunk discovery. The constructed registry is frozen, normalizes documented aliases (`py`, `rs`, `js`, `ts`, `sol`, `c++`, `cxx`, `sh`, and `bash`), and rejects extension conflicts. `.h` is deliberately classified as C because extension-only detection cannot prove C++; C++ headers should use `.hpp`, `.hh`, or `.hxx`. A typed `LanguageAdapter` declares grammar identity, extensions, parser availability, capabilities, extraction, and language-aware embedding text. `TreeSitterAdapter` supplies shared parsing, exact text/range, and malformed-tree handling.
 
 All adapters emit the same records:
 
 - `SymbolRecord` with stable language/path/qualified-name/kind identity and extensible metadata;
-- `FileRecord` with content hash, parser version, capabilities, imports, and parse errors;
+- `FileRecord` with content hash, parser package/version, adapter extraction version, capabilities, imports, and parse errors;
 - references/calls with explicit resolution state;
 - unified relationships for imports, modules, implementations, inheritance, SQL dependencies, modifiers, and sourced scripts.
 
@@ -15,9 +15,9 @@ IDs do not depend on line numbers, so no-op refreshes and movement within the sa
 
 ## Incremental persistence
 
-Schema 3 retains JSON symbols/graphs, NumPy embeddings, FAISS, checksums, and manifest-last atomic publication. Schema 2 Python indexes load and are refreshed into schema 3. Parser versions and capability snapshots are persisted per language. Content or relevant parser-version changes replace only that file's records and embeddings. Delete/rename remains delete plus add. Query-time BM25/FAISS structures are rebuilt, but unchanged symbols are not re-embedded.
+Schema 3 retains JSON symbols/graphs, NumPy embeddings, FAISS, checksums, and manifest-last atomic publication. Schema 2 Python indexes load and are refreshed into schema 3 without changing Python symbol identity. Parser package/version, adapter extraction version, and capability snapshots are persisted per file and language. A change to any of those identities invalidates only files of that language. Content or relevant parser-identity changes replace only that file's records and embeddings. Delete/rename remains delete plus add. Query-time BM25/FAISS structures are rebuilt, but unchanged symbols are not re-embedded.
 
-A parser/file failure is recorded without destroying other files or languages. Corrupt language metadata or artifacts raise `CorruptIndexError`. An unavailable grammar is reported in index stats and does not hide already persisted mixed-language facts.
+A parser/file failure is recorded without destroying other files or languages. Corrupt language metadata or artifacts raise `CorruptIndexError`. If a grammar disappears, unchanged persisted facts remain available with an explicit unavailable capability state; a changed file cannot retain stale facts and is removed with a recorded failure. Parser reappearance permits a normal safe refresh.
 
 ## Capability and support matrix
 

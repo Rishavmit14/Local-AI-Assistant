@@ -212,6 +212,17 @@ class ScopeAnalyzer:
                 },
             )
         for symbol in direct_symbols:
+            capability_states = {
+                "calls": self.symbols.callers_result(symbol.identifier).status,
+                "references": self.symbols.references_result(symbol.identifier).status,
+            }
+            uncertain = {
+                name: status.value
+                for name, status in capability_states.items()
+                if status.value != "supported"
+            }
+            if uncertain:
+                self._add_capability_uncertainty(candidates, symbol, uncertain)
             for edge, relationship in (
                 (self.symbols.callers(symbol.identifier), "caller"),
                 (self.symbols.callees(symbol.identifier), "callee"),
@@ -430,6 +441,28 @@ class ScopeAnalyzer:
         )
         key = (path, f"{symbol.identifier}:{call.callee_name}:{call.line}", candidate.relationship)
         candidates[key] = candidate
+
+    def _add_capability_uncertainty(self, candidates, symbol, states):
+        path = self._relative_path(symbol.path)
+        details = ", ".join(f"{name}={status}" for name, status in sorted(states.items()))
+        candidate = ScopeCandidate(
+            path,
+            symbol.identifier,
+            symbol.qualified_name,
+            f"Static language capabilities are incomplete: {details}.",
+            "capability_uncertainty",
+            None,
+            {
+                "source": path,
+                "line_start": symbol.start_line,
+                "line_end": symbol.end_line,
+                "symbol_identifier": symbol.identifier,
+                "capabilities": states,
+            },
+            0.25,
+            ScopeRole.UNRESOLVED,
+        )
+        candidates[(path, symbol.identifier, candidate.relationship)] = candidate
 
     def _symbol(self, identifier):
         return next(
