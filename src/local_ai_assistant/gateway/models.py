@@ -74,3 +74,4 @@ class CIStatus:
     commit_sha: str
     url: str | None = None
     timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    external_repository: str | None = None

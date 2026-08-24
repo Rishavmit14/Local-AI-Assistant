@@ -53,6 +53,20 @@ class TaskHistoryService:
             )
         )
 
+    def create_external_task(
+        self, request: str, repository: Path, starting_commit: str, branch: str,
+        *, source: str, event_id: str, metadata: dict | None = None,
+    ) -> TaskRecord:
+        """Create an externally-originated task and idempotency claim atomically."""
+        timestamp = utc_now()
+        repository_id = str(repository.resolve())
+        task = TaskRecord(
+            stable_task_id(repository_id, starting_commit, request, timestamp),
+            redact(request), repository_id, starting_commit, branch, timestamp, timestamp,
+            metadata=metadata or {},
+        )
+        return self.store.create_external_task(task, source=source, event_id=event_id)
+
     def transition(self, task_id: str, status: TaskStatus, reason: str, *, subsystem="history"):
         return self.store.transition(task_id, status, reason, subsystem=subsystem)
 

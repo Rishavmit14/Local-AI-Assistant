@@ -548,22 +548,22 @@ def test_schema_one_upgrades_and_interrupted_migration_rolls_back(tmp_path, monk
             connection.execute(statement)
     TaskHistoryStore(path).initialize()
     with sqlite3.connect(path) as connection:
-        assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == 2
+        assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == SCHEMA_VERSION
         columns = {row[1] for row in connection.execute("PRAGMA table_info(task_status_events)")}
     assert "sequence" in columns
 
     import local_ai_assistant.history.store as store_module
 
-    monkeypatch.setattr(store_module, "SCHEMA_VERSION", 3)
+    monkeypatch.setattr(store_module, "SCHEMA_VERSION", SCHEMA_VERSION + 1)
     monkeypatch.setitem(
         store_module.MIGRATIONS,
-        3,
+        SCHEMA_VERSION + 1,
         ("CREATE TABLE interrupted(value TEXT)", "THIS IS NOT VALID SQL"),
     )
     with pytest.raises(HistoryDatabaseError):
         TaskHistoryStore(path).initialize()
     with sqlite3.connect(path) as connection:
-        assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == 2
+        assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == SCHEMA_VERSION
         assert connection.execute(
             "SELECT COUNT(*) FROM sqlite_master WHERE name='interrupted'"
         ).fetchone()[0] == 0

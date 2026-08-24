@@ -64,6 +64,7 @@ class TaskHistoryStore:
                     "tasks", "task_status_events", "plans", "executions", "tool_events",
                     "validations", "reviews", "approvals", "affected_files",
                     "affected_symbols", "metrics_summary", "artifact_imports",
+                    "external_idempotency",
                 }
                 actual_tables = {
                     row[0]
@@ -128,6 +129,38 @@ class TaskHistoryStore:
             row = connection.execute(
                 "SELECT * FROM tasks WHERE task_id = ?", (task.task_id,)
             ).fetchone()
+        return self._task(row)
+
+    def create_external_task(self, task: TaskRecord, *, source: str, event_id: str) -> TaskRecord:
+        """Atomically claim an external delivery and create its task.
+
+        The idempotency key and task row share the history transaction, so a
+        concurrent/restarted gateway cannot leave an orphan task behind.
+        """
+        if not source or not event_id or len(source) > 100 or len(event_id) > 256:
+            raise HistoryDatabaseError("Invalid external idempotency identity")
+        with self.transaction() as connection:
+            existing = connection.execute(
+                "SELECT task_id FROM external_idempotency WHERE source=? AND event_id=? AND repository=?",
+                (source, event_id, task.repository),
+            ).fetchone()
+            if existing:
+                row = connection.execute("SELECT * FROM tasks WHERE task_id=?", (existing[0],)).fetchone()
+                return self._task(row)
+            connection.execute(
+                """INSERT INTO tasks VALUES (:task_id, :original_request, :repository, :starting_commit, :final_commit,
+                   :branch, :created_at, :updated_at, :status, :classification, :risk, :confidence,
+                   :approval_state, :plan_hash, :final_decision, :outcome, :failure_reason,
+                   :human_review_state, :duration_seconds, :summary, :metadata_json)""",
+                {**task.to_dict(), "metadata_json": _json(task.metadata)},
+            )
+            self._insert_event(connection, task.task_id, task.created_at, "history", "task_created", "Task created", status=task.status.value)
+            connection.execute("INSERT INTO metrics_summary(task_id) VALUES (?)", (task.task_id,))
+            connection.execute(
+                "INSERT INTO external_idempotency VALUES (?, ?, ?, ?, ?)",
+                (source, event_id, task.repository, task.task_id, task.created_at),
+            )
+            row = connection.execute("SELECT * FROM tasks WHERE task_id=?", (task.task_id,)).fetchone()
         return self._task(row)
 
     def get_task(self, task_id: str) -> TaskRecord | None:

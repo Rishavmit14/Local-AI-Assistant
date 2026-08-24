@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 from typing import Any, Protocol
+from urllib.error import HTTPError, URLError
+from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 from .models import CIStatus, RepositoryMapping
 
@@ -11,6 +15,44 @@ from .models import CIStatus, RepositoryMapping
 class GitHubTransport(Protocol):
     def get_issue(self, owner: str, repo: str, number: int) -> dict[str, Any]: ...
     def create_pull_request(self, owner: str, repo: str, *, head: str, base: str, title: str, body: str) -> dict[str, Any]: ...
+
+
+class GitHubHttpTransport:
+    """Small fixed-host GitHub REST client; credentials never enter URLs or logs."""
+    def __init__(self, token: str, *, api_host: str = "https://api.github.com", timeout: float = 10.0):
+        if not token or not api_host.startswith("https://"):
+            raise ValueError("GitHub HTTPS host and token are required")
+        self.host = api_host.rstrip("/")
+        self.token = token
+        self.timeout = timeout
+
+    def _request(self, method: str, path: str, payload: dict[str, Any] | None = None):
+        if not path.startswith("/") or ".." in path:
+            raise ValueError("invalid GitHub API path")
+        body = json.dumps(payload).encode() if payload is not None else None
+        request = Request(self.host + path, data=body, method=method, headers={
+            "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "Friday-Integration-Gateway/1", "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        })
+        try:
+            with urlopen(request, timeout=self.timeout) as response:  # noqa: S310 - fixed HTTPS configured host
+                raw = response.read(2 * 1024 * 1024 + 1)
+                if len(raw) > 2 * 1024 * 1024:
+                    raise ValueError("GitHub response exceeds configured bound")
+                return json.loads(raw)
+        except (HTTPError, URLError, TimeoutError) as exc:
+            raise RuntimeError("GitHub request failed") from exc
+
+    def get_issue(self, owner: str, repo: str, number: int) -> dict[str, Any]:
+        if number < 1 or number > 10_000_000:
+            raise ValueError("invalid issue number")
+        return self._request("GET", f"/repos/{quote(owner)}/{quote(repo)}/issues/{number}")
+
+    def create_pull_request(self, owner: str, repo: str, *, head: str, base: str, title: str, body: str) -> dict[str, Any]:
+        if len(title) > 500 or len(body) > 100_000:
+            raise ValueError("pull request content exceeds bounds")
+        return self._request("POST", f"/repos/{quote(owner)}/{quote(repo)}/pulls", {"head": head, "base": base, "title": title, "body": body})
 
 
 class FakeGitHubTransport:
@@ -44,10 +86,26 @@ def map_repository(mappings: tuple[RepositoryMapping, ...], owner: str, repo: st
     return matches[0]
 
 
-def bind_ci_status(status: CIStatus, *, repository_id: str, expected_commit: str) -> CIStatus:
+def validate_mappings(mappings: tuple[RepositoryMapping, ...]) -> None:
+    local_ids: set[str] = set()
+    remote_ids: set[tuple[str, str]] = set()
+    for mapping in mappings:
+        if not mapping.repository_id.strip() or mapping.repository_id in local_ids:
+            raise ValueError("duplicate or empty configured repository ID")
+        remote = (mapping.github_owner.casefold().strip(), mapping.github_name.casefold().strip())
+        if remote[0] and remote in remote_ids:
+            raise ValueError("ambiguous duplicate GitHub repository mapping")
+        local_ids.add(mapping.repository_id)
+        if remote[0]:
+            remote_ids.add(remote)
+
+
+def bind_ci_status(status: CIStatus, *, repository_id: str, expected_commit: str, expected_external_repository: str | None = None) -> CIStatus:
     """Accept external CI evidence only for the exact local task commit."""
     if not repository_id or status.commit_sha != expected_commit:
         raise ValueError("CI evidence is stale or is not bound to the expected commit")
+    if expected_external_repository and status.external_repository != expected_external_repository:
+        raise ValueError("CI evidence is not bound to the expected external repository")
     return status
 
 

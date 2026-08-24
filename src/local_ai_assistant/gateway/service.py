@@ -11,17 +11,16 @@ from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.isolation.gitops import git_argv, safe_git_environment
 
 from .events import BoundedEventBus
-from .github import map_repository
+from .github import map_repository, validate_mappings
 from .models import ExternalProvenance, GatewayEvent, RepositoryMapping
-from .state import GatewayState
 
 
 class IntegrationGatewayService:
-    def __init__(self, history: TaskHistoryService, mappings: tuple[RepositoryMapping, ...] = (), *, max_events: int = 1000, state: GatewayState | None = None):
+    def __init__(self, history: TaskHistoryService, mappings: tuple[RepositoryMapping, ...] = (), *, max_events: int = 1000):
         self.history = history
         self.mappings = mappings
+        validate_mappings(mappings)
         self.events = BoundedEventBus(max_events)
-        self.state = state or GatewayState(history.store.path.parent / "gateway.sqlite3")
 
     def _repo(self, repository_id: str) -> Path:
         for mapping in self.mappings:
@@ -35,22 +34,27 @@ class IntegrationGatewayService:
     def create_task(self, repository_id: str, request: str, *, plan_only: bool = False, provenance: ExternalProvenance | None = None, branch: str = "main"):
         if not request.strip():
             raise ValueError("task request must not be empty")
+        if len(request) > 20_000:
+            raise ValueError("task request exceeds the configured character limit")
         repository = self._repo(repository_id)
         head = _git_head(repository)
         key = (provenance.source, provenance.event_id, repository_id) if provenance else None
         if key:
-            existing = self.state.existing_task(*key)
-            if existing:
-                return self.history.get(existing)
-        task = self.history.create_task(request[:20_000], repository, head, branch, metadata={"plan_only": plan_only, "external_provenance": asdict(provenance) if provenance else None})
-        if key:
-            task_id = self.state.remember(*key, task.task_id)
-            if task_id != task.task_id:
-                return self.history.get(task_id)
+            task = self.history.create_external_task(
+                request, repository, head, branch, source=key[0], event_id=key[1],
+                metadata={"plan_only": plan_only, "external_provenance": asdict(provenance)},
+            )
+        else:
+            task = self.history.create_task(
+                request, repository, head, branch,
+                metadata={"plan_only": plan_only, "external_provenance": None},
+            )
         self.events.publish(GatewayEvent("", 0, task.task_id, "TASK_CREATED", datetime.now(UTC).isoformat(), "Task created from gateway request"))
         return task
 
     def intake_issue(self, owner: str, repo: str, number: int, issue: dict, provenance: ExternalProvenance):
+        if number < 1 or number > 10_000_000:
+            raise ValueError("invalid issue number")
         mapping = map_repository(self.mappings, owner, repo)
         title = str(issue.get("title", ""))[:500]
         body = str(issue.get("body", ""))[:19_000]

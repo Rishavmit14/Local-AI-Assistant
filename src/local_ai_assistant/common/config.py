@@ -176,6 +176,7 @@ class GatewayConfig:
     max_page_size: int = 100
     max_events: int = 1000
     request_rate: int = 30
+    scopes: tuple[str, ...] = ("read_status", "read_history")
     github_enabled: bool = False
     github_api_host: str = "https://api.github.com"
 
@@ -241,6 +242,10 @@ class AppConfig:
             raise ConfigurationError("LOCAL_AI_CODE_CHUNK_OVERLAP must be smaller than chunk lines")
         gateway_host = values.get("LOCAL_AI_GATEWAY_HOST", "127.0.0.1").strip()
         github_api_host = values.get("LOCAL_AI_GITHUB_API_HOST", "https://api.github.com").strip()
+        gateway_scopes = tuple(item.strip().lower() for item in values.get("LOCAL_AI_GATEWAY_SCOPES", "read_status,read_history").split(",") if item.strip())
+        allowed_gateway_scopes = {"read_status", "read_history", "create_task", "request_plan", "submit_approval", "request_execution", "request_cancel", "github_read", "github_write"}
+        if not gateway_scopes or not set(gateway_scopes) <= allowed_gateway_scopes:
+            raise ConfigurationError("LOCAL_AI_GATEWAY_SCOPES contains an invalid or empty scope")
         if not gateway_host or not github_api_host.startswith("https://"):
             raise ConfigurationError("Gateway host and HTTPS GitHub API host must be valid")
         return cls(
@@ -335,6 +340,7 @@ class AppConfig:
                 max_page_size=_integer(values, "LOCAL_AI_GATEWAY_MAX_PAGE", 100, maximum=1000),
                 max_events=_integer(values, "LOCAL_AI_GATEWAY_MAX_EVENTS", 1000, maximum=10_000),
                 request_rate=_integer(values, "LOCAL_AI_GATEWAY_REQUEST_RATE", 30, maximum=10_000),
+                scopes=gateway_scopes,
                 github_enabled=_boolean(values, "LOCAL_AI_GITHUB_ENABLED", False),
                 github_api_host=github_api_host,
             ),

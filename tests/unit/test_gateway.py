@@ -3,14 +3,20 @@ from __future__ import annotations
 import hashlib
 import hmac
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 
-from local_ai_assistant.gateway.auth import GatewayAuth
+from local_ai_assistant.gateway.auth import (
+    GatewayAuth,
+    GatewayAuthenticationError,
+    GatewayAuthorizationError,
+)
 from local_ai_assistant.gateway.github import (
     FakeGitHubTransport,
     bind_ci_status,
+    validate_mappings,
     validate_remote,
     verify_webhook_signature,
 )
@@ -48,8 +54,18 @@ def test_auth_is_hash_only_and_scoped():
     auth = GatewayAuth(hashlib.sha256(token.encode()).hexdigest(), frozenset({GatewayScope.READ_STATUS}))
     assert auth.authenticate(token).name == "local-token"
     assert auth.authenticate("wrong") is None
-    with pytest.raises(PermissionError):
+    with pytest.raises(GatewayAuthorizationError):
         auth.require(token, GatewayScope.CREATE_TASK)
+
+
+def test_auth_rejects_malformed_hash_and_distinguishes_401_403_errors():
+    with pytest.raises(ValueError):
+        GatewayAuth("plaintext")
+    auth = GatewayAuth(hashlib.sha256(b"x").hexdigest(), frozenset())
+    with pytest.raises(GatewayAuthenticationError):
+        auth.require("wrong", GatewayScope.READ_STATUS)
+    with pytest.raises(GatewayAuthorizationError):
+        GatewayAuth(hashlib.sha256(b"x").hexdigest()).require("x", GatewayScope.CREATE_TASK)
 
 
 def test_issue_idempotency_is_persisted(tmp_path):
@@ -58,6 +74,17 @@ def test_issue_idempotency_is_persisted(tmp_path):
     first = gateway.intake_issue("acme", "demo", 1, {"title": "Fix", "body": "text"}, provenance)
     second = gateway.intake_issue("acme", "demo", 1, {"title": "Fix", "body": "text"}, provenance)
     assert first.task_id == second.task_id
+
+
+def test_concurrent_external_delivery_creates_one_task(tmp_path):
+    gateway, _ = service(tmp_path)
+    provenance = ExternalProvenance.from_payload("github", "delivery-race", "r1", "body")
+    def call(_):
+        return gateway.intake_issue("acme", "demo", 1, {"title": "Fix", "body": "text"}, provenance).task_id
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        ids = list(pool.map(call, range(8)))
+    assert len(set(ids)) == 1
+    assert len(gateway.history.list()) == 1
 
 
 def test_webhook_signature_is_constant_time_compatible():
@@ -83,3 +110,12 @@ def test_ci_is_bound_to_exact_commit_and_remote_mapping():
         bind_ci_status(status, repository_id="r1", expected_commit="def")
     assert validate_remote("git@github.com:acme/demo.git", expected_owner="acme", expected_repo="demo") is False
     assert validate_remote("https://github.com/acme/demo.git", expected_owner="acme", expected_repo="demo")
+
+
+def test_duplicate_remote_mappings_are_rejected():
+    mappings = (
+        RepositoryMapping("one", "/tmp/one", "Acme", "Demo"),
+        RepositoryMapping("two", "/tmp/two", "acme", "demo"),
+    )
+    with pytest.raises(ValueError):
+        validate_mappings(mappings)

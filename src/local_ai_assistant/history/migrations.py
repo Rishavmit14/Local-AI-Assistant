@@ -1,6 +1,6 @@
 """Ordered SQLite migrations for the local task-history store."""
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 MIGRATIONS: dict[int, tuple[str, ...]] = {
     1: (
@@ -99,5 +99,15 @@ MIGRATIONS: dict[int, tuple[str, ...]] = {
         "ALTER TABLE task_status_events ADD COLUMN sequence INTEGER",
         "UPDATE task_status_events SET sequence = rowid WHERE sequence IS NULL",
         "CREATE UNIQUE INDEX idx_events_task_sequence ON task_status_events(task_id, sequence)",
+    ),
+    3: (
+        """CREATE TABLE external_idempotency (
+            source TEXT NOT NULL, event_id TEXT NOT NULL, repository TEXT NOT NULL,
+            task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY(source, event_id, repository),
+            UNIQUE(task_id)
+        )""",
+        "CREATE INDEX idx_external_idempotency_task ON external_idempotency(task_id)",
     ),
 }

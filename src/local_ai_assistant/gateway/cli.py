@@ -6,7 +6,7 @@ import argparse
 from local_ai_assistant.common.config import get_config
 from local_ai_assistant.gateway.api import create_app
 from local_ai_assistant.gateway.auth import GatewayAuth
-from local_ai_assistant.gateway.models import RepositoryMapping
+from local_ai_assistant.gateway.models import GatewayScope, RepositoryMapping
 from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
@@ -34,7 +34,12 @@ def main(argv=None):
         ) if app_config.paths.code_repo_dir.is_dir() else ()
         history = TaskHistoryService(TaskHistoryStore(app_config.paths.task_history_db))
         service = IntegrationGatewayService(history, mappings, max_events=config.max_events)
-        app = create_app(service, auth=GatewayAuth(config.token_hash), max_body_bytes=config.max_body_bytes, max_task_text=config.max_task_text)
+        scopes = frozenset(GatewayScope(value) for value in config.scopes)
+        try:
+            auth = GatewayAuth(config.token_hash, scopes)
+        except ValueError as exc:
+            raise SystemExit(f"gateway authentication configuration is invalid: {exc}") from exc
+        app = create_app(service, auth=auth, max_body_bytes=config.max_body_bytes, max_task_text=config.max_task_text, requests_per_minute=config.request_rate)
         uvicorn.run(app, host=config.host, port=config.port, log_level="info")
     elif args.command == "config-check":
         if config.host not in {"127.0.0.1", "localhost", "::1"}:
