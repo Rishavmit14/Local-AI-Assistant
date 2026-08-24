@@ -307,7 +307,9 @@ def test_task_lock_rejects_second_claim(tmp_path):
 
 def test_recovery_marks_interrupted_worktree_without_auto_resume(repository, tmp_path):
     manager, identity = create_worktree(repository, tmp_path)
-    manager.transition(identity, WorktreeState.EXECUTING)
+    active = manager.transition(identity, WorktreeState.EXECUTING)
+    with pytest.raises(IsolationError, match="active"):
+        manager.cleanup(active, delete_branch=True)
     findings = inspect_recovery(manager.root)
     assert findings[0].task_id == "task-1"
     assert findings[0].state == "recovery_required"

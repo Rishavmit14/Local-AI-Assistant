@@ -1878,7 +1878,9 @@ def main(argv: list[str] | None = None):
         except IsolationError as exc:
             if isolation_identity is not None:
                 try:
-                    isolation_manager.cleanup(isolation_identity, delete_branch=True)
+                    isolation_manager.cleanup(
+                        isolation_identity, delete_branch=True, allow_active=True
+                    )
                 except IsolationError:
                     pass
             print(f"Isolation setup failed: {exc}")
@@ -1952,7 +1954,9 @@ def main(argv: list[str] | None = None):
                     / f"{artifact.plan.task_id}.json",
                 )
                 if not args.keep_failed_branch:
-                    isolation_manager.cleanup(isolation_identity, delete_branch=True)
+                    isolation_manager.cleanup(
+                        isolation_identity, delete_branch=True, allow_active=True
+                    )
                     _record_isolation(
                         config, artifact.plan.task_id, "cleaned", "Failed task worktree cleaned"
                     )
@@ -2004,7 +2008,9 @@ def main(argv: list[str] | None = None):
             )
             print(f"Tool execution failed: {exc}")
             if not args.keep_failed_branch:
-                isolation_manager.cleanup(isolation_identity, delete_branch=True)
+                isolation_manager.cleanup(
+                    isolation_identity, delete_branch=True, allow_active=True
+                )
                 _record_isolation(
                     config, artifact.plan.task_id, "cleaned", "Failed task worktree cleaned"
                 )
@@ -2085,7 +2091,9 @@ def main(argv: list[str] | None = None):
         if not success:
             print(validation_output)
             if not args.keep_failed_branch:
-                isolation_manager.cleanup(isolation_identity, delete_branch=True)
+                isolation_manager.cleanup(
+                    isolation_identity, delete_branch=True, allow_active=True
+                )
                 _record_isolation(
                     config, artifact.plan.task_id, "cleaned", "Failed task worktree cleaned"
                 )

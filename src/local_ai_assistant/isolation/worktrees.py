@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .errors import IsolationError, WorktreeIdentityError
+from .locks import task_lock
 from .models import WorktreeIdentity, WorktreeState
 from .paths import contained_path, safe_identifier
 
@@ -33,12 +34,26 @@ class WorktreeManager:
         plan_hash: str,
     ) -> WorktreeIdentity:
         safe_identifier(task_id, "task ID")
+        repo_id = repository_id(repository)
+        with task_lock(self.root, repo_id, task_id):
+            return self._create_locked(
+                repository, task_id, starting_commit, plan_hash, repo_id
+            )
+
+    def _create_locked(
+        self,
+        repository: Path,
+        task_id: str,
+        starting_commit: str,
+        plan_hash: str,
+        repo_id: str,
+    ) -> WorktreeIdentity:
+        safe_identifier(task_id, "task ID")
         repository = repository.resolve(strict=True)
         if _git(repository, "status", "--porcelain"):
             raise IsolationError("Canonical repository must be clean before isolation")
         if _git(repository, "rev-parse", "HEAD") != starting_commit:
             raise WorktreeIdentityError("Canonical HEAD does not match starting commit")
-        repo_id = repository_id(repository)
         location = contained_path(self.root, repo_id, task_id)
         if location.exists() or location.is_symlink():
             raise WorktreeIdentityError("Task worktree path already exists")
@@ -126,12 +141,31 @@ class WorktreeManager:
         return identity
 
     def transition(self, identity: WorktreeIdentity, state: WorktreeState) -> WorktreeIdentity:
-        current = _git(Path(identity.worktree), "rev-parse", "HEAD")
-        updated = replace(identity, state=state, current_commit=current)
-        self._persist(updated)
-        return updated
+        with task_lock(self.root, identity.repository_id, identity.task_id):
+            current = _git(Path(identity.worktree), "rev-parse", "HEAD")
+            updated = replace(identity, state=state, current_commit=current)
+            self._persist(updated)
+            return updated
 
-    def cleanup(self, identity: WorktreeIdentity, *, delete_branch: bool = False) -> WorktreeIdentity:
+    def cleanup(
+        self,
+        identity: WorktreeIdentity,
+        *,
+        delete_branch: bool = False,
+        allow_active: bool = False,
+    ) -> WorktreeIdentity:
+        with task_lock(self.root, identity.repository_id, identity.task_id):
+            return self._cleanup_locked(
+                identity, delete_branch=delete_branch, allow_active=allow_active
+            )
+
+    def _cleanup_locked(
+        self,
+        identity: WorktreeIdentity,
+        *,
+        delete_branch: bool = False,
+        allow_active: bool = False,
+    ) -> WorktreeIdentity:
         canonical = Path(identity.canonical_repository).resolve(strict=True)
         path = contained_path(self.root, identity.repository_id, identity.task_id)
         if str(path) != identity.worktree:
@@ -145,12 +179,17 @@ class WorktreeManager:
             except (OSError, ValueError, json.JSONDecodeError):
                 pass
             raise WorktreeIdentityError("Active task worktree is missing")
-        self.load(
+        persisted = self.load(
             canonical,
             identity.task_id,
             starting_commit=identity.starting_commit,
             plan_hash=identity.plan_hash,
         )
+        if not allow_active and persisted.state in {
+            WorktreeState.EXECUTING,
+            WorktreeState.VALIDATING,
+        }:
+            raise IsolationError("Refusing cleanup while task execution is active")
         if path.exists():
             result = subprocess.run(
                 ["git", "worktree", "remove", "--force", str(path)],
