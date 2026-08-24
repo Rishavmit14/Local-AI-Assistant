@@ -13,6 +13,7 @@ from local_ai_assistant.gateway.auth import (
     GatewayAuthenticationError,
     GatewayAuthorizationError,
 )
+from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
 from local_ai_assistant.gateway.github import (
     FakeGitHubTransport,
     bind_ci_status,
@@ -133,3 +134,20 @@ def test_mcp_protocol_exposes_only_typed_tools(tmp_path):
     assert {item["name"] for item in tools} == {"get_task_status", "create_task", "request_cancel"}
     denied = protocol.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "create_task", "arguments": {"repository_id": "r1", "request": "x"}}}, token)
     assert denied["error"]["code"] == -32001
+
+
+def test_execution_service_uses_existing_code_agent_boundary(tmp_path, monkeypatch):
+    gateway, path = service(tmp_path)
+    task = gateway.create_task("r1", "safe fixture", branch="friday/task/fixture")
+    gateway.history.store.update_task(task.task_id, task.repository, plan_hash="plan", approval_state="explicitly_approved")
+    from local_ai_assistant.history.models import TaskStatus
+    gateway.history.store.transition(task.task_id, TaskStatus.PLANNING, "test")
+    gateway.history.store.transition(task.task_id, TaskStatus.AWAITING_APPROVAL, "test")
+    gateway.history.attach_approval(task.task_id, "plan", "explicitly_approved")
+    gateway.history.store.transition(task.task_id, TaskStatus.APPROVED, "test")
+    calls = []
+    monkeypatch.setattr("local_ai_assistant.gateway.execution_service.code_agent.main", lambda argv: calls.append(argv))
+    execution = CodeAgentExecutionService(None, gateway.history)
+    handle = execution.execute_task(gateway.history.get(task.task_id))
+    execution._runs[handle.run_id].result(timeout=2)
+    assert "--tool-loop" in calls[0] and "--task-id" in calls[0]

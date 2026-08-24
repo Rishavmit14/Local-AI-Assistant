@@ -7,6 +7,7 @@ from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.common.config import get_config
 from local_ai_assistant.gateway.api import create_app
 from local_ai_assistant.gateway.auth import GatewayAuth
+from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
 from local_ai_assistant.gateway.models import GatewayScope, RepositoryMapping
 from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.service import TaskHistoryService
@@ -35,12 +36,13 @@ def main(argv=None):
             if path.is_dir() and (path / ".git").exists()
         ) if app_config.paths.code_repo_dir.is_dir() else ()
         history = TaskHistoryService(TaskHistoryStore(app_config.paths.task_history_db))
+        execution = CodeAgentExecutionService(app_config, history)
         def planner_factory(repository):
             rag = CodeRAG(config=app_config)
             if not rag.load():
                 raise RuntimeError("code index is unavailable")
             return PlannerService(repository, rag.symbol_index, rag.llm, app_config.paths.code_index_dir / "plans", rag.retrieve)
-        service = IntegrationGatewayService(history, mappings, max_events=config.max_events, planner_factory=planner_factory)
+        service = IntegrationGatewayService(history, mappings, max_events=config.max_events, planner_factory=planner_factory, executor=execution.execute_task)
         scopes = frozenset(GatewayScope(value) for value in config.scopes)
         try:
             auth = GatewayAuth(config.token_hash, scopes)

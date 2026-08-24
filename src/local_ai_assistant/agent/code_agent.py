@@ -5,6 +5,7 @@ import hashlib
 import subprocess
 import sys
 import time
+from dataclasses import replace
 from functools import partial
 from pathlib import Path
 
@@ -1645,6 +1646,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Require the generated test to fail meaningfully before implementation.",
     )
+    parser.add_argument("--task-id", help="Reuse an existing Friday task identity.")
 
     return parser
 
@@ -1751,6 +1753,8 @@ def main(argv: list[str] | None = None):
         getattr(rag, "retrieve", None),
     )
     artifact = planner.generate(args.request)
+    if args.task_id:
+        artifact = replace(artifact, plan=replace(artifact.plan, task_id=args.task_id))
     plan_path = planner.persist(artifact, args.plan_output)
     current_branch = run_command(["git", "branch", "--show-current"], repo).stdout.strip()
     _record_plan(config, artifact, plan_path, repo, current_branch)
