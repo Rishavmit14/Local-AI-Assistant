@@ -73,6 +73,8 @@ class PathConfig:
     code_index_dir: Path = PROJECT_ROOT / "var/code-index"
     patch_dir: Path = PROJECT_ROOT / "var/patches"
     task_history_db: Path = PROJECT_ROOT / "var/history/tasks.sqlite3"
+    worktree_dir: Path = PROJECT_ROOT / "var/worktrees"
+    isolation_dir: Path = PROJECT_ROOT / "var/isolation"
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +143,23 @@ class ExecutionConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class IsolationConfig:
+    backend: str = "auto"
+    network_policy: str = "deny"
+    max_processes: int = 64
+    max_output_bytes: int = 20_000
+    cpu_seconds: int = 600
+    wall_seconds: int = 900
+    memory_bytes: int = 4 * 1024**3
+    max_open_files: int = 256
+    max_file_bytes: int = 512 * 1024**2
+    cache_policy: str = "task_local"
+    cleanup_policy: str = "on_failure"
+    recovery_policy: str = "manual"
+    require_strong_isolation: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class AppConfig:
     llama: LlamaConfig = field(default_factory=LlamaConfig)
     paths: PathConfig = field(default_factory=PathConfig)
@@ -153,6 +172,7 @@ class AppConfig:
     ui: UIConfig = field(default_factory=UIConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
+    isolation: IsolationConfig = field(default_factory=IsolationConfig)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AppConfig:
@@ -169,6 +189,12 @@ class AppConfig:
             patch_dir=_path(values.get("LOCAL_AI_PATCH_DIR", str(var_dir / "patches"))),
             task_history_db=_path(
                 values.get("LOCAL_AI_TASK_HISTORY_DB", str(var_dir / "history/tasks.sqlite3"))
+            ),
+            worktree_dir=_path(
+                values.get("LOCAL_AI_WORKTREE_ROOT", str(var_dir / "worktrees"))
+            ),
+            isolation_dir=_path(
+                values.get("LOCAL_AI_ISOLATION_ROOT", str(var_dir / "isolation"))
             ),
         )
         document = DocumentRetrievalConfig(
@@ -238,6 +264,39 @@ class AppConfig:
                 max_repairs=_integer(values, "LOCAL_AI_EXECUTION_MAX_REPAIRS", 1, minimum=0),
                 max_replans=_integer(values, "LOCAL_AI_EXECUTION_MAX_REPLANS", 1, minimum=0),
                 context_characters=_integer(values, "LOCAL_AI_EXECUTION_CONTEXT_CHARACTERS", 32_000),
+            ),
+            isolation=IsolationConfig(
+                backend=_choice(
+                    values, "LOCAL_AI_SANDBOX_BACKEND", "auto", {"auto", "bubblewrap", "native"}
+                ),
+                network_policy=_choice(
+                    values, "LOCAL_AI_SANDBOX_NETWORK", "deny",
+                    {"deny", "loopback_only", "allowed"},
+                ),
+                max_processes=_integer(values, "LOCAL_AI_SANDBOX_MAX_PROCESSES", 64),
+                max_output_bytes=_integer(values, "LOCAL_AI_SANDBOX_MAX_OUTPUT", 20_000),
+                cpu_seconds=_integer(values, "LOCAL_AI_SANDBOX_CPU_SECONDS", 600),
+                wall_seconds=_integer(values, "LOCAL_AI_SANDBOX_WALL_SECONDS", 900),
+                memory_bytes=_integer(values, "LOCAL_AI_SANDBOX_MEMORY_BYTES", 4 * 1024**3),
+                max_open_files=_integer(values, "LOCAL_AI_SANDBOX_MAX_OPEN_FILES", 256),
+                max_file_bytes=_integer(
+                    values, "LOCAL_AI_SANDBOX_MAX_FILE_BYTES", 512 * 1024**2
+                ),
+                cache_policy=_choice(
+                    values, "LOCAL_AI_SANDBOX_CACHE_POLICY", "task_local",
+                    {"task_local", "read_only_shared", "disabled"},
+                ),
+                cleanup_policy=_choice(
+                    values, "LOCAL_AI_WORKTREE_CLEANUP_POLICY", "on_failure",
+                    {"manual", "on_failure", "always"},
+                ),
+                recovery_policy=_choice(
+                    values, "LOCAL_AI_WORKTREE_RECOVERY_POLICY", "manual",
+                    {"manual", "cleanup_only"},
+                ),
+                require_strong_isolation=_boolean(
+                    values, "LOCAL_AI_REQUIRE_STRONG_ISOLATION", True
+                ),
             ),
         )
 

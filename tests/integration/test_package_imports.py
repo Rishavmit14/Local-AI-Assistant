@@ -39,7 +39,7 @@ def test_pyproject_is_canonical_and_exposes_supported_commands():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
     package = importlib.import_module("local_ai_assistant")
     assert project["requires-python"] == ">=3.11"
-    assert project["version"] == package.__version__ == "0.7.0"
+    assert project["version"] == package.__version__ == "0.8.0"
     assert set(project["scripts"]) == {
         "local-ai-chat",
         "local-ai-code-rag",
@@ -47,6 +47,7 @@ def test_pyproject_is_canonical_and_exposes_supported_commands():
         "local-ai-plan",
         "local-ai-execute",
         "local-ai-history",
+        "local-ai-isolation",
         "local-ai-ui",
         "local-ai-validate",
     }

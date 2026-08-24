@@ -33,6 +33,10 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
             "LOCAL_AI_LOG_FORMAT": "text",
             "LOCAL_AI_TEST_MODE": "true",
             "LOCAL_AI_EXECUTION_MAX_STEPS": "7",
+            "LOCAL_AI_SANDBOX_BACKEND": "native",
+            "LOCAL_AI_SANDBOX_NETWORK": "allowed",
+            "LOCAL_AI_REQUIRE_STRONG_ISOLATION": "false",
+            "LOCAL_AI_SANDBOX_MAX_PROCESSES": "12",
         }
     )
 
@@ -46,6 +50,11 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
     assert config.runtime.log_format == "text"
     assert config.runtime.test_mode is True
     assert config.execution.max_steps == 7
+    assert config.paths.worktree_dir == (tmp_path / "worktrees").resolve()
+    assert config.isolation.backend == "native"
+    assert config.isolation.network_policy == "allowed"
+    assert config.isolation.require_strong_isolation is False
+    assert config.isolation.max_processes == 12
 
 
 @pytest.mark.parametrize(
@@ -54,6 +63,7 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
         ({"LOCAL_AI_UI_PORT": "not-a-port"}, "LOCAL_AI_UI_PORT"),
         ({"LOCAL_AI_OCR_ENABLED": "sometimes"}, "LOCAL_AI_OCR_ENABLED"),
         ({"LOCAL_AI_LOG_FORMAT": "xml"}, "LOCAL_AI_LOG_FORMAT"),
+        ({"LOCAL_AI_SANDBOX_NETWORK": "maybe"}, "LOCAL_AI_SANDBOX_NETWORK"),
         (
             {"LOCAL_AI_RAG_CHUNK_SIZE": "20", "LOCAL_AI_RAG_CHUNK_OVERLAP": "20"},
             "LOCAL_AI_RAG_CHUNK_OVERLAP",
@@ -76,5 +86,7 @@ def test_default_path_types_are_paths():
             paths.code_repo_dir,
             paths.code_index_dir,
             paths.patch_dir,
+            paths.worktree_dir,
+            paths.isolation_dir,
         )
     )
