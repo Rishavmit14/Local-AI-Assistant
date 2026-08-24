@@ -1,6 +1,6 @@
 # Architecture
 
-## Current Stage 3 system
+## Current Stage 4 system
 
 ```text
 Qwen GGUF
@@ -14,7 +14,7 @@ TurboQuant llama-server (127.0.0.1:8080)
 
 `local_ai_assistant.common.config` is the typed configuration boundary. Frozen dataclasses represent llama-server metadata, runtime paths, embedding, document/code retrieval, OCR, UI, and runtime/test settings. Components accept an `AppConfig` snapshot and injectable model/embedder dependencies; environment variables remain the deployment interface.
 
-`local_ai_assistant.llm` is the only model-client boundary. `rag` preserves private document retrieval. `code_index` provides deterministic Tree-sitter Python facts and local hybrid retrieval. `planning` classifies requests, builds affected scope from Stage 2 evidence, asks Qwen only to organize bounded evidence into typed JSON, and deterministically validates scope, risk, confidence, and approval before patch generation. `agent` preserves every Stage 1 Git transaction safeguard after the planning gate.
+`local_ai_assistant.llm` is the only model-client boundary. `rag` preserves private document retrieval. `code_index` provides deterministic Tree-sitter Python facts and local hybrid retrieval. `planning` classifies requests and enforces actual patch/file/symbol scope. `execution` exposes only registered typed tools, parsed allowlisted commands, bounded observations, and atomic audit history. Qwen chooses actions but deterministic policy authorizes them. `agent` wraps mutations in the proven Git transaction.
 
 `local_ai_assistant.ui.app` is the canonical document-chat interface and `local-ai-ui` is its configured launcher. Root files and `ui/streamlit/app.py` are thin compatibility wrappers. `config/services` contains non-installed sanitized systemd examples. Runtime documents, indexes, patches, repositories, and logs live under environment-selected directories, defaulting to ignored `var/` paths.
 
@@ -26,7 +26,7 @@ The `examples/demo-app` fixture is imported without its nested Git database. It 
 
 ## Deployment compatibility
 
-Stages 0 through 3 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
+Stages 0 through 4 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
 
 ## Target architecture
 

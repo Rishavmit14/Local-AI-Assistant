@@ -38,6 +38,8 @@ Tree-sitter/static analysis provides deterministic symbols and graphs. Local BGE
 
 Generate a no-edit plan with `local-ai-code-agent REPO REQUEST --plan-only` or use the dedicated [`local-ai-plan` workflow](docs/operations/planner.md). Deterministic validation and risk policy gate patch generation; high/critical approval is bound to the exact printed plan token and cannot silently transfer to a changed plan.
 
+Run the bounded tool workflow with `local-ai-code-agent REPO REQUEST --tool-loop` (dry run) or the existing complete `--apply --branch --test --validate --rollback-on-fail` safety bundle. See [controlled tool execution](docs/operations/tool-execution.md). Actual patch and post-apply Git scope are deterministic hard gates.
+
 ## Services
 
 The files in `config/services/` are sanitized templates. Render machine-specific units without installing them:
