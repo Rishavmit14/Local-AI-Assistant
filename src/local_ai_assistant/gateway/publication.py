@@ -55,7 +55,7 @@ class GitHubPublicationService:
                 raise HistoryDatabaseError("publication is already in progress")
             claimed_attempt = int(current.get("attempts") or 1)
         try:
-            remote_sha = self.transport.get_branch_sha(mapping.github_owner, mapping.github_name, task.branch)
+            remote_sha = self._read_retry(lambda: self.transport.get_branch_sha(mapping.github_owner, mapping.github_name, task.branch))
             if remote_sha and remote_sha != task.final_commit:
                 self.history.store.upsert_publication(task_id, repository_id, PublicationState.RECONCILIATION_REQUIRED.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1, last_error="Remote branch points to an unexpected commit")
                 raise HistoryDatabaseError("Remote task branch has unexpected commit")
@@ -63,11 +63,11 @@ class GitHubPublicationService:
                 self._push_with_retry(repository, task.branch, task.final_commit)
             self.history.store.upsert_publication(task_id, repository_id, PublicationState.PR_CREATING.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=claimed_attempt)
             marker = f"Friday-Task-ID: {task_id}"
-            candidates = self.transport.find_pull_requests(mapping.github_owner, mapping.github_name, head=task.branch, marker=marker)
+            candidates = self._read_retry(lambda: self.transport.find_pull_requests(mapping.github_owner, mapping.github_name, head=task.branch, marker=marker))
             if len(candidates) > 1:
                 self.history.store.upsert_publication(task_id, repository_id, PublicationState.RECONCILIATION_REQUIRED.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1, last_error="Ambiguous Friday-owned pull requests")
                 raise HistoryDatabaseError("Ambiguous pull request reconciliation")
-            pr = candidates[0] if candidates else self.transport.create_pull_request(mapping.github_owner, mapping.github_name, head=task.branch, base=base, title=f"Friday task {task_id}", body=_deterministic_body(task))
+            pr = candidates[0] if candidates else self._create_pr_reconciled(mapping, task, base, marker)
             result = self.history.store.upsert_publication(task_id, repository_id, PublicationState.PUBLISHED.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, pr_id=str(pr.get("id", pr.get("number", ""))), pr_number=pr.get("number"), pr_url=pr.get("html_url"), attempts=claimed_attempt)
             return result
         except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as exc:
@@ -84,6 +84,31 @@ class GitHubPublicationService:
                 return
             except GitHubError as exc:
                 if not exc.retryable or attempt >= self.retry_policy.max_attempts:
+                    raise
+                self._sleeper(min(self.retry_policy.max_backoff, self.retry_policy.initial_backoff * (2 ** (attempt - 1))))
+
+    def _read_retry(self, operation):
+        for attempt in range(1, self.retry_policy.max_attempts + 1):
+            try:
+                return operation()
+            except GitHubError as exc:
+                if not exc.retryable or attempt >= self.retry_policy.max_attempts:
+                    raise
+                self._sleeper(min(self.retry_policy.max_backoff, self.retry_policy.initial_backoff * (2 ** (attempt - 1))))
+
+    def _create_pr_reconciled(self, mapping, task, base, marker):
+        for attempt in range(1, self.retry_policy.max_attempts + 1):
+            try:
+                return self.transport.create_pull_request(mapping.github_owner, mapping.github_name, head=task.branch, base=base, title=f"Friday task {task.task_id}", body=_deterministic_body(task))
+            except GitHubError as exc:
+                if not exc.retryable:
+                    raise
+                candidates = self._read_retry(lambda: self.transport.find_pull_requests(mapping.github_owner, mapping.github_name, head=task.branch, marker=marker))
+                if len(candidates) == 1:
+                    return candidates[0]
+                if len(candidates) > 1:
+                    raise HistoryDatabaseError("Ambiguous pull request reconciliation")
+                if attempt >= self.retry_policy.max_attempts:
                     raise
                 self._sleeper(min(self.retry_policy.max_backoff, self.retry_policy.initial_backoff * (2 ** (attempt - 1))))
 

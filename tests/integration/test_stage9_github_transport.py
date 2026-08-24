@@ -9,6 +9,7 @@ from local_ai_assistant.gateway.github import GitHubHttpTransport
 from local_ai_assistant.gateway.publication import RetryPolicy
 from local_ai_assistant.gateway.errors import GitHubTransientError
 from local_ai_assistant.gateway.errors import GitHubAuthenticationError, GitHubPermissionError, GitHubRateLimitError, GitHubTransientError, GitHubValidationError, GitHubOversizedResponseError
+from local_ai_assistant.gateway.publication import GitHubPublicationService
 
 
 class _Response:
@@ -69,3 +70,20 @@ def test_retry_policy_is_bounded_and_injectable():
             if attempt == policy.max_attempts: raise
             delays.append(min(policy.max_backoff, policy.initial_backoff * (2 ** (attempt - 1))))
     assert attempts["n"] == 3 and delays == [1, 2]
+
+
+def test_pr_timeout_after_remote_success_reconciles_without_duplicate_create():
+    class Transport:
+        def __init__(self): self.creates = 0; self.reconciled = False
+        def create_pull_request(self, *args, **kwargs):
+            self.creates += 1
+            raise GitHubTransientError("timeout after remote success")
+        def find_pull_requests(self, *args, **kwargs):
+            self.reconciled = True
+            return [{"id": 9, "number": 9}]
+    service = object.__new__(GitHubPublicationService)
+    service.transport = Transport(); service.retry_policy = __import__("local_ai_assistant.gateway.publication", fromlist=["RetryPolicy"]).RetryPolicy(max_attempts=3, initial_backoff=0, max_backoff=0); service._sleeper = lambda _delay: None
+    mapping = type("M", (), {"github_owner": "acme", "github_name": "demo"})()
+    task = type("T", (), {"task_id": "task-x", "branch": "friday/task/x", "final_commit": "abc", "original_request": "x", "risk": "low", "outcome": "ok"})()
+    result = service._create_pr_reconciled(mapping, task, "main", "Friday-Task-ID: task-x")
+    assert result["id"] == 9 and service.transport.creates == 1 and service.transport.reconciled
