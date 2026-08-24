@@ -22,6 +22,7 @@ from local_ai_assistant.gateway.github import (
     validate_mappings,
     validate_remote,
     verify_webhook_signature,
+    GitHubHttpTransport,
 )
 from local_ai_assistant.gateway.mcp import MCPGateway
 from local_ai_assistant.gateway.mcp_server import MCPProtocolServer
@@ -244,6 +245,51 @@ def test_publication_reconciles_after_local_pr_identity_write_failure(tmp_path):
     result = publication.publish(task.task_id, repository_id="r1")
     assert result["state"] == "published"
     assert len(transport.pull_requests) == 1
+
+
+def test_production_github_transport_constructs_constrained_requests(monkeypatch):
+    calls = []
+    class Response:
+        def __init__(self, value): self.value = value
+        def read(self, _limit=-1): return json.dumps(self.value).encode()
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+    def fake_urlopen(request, timeout):
+        calls.append((request, timeout))
+        if request.full_url.endswith("/issues/3"):
+            return Response({"number": 3, "title": "Fix"})
+        if "/branches/" in request.full_url:
+            return Response({"commit": {"sha": "abc"}})
+        if request.method == "POST":
+            return Response({"id": 7, "number": 2})
+        if "/pulls?" in request.full_url:
+            return Response([])
+        return Response({"check_runs": []})
+    monkeypatch.setattr("local_ai_assistant.gateway.github.urlopen", fake_urlopen)
+    client = GitHubHttpTransport("github_pat_STAGE9_DO_NOT_LEAK_12345")
+    assert client.get_issue("acme", "demo", 3)["number"] == 3
+    assert client.find_pull_requests("acme", "demo", head="friday/task/x", marker="Friday-Task-ID")==[]
+    assert client.get_branch_sha("acme", "demo", "friday/task/x") == "abc"
+    assert client.create_pull_request("acme", "demo", head="friday/task/x", base="main", title="T", body="B")["id"] == 7
+    request, timeout = calls[0]
+    assert request.full_url.startswith("https://api.github.com/")
+    assert request.get_header("X-github-api-version") == "2022-11-28"
+    assert request.get_header("User-agent") == "Friday-Integration-Gateway/1"
+    assert timeout == 10.0
+    assert "github_pat_STAGE9" not in repr(request)
+
+
+def test_mcp_stdio_protocol_subprocess_initialize_and_enumeration(tmp_path):
+    import os, subprocess, sys
+    payload = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n"
+    env = {**os.environ, "PYTHONPATH": "src"}
+    proc = subprocess.run([sys.executable, "-c", "from local_ai_assistant.gateway.cli import main; main()", "mcp-stdio"], input=payload, text=True, capture_output=True, env=env, timeout=15)
+    assert proc.returncode == 0
+    lines = [json.loads(line) for line in proc.stdout.splitlines()]
+    names = {item["name"] for item in lines[1]["result"]["tools"]}
+    assert {"get_task_status", "get_task_timeline", "get_plan", "create_task", "request_plan", "request_cancel"} == names
+    assert not any(name in names for name in {"shell", "exec", "write_file", "git_push_raw"})
+    assert proc.stderr == ""
 
 
 def _publish_safely(publication, task_id):
