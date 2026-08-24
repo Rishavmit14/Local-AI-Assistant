@@ -70,6 +70,8 @@ scripts/maintenance/verify-repository.sh
 
 Stage 8 autonomous mutation uses task-scoped Git worktrees and capability-aware sandbox policy. Inspect the local boundary with `local-ai-isolation capabilities`; use `local-ai-isolation recovery` after an interrupted run. The secure default requires strong filesystem/network isolation and blocks execution if the host cannot provide it. See [isolation operations](docs/operations/isolation.md).
 
+Stage 9 adds an optional, authenticated Friday-native integration gateway. It binds to localhost by default, accepts configured repository IDs only, and delegates to the existing planner, history, validation, review, and Stage 8 isolation services. GitHub and MCP-compatible adapters are untrusted request boundaries, not execution shortcuts. See [integration gateway architecture](docs/architecture/integration-gateway.md).
+
 Tests use dependency injection to avoid loading the embedding model or contacting llama-server unless explicitly marked as live integration tests. Structured operational logs default to JSON on stderr; set `LOCAL_AI_LOG_FORMAT=text` for human-readable output. See `ARCHITECTURE.md` for current boundaries, `HISTORY.md` for provenance, and `ROADMAP.md` for later stages.
 
 ## Data and privacy

@@ -64,7 +64,7 @@ Task/plan/repository/commit-bound Git worktrees keep autonomous mutations away f
 
 A typed sandbox boundary probes Bubblewrap and otherwise reports a constrained native backend honestly. Task HOME/TMP/cache, allowlisted environments, process-tree cancellation, bounded output, wall/CPU/process/open-file/file-size/address-space limits, and explicit network policy are implemented. On the current host Bubblewrap user namespaces are unavailable; strong isolation therefore fails closed rather than silently downgrading to native process limits. Disk quotas, seccomp, delegated cgroups, automatic conflict resolution, and task scheduling remain limitations/later work. Stage 8 never auto-merges main.
 
-## Stage 9 — Native Integration Gateway / GitHub / External Interfaces (**Planned**)
+## Stage 9 — Native Integration Gateway / GitHub / External Interfaces (**In progress on review branch**)
 
 Build a Friday-native internal integration/service API, then add native GitHub issue → task → branch → validation → commit → PR, PR-review, and CI-status integration. Prefer MCP-compatible external tool/interface integration where a standard protocol is useful, add a WebSocket/event interface where justified, and use direct external adapters only when justified. Friday remains independently operable and has no OpenClaw dependency. Every external action remains behind Friday's risk gates, exact plan approval, ScopeGuard, Git transaction safety, validation, Stage 8 sandbox/isolation policy, and audit/history.
 

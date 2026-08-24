@@ -41,6 +41,7 @@ coding-agent = [
   "tree-sitter-java>=0.23.5,<0.24",
   "tree-sitter-bash>=0.25.1,<0.26",
 ]
+gateway = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "httpx>=0.27,<1"]
 dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
 
 [project.scripts]
@@ -53,6 +54,7 @@ local-ai-validate = "local_ai_assistant.validation.cli:main"
 local-ai-history = "local_ai_assistant.history.cli:main"
 local-ai-isolation = "local_ai_assistant.isolation.cli:main"
 local-ai-ui = "local_ai_assistant.ui.cli:main"
+local-ai-gateway = "local_ai_assistant.gateway.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

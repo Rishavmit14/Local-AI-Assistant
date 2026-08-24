@@ -165,6 +165,22 @@ class IsolationConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class GatewayConfig:
+    """Local, authenticated integration-gateway policy."""
+    enabled: bool = False
+    host: str = "127.0.0.1"
+    port: int = 8765
+    token_hash: str = ""
+    max_body_bytes: int = 1_048_576
+    max_task_text: int = 20_000
+    max_page_size: int = 100
+    max_events: int = 1000
+    request_rate: int = 30
+    github_enabled: bool = False
+    github_api_host: str = "https://api.github.com"
+
+
+@dataclass(frozen=True, slots=True)
 class AppConfig:
     llama: LlamaConfig = field(default_factory=LlamaConfig)
     paths: PathConfig = field(default_factory=PathConfig)
@@ -178,6 +194,7 @@ class AppConfig:
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     isolation: IsolationConfig = field(default_factory=IsolationConfig)
+    gateway: GatewayConfig = field(default_factory=GatewayConfig)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AppConfig:
@@ -222,6 +239,10 @@ class AppConfig:
             raise ConfigurationError("LOCAL_AI_RAG_CHUNK_OVERLAP must be smaller than chunk size")
         if code.overlap_lines >= code.chunk_lines:
             raise ConfigurationError("LOCAL_AI_CODE_CHUNK_OVERLAP must be smaller than chunk lines")
+        gateway_host = values.get("LOCAL_AI_GATEWAY_HOST", "127.0.0.1").strip()
+        github_api_host = values.get("LOCAL_AI_GITHUB_API_HOST", "https://api.github.com").strip()
+        if not gateway_host or not github_api_host.startswith("https://"):
+            raise ConfigurationError("Gateway host and HTTPS GitHub API host must be valid")
         return cls(
             llama=LlamaConfig(
                 base_url=values.get("LOCAL_AI_BASE_URL", "http://127.0.0.1:8080/v1"),
@@ -303,6 +324,19 @@ class AppConfig:
                 require_strong_isolation=_boolean(
                     values, "LOCAL_AI_REQUIRE_STRONG_ISOLATION", True
                 ),
+            ),
+            gateway=GatewayConfig(
+                enabled=_boolean(values, "LOCAL_AI_GATEWAY_ENABLED", False),
+                host=gateway_host,
+                port=_integer(values, "LOCAL_AI_GATEWAY_PORT", 8765, maximum=65535),
+                token_hash=values.get("LOCAL_AI_GATEWAY_TOKEN_HASH", ""),
+                max_body_bytes=_integer(values, "LOCAL_AI_GATEWAY_MAX_BODY", 1_048_576, maximum=10 * 1024 * 1024),
+                max_task_text=_integer(values, "LOCAL_AI_GATEWAY_MAX_TASK_TEXT", 20_000, maximum=200_000),
+                max_page_size=_integer(values, "LOCAL_AI_GATEWAY_MAX_PAGE", 100, maximum=1000),
+                max_events=_integer(values, "LOCAL_AI_GATEWAY_MAX_EVENTS", 1000, maximum=10_000),
+                request_rate=_integer(values, "LOCAL_AI_GATEWAY_REQUEST_RATE", 30, maximum=10_000),
+                github_enabled=_boolean(values, "LOCAL_AI_GITHUB_ENABLED", False),
+                github_api_host=github_api_host,
             ),
         )
 

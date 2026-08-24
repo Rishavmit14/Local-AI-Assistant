@@ -34,3 +34,6 @@ The Stage 4 security review then hardened quoted/binary patch handling, stale-sy
 16. Stage 1 stabilized the import as an injectable Python package: typed settings, structured logs, explicit errors and transaction summaries, canonical console commands, compatibility wrappers, configurable directories/retrieval/OCR/UI/runtime values, and comprehensive regression tests were added without changing the live external deployment.
 17. Stage 2 added official Tree-sitter Python parsing, typed symbol/reference/call records, persistent incremental symbol embeddings and graphs, repository maps, deterministic queries, provenance, and symbol-first code RAG while retaining line chunks as fallback.
 18. Stage 3 added deterministic affected-scope analysis, bounded structured Qwen planning, typed plan validation and persistence, dependency/migration/security awareness, explainable risk/confidence/approval policy, a future scope guard, planning CLI, and a mandatory planning gate before patch generation.
+# Stage 9
+
+The review branch adds the optional authenticated Friday-native integration gateway, typed external provenance/idempotency, bounded events, GitHub transport boundary, and controlled MCP capability facade. It remains disabled by default and does not replace the existing safety pipeline.
