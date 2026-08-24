@@ -29,6 +29,18 @@ class ExternalSyncState(StrEnum):
     BLOCKED = "blocked"
 
 
+class PublicationState(StrEnum):
+    NOT_REQUESTED = "not_requested"
+    READY = "ready"
+    PUSHING = "pushing"
+    PUSHED = "pushed"
+    PR_CREATING = "pr_creating"
+    PUBLISHED = "published"
+    RETRYABLE_FAILURE = "retryable_failure"
+    BLOCKED = "blocked"
+    RECONCILIATION_REQUIRED = "reconciliation_required"
+
+
 @dataclass(frozen=True, slots=True)
 class ExternalProvenance:
     source: str

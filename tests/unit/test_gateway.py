@@ -20,6 +20,8 @@ from local_ai_assistant.gateway.github import (
     validate_remote,
     verify_webhook_signature,
 )
+from local_ai_assistant.gateway.mcp import MCPGateway
+from local_ai_assistant.gateway.mcp_server import MCPProtocolServer
 from local_ai_assistant.gateway.models import (
     CIStatus,
     ExternalProvenance,
@@ -119,3 +121,15 @@ def test_duplicate_remote_mappings_are_rejected():
     )
     with pytest.raises(ValueError):
         validate_mappings(mappings)
+
+
+def test_mcp_protocol_exposes_only_typed_tools(tmp_path):
+    gateway, _ = service(tmp_path)
+    token = "mcp-token"
+    auth = GatewayAuth(hashlib.sha256(token.encode()).hexdigest(), frozenset({GatewayScope.READ_HISTORY}))
+    protocol = MCPProtocolServer(MCPGateway(gateway, auth))
+    assert protocol.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize"})["result"]["capabilities"] == {"tools": {}}
+    tools = protocol.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})["result"]["tools"]
+    assert {item["name"] for item in tools} == {"get_task_status", "create_task", "request_cancel"}
+    denied = protocol.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "create_task", "arguments": {"repository_id": "r1", "request": "x"}}}, token)
+    assert denied["error"]["code"] == -32001

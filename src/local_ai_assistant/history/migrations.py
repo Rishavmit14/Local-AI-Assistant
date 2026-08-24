@@ -1,6 +1,6 @@
 """Ordered SQLite migrations for the local task-history store."""
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 MIGRATIONS: dict[int, tuple[str, ...]] = {
     1: (
@@ -109,5 +109,22 @@ MIGRATIONS: dict[int, tuple[str, ...]] = {
             UNIQUE(task_id)
         )""",
         "CREATE INDEX idx_external_idempotency_task ON external_idempotency(task_id)",
+    ),
+    4: (
+        """CREATE TABLE external_publications (
+            task_id TEXT PRIMARY KEY REFERENCES tasks(task_id) ON DELETE CASCADE,
+            repository_id TEXT NOT NULL, state TEXT NOT NULL, branch TEXT,
+            commit_sha TEXT, pr_id TEXT, pr_number INTEGER, pr_url TEXT,
+            last_error TEXT, attempts INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL, metadata_json TEXT NOT NULL
+        )""",
+        """CREATE TABLE external_ci_checks (
+            check_id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+            repository_id TEXT NOT NULL, external_repository TEXT NOT NULL,
+            pr_id TEXT, commit_sha TEXT NOT NULL, name TEXT NOT NULL, status TEXT NOT NULL,
+            conclusion TEXT, url TEXT, timestamp TEXT NOT NULL, metadata_json TEXT NOT NULL,
+            UNIQUE(task_id, external_repository, commit_sha, name)
+        )""",
+        "CREATE INDEX idx_external_ci_task_sha ON external_ci_checks(task_id, commit_sha)",
     ),
 }

@@ -65,6 +65,7 @@ class TaskHistoryStore:
                     "validations", "reviews", "approvals", "affected_files",
                     "affected_symbols", "metrics_summary", "artifact_imports",
                     "external_idempotency",
+                    "external_publications", "external_ci_checks",
                 }
                 actual_tables = {
                     row[0]
@@ -170,6 +171,44 @@ class TaskHistoryStore:
                 return self._task(row) if row else None
         except sqlite3.DatabaseError as exc:
             raise HistoryDatabaseError(f"Cannot read task history: {exc}") from exc
+
+    def upsert_publication(self, task_id: str, repository_id: str, state: str, **values) -> dict:
+        task = self.get_task(task_id)
+        if task is None or task.repository != str(Path(values.get("repository", task.repository)).resolve()):
+            raise HistoryDatabaseError("Publication task identity mismatch")
+        import json as _json_module
+        timestamp = utc_now()
+        with self.transaction() as connection:
+            connection.execute(
+                """INSERT INTO external_publications(task_id,repository_id,state,branch,commit_sha,pr_id,pr_number,pr_url,last_error,attempts,updated_at,metadata_json)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(task_id) DO UPDATE SET state=excluded.state, branch=excluded.branch, commit_sha=excluded.commit_sha, pr_id=excluded.pr_id, pr_number=excluded.pr_number, pr_url=excluded.pr_url, last_error=excluded.last_error, attempts=excluded.attempts, updated_at=excluded.updated_at, metadata_json=excluded.metadata_json""",
+                (task_id, repository_id, state, values.get("branch"), values.get("commit_sha"), values.get("pr_id"), values.get("pr_number"), values.get("pr_url"), redact(values.get("last_error", "")), values.get("attempts", 0), timestamp, _json_module.dumps(redact_data(values.get("metadata", {})), sort_keys=True)),
+            )
+            row = connection.execute("SELECT * FROM external_publications WHERE task_id=?", (task_id,)).fetchone()
+        return dict(row)
+
+    def publication(self, task_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM external_publications WHERE task_id=?", (task_id,)).fetchone()
+        return dict(row) if row else None
+
+    def add_ci_check(self, task_id: str, values: dict) -> dict:
+        with self.transaction() as connection:
+            connection.execute("INSERT OR REPLACE INTO external_ci_checks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", tuple(values.get(key, "") for key in ("check_id","task_id","repository_id","external_repository","pr_id","commit_sha","name","status","conclusion","url","timestamp","metadata_json")))
+            row = connection.execute("SELECT * FROM external_ci_checks WHERE check_id=?", (values["check_id"],)).fetchone()
+        return dict(row)
+
+    def ci_checks(self, task_id: str, limit: int = 100) -> tuple[dict, ...]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT * FROM external_ci_checks WHERE task_id=? ORDER BY timestamp DESC LIMIT ?", (task_id, min(max(limit, 1), 1000))).fetchall()
+        return tuple(dict(row) for row in rows)
+
+    def artifact_records(self, task_id: str, table: str, limit: int = 100) -> tuple[dict, ...]:
+        if table not in {"plans", "executions", "validations", "reviews"}:
+            raise HistoryDatabaseError("Unsupported artifact table")
+        with self._connect() as connection:
+            rows = connection.execute(f"SELECT * FROM {table} WHERE task_id=? ORDER BY rowid DESC LIMIT ?", (task_id, min(max(limit, 1), 100))).fetchall()
+        return tuple(dict(row) for row in rows)
 
     def transition(self, task_id: str, status: TaskStatus, reason: str, *, subsystem: str = "history") -> TaskRecord:
         with self.transaction() as connection:

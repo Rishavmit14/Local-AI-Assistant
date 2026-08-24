@@ -4,9 +4,11 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from pathlib import Path
+from queue import Empty
 from typing import Any
 
 from local_ai_assistant.history.errors import HistoryDatabaseError, InvalidStatusTransition
+from local_ai_assistant.planning.models import plan_approval_token
 
 from .auth import (
     GatewayAuth,
@@ -16,10 +18,11 @@ from .auth import (
 )
 from .github import verify_webhook_signature
 from .models import ExternalProvenance, GatewayScope
+from .publication import GitHubPublicationService
 from .service import IntegrationGatewayService
 
 
-def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_body_bytes: int = 1_048_576, max_task_text: int = 20_000, requests_per_minute: int = 30, webhook_secret: str | None = None):
+def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_body_bytes: int = 1_048_576, max_task_text: int = 20_000, requests_per_minute: int = 30, webhook_secret: str | None = None, publication: GitHubPublicationService | None = None):
     try:
         from fastapi import FastAPI, Header, HTTPException, Request
         from fastapi.responses import JSONResponse, StreamingResponse
@@ -129,6 +132,74 @@ def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_bod
             raise HTTPException(404, "task not found")
         return {"task_id": task_id, "plan_hash": value.plan_hash, "risk": value.risk, "approval_state": value.approval_state}
 
+    @app.post("/api/v1/tasks/{task_id}/plan")
+    def request_plan(task_id: str, authorization: str | None = Header(default=None)):
+        principal = require(authorization, GatewayScope.REQUEST_PLAN)
+        try:
+            artifact = service.request_plan(task_id)
+        except KeyError as exc:
+            raise HTTPException(404, "task not found") from exc
+        except RuntimeError as exc:
+            raise HTTPException(503, "planner service unavailable") from exc
+        except ValueError as exc:
+            raise HTTPException(409, "task cannot be planned") from exc
+        return {"task_id": task_id, "classification": artifact.classification.category.value, "scope": [item.path for item in artifact.scope_candidates], "risk": artifact.plan.risk.level.value, "confidence": artifact.plan.confidence.score, "approval_required": artifact.plan.approval.status.value, "plan_hash": plan_approval_token(artifact.plan), "principal": principal.name}
+
+    @app.get("/api/v1/tasks/{task_id}/publication")
+    def publication_status(task_id: str, authorization: str | None = Header(default=None)):
+        require(authorization, GatewayScope.READ_HISTORY)
+        if service.get_task(task_id) is None:
+            raise HTTPException(404, "task not found")
+        return publication.status(task_id) if publication else {"state": "not_configured"}
+
+    @app.get("/api/v1/tasks/{task_id}/ci")
+    def ci_status(task_id: str, authorization: str | None = Header(default=None), limit: int = 100):
+        require(authorization, GatewayScope.READ_HISTORY)
+        if service.get_task(task_id) is None:
+            raise HTTPException(404, "task not found")
+        if limit < 1 or limit > 1000:
+            raise HTTPException(400, "invalid limit")
+        return list(service.history.store.ci_checks(task_id, limit))
+
+    @app.get("/api/v1/tasks/{task_id}/validation")
+    def validation(task_id: str, authorization: str | None = Header(default=None), limit: int = 20):
+        require(authorization, GatewayScope.READ_HISTORY)
+        if service.get_task(task_id) is None:
+            raise HTTPException(404, "task not found")
+        return list(service.history.store.artifact_records(task_id, "validations", limit))
+
+    @app.get("/api/v1/tasks/{task_id}/review")
+    def review(task_id: str, authorization: str | None = Header(default=None), limit: int = 20):
+        require(authorization, GatewayScope.READ_HISTORY)
+        if service.get_task(task_id) is None:
+            raise HTTPException(404, "task not found")
+        return list(service.history.store.artifact_records(task_id, "reviews", limit))
+
+    @app.get("/api/v1/tasks/{task_id}/artifacts")
+    def artifacts(task_id: str, authorization: str | None = Header(default=None), limit: int = 20):
+        require(authorization, GatewayScope.READ_HISTORY)
+        if service.get_task(task_id) is None:
+            raise HTTPException(404, "task not found")
+        output = {}
+        for table in ("plans", "executions", "validations", "reviews"):
+            output[table] = list(service.history.store.artifact_records(task_id, table, limit))
+        return output
+
+    @app.post("/api/v1/tasks/{task_id}/publish")
+    def publish(task_id: str, body: dict[str, Any], authorization: str | None = Header(default=None)):
+        require(authorization, GatewayScope.GITHUB_WRITE)
+        if publication is None:
+            raise HTTPException(503, "GitHub publication is not configured")
+        repository_id = body.get("repository_id")
+        if not isinstance(repository_id, str):
+            raise HTTPException(400, "repository_id is required")
+        try:
+            return publication.publish(task_id, repository_id=repository_id, base=str(body.get("base", "main")))
+        except HistoryDatabaseError as exc:
+            raise HTTPException(409, "publication is not eligible") from exc
+        except Exception as exc:
+            raise HTTPException(502, "external publication failed") from exc
+
     @app.post("/api/v1/tasks/{task_id}/approval")
     def approval(task_id: str, body: dict[str, Any], authorization: str | None = Header(default=None)):
         principal = require(authorization, GatewayScope.SUBMIT_APPROVAL)
@@ -145,6 +216,19 @@ def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_bod
         except Exception as exc:
             raise HTTPException(409, "approval could not be recorded") from exc
         return {"approval_id": approval_id, "task_id": task_id}
+
+    @app.post("/api/v1/tasks/{task_id}/execute", status_code=202)
+    def execute(task_id: str, authorization: str | None = Header(default=None)):
+        require(authorization, GatewayScope.REQUEST_EXECUTION)
+        try:
+            result = service.request_execution(task_id)
+        except KeyError as exc:
+            raise HTTPException(404, "task not found") from exc
+        except RuntimeError as exc:
+            raise HTTPException(503, "execution service unavailable") from exc
+        except ValueError as exc:
+            raise HTTPException(409, "execution request rejected") from exc
+        return {"task_id": task_id, "accepted": True, "result": result if isinstance(result, dict) else None}
 
     @app.post("/api/v1/tasks")
     async def create(request: Request, authorization: str | None = Header(default=None)):
@@ -195,10 +279,23 @@ def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_bod
         require(authorization, GatewayScope.READ_STATUS)
         if limit < 1 or limit > 1000:
             raise HTTPException(400, "invalid limit")
-        events = service.events_since(cursor, limit)
+        replay = service.events_since(cursor, limit)
+        queue = service.events.subscribe(max_pending=100)
         def lines():
-            for event in events:
-                yield f"id: {event.sequence}\ndata: {json.dumps(asdict(event), sort_keys=True)}\n\n"
+            try:
+                for event in replay:
+                    yield f"id: {event.sequence}\ndata: {json.dumps(asdict(event), sort_keys=True)}\n\n"
+                while True:
+                    try:
+                        event = queue.get(timeout=30)
+                    except Empty:
+                        yield ": heartbeat\n\n"
+                        continue
+                    yield f"id: {event.sequence}\ndata: {json.dumps(asdict(event), sort_keys=True)}\n\n"
+            except GeneratorExit:
+                return
+            finally:
+                service.events.unsubscribe(queue)
         return StreamingResponse(lines(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
     return app
