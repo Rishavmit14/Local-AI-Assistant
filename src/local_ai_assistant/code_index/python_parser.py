@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+from functools import cached_property
 from pathlib import Path
 
 from local_ai_assistant.common.errors import ParserUnavailableError
@@ -52,7 +53,7 @@ class PythonSymbolExtractor(LanguageAdapter):
     def capability(self, capability: LanguageCapability) -> CapabilityStatus:
         return self.descriptor.capabilities.get(capability, CapabilityStatus.UNAVAILABLE)
 
-    @property
+    @cached_property
     def parser_version(self) -> str:
         try:
             from importlib.metadata import version
@@ -82,6 +83,7 @@ class PythonSymbolExtractor(LanguageAdapter):
 
             language = Language(tree_sitter_python.language())
             self.parser = Parser(language)
+            _ = self.parser_version
         except (ImportError, TypeError, ValueError) as exc:
             raise ParserUnavailableError(
                 "Python symbol indexing requires tree-sitter and tree-sitter-python"

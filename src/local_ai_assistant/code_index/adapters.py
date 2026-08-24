@@ -8,6 +8,7 @@ import importlib.metadata
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 from local_ai_assistant.common.errors import ParserUnavailableError
@@ -35,7 +36,7 @@ class LanguageAdapter(ABC):
     def extensions(self) -> frozenset[str]:
         return self.descriptor.extensions
 
-    @property
+    @cached_property
     def parser_version(self) -> str:
         try:
             return importlib.metadata.version(self.descriptor.parser_package)
@@ -89,6 +90,8 @@ class TreeSitterAdapter(LanguageAdapter):
                 )
                 language = Language(handle)
             self.parser = Parser(language)
+            # Resolve package identity during adapter construction, outside refresh timing.
+            _ = self.parser_version
         except (ImportError, AttributeError, TypeError, ValueError) as exc:
             raise ParserUnavailableError(
                 f"{self.language} indexing requires {self.descriptor.parser_package}"
