@@ -1,10 +1,12 @@
 # Code Intelligence Architecture
 
+Stage 6 extends this Stage 2 foundation through the shared adapter platform documented in [multi-language code intelligence](multi-language-code-intelligence.md). Python behavior and schema-2 loading remain compatible.
+
 ## Symbol schema
 
 `SymbolRecord` stores a stable hash identifier, repository-relative path, language, extensible kind, name/qualified name, parent, exact lines/source, signature, documentation, decorators, deterministic visibility, imports, and source hash. Kinds reserve future struct, trait, interface, contract, enum, implementation, and namespace values without loading those grammars.
 
-`FileRecord` stores SHA-256 content identity, language, normalized imports, and parse errors. `ReferenceRecord` and `CallRecord` distinguish confirmed definitions, syntactic references, and unresolved references. IDs depend on language/path/qualified-name/kind, so unchanged symbols remain stable while a rename intentionally changes identity.
+`FileRecord` stores SHA-256 content identity, language, normalized imports, parse errors, parser identity, and capability metadata. `ReferenceRecord`, `CallRecord`, and unified relationship records distinguish confirmed definitions, syntactic references, unresolved references, and external targets. IDs depend on language/path/qualified-name/kind, so unchanged symbols remain stable while a rename intentionally changes identity.
 
 ## Persistence and refresh
 

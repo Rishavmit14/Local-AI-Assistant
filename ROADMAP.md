@@ -34,7 +34,7 @@ Typed registry metadata, permission classes, strict tool-choice/observation reco
 
 Controlled shell begins with an allowlist; approval/block rules cover sudo, destructive removal, force push, `curl|bash`, credentials, and destructive DB operations. Add timeouts, child cleanup, cancellation, audit logs, optional Docker/bubblewrap/firejail, and CPU/RAM/disk limits.
 
-## Stage 5 — Validation, tests, review, security, confidence (**Implemented on Stage 5 branch**)
+## Stage 5 — Validation, tests, review, security, confidence (**Done**)
 
 Static registry: untracked/new files; reliable undefined-name and import checks; Python AST/syntax, Ruff, mypy, optional Pyright; Rust `cargo check`/Clippy; Solidity Forge build/test; JS/TS ESLint and `tsc --noEmit`; ShellCheck. The existing AST syntax/duplicate-definition validator is **Partial**.
 
@@ -46,9 +46,11 @@ Security foundation: secret/key/token/password/private-key scanning and optional
 
 Confidence/risk scoring covers retrieval, symbol/context coverage, tests, plan consistency, scope, static validation, results, security flags, and change risk, gating apply/commit. Database awareness detects schema/framework migrations, destructive SQL, ordering, validation, and rollback strategy. A policy engine combines risk, confidence, file/dependency/security/migration/deployment state, and user config.
 
-## Stage 6 — Multi-language (**Planned**)
+## Stage 6 — Multi-language (**Implemented on Stage 6 branch**)
 
-Harden Python, then Rust, Solidity, TS/JS, SQL, C/C++, Java, and Shell across indexing, planning, editing, validation, tests, and review.
+A single typed language registry and capability-aware adapter architecture now preserves Python and adds Rust, Solidity, TS/JS, SQL, C/C++, Java, and Shell to the shared symbols, graph, persistence, incremental embeddings, repository map, CodeRAG, planner, ScopeGuard, and validation/test-impact evidence.
+
+Rust has the strongest new coverage: nested modules, functions/async functions, structs, enums/variants, traits, impls/trait impls, methods/associated functions, aliases/constants/statics/macros, visibility, attributes/docs/generics/where clauses, imports/modules, test attributes, and conservative calls/references. Later adapters extract their roadmap declarations and explicit relationships while reporting partial/unavailable semantics rather than overstating runtime resolution. Legacy line chunks remain the fallback for unsupported/uncertain constructs.
 
 ## Stage 7 — UI, history, and metrics (**Planned**)
 

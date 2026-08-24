@@ -1,6 +1,6 @@
 # Local-AI-Assistant
 
-Local-AI-Assistant is a local-first Qwen platform combining an OpenAI-compatible llama.cpp client, private document RAG, deterministic Tree-sitter Python code intelligence, model-assisted but deterministically governed planning, and a Git-transactional coding assistant.
+Local-AI-Assistant is a local-first Qwen platform combining an OpenAI-compatible llama.cpp client, private document RAG, deterministic multi-language Tree-sitter code intelligence, model-assisted but deterministically governed planning, and a Git-transactional coding assistant.
 
 The runtime does not require Codex or paid inference tokens. The default model is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`, served only on `127.0.0.1:8080`; Streamlit binds to `127.0.0.1:8501`.
 
@@ -30,11 +30,16 @@ Index repositories placed under `LOCAL_AI_CODE_REPO_DIR`:
 python -m local_ai_assistant.code_index.repository --reindex
 local-ai-code-rag --repository-map
 local-ai-code-rag --find-symbol login_user
+local-ai-code-rag --list-languages
+local-ai-code-rag --show-capabilities rust
+local-ai-code-rag --search-symbols UserService --language rust --kind struct
 local-ai-code-agent --help
 local-ai-plan --help
 ```
 
 Tree-sitter/static analysis provides deterministic symbols and graphs. Local BGE + FAISS/BM25/RRF provides semantic retrieval, and Qwen3.6 reasons over that evidence. The original line-chunk index remains fallback. See [code intelligence architecture](docs/architecture/code-intelligence.md) and [index operations](docs/operations/code-index.md).
+
+Stage 6 supports Python, Rust, Solidity, TypeScript/JavaScript, SQL, C/C++, Java, and Shell through one capability-aware index. Static limitations are explicit; an unsupported call/reference capability is not reported as “no results.” See the [support matrix](docs/architecture/multi-language-code-intelligence.md).
 
 Generate a no-edit plan with `local-ai-code-agent REPO REQUEST --plan-only` or use the dedicated [`local-ai-plan` workflow](docs/operations/planner.md). Deterministic validation and risk policy gate patch generation; high/critical approval is bound to the exact printed plan token and cannot silently transfer to a changed plan.
 

@@ -1,6 +1,6 @@
 # Architecture
 
-## Current Stage 5 system
+## Current Stage 6 system
 
 ```text
 Qwen GGUF
@@ -14,7 +14,7 @@ TurboQuant llama-server (127.0.0.1:8080)
 
 `local_ai_assistant.common.config` is the typed configuration boundary. Frozen dataclasses represent llama-server metadata, runtime paths, embedding, document/code retrieval, OCR, UI, and runtime/test settings. Components accept an `AppConfig` snapshot and injectable model/embedder dependencies; environment variables remain the deployment interface.
 
-`local_ai_assistant.llm` is the only model-client boundary. `rag` preserves private document retrieval. `code_index` provides deterministic Tree-sitter Python facts and local hybrid retrieval. `planning` classifies requests and enforces actual patch/file/symbol scope. `execution` exposes only registered typed tools, parsed allowlisted commands, bounded observations, and atomic audit history. Qwen chooses actions but deterministic policy authorizes them. `agent` wraps mutations in the proven Git transaction.
+`local_ai_assistant.llm` is the only model-client boundary. `rag` preserves private document retrieval. `code_index` provides one deterministic, capability-aware Tree-sitter platform for Python, Rust, Solidity, TypeScript/JavaScript, SQL, C/C++, Java, and Shell plus local hybrid retrieval. `planning` classifies requests and enforces actual patch/file/symbol scope. `execution` exposes only registered typed tools, parsed allowlisted commands, bounded observations, and atomic audit history. Qwen chooses actions but deterministic policy authorizes them. `agent` wraps mutations in the proven Git transaction.
 
 `local_ai_assistant.ui.app` is the canonical document-chat interface and `local-ai-ui` is its configured launcher. Root files and `ui/streamlit/app.py` are thin compatibility wrappers. `config/services` contains non-installed sanitized systemd examples. Runtime documents, indexes, patches, repositories, and logs live under environment-selected directories, defaulting to ignored `var/` paths.
 
@@ -24,11 +24,13 @@ Coding-agent proposal mode is read-only. Applying a patch requires the isolated-
 
 Stage 5 adds a plan-bound validation-intelligence layer after scoped execution. It performs structural and targeted checks, bounded scope-enforced repair, required final validation, deterministic and security review, then bounded model review. A typed final decision controls commit versus rollback; required failures and deterministic policy findings cannot be overridden. See [validation intelligence](docs/architecture/validation-intelligence.md).
 
+Stage 6 generalizes Stage 2 through a typed language registry and adapters while retaining the shared symbols, provenance, graph, persistence, planner, ScopeGuard, and validation/review pipeline. Capability status prevents unsupported static semantics from masquerading as empty facts. See [multi-language code intelligence](docs/architecture/multi-language-code-intelligence.md).
+
 The `examples/demo-app` fixture is imported without its nested Git database. It demonstrates the existing code-agent test target, not production authentication design.
 
 ## Deployment compatibility
 
-Stages 0 through 5 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
+Stages 0 through 6 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
 
 ## Target architecture
 
