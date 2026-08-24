@@ -24,8 +24,9 @@ class BoundedEventBus:
                 return event
             if event.event_id:
                 self._event_ids.add(event.event_id)
-            value = GatewayEvent(event.event_id, self._next, event.task_id, event.event_type, event.timestamp, event.summary, event.source, event.critical, event.metadata)
-            self._next += 1
+            sequence = event.sequence if event.sequence > 0 else self._next
+            value = GatewayEvent(event.event_id, sequence, event.task_id, event.event_type, event.timestamp, event.summary, event.source, event.critical, event.metadata)
+            self._next = max(self._next, sequence + 1)
             self._events.append(value)
             for subscriber in tuple(self._subscribers):
                 try:

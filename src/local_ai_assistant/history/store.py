@@ -192,7 +192,7 @@ class TaskHistoryStore:
             row = connection.execute("SELECT * FROM external_publications WHERE task_id=?", (task_id,)).fetchone()
         return dict(row) if row else None
 
-    def claim_publication(self, task_id: str, repository_id: str, *, branch: str, commit_sha: str) -> bool:
+    def claim_publication(self, task_id: str, repository_id: str, *, branch: str, commit_sha: str) -> int | None:
         """Atomically claim an external publication for one task."""
         with self.transaction() as connection:
             row = connection.execute("SELECT state, repository_id, branch, commit_sha FROM external_publications WHERE task_id=?", (task_id,)).fetchone()
@@ -200,14 +200,15 @@ class TaskHistoryStore:
                 if row["repository_id"] != repository_id or row["branch"] not in {None, branch} or row["commit_sha"] not in {None, commit_sha}:
                     raise HistoryDatabaseError("publication identity mismatch")
                 if row["state"] not in {"not_requested", "ready", "retryable_failure", "reconciliation_required"}:
-                    return False
+                    return None
             connection.execute(
                 """INSERT INTO external_publications(task_id,repository_id,state,branch,commit_sha,attempts,updated_at,metadata_json)
                    VALUES(?,?,?,?,?,1,?,?)
                    ON CONFLICT(task_id) DO UPDATE SET state='pushing', branch=excluded.branch, commit_sha=excluded.commit_sha, attempts=external_publications.attempts+1, updated_at=excluded.updated_at""",
                 (task_id, repository_id, "pushing", branch, commit_sha, utc_now(), "{}"),
             )
-        return True
+            value = connection.execute("SELECT attempts FROM external_publications WHERE task_id=?", (task_id,)).fetchone()
+        return int(value[0])
 
     def add_ci_check(self, task_id: str, values: dict) -> dict:
         with self.transaction() as connection:
@@ -231,6 +232,13 @@ class TaskHistoryStore:
         with self._connect() as connection:
             rows = connection.execute("SELECT rowid, * FROM task_status_events WHERE rowid > ? ORDER BY rowid LIMIT ?", (rowid, min(max(limit, 1), 1000))).fetchall()
         return tuple(dict(row) for row in rows)
+
+    def event_rowid(self, event_id: str) -> int:
+        with self._connect() as connection:
+            row = connection.execute("SELECT rowid FROM task_status_events WHERE event_id=?", (event_id,)).fetchone()
+        if row is None:
+            raise HistoryDatabaseError("event not found")
+        return int(row[0])
 
     def transition(self, task_id: str, status: TaskStatus, reason: str, *, subsystem: str = "history") -> TaskRecord:
         with self.transaction() as connection:

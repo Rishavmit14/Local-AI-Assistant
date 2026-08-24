@@ -108,6 +108,8 @@ def test_external_history_events_replay_after_gateway_restart(tmp_path):
     time.sleep(0.6)
     events = second.events_since(0, 100)
     assert {event.event_type for event in events} >= {"TASK_CREATED", "EXECUTION_STARTED", "VALIDATION_COMPLETED"}
+    for event in events:
+        assert event.sequence == history.store.event_rowid(event.event_id)
     second.close()
 
 

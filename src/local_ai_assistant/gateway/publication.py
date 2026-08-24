@@ -46,12 +46,14 @@ class GitHubPublicationService:
         remote = _remote(repository)
         if not validate_remote(remote, expected_owner=mapping.github_owner, expected_repo=mapping.github_name):
             raise HistoryDatabaseError("Configured GitHub remote does not match repository mapping")
-        if not self.history.store.claim_publication(task_id, repository_id, branch=task.branch, commit_sha=task.final_commit):
+        claimed_attempt = self.history.store.claim_publication(task_id, repository_id, branch=task.branch, commit_sha=task.final_commit)
+        if claimed_attempt is None:
             current = self.history.store.publication(task_id) or {}
             if current.get("state") == PublicationState.PUBLISHED.value:
                 return current
             if current.get("state") not in {PublicationState.PUSHING.value, PublicationState.PR_CREATING.value}:
                 raise HistoryDatabaseError("publication is already in progress")
+            claimed_attempt = int(current.get("attempts") or 1)
         try:
             remote_sha = self.transport.get_branch_sha(mapping.github_owner, mapping.github_name, task.branch)
             if remote_sha and remote_sha != task.final_commit:
@@ -59,17 +61,17 @@ class GitHubPublicationService:
                 raise HistoryDatabaseError("Remote task branch has unexpected commit")
             if remote_sha != task.final_commit:
                 self._push_with_retry(repository, task.branch, task.final_commit)
-            self.history.store.upsert_publication(task_id, repository_id, PublicationState.PR_CREATING.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1)
+            self.history.store.upsert_publication(task_id, repository_id, PublicationState.PR_CREATING.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=claimed_attempt)
             marker = f"Friday-Task-ID: {task_id}"
             candidates = self.transport.find_pull_requests(mapping.github_owner, mapping.github_name, head=task.branch, marker=marker)
             if len(candidates) > 1:
                 self.history.store.upsert_publication(task_id, repository_id, PublicationState.RECONCILIATION_REQUIRED.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1, last_error="Ambiguous Friday-owned pull requests")
                 raise HistoryDatabaseError("Ambiguous pull request reconciliation")
             pr = candidates[0] if candidates else self.transport.create_pull_request(mapping.github_owner, mapping.github_name, head=task.branch, base=base, title=f"Friday task {task_id}", body=_deterministic_body(task))
-            result = self.history.store.upsert_publication(task_id, repository_id, PublicationState.PUBLISHED.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, pr_id=str(pr.get("id", pr.get("number", ""))), pr_number=pr.get("number"), pr_url=pr.get("html_url"), attempts=1)
+            result = self.history.store.upsert_publication(task_id, repository_id, PublicationState.PUBLISHED.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, pr_id=str(pr.get("id", pr.get("number", ""))), pr_number=pr.get("number"), pr_url=pr.get("html_url"), attempts=claimed_attempt)
             return result
         except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as exc:
-            self.history.store.upsert_publication(task_id, repository_id, PublicationState.RETRYABLE_FAILURE.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1, last_error=str(exc))
+            self.history.store.upsert_publication(task_id, repository_id, PublicationState.RETRYABLE_FAILURE.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=claimed_attempt or 1, last_error=str(exc))
             raise
 
     def _push_with_retry(self, repository: Path, branch: str, commit: str) -> None:

@@ -91,7 +91,7 @@ class IntegrationGatewayService:
     def _emit(self, task_id: str, event_type: str, summary: str, *, critical: bool = False) -> None:
         persisted = self.history.store.add_event(task_id, "gateway", event_type.lower(), summary, status=event_type)
         timeline = self.history.timeline(task_id)
-        self.events.publish(GatewayEvent(persisted.event_id, len(timeline), task_id, event_type, persisted.timestamp, summary, critical=critical))
+        self.events.publish(GatewayEvent(persisted.event_id, self.history.store.event_rowid(persisted.event_id), task_id, event_type, persisted.timestamp, summary, critical=critical))
 
     def _history_bridge(self) -> None:
         cursor = 0
