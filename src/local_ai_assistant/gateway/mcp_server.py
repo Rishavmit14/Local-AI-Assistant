@@ -22,6 +22,8 @@ class MCPProtocolServer:
                 {"name": "get_task_status", "inputSchema": {"type": "object", "required": ["task_id"]}},
                 {"name": "get_task_timeline", "inputSchema": {"type": "object", "required": ["task_id"]}},
                 {"name": "get_plan", "inputSchema": {"type": "object", "required": ["task_id"]}},
+                {"name": "get_validation", "inputSchema": {"type": "object", "required": ["task_id"]}},
+                {"name": "get_review", "inputSchema": {"type": "object", "required": ["task_id"]}},
                 {"name": "create_task", "inputSchema": {"type": "object", "required": ["repository_id", "request"]}},
                 {"name": "request_plan", "inputSchema": {"type": "object", "required": ["task_id"]}},
                 {"name": "request_cancel", "inputSchema": {"type": "object", "required": ["task_id", "repository_id", "reason"]}},
@@ -38,6 +40,10 @@ class MCPProtocolServer:
                 result = self.gateway.get_task_timeline(token or "", str(arguments.get("task_id", "")))
             elif name == "get_plan":
                 result = self.gateway.get_plan(token or "", str(arguments.get("task_id", "")))
+            elif name == "get_validation":
+                result = self.gateway.get_validation(token or "", str(arguments.get("task_id", "")))
+            elif name == "get_review":
+                result = self.gateway.get_review(token or "", str(arguments.get("task_id", "")))
             elif name == "create_task":
                 result = self.gateway.create_task(token or "", str(arguments.get("repository_id", "")), str(arguments.get("request", "")))
             elif name == "request_plan":

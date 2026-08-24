@@ -27,3 +27,4 @@ def test_mcp_stdio_operational_negative_calls_and_recovery():
     assert responses[2]["error"]["code"] == -32001
     assert responses[3]["error"]["code"] == -32602
     assert responses[4]["result"]["tools"]
+    assert {item["name"] for item in responses[4]["result"]["tools"]} >= {"get_validation", "get_review"}

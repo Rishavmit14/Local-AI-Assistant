@@ -32,6 +32,18 @@ class MCPGateway:
     def request_plan(self, token: str, task_id: str):
         self._require(token, GatewayScope.REQUEST_PLAN)
         return self.service.request_plan(task_id).plan.to_dict()
+    def get_validation(self, token: str, task_id: str):
+        self._require(token, GatewayScope.READ_HISTORY)
+        if self.service.get_task(task_id) is None:
+            raise KeyError(task_id)
+        from .evidence import validation_summary
+        return validation_summary(self.service.history, task_id)
+    def get_review(self, token: str, task_id: str):
+        self._require(token, GatewayScope.READ_HISTORY)
+        if self.service.get_task(task_id) is None:
+            raise KeyError(task_id)
+        from .evidence import review_summary
+        return review_summary(self.service.history, task_id)
     def create_task(self, token: str, repository_id: str, request: str):
         self._require(token, GatewayScope.CREATE_TASK)
         if not repository_id or len(repository_id) > 200 or not request.strip() or len(request) > 20_000:

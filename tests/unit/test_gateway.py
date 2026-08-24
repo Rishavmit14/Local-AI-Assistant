@@ -136,7 +136,7 @@ def test_mcp_protocol_exposes_only_typed_tools(tmp_path):
     protocol = MCPProtocolServer(MCPGateway(gateway, auth))
     assert protocol.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize"})["result"]["capabilities"] == {"tools": {}}
     tools = protocol.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})["result"]["tools"]
-    assert {item["name"] for item in tools} == {"get_task_status", "get_task_timeline", "get_plan", "create_task", "request_plan", "request_cancel"}
+    assert {item["name"] for item in tools} == {"get_task_status", "get_task_timeline", "get_plan", "get_validation", "get_review", "create_task", "request_plan", "request_cancel"}
     denied = protocol.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "create_task", "arguments": {"repository_id": "r1", "request": "x"}}}, token)
     assert denied["error"]["code"] == -32001
 
@@ -287,7 +287,7 @@ def test_mcp_stdio_protocol_subprocess_initialize_and_enumeration(tmp_path):
     assert proc.returncode == 0
     lines = [json.loads(line) for line in proc.stdout.splitlines()]
     names = {item["name"] for item in lines[1]["result"]["tools"]}
-    assert {"get_task_status", "get_task_timeline", "get_plan", "create_task", "request_plan", "request_cancel"} == names
+    assert {"get_task_status", "get_task_timeline", "get_plan", "get_validation", "get_review", "create_task", "request_plan", "request_cancel"} == names
     assert not any(name in names for name in {"shell", "exec", "write_file", "git_push_raw"})
     assert proc.stderr == ""
 
