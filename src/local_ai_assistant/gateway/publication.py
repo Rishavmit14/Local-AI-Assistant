@@ -31,7 +31,12 @@ class GitHubPublicationService:
         remote = _remote(repository)
         if not validate_remote(remote, expected_owner=mapping.github_owner, expected_repo=mapping.github_name):
             raise HistoryDatabaseError("Configured GitHub remote does not match repository mapping")
-        self.history.store.upsert_publication(task_id, repository_id, PublicationState.PUSHING.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1)
+        if not self.history.store.claim_publication(task_id, repository_id, branch=task.branch, commit_sha=task.final_commit):
+            current = self.history.store.publication(task_id) or {}
+            if current.get("state") == PublicationState.PUBLISHED.value:
+                return current
+            if current.get("state") not in {PublicationState.PUSHING.value, PublicationState.PR_CREATING.value}:
+                raise HistoryDatabaseError("publication is already in progress")
         try:
             remote_sha = self.transport.get_branch_sha(mapping.github_owner, mapping.github_name, task.branch)
             if remote_sha and remote_sha != task.final_commit:

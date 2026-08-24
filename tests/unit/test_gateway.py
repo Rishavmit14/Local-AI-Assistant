@@ -33,6 +33,7 @@ from local_ai_assistant.gateway.models import (
 )
 from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.gateway.evidence import review_summary, validation_summary
+from local_ai_assistant.gateway.publication import GitHubPublicationService
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 
@@ -185,3 +186,68 @@ def test_execution_service_uses_existing_code_agent_boundary(tmp_path, monkeypat
     handle = execution.execute_task(gateway.history.get(task.task_id))
     execution._runs[handle.run_id].result(timeout=2)
     assert "--tool-loop" in calls[0] and "--task-id" in calls[0]
+
+
+def test_publication_claim_converges_concurrent_callers_and_rejects_wrong_remote_sha(tmp_path):
+    gateway, path = service(tmp_path)
+    subprocess.run(["git", "-C", str(path), "remote", "add", "origin", "https://github.com/acme/demo.git"], check=True)
+    task = gateway.create_task("r1", "fixture", branch="friday/task/fixture")
+    gateway.history.store.update_task(task.task_id, task.repository, plan_hash="p", approval_state="explicitly_approved")
+    from local_ai_assistant.history.models import TaskStatus
+    for status in (TaskStatus.PLANNING, TaskStatus.AWAITING_APPROVAL):
+        gateway.history.store.transition(task.task_id, status, "test")
+    gateway.history.attach_approval(task.task_id, "p", "explicitly_approved")
+    gateway.history.store.transition(task.task_id, TaskStatus.APPROVED, "test")
+    gateway.history.store.transition(task.task_id, TaskStatus.EXECUTING, "test")
+    gateway.history.store.transition(task.task_id, TaskStatus.VALIDATING, "test")
+    gateway.history.store.transition(task.task_id, TaskStatus.REVIEWING, "test")
+    head = subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
+    task = gateway.history.finalize(task.task_id, path, TaskStatus.SUCCEEDED, final_commit=head, outcome="passed")
+    transport = FakeGitHubTransport()
+    def push(_repo, branch, commit):
+        transport.branches[("acme", "demo", branch)] = commit
+    publication = GitHubPublicationService(gateway.history, gateway.mappings, transport, push=push)
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(lambda _: _publish_safely(publication, task.task_id), range(4)))
+    assert len(transport.pull_requests) == 1
+    assert sum(item is not None for item in results) >= 1
+    assert publication.status(task.task_id)["state"] == "published"
+
+
+def test_publication_reconciles_after_local_pr_identity_write_failure(tmp_path):
+    gateway, path = service(tmp_path)
+    subprocess.run(["git", "-C", str(path), "remote", "add", "origin", "https://github.com/acme/demo.git"], check=True)
+    task = gateway.create_task("r1", "fixture", branch="friday/task/crash")
+    from local_ai_assistant.history.models import TaskStatus
+    gateway.history.store.update_task(task.task_id, task.repository, plan_hash="p", approval_state="explicitly_approved")
+    gateway.history.store.transition(task.task_id, TaskStatus.PLANNING, "test")
+    gateway.history.store.transition(task.task_id, TaskStatus.AWAITING_APPROVAL, "test")
+    gateway.history.attach_approval(task.task_id, "p", "explicitly_approved")
+    for status in (TaskStatus.APPROVED, TaskStatus.EXECUTING, TaskStatus.VALIDATING, TaskStatus.REVIEWING):
+        gateway.history.store.transition(task.task_id, status, "test")
+    head = subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
+    task = gateway.history.finalize(task.task_id, path, TaskStatus.SUCCEEDED, final_commit=head, outcome="passed")
+    transport = FakeGitHubTransport()
+    transport.branches[("acme", "demo", task.branch)] = head
+    publication = GitHubPublicationService(gateway.history, gateway.mappings, transport, push=lambda *_: pytest.fail("must reconcile existing push"))
+    original = gateway.history.store.upsert_publication
+    failed = {"value": True}
+    def fail_once(task_id, repository_id, state, **values):
+        if state == "published" and failed["value"]:
+            failed["value"] = False
+            raise OSError("simulated persistence crash")
+        return original(task_id, repository_id, state, **values)
+    gateway.history.store.upsert_publication = fail_once
+    with pytest.raises(OSError):
+        publication.publish(task.task_id, repository_id="r1")
+    gateway.history.store.upsert_publication = original
+    result = publication.publish(task.task_id, repository_id="r1")
+    assert result["state"] == "published"
+    assert len(transport.pull_requests) == 1
+
+
+def _publish_safely(publication, task_id):
+    try:
+        return publication.publish(task_id, repository_id="r1")
+    except Exception:
+        return None

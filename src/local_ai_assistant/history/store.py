@@ -192,6 +192,23 @@ class TaskHistoryStore:
             row = connection.execute("SELECT * FROM external_publications WHERE task_id=?", (task_id,)).fetchone()
         return dict(row) if row else None
 
+    def claim_publication(self, task_id: str, repository_id: str, *, branch: str, commit_sha: str) -> bool:
+        """Atomically claim an external publication for one task."""
+        with self.transaction() as connection:
+            row = connection.execute("SELECT state, repository_id, branch, commit_sha FROM external_publications WHERE task_id=?", (task_id,)).fetchone()
+            if row is not None:
+                if row["repository_id"] != repository_id or row["branch"] not in {None, branch} or row["commit_sha"] not in {None, commit_sha}:
+                    raise HistoryDatabaseError("publication identity mismatch")
+                if row["state"] not in {"not_requested", "ready", "retryable_failure", "reconciliation_required"}:
+                    return False
+            connection.execute(
+                """INSERT INTO external_publications(task_id,repository_id,state,branch,commit_sha,attempts,updated_at,metadata_json)
+                   VALUES(?,?,?,?,?,1,?,?)
+                   ON CONFLICT(task_id) DO UPDATE SET state='pushing', branch=excluded.branch, commit_sha=excluded.commit_sha, attempts=external_publications.attempts+1, updated_at=excluded.updated_at""",
+                (task_id, repository_id, "pushing", branch, commit_sha, utc_now(), "{}"),
+            )
+        return True
+
     def add_ci_check(self, task_id: str, values: dict) -> dict:
         with self.transaction() as connection:
             connection.execute("INSERT OR REPLACE INTO external_ci_checks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", tuple(values.get(key, "") for key in ("check_id","task_id","repository_id","external_repository","pr_id","commit_sha","name","status","conclusion","url","timestamp","metadata_json")))
