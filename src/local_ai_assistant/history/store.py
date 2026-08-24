@@ -210,6 +210,11 @@ class TaskHistoryStore:
             rows = connection.execute(f"SELECT * FROM {table} WHERE task_id=? ORDER BY rowid DESC LIMIT ?", (task_id, min(max(limit, 1), 100))).fetchall()
         return tuple(dict(row) for row in rows)
 
+    def events_after_rowid(self, rowid: int, limit: int = 200) -> tuple[dict, ...]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT rowid, * FROM task_status_events WHERE rowid > ? ORDER BY rowid LIMIT ?", (rowid, min(max(limit, 1), 1000))).fetchall()
+        return tuple(dict(row) for row in rows)
+
     def transition(self, task_id: str, status: TaskStatus, reason: str, *, subsystem: str = "history") -> TaskRecord:
         with self.transaction() as connection:
             row = connection.execute("SELECT * FROM tasks WHERE task_id = ?", (task_id,)).fetchone()

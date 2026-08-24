@@ -35,7 +35,12 @@ class GitHubPublicationService:
         try:
             subprocess.run(git_argv("push", "origin", f"{task.branch}:{task.branch}"), cwd=repository, env=safe_git_environment(), check=True, capture_output=True, text=True, timeout=60)
             self.history.store.upsert_publication(task_id, repository_id, PublicationState.PR_CREATING.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1)
-            pr = self.transport.create_pull_request(mapping.github_owner, mapping.github_name, head=task.branch, base=base, title=f"Friday task {task_id}", body=_deterministic_body(task))
+            marker = f"Friday-Task-ID: {task_id}"
+            candidates = self.transport.find_pull_requests(mapping.github_owner, mapping.github_name, head=task.branch, marker=marker)
+            if len(candidates) > 1:
+                self.history.store.upsert_publication(task_id, repository_id, PublicationState.RECONCILIATION_REQUIRED.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, attempts=1, last_error="Ambiguous Friday-owned pull requests")
+                raise HistoryDatabaseError("Ambiguous pull request reconciliation")
+            pr = candidates[0] if candidates else self.transport.create_pull_request(mapping.github_owner, mapping.github_name, head=task.branch, base=base, title=f"Friday task {task_id}", body=_deterministic_body(task))
             result = self.history.store.upsert_publication(task_id, repository_id, PublicationState.PUBLISHED.value, repository=task.repository, branch=task.branch, commit_sha=task.final_commit, pr_id=str(pr.get("id", pr.get("number", ""))), pr_number=pr.get("number"), pr_url=pr.get("html_url"), attempts=1)
             return result
         except (OSError, subprocess.SubprocessError, RuntimeError, ValueError) as exc:
@@ -50,6 +55,6 @@ def _remote(repository: Path) -> str:
 
 def _deterministic_body(task) -> str:
     request = task.original_request.replace("\x1b", "")[:4000]
-    return (f"## Friday verified task\n\n- Task ID: `{task.task_id}`\n- Risk: `{task.risk}`\n- Commit: `{task.final_commit}`\n\n"
+    return (f"Friday-Task-ID: {task.task_id}\n\n## Friday verified task\n\n- Task ID: `{task.task_id}`\n- Risk: `{task.risk}`\n- Commit: `{task.final_commit}`\n\n"
             f"### External request context\n\n{request}\n\n### Friday verified results\n\n"
             f"Local task outcome: `{task.outcome or 'recorded'}`\n\nValidation and review evidence remain in Friday task history.")

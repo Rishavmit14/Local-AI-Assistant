@@ -4,6 +4,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import asdict
 from pathlib import Path
+from threading import Event, Thread
 
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
@@ -22,6 +23,9 @@ class IntegrationGatewayService:
         self.events = BoundedEventBus(max_events)
         self.planner_factory = planner_factory
         self.executor = executor
+        self._bridge_stop = Event()
+        self._bridge = Thread(target=self._history_bridge, name="friday-history-events", daemon=True)
+        self._bridge.start()
 
     def _repo(self, repository_id: str) -> Path:
         for mapping in self.mappings:
@@ -88,6 +92,19 @@ class IntegrationGatewayService:
         persisted = self.history.store.add_event(task_id, "gateway", event_type.lower(), summary, status=event_type)
         timeline = self.history.timeline(task_id)
         self.events.publish(GatewayEvent(persisted.event_id, len(timeline), task_id, event_type, persisted.timestamp, summary, critical=critical))
+
+    def _history_bridge(self) -> None:
+        cursor = 0
+        while not self._bridge_stop.wait(0.25):
+            try:
+                for row in self.history.store.events_after_rowid(cursor, 200):
+                    cursor = max(cursor, int(row["rowid"]))
+                    self.events.publish(GatewayEvent(row["event_id"], cursor, row["task_id"], row["event_type"].upper(), row["timestamp"], row["summary"], critical=row["status"] in {"failed", "blocked", "cancelled"}))
+            except Exception:
+                continue
+
+    def close(self) -> None:
+        self._bridge_stop.set()
 
     def request_execution(self, task_id: str):
         if self.executor is None:

@@ -15,6 +15,7 @@ from .models import CIStatus, RepositoryMapping
 class GitHubTransport(Protocol):
     def get_issue(self, owner: str, repo: str, number: int) -> dict[str, Any]: ...
     def create_pull_request(self, owner: str, repo: str, *, head: str, base: str, title: str, body: str) -> dict[str, Any]: ...
+    def find_pull_requests(self, owner: str, repo: str, *, head: str, marker: str) -> list[dict[str, Any]]: ...
 
 
 class GitHubHttpTransport:
@@ -54,6 +55,10 @@ class GitHubHttpTransport:
             raise ValueError("pull request content exceeds bounds")
         return self._request("POST", f"/repos/{quote(owner)}/{quote(repo)}/pulls", {"head": head, "base": base, "title": title, "body": body})
 
+    def find_pull_requests(self, owner: str, repo: str, *, head: str, marker: str) -> list[dict[str, Any]]:
+        values = self._request("GET", f"/repos/{quote(owner)}/{quote(repo)}/pulls?state=all&head={quote(owner + ':' + head)}")
+        return [item for item in values if marker in str(item.get("body", ""))]
+
 
 class FakeGitHubTransport:
     def __init__(self):
@@ -70,6 +75,9 @@ class FakeGitHubTransport:
         value = {"number": len(self.pull_requests) + 1, "head": head, "base": base, "title": title, "body": body, "repo": (owner, repo)}
         self.pull_requests.append(value)
         return dict(value)
+
+    def find_pull_requests(self, owner, repo, *, head, marker):
+        return [dict(item) for item in self.pull_requests if item["repo"] == (owner, repo) and item["head"] == head and marker in item["body"]]
 
 
 def verify_webhook_signature(raw_body: bytes, signature: str | None, secret: str) -> bool:
