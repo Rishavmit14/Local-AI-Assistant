@@ -1,11 +1,13 @@
 """Backend interface services and runtime contracts for Friday clients."""
 
+from .conversation import FridayConversationService, StreamingLLM
 from .events import FridayEventType, FridayRuntimeEvent
 from .runtime import FridayRuntime, InvalidRuntimeTransition
 from .service import FridayInterfaceService, RepositorySnapshot
 from .states import FridayRuntimeState
 
 __all__ = [
+    "FridayConversationService",
     "FridayEventType",
     "FridayInterfaceService",
     "FridayRuntime",
@@ -13,4 +15,5 @@ __all__ = [
     "FridayRuntimeState",
     "InvalidRuntimeTransition",
     "RepositorySnapshot",
+    "StreamingLLM",
 ]
