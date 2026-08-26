@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 
 from local_ai_assistant.code_index.models import SymbolRecord
 from local_ai_assistant.code_index.symbol_index import SymbolIndex
+from local_ai_assistant.common.repository_files import read_repo_file_bounded
 
 from .models import (
     ApprovalDecision,
@@ -82,6 +83,8 @@ MIGRATION_WORDS = {
 }
 MAX_NAME_MATCHES = 24
 MAX_GRAPH_RELATIONSHIPS = 12
+MAX_TEST_FILES = 512
+MAX_TEST_FILE_BYTES = 1024 * 1024
 
 
 def is_dependency_file(path: str) -> bool:
@@ -354,14 +357,25 @@ class ScopeAnalyzer:
             if self.symbols.containing_module(item.identifier)
         }
         names = {item.name for item in direct_symbols}
+        inspected = 0
         for path in self.repository.rglob("*"):
-            if not path.is_file():
-                continue
             relative = path.relative_to(self.repository).as_posix()
             if not self._is_test_path(relative):
                 continue
-            text = path.read_text(encoding="utf-8", errors="replace")
-            matched = sorted(name for name in names | modules if name and name in text)
+            if inspected >= MAX_TEST_FILES:
+                break
+            inspected += 1
+            result = read_repo_file_bounded(
+                self.repository,
+                path,
+                max_bytes=MAX_TEST_FILE_BYTES,
+            )
+            if not result.readable:
+                continue
+            content = result.text or ""
+            matched = sorted(
+                name for name in names | modules if name and name in content
+            )
             if matched:
                 self._add_path(
                     candidates,

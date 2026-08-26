@@ -725,6 +725,29 @@ def test_instruction_precedence_uses_nested_override(tmp_path):
     assert bounded_sources == ("app/AGENTS.override.md",)
 
 
+def test_instruction_discovery_caps_input_paths(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    for index in range(257):
+        directory = repo / f"pkg{index:03d}"
+        directory.mkdir()
+        (directory / "module.py").write_text("value = 1\n")
+
+    (repo / "pkg000" / "AGENTS.md").write_text("included\n")
+    (repo / "pkg256" / "AGENTS.md").write_text("must-not-be-read\n")
+
+    paths = tuple(f"pkg{index:03d}/module.py" for index in range(257))
+
+    content, sources, truncated = discover_project_instructions(repo, paths)
+
+    assert truncated is True
+    assert "included" in content
+    assert "must-not-be-read" not in content
+    assert "pkg000/AGENTS.md" in sources
+    assert "pkg256/AGENTS.md" not in sources
+
+
 def test_approval_token_changes_with_plan_content(planning_repo):
     root, repo, index = planning_repo
     artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(

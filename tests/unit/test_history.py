@@ -507,6 +507,17 @@ def test_safe_concurrent_reads_during_writes_and_transaction_rollback(history, t
     assert history.get(task.task_id).summary == ""
 
 
+def test_store_connect_closes_connection_after_context_exit(tmp_path):
+    store = TaskHistoryStore(tmp_path / "history.sqlite3")
+    store.initialize()
+
+    with store._connect() as connection:
+        assert connection.execute("SELECT 1").fetchone()[0] == 1
+
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        connection.execute("SELECT 1")
+
+
 def test_wal_reader_remains_available_while_an_immediate_writer_is_open(history, tmp_path):
     task = create(history, tmp_path)
     with history.store._connect() as writer:

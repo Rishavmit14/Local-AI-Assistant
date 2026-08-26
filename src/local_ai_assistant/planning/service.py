@@ -14,6 +14,7 @@ from typing import Any
 from local_ai_assistant.code_index.symbol_index import SymbolIndex
 from local_ai_assistant.common.errors import LocalAIError
 from local_ai_assistant.common.logging import get_logger
+from local_ai_assistant.common.repository_files import read_repo_file_bounded
 
 from .analysis import ScopeAnalyzer, assess_confidence, assess_risk, decide_approval
 from .classification import classify_task
@@ -215,8 +216,11 @@ class PlannerService:
         context_truncated = context_truncated or instructions_truncated
         architecture = ""
         architecture_file = self.repository / "ARCHITECTURE.md"
-        if architecture_file.is_file() and remaining > len(instructions):
-            architecture = architecture_file.read_text(encoding="utf-8", errors="replace")[:4000]
+        if remaining > len(instructions):
+            architecture_read = read_repo_file_bounded(
+                self.repository, architecture_file, max_bytes=4000
+            )
+            architecture = architecture_read.text or ""
         schema = {
             "summary": "string",
             "assumptions": ["string"],

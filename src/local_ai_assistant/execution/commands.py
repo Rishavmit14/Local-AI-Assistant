@@ -7,6 +7,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -174,6 +175,18 @@ def parse_allowed_command(command: str | list[str]) -> tuple[str, ...]:
     return parts
 
 
+def resolve_executable(name: str) -> Path | None:
+    """Resolve a command from PATH or the active Python environment only."""
+    resolved = shutil.which(name)
+    if resolved is not None:
+        return Path(resolved)
+
+    candidate = Path(sys.executable).parent / name
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return candidate
+    return None
+
+
 def run_allowed_command(
     command: str | list[str], repository: Path, timeout: int, output_limit: int = 20_000,
     *,
@@ -185,10 +198,10 @@ def run_allowed_command(
 ) -> CommandResult:
     parts = parse_allowed_command(command)
     repository = repository.resolve()
-    executable = shutil.which(parts[0])
+    executable = resolve_executable(parts[0])
     if executable is None:
         raise CommandPolicyError(f"Allowlisted executable was not found: {parts[0]}")
-    executable_path = Path(executable).resolve()
+    executable_path = executable.resolve()
     if executable_path == repository or repository in executable_path.parents:
         raise CommandPolicyError("Repository-local executable wrappers are blocked")
     for argument in parts[1:]:

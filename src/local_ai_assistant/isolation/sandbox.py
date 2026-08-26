@@ -224,6 +224,57 @@ def select_backend(name: str = "auto") -> SandboxBackend:
     return NativeProcessSandbox()
 
 
+def _current_uid_task_count() -> int:
+    """Count Linux tasks owned by the current real UID for RLIMIT_NPROC baseline."""
+    uid = os.getuid()
+    total = 0
+    try:
+        processes = tuple(Path("/proc").iterdir())
+    except OSError as exc:
+        raise SandboxUnavailableError(
+            f"Cannot inspect /proc for process-limit baseline: {exc}"
+        ) from exc
+
+    for process in processes:
+        if not process.name.isdigit():
+            continue
+        try:
+            status = (process / "status").read_text(
+                encoding="utf-8",
+                errors="replace",
+            )
+            uid_line = next(
+                line for line in status.splitlines() if line.startswith("Uid:")
+            )
+            if int(uid_line.split()[1]) != uid:
+                continue
+            total += sum(
+                1
+                for task in (process / "task").iterdir()
+                if task.name.isdigit()
+            )
+        except (FileNotFoundError, ProcessLookupError, PermissionError, StopIteration):
+            # Processes can disappear while /proc is being inspected.
+            continue
+        except OSError:
+            continue
+
+    if total <= 0:
+        raise SandboxUnavailableError(
+            "Cannot establish current-user process baseline for RLIMIT_NPROC"
+        )
+    return total
+
+
+def _effective_nproc_limit(max_processes: int) -> int:
+    baseline = _current_uid_task_count()
+    _, hard = resource.getrlimit(resource.RLIMIT_NPROC)
+    requested = baseline + max_processes
+    if hard == resource.RLIM_INFINITY:
+        return requested
+    return min(requested, hard)
+
+
 def _run_process(
     command: tuple[str, ...],
     worktree: Path,
@@ -240,6 +291,7 @@ def _run_process(
     home.mkdir(mode=0o700, exist_ok=True)
     temporary.mkdir(mode=0o700, exist_ok=True)
     environment = isolated_environment(home, temporary, approved=approved_environment)
+    nproc_limit = _effective_nproc_limit(resources.max_processes)
     started = time.monotonic()
     process = subprocess.Popen(
         command,
@@ -249,7 +301,7 @@ def _run_process(
         stderr=subprocess.PIPE,
         start_new_session=True,
         env=environment,
-        preexec_fn=lambda: _set_limits(resources),
+        preexec_fn=lambda: _set_limits(resources, nproc_limit),
         close_fds=True,
     )
     stdout = bytearray()
@@ -301,9 +353,9 @@ def _run_process(
     )
 
 
-def _set_limits(policy: ResourcePolicy) -> None:
+def _set_limits(policy: ResourcePolicy, nproc_limit: int) -> None:
     resource.setrlimit(resource.RLIMIT_CPU, (policy.cpu_seconds, policy.cpu_seconds))
-    resource.setrlimit(resource.RLIMIT_NPROC, (policy.max_processes, policy.max_processes))
+    resource.setrlimit(resource.RLIMIT_NPROC, (nproc_limit, nproc_limit))
     resource.setrlimit(resource.RLIMIT_NOFILE, (policy.max_open_files, policy.max_open_files))
     resource.setrlimit(resource.RLIMIT_FSIZE, (policy.max_file_bytes, policy.max_file_bytes))
     if hasattr(resource, "RLIMIT_AS"):

@@ -15,7 +15,8 @@ from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
-from local_ai_assistant.execution.commands import run_allowed_command
+from local_ai_assistant.common.repository_files import read_repo_bytes_bounded
+from local_ai_assistant.execution.commands import resolve_executable, run_allowed_command
 from local_ai_assistant.execution.history import redact, redacted_json
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import PlanningArtifact, plan_approval_token
@@ -36,6 +37,9 @@ from .models import (
     ValidationResult,
 )
 from .review import deterministic_review, model_review
+
+
+MAX_VALIDATION_REPOSITORY_FILE_BYTES = 2_000_000
 
 
 class ValidationService:
@@ -167,7 +171,7 @@ class ValidationService:
         if not step.command:
             return ValidationResult(step.step_id, step.requirement is not Requirement.REQUIRED, True, None, "No command configured", provenance=_provenance(step, timestamp, "skipped", ReviewSeverity.MEDIUM, "No command configured"))
         executable = step.command.split()[0]
-        if shutil.which(executable) is None:
+        if resolve_executable(executable) is None:
             success = step.requirement is not Requirement.REQUIRED
             return ValidationResult(step.step_id, success, True, None, f"Validation tool unavailable: {executable}", provenance=_provenance(step, timestamp, "unavailable", ReviewSeverity.HIGH if not success else ReviewSeverity.MEDIUM, f"{executable} was not found"))
         config_identity = self._config_identity() + ":" + self._environment_identity(executable)
@@ -224,8 +228,23 @@ class ValidationService:
                     _UntrackedEntry(relative, "symlink", os.readlink(candidate).encode(), metadata.st_mode)
                 )
             elif stat.S_ISREG(metadata.st_mode):
+                result = read_repo_bytes_bounded(
+                    self.repository,
+                    candidate,
+                    max_bytes=MAX_VALIDATION_REPOSITORY_FILE_BYTES,
+                )
+                if not result.readable:
+                    raise ValidationArtifactError(
+                        "Could not safely snapshot untracked validation file "
+                        f"{relative}: {result.reason}"
+                    )
                 untracked.append(
-                    _UntrackedEntry(relative, "file", candidate.read_bytes(), metadata.st_mode)
+                    _UntrackedEntry(
+                        relative,
+                        "file",
+                        result.data or b"",
+                        metadata.st_mode,
+                    )
                 )
             else:
                 raise ValidationArtifactError("Unsupported untracked filesystem entry")
@@ -301,9 +320,17 @@ class ValidationService:
             "Cargo.toml", "Cargo.lock", "clippy.toml", "foundry.toml", ".gitleaks.toml",
         ):
             path = self.repository / name
-            if path.is_file():
+            result = read_repo_bytes_bounded(
+                self.repository,
+                path,
+                max_bytes=MAX_VALIDATION_REPOSITORY_FILE_BYTES,
+            )
+            if result.readable:
                 digest.update(name.encode())
-                digest.update(path.read_bytes())
+                digest.update(result.data or b"")
+            elif result.reason != "unavailable":
+                digest.update(name.encode())
+                digest.update(f"<unreadable:{result.reason}>".encode())
         if self.sandbox is not None:
             capabilities = self.sandbox.capabilities()
             isolation = {
@@ -321,10 +348,10 @@ class ValidationService:
         return digest.hexdigest()
 
     def _environment_identity(self, executable: str) -> str:
-        resolved = shutil.which(executable) or executable
+        resolved = resolve_executable(executable)
         payload = "\0".join(
             (
-                str(Path(resolved).resolve()),
+                str(resolved.resolve()) if resolved is not None else executable,
                 sys.version,
                 platform.platform(),
                 os.environ.get("VIRTUAL_ENV", ""),
@@ -438,9 +465,28 @@ def _sensitive_entries(repository: Path) -> tuple[_UntrackedEntry, ...]:
                 _UntrackedEntry(relative, "symlink", os.readlink(candidate).encode(), metadata.st_mode)
             )
         elif stat.S_ISREG(metadata.st_mode):
-            if metadata.st_size > 2_000_000:
-                raise ValidationArtifactError("Sensitive validation snapshot file is too large")
-            entries.append(_UntrackedEntry(relative, "file", candidate.read_bytes(), metadata.st_mode))
+            result = read_repo_bytes_bounded(
+                repository,
+                candidate,
+                max_bytes=MAX_VALIDATION_REPOSITORY_FILE_BYTES,
+            )
+            if not result.readable:
+                if result.reason == "oversized":
+                    raise ValidationArtifactError(
+                        "Sensitive validation snapshot file is too large"
+                    )
+                raise ValidationArtifactError(
+                    "Could not safely snapshot sensitive validation file "
+                    f"{relative}: {result.reason}"
+                )
+            entries.append(
+                _UntrackedEntry(
+                    relative,
+                    "file",
+                    result.data or b"",
+                    metadata.st_mode,
+                )
+            )
     return tuple(entries)
 
 

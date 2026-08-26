@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+import local_ai_assistant.validation.service as validation_service_module
 from local_ai_assistant.execution.history import redact
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import (
@@ -312,6 +313,56 @@ def test_validation_command_side_effect_is_immediately_restored(validation_repo)
         capture_output=True,
         check=True,
     ).stdout == status_before
+
+
+def test_validation_snapshot_rejects_oversized_untracked_file(
+    validation_repo, monkeypatch
+):
+    monkeypatch.setattr(
+        validation_service_module,
+        "MAX_VALIDATION_REPOSITORY_FILE_BYTES",
+        32,
+    )
+    (validation_repo / "oversized.bin").write_bytes(b"x" * 33)
+
+    with pytest.raises(
+        ValidationArtifactError,
+        match="Could not safely snapshot untracked validation file.*oversized",
+    ):
+        ValidationService(validation_repo)._snapshot()
+
+
+def test_validation_config_identity_does_not_follow_external_symlink(
+    validation_repo, tmp_path
+):
+    outside = tmp_path / "external-config"
+    outside.write_text("SECRET_CONFIG_ONE\n")
+    (validation_repo / "ruff.toml").symlink_to(outside)
+
+    service = ValidationService(validation_repo)
+    first = service._config_identity()
+
+    outside.write_text("SECRET_CONFIG_TWO\n")
+    second = service._config_identity()
+
+    assert first == second
+
+
+def test_sensitive_snapshot_rejects_oversized_repository_file(
+    validation_repo, monkeypatch
+):
+    monkeypatch.setattr(
+        validation_service_module,
+        "MAX_VALIDATION_REPOSITORY_FILE_BYTES",
+        32,
+    )
+    (validation_repo / ".env").write_bytes(b"x" * 33)
+
+    with pytest.raises(
+        ValidationArtifactError,
+        match="Sensitive validation snapshot file is too large",
+    ):
+        validation_service_module._sensitive_entries(validation_repo)
 
 
 def test_low_risk_can_use_targeted_policy(validation_repo):

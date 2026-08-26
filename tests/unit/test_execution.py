@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import pytest
 
 from local_ai_assistant.execution.cli import build_parser
-from local_ai_assistant.execution.commands import parse_allowed_command, run_allowed_command
+from local_ai_assistant.execution.commands import (
+    parse_allowed_command,
+    resolve_executable,
+    run_allowed_command,
+)
 from local_ai_assistant.execution.errors import (
     CommandPolicyError,
     ExecutionHistoryError,
@@ -102,16 +109,79 @@ def test_command_policy_rejects_shell_and_dangerous_commands(command):
         parse_allowed_command(command)
 
 
+def test_resolve_executable_prefers_path(monkeypatch):
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.shutil.which",
+        lambda executable: "/usr/bin/pytest" if executable == "pytest" else None,
+    )
+
+    assert resolve_executable("pytest") == Path("/usr/bin/pytest")
+
+
+def test_resolve_executable_falls_back_to_active_python_environment(tmp_path, monkeypatch):
+    environment = tmp_path / "venv" / "bin"
+    environment.mkdir(parents=True)
+    python = environment / "python"
+    pytest_launcher = environment / "pytest"
+    python.write_text("")
+    pytest_launcher.write_text("#!/bin/sh\nexit 0\n")
+    pytest_launcher.chmod(0o755)
+
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.shutil.which",
+        lambda _: None,
+    )
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.sys.executable",
+        str(python),
+    )
+
+    assert resolve_executable("pytest") == pytest_launcher
+
+
+def test_resolve_executable_returns_none_when_unavailable(tmp_path, monkeypatch):
+    python = tmp_path / "venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("")
+
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.shutil.which",
+        lambda _: None,
+    )
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.sys.executable",
+        str(python),
+    )
+
+    assert resolve_executable("pytest") is None
+
+
 def test_command_timeout_terminates_process_group(tmp_path, monkeypatch):
-    monkeypatch.setattr("local_ai_assistant.execution.commands.ALLOWED_PREFIXES", (("python",),))
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.ALLOWED_PREFIXES",
+        (("python",),),
+    )
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.shutil.which",
+        lambda executable: sys.executable if executable == "python" else None,
+    )
     result = run_allowed_command(
-        ["python", "-c", "import time; time.sleep(5)"], tmp_path, timeout=0.01
+        ["python", "-c", "import time; time.sleep(5)"],
+        tmp_path,
+        timeout=0.01,
     )
     assert result.timed_out
 
 
 def test_command_output_capture_is_bounded(tmp_path, monkeypatch):
-    monkeypatch.setattr("local_ai_assistant.execution.commands.ALLOWED_PREFIXES", (("python",),))
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.ALLOWED_PREFIXES",
+        (("python",),),
+    )
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.shutil.which",
+        lambda executable: sys.executable if executable == "python" else None,
+    )
     result = run_allowed_command(
         ["python", "-c", "print('x' * 100000)"],
         tmp_path,

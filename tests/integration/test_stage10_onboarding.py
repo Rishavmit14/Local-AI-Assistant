@@ -100,9 +100,13 @@ def test_monorepo_components_and_bounds_are_explicit(tmp_path: Path):
     (root / "service").mkdir()
     (root / "service" / "Cargo.toml").write_text("[package]\nname='service'\nversion='0.1.0'\n")
     (root / "service" / "lib.rs").write_text("pub fn ok() {}\n")
-    profile = service(tmp_path, limits=OnboardingLimits(max_files=5)).register("mono", root)
+    profile = service(tmp_path).register("mono", root)
     assert {component.component_id for component in profile.components} >= {"frontend", "service"}
-    assert profile.status in {ReadinessStatus.PARTIAL, ReadinessStatus.NEEDS_TOOLING}
+    bounded = RepositoryOnboardingService(
+        allowed_roots=(tmp_path,), limits=OnboardingLimits(max_files=5),
+        registry_path=tmp_path / "bounded" / "repositories.json",
+    ).register("bounded", root)
+    assert bounded.status in {ReadinessStatus.PARTIAL, ReadinessStatus.NEEDS_TOOLING}
 
 
 def test_dry_run_is_non_mutating_and_has_stage8_gate(tmp_path: Path):

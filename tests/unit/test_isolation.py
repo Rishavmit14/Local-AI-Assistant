@@ -38,6 +38,7 @@ from local_ai_assistant.isolation.recovery import inspect_recovery
 from local_ai_assistant.isolation.sandbox import (
     NativeProcessSandbox,
     _bubblewrap_usable,
+    _effective_nproc_limit,
     isolated_environment,
     select_backend,
 )
@@ -341,6 +342,19 @@ def test_process_timeout_output_bound_and_cancellation(tmp_path):
         cancel_check=lambda: time.monotonic() >= cancel_at,
     )
     assert cancelled.cancelled
+
+
+def test_effective_nproc_limit_is_relative_to_current_user_tasks(monkeypatch):
+    monkeypatch.setattr(
+        "local_ai_assistant.isolation.sandbox._current_uid_task_count",
+        lambda: 100,
+    )
+    monkeypatch.setattr(
+        "local_ai_assistant.isolation.sandbox.resource.getrlimit",
+        lambda _: (123916, 123916),
+    )
+
+    assert _effective_nproc_limit(64) == 164
 
 
 def test_process_group_timeout_removes_background_child(tmp_path):

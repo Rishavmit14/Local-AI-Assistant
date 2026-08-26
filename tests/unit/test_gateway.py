@@ -7,6 +7,7 @@ import json
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -55,6 +56,20 @@ def service(tmp_path: Path):
     path = repo(tmp_path)
     history = TaskHistoryService(TaskHistoryStore(tmp_path / "history.sqlite3"))
     return IntegrationGatewayService(history, (RepositoryMapping("r1", str(path), "acme", "demo"),)), path
+
+
+class ReadyOnboarding:
+    def __init__(self, repository: Path, repository_id: str):
+        self.profile = SimpleNamespace(
+            canonical_root=str(repository), repository_id=repository_id
+        )
+        self.calls = []
+
+    def list_profiles(self):
+        return (self.profile,)
+
+    def assert_ready_for_mutation(self, *args, **kwargs):
+        self.calls.append((args, kwargs))
 
 
 def test_auth_is_hash_only_and_scoped():
@@ -183,10 +198,14 @@ def test_execution_service_uses_existing_code_agent_boundary(tmp_path, monkeypat
     gateway.history.store.transition(task.task_id, TaskStatus.APPROVED, "test")
     calls = []
     monkeypatch.setattr("local_ai_assistant.gateway.execution_service.code_agent.main", lambda argv: calls.append(argv))
-    execution = CodeAgentExecutionService(None, gateway.history)
+    onboarding = ReadyOnboarding(path, "r1")
+    execution = CodeAgentExecutionService(None, gateway.history, onboarding)
     handle = execution.execute_task(gateway.history.get(task.task_id))
     execution._runs[handle.run_id].result(timeout=2)
     assert "--tool-loop" in calls[0] and "--task-id" in calls[0]
+    expected_index = calls[0].index("--expected-starting-commit")
+    assert calls[0][expected_index + 1] == task.starting_commit
+    assert onboarding.calls
 
 
 def test_publication_claim_converges_concurrent_callers_and_rejects_wrong_remote_sha(tmp_path):

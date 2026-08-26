@@ -50,6 +50,7 @@ from local_ai_assistant.planning.patch_scope import (
     validate_patch_scope,
     worktree_diff,
 )
+from local_ai_assistant.onboarding import RepositoryNotOnboarded, RepositoryOnboardingService
 from local_ai_assistant.validation.decision import decide_final
 from local_ai_assistant.validation.errors import TestGenerationError, ValidationIntelligenceError
 from local_ai_assistant.validation.models import DecisionStatus, ValidationReport
@@ -1647,6 +1648,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="Require the generated test to fail meaningfully before implementation.",
     )
     parser.add_argument("--task-id", help="Reuse an existing Friday task identity.")
+    parser.add_argument(
+        "--repository-id",
+        help="Registered repository identity (defaults to the configured directory name).",
+    )
+    parser.add_argument(
+        "--expected-starting-commit",
+        help="Exact repository commit authorized for this mutation.",
+    )
 
     return parser
 
@@ -1702,10 +1711,24 @@ def main(argv: list[str] | None = None):
         merge_approved=args.approve_merge,
     )
 
-    repo = get_repo(
-        args.repo,
-        config.paths.code_repo_dir,
-    )
+    repository_id = args.repository_id or args.repo
+    if args.apply:
+        onboarding = RepositoryOnboardingService(config)
+        registered = onboarding.get(repository_id)
+        if registered is None:
+            raise RepositoryNotOnboarded(
+                f"Repository {repository_id!r} is not onboarded; register it before mutation"
+            )
+        repo = Path(registered.canonical_root).resolve()
+        expected_starting_commit = args.expected_starting_commit or registered.head
+        onboarding.assert_ready_for_mutation(
+            repository_id, repo, expected_starting_commit, require_index=False
+        )
+    else:
+        repo = get_repo(
+            args.repo,
+            config.paths.code_repo_dir,
+        )
 
     # --------------------------------------------------------
     # Protect existing unrelated changes.
@@ -1739,7 +1762,19 @@ def main(argv: list[str] | None = None):
 
     print("Loading repository index...")
 
-    rag = CodeRAG(config=config)
+    rag_config = config
+    if args.apply:
+        rag_config = replace(
+            config,
+            paths=replace(
+                config.paths,
+                code_repo_dir=repo,
+                code_index_dir=onboarding.repository_index_dir(
+                    registered.fingerprint
+                ),
+            ),
+        )
+    rag = CodeRAG(config=rag_config)
 
     print("Refreshing repository index before patch generation...")
 
@@ -1791,6 +1826,11 @@ def main(argv: list[str] | None = None):
                 f"--approve-risk {approval_token}."
             )
             sys.exit(1)
+
+    if args.apply:
+        onboarding.assert_ready_for_mutation(
+            repository_id, repo, expected_starting_commit, require_index=True
+        )
 
     if args.tool_loop:
         limits = config.execution

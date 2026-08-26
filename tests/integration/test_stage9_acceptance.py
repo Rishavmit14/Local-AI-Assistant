@@ -6,6 +6,7 @@ import json
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 
 from local_ai_assistant.gateway.github import FakeGitHubTransport
 from local_ai_assistant.gateway.models import ExternalProvenance, RepositoryMapping
@@ -79,10 +80,17 @@ def test_full_deterministic_intake_plan_approval_execution_publication(tmp_path,
         history.store.transition(task.task_id, TaskStatus.REVIEWING, "fixture review", subsystem="review")
         history.finalize(task.task_id, path, TaskStatus.SUCCEEDED, final_commit=_head(path), outcome="validated")
     monkeypatch.setattr("local_ai_assistant.gateway.execution_service.code_agent.main", code_agent)
-    execution = CodeAgentExecutionService(None, history)
+    readiness_calls = []
+    class ReadyOnboarding:
+        def list_profiles(self):
+            return (SimpleNamespace(canonical_root=str(path), repository_id="fixture"),)
+        def assert_ready_for_mutation(self, *args, **kwargs):
+            readiness_calls.append((args, kwargs))
+    execution = CodeAgentExecutionService(None, history, ReadyOnboarding())
     handle = execution.execute_task(history.get(task.task_id))
     execution._runs[handle.run_id].result(timeout=5)
     assert calls and "--task-id" in calls[0] and "--approve-risk" in calls[0]
+    assert readiness_calls
     assert history.get(task.task_id).status is TaskStatus.SUCCEEDED
     transport = FakeGitHubTransport()
     transport.branches[("acme", "demo", task.branch)] = _head(path)

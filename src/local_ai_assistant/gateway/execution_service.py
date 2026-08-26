@@ -7,6 +7,7 @@ from pathlib import Path
 
 from local_ai_assistant.agent import code_agent
 from local_ai_assistant.history.models import TaskStatus
+from local_ai_assistant.onboarding import RepositoryNotOnboarded
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,16 +29,31 @@ class CodeAgentExecutionService:
     def execute_task(self, task) -> ExecutionHandle:
         if task.status is not TaskStatus.APPROVED or not task.plan_hash:
             raise ValueError("exact approved plan is required")
-        if self.onboarding is not None:
-            profile = next((item for item in self.onboarding.list_profiles() if Path(item.canonical_root).resolve() == Path(task.repository).resolve()), None)
-            if profile is not None and profile.status.value in {"blocked", "needs_tooling", "unsupported", "partial_readiness"}:
-                raise ValueError("repository readiness does not permit autonomous execution")
-        repo_name = Path(task.repository).name
+        if self.onboarding is None:
+            raise RepositoryNotOnboarded("Repository readiness authority is not configured")
+        profile = next(
+            (
+                item
+                for item in self.onboarding.list_profiles()
+                if Path(item.canonical_root).resolve() == Path(task.repository).resolve()
+            ),
+            None,
+        )
+        if profile is None:
+            raise RepositoryNotOnboarded("Repository is not onboarded for mutation")
+        self.onboarding.assert_ready_for_mutation(
+            profile.repository_id,
+            Path(task.repository),
+            task.starting_commit,
+            require_index=False,
+        )
         run_id = f"run_{task.task_id}"
         if run_id in self._runs and not self._runs[run_id].done():
             return ExecutionHandle(task.task_id, run_id)
         argv = [
-            repo_name, task.original_request, "--task-id", task.task_id,
+            profile.repository_id, task.original_request, "--task-id", task.task_id,
+            "--repository-id", profile.repository_id,
+            "--expected-starting-commit", task.starting_commit,
             "--apply", "--branch", "--test", "--validate", "--rollback-on-fail",
             "--tool-loop", "--approve-risk", task.plan_hash,
         ]
