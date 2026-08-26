@@ -1,7 +1,606 @@
 .friday-root {
+  --core-rgb: 87, 220, 255;
+  --core-bright: rgb(var(--core-rgb));
+  --core-muted: rgba(var(--core-rgb), 0.28);
+  --core-faint: rgba(var(--core-rgb), 0.08);
+
+  position: relative;
   min-height: 100vh;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(10, 30, 42, 0.38), transparent 34%),
+    radial-gradient(circle at 50% 50%, #071016 0%, #020507 46%, #000 76%);
 }
 
-.friday-shell {
-  min-height: 100vh;
+.friday-root[data-runtime-state="listening"] {
+  --core-rgb: 84, 255, 210;
+}
+
+.friday-root[data-runtime-state="transcribing"],
+.friday-root[data-runtime-state="retrieving"] {
+  --core-rgb: 91, 190, 255;
+}
+
+.friday-root[data-runtime-state="thinking"],
+.friday-root[data-runtime-state="planning"],
+.friday-root[data-runtime-state="reviewing"] {
+  --core-rgb: 113, 122, 255;
+}
+
+.friday-root[data-runtime-state="waiting_for_approval"] {
+  --core-rgb: 255, 190, 79;
+}
+
+.friday-root[data-runtime-state="executing"],
+.friday-root[data-runtime-state="validating"] {
+  --core-rgb: 82, 255, 169;
+}
+
+.friday-root[data-runtime-state="speaking"] {
+  --core-rgb: 119, 230, 255;
+}
+
+.friday-root[data-runtime-state="completed"] {
+  --core-rgb: 129, 255, 185;
+}
+
+.friday-root[data-runtime-state="error"],
+.friday-root[data-runtime-state="cancelled"] {
+  --core-rgb: 255, 76, 102;
+}
+
+.friday-root[data-runtime-state="sleeping"] {
+  --core-rgb: 77, 101, 111;
+}
+
+.space-layer {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+}
+
+.space-layer-one {
+  opacity: 0.65;
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, 0.38) 0 0.6px, transparent 0.8px);
+  background-size: 54px 54px;
+  mask-image: radial-gradient(circle at center, black, transparent 72%);
+  animation: drift-field 42s linear infinite;
+}
+
+.space-layer-two {
+  opacity: 0.32;
+  background-image:
+    radial-gradient(circle, var(--core-muted) 0 1px, transparent 1.2px);
+  background-size: 91px 91px;
+  transform: rotate(18deg) scale(1.1);
+  animation: drift-field-reverse 58s linear infinite;
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.68), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.8)),
+    radial-gradient(circle at center, transparent 35%, rgba(0, 0, 0, 0.75) 105%);
+}
+
+.identity {
+  position: absolute;
+  top: 34px;
+  left: 44px;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 36px auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  align-items: center;
+  letter-spacing: 0.22em;
+  user-select: none;
+}
+
+.identity-line {
+  grid-row: 1 / 3;
+  width: 36px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--core-bright));
+  box-shadow: 0 0 12px var(--core-bright);
+}
+
+.identity-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(235, 250, 255, 0.92);
+}
+
+.identity-version {
+  margin-top: 5px;
+  font-size: 8px;
+  color: rgba(180, 214, 224, 0.44);
+}
+
+.neural-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  perspective: 1200px;
+}
+
+.ambient-field {
+  position: absolute;
+  width: min(72vw, 900px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(
+      circle,
+      transparent 0 34px,
+      rgba(var(--core-rgb), 0.025) 35px 36px
+    );
+  filter: blur(0.2px);
+  opacity: 0.9;
+  animation: ambient-breathe 7s ease-in-out infinite;
+}
+
+.orbital,
+.core-halo,
+.neural-core,
+.axis {
+  position: absolute;
+}
+
+.orbital {
+  display: block;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--core-rgb), 0.15);
+  box-shadow:
+    inset 0 0 24px rgba(var(--core-rgb), 0.035),
+    0 0 14px rgba(var(--core-rgb), 0.035);
+}
+
+.orbital::before,
+.orbital::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+}
+
+.orbital::before {
+  inset: -1px;
+  border-top: 1px solid rgba(var(--core-rgb), 0.72);
+  border-right: 1px solid transparent;
+  border-bottom: 1px solid rgba(var(--core-rgb), 0.1);
+  border-left: 1px solid transparent;
+}
+
+.orbital::after {
+  width: 5px;
+  height: 5px;
+  top: 50%;
+  left: -3px;
+  background: var(--core-bright);
+  box-shadow:
+    0 0 8px var(--core-bright),
+    0 0 18px var(--core-bright);
+}
+
+.orbital span {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--core-bright);
+  box-shadow: 0 0 12px var(--core-bright);
+}
+
+.orbital span:nth-child(1) {
+  top: 12%;
+  left: 27%;
+}
+
+.orbital span:nth-child(2) {
+  top: 73%;
+  right: 10%;
+}
+
+.orbital span:nth-child(3) {
+  bottom: 8%;
+  left: 31%;
+}
+
+.orbital-outer {
+  width: min(59vw, 680px);
+  aspect-ratio: 1;
+  transform: rotateX(67deg) rotateZ(9deg);
+  animation: orbit-forward 18s linear infinite;
+}
+
+.orbital-middle {
+  width: min(43vw, 500px);
+  aspect-ratio: 1;
+  transform: rotateY(62deg) rotateZ(38deg);
+  animation: orbit-reverse 13s linear infinite;
+}
+
+.orbital-inner {
+  width: min(31vw, 360px);
+  aspect-ratio: 1;
+  transform: rotateX(58deg) rotateY(-24deg);
+  animation: orbit-forward 9s linear infinite;
+}
+
+.core-halo {
+  border-radius: 50%;
+  border: 1px solid rgba(var(--core-rgb), 0.18);
+}
+
+.halo-outer {
+  width: min(28vw, 320px);
+  aspect-ratio: 1;
+  box-shadow:
+    0 0 50px rgba(var(--core-rgb), 0.08),
+    inset 0 0 40px rgba(var(--core-rgb), 0.05);
+  animation: halo-pulse 4s ease-in-out infinite;
+}
+
+.halo-middle {
+  width: min(22vw, 250px);
+  aspect-ratio: 1;
+  border-style: dashed;
+  opacity: 0.48;
+  animation: orbit-forward 24s linear infinite;
+}
+
+.neural-core {
+  width: min(16vw, 180px);
+  min-width: 118px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 0 26px rgba(var(--core-rgb), 0.38));
+}
+
+.core-surface {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.88), transparent 3%),
+    radial-gradient(circle at 43% 36%, rgba(var(--core-rgb), 0.7), transparent 12%),
+    radial-gradient(circle at center, rgba(var(--core-rgb), 0.34), rgba(3, 10, 13, 0.95) 62%);
+  box-shadow:
+    inset 0 0 24px rgba(255, 255, 255, 0.08),
+    inset -14px -16px 35px rgba(0, 0, 0, 0.85),
+    0 0 35px rgba(var(--core-rgb), 0.24);
+}
+
+.core-surface::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  background:
+    repeating-conic-gradient(
+      from 0deg,
+      rgba(var(--core-rgb), 0.38) 0deg 1deg,
+      transparent 2deg 10deg
+    );
+  mask-image: radial-gradient(circle, black 15%, transparent 69%);
+  animation: core-spin 16s linear infinite;
+}
+
+.core-surface::after {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(
+      circle at 47% 52%,
+      rgba(var(--core-rgb), 0.13) 0 1px,
+      transparent 2px 9px
+    );
+  mix-blend-mode: screen;
+  animation: core-spin-reverse 11s linear infinite;
+}
+
+.core-energy {
+  position: absolute;
+  inset: 20%;
+  border-radius: 50%;
+  background: var(--core-bright);
+  filter: blur(16px);
+  opacity: 0.32;
+  animation: energy-pulse 2.6s ease-in-out infinite;
+}
+
+.core-center {
+  position: absolute;
+  inset: 39%;
+  border-radius: 50%;
+  background: white;
+  box-shadow:
+    0 0 7px white,
+    0 0 17px var(--core-bright),
+    0 0 42px var(--core-bright),
+    0 0 85px rgba(var(--core-rgb), 0.5);
+  animation: center-pulse 2s ease-in-out infinite;
+}
+
+.axis {
+  pointer-events: none;
+  opacity: 0.22;
+}
+
+.axis-horizontal {
+  width: min(75vw, 960px);
+  height: 1px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(var(--core-rgb), 0.12) 25%,
+      rgba(var(--core-rgb), 0.55) 49.8%,
+      rgba(var(--core-rgb), 0.55) 50.2%,
+      rgba(var(--core-rgb), 0.12) 75%,
+      transparent
+    );
+}
+
+.axis-vertical {
+  width: 1px;
+  height: min(70vh, 700px);
+  background:
+    linear-gradient(
+      transparent,
+      rgba(var(--core-rgb), 0.1) 28%,
+      rgba(var(--core-rgb), 0.42) 50%,
+      rgba(var(--core-rgb), 0.1) 72%,
+      transparent
+    );
+}
+
+.state-readout {
+  position: absolute;
+  top: calc(50% + min(19vw, 220px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  color: rgba(217, 245, 252, 0.64);
+}
+
+.state-mark {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--core-bright);
+  box-shadow: 0 0 10px var(--core-bright);
+}
+
+.system-strip {
+  position: absolute;
+  z-index: 30;
+  right: 42px;
+  bottom: 30px;
+  left: 42px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.system-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  white-space: nowrap;
+  font-size: 8px;
+  letter-spacing: 0.18em;
+}
+
+.system-key {
+  color: rgba(155, 181, 188, 0.35);
+}
+
+.system-value {
+  color: rgba(219, 242, 247, 0.68);
+}
+
+.system-divider {
+  width: 1px;
+  height: 13px;
+  background: rgba(var(--core-rgb), 0.16);
+}
+
+.neural-stage[data-state="thinking"] .neural-core,
+.neural-stage[data-state="planning"] .neural-core,
+.neural-stage[data-state="executing"] .neural-core,
+.neural-stage[data-state="validating"] .neural-core {
+  animation: active-core 1.8s ease-in-out infinite;
+}
+
+.neural-stage[data-state="listening"] .orbital-outer,
+.neural-stage[data-state="speaking"] .orbital-outer {
+  animation-duration: 9s;
+}
+
+.neural-stage[data-state="error"] .neural-core {
+  animation: error-core 0.45s ease-in-out infinite alternate;
+}
+
+.neural-stage[data-state="sleeping"] {
+  opacity: 0.42;
+  filter: saturate(0.35);
+}
+
+@keyframes orbit-forward {
+  from {
+    rotate: 0deg;
+  }
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes orbit-reverse {
+  from {
+    rotate: 360deg;
+  }
+  to {
+    rotate: 0deg;
+  }
+}
+
+@keyframes core-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes core-spin-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes ambient-breathe {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.58;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
+@keyframes halo-pulse {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.38;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+@keyframes energy-pulse {
+  0%,
+  100% {
+    transform: scale(0.75);
+    opacity: 0.22;
+  }
+  50% {
+    transform: scale(1.24);
+    opacity: 0.58;
+  }
+}
+
+@keyframes center-pulse {
+  0%,
+  100% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.35);
+  }
+}
+
+@keyframes active-core {
+  0%,
+  100% {
+    transform: scale(0.97);
+  }
+  50% {
+    transform: scale(1.055);
+  }
+}
+
+@keyframes error-core {
+  from {
+    transform: translateX(-2px) scale(0.98);
+  }
+  to {
+    transform: translateX(2px) scale(1.03);
+  }
+}
+
+@keyframes drift-field {
+  to {
+    transform: translate3d(50px, 28px, 0);
+  }
+}
+
+@keyframes drift-field-reverse {
+  to {
+    transform: rotate(18deg) scale(1.1) translate3d(-45px, -30px, 0);
+  }
+}
+
+@media (max-width: 700px) {
+  .identity {
+    top: 24px;
+    left: 24px;
+  }
+
+  .orbital-outer {
+    width: 82vw;
+  }
+
+  .orbital-middle {
+    width: 64vw;
+  }
+
+  .orbital-inner {
+    width: 47vw;
+  }
+
+  .neural-core {
+    width: 30vw;
+  }
+
+  .halo-outer {
+    width: 50vw;
+  }
+
+  .halo-middle {
+    width: 40vw;
+  }
+
+  .state-readout {
+    top: calc(50% + 33vw);
+  }
+
+  .system-strip {
+    right: 20px;
+    bottom: 22px;
+    left: 20px;
+    gap: 12px;
+  }
+
+  .system-item:last-child,
+  .system-divider:last-of-type {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

@@ -53,6 +53,7 @@ local-ai-validate = "local_ai_assistant.validation.cli:main"
 local-ai-history = "local_ai_assistant.history.cli:main"
 local-ai-isolation = "local_ai_assistant.isolation.cli:main"
 local-ai-gateway = "local_ai_assistant.gateway.cli:main"
+local-ai-presentation = "local_ai_assistant.interface.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
