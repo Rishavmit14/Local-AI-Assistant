@@ -48,8 +48,7 @@ def test_pyproject_is_canonical_and_exposes_supported_commands():
         "local-ai-execute",
         "local-ai-history",
         "local-ai-isolation",
-        "local-ai-ui",
         "local-ai-validate",
         "local-ai-gateway",
     }
-    assert {"rag", "ui", "coding-agent", "dev", "gateway"} <= set(project["optional-dependencies"])
+    assert {"rag", "coding-agent", "dev", "gateway"} <= set(project["optional-dependencies"])

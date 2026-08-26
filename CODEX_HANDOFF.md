@@ -190,22 +190,24 @@ Expected behavior:
 - enabled at boot
 - reboot-tested successfully
 
-### UI service
+### Historical UI service
 Source of truth:
 ```text
 /etc/systemd/system/local-ai-ui.service
 ```
-Expected behavior:
-- Requires/After `llama-qwen.service`
-- runs as `kumar-rishav`
-- WorkingDirectory `/AI/projects/local-ai`
-- starts Streamlit with:
+Historical behavior:
+- Required/started after `llama-qwen.service`
+- ran as `kumar-rishav`
+- used WorkingDirectory `/AI/projects/local-ai`
+- started the former Streamlit interface with:
 ```text
 /AI/projects/local-ai/.venv/bin/streamlit run /AI/projects/local-ai/app.py --server.address 127.0.0.1 --server.port 8501 --server.headless true --browser.gatherUsageStats false
 ```
-- reboot-tested successfully
+- was reboot-tested successfully
 
-UI:
+This service is retained here only as historical machine-state documentation. The repository-side Streamlit product UI, launcher, dependency, configuration, compatibility wrappers, and service template are removed in Stage 11. The new Friday interface must not depend on this service.
+
+Historical UI endpoint:
 ```text
 http://127.0.0.1:8501
 ```
@@ -284,14 +286,14 @@ Validated document codes included:
 - DPI 200
 - metadata: `extraction_method = native|ocr`
 
-## 7. Streamlit UI
+## 7. Historical Streamlit UI
 
 File:
 ```text
 /AI/projects/local-ai/app.py
 ```
 
-Current features:
+Features of the historical interface:
 - Local Qwen chat
 - document upload (PDF/DOCX/TXT/MD)
 - Save & Reindex
@@ -301,6 +303,8 @@ Current features:
 - stats (documents/chunks/FAISS/OCR)
 - RAG-backed chat
 - source details including page, extraction method, vector rank, BM25 rank, hybrid score
+
+This implementation is historical only. Stage 11 removes the repository-side Streamlit presentation layer completely. Reusable non-presentation behavior is preserved behind Friday's neutral interface/services and the replacement product UI is built fresh from scratch.
 
 ## 8. Code assistant project
 
@@ -512,8 +516,7 @@ Local-AI-Assistant/
 │   ├── model/
 │   │   └── qwen3.6-35b-a3b-q4.yaml
 │   ├── services/
-│   │   ├── llama-qwen.service.example
-│   │   └── local-ai-ui.service.example
+│   │   └── llama-qwen.service.example
 │   ├── validation/
 │   │   └── policies.yaml
 │   └── languages/
@@ -537,9 +540,8 @@ Local-AI-Assistant/
 │       ├── git/
 │       ├── security/
 │       ├── tasks/
+│       ├── interface/
 │       └── common/
-├── ui/
-│   └── streamlit/
 ├── scripts/
 │   ├── bootstrap/
 │   ├── benchmark/
@@ -752,8 +754,8 @@ Score retrieval coverage, symbols available, tests, plan consistency, scope, sta
 - local config
 - baseline health
 
-### S. Local coding UI
-Extend Streamlit with Chat/Documents/Coding tabs, repo selector, task/mode, plan viewer, symbol viewer, affected files, diff viewer, Apply/Reject, tests, repair, commit, rollback, branch/risk/confidence/dependency/security indicators, streaming progress.
+### S. Friday presentation interface
+The Stage 7 Streamlit coding UI is retired in Stage 11. Preserve reusable repository, history, artifact, metrics, isolation, and health behavior through presentation-neutral services. Build the primary Friday interface fresh from scratch above the native API/event boundary, with contextual coding/task views rather than a permanent dashboard.
 
 ### T. Task history DB
 Store task, prompt, timestamps, repo, starting commit, branch, plan, context, patch, validation, tests, repair attempts, result, commit.
@@ -810,11 +812,11 @@ llama-server
     ├── Security reviewer
     ├── Git transaction manager
     ├── Task history
-    └── Streamlit UI
+    └── Friday native interface/event boundary
 ```
 
 ### AH. Conversational voice and cinematic UI
-After final real-repository hardening, add local microphone/wake-word/VAD/Whisper input, streaming text and sentence/chunk TTS with an original non-impersonating Friday voice, barge-in and immediate speech stop, deterministic assistant states, and a React/Next.js-style WebGL/Three.js/Canvas frontend driven by real runtime events. Streamlit remains the engineering/admin UI and the CLI remains the recovery/power-user interface. Voice/UI communicates only through Friday's native API/event boundary and has no direct authority over shell, filesystem or Git mutation, model tools, or approval.
+After final real-repository hardening, add local microphone/wake-word/VAD/Whisper input, streaming text and sentence/chunk TTS with an original non-impersonating Friday voice, barge-in and immediate speech stop, deterministic assistant states, and a GPU-accelerated WebGL/Three.js/Canvas-style frontend driven by real runtime events. The legacy Streamlit UI is removed completely rather than retained as an engineering surface. The CLI remains the recovery/power-user interface. Voice/UI communicates only through Friday's native API/event boundary and has no direct authority over shell, filesystem or Git mutation, model tools, or approval.
 
 ## 15. Recommended implementation sequence
 
@@ -860,7 +862,7 @@ Friday-native service APIs, native GitHub issue/task/branch/validation/commit/PR
 Onboard real repos, agent benchmark suite, measure/tune retrieval/prompts/repair/model adapters.
 
 ### Stage 11 — Conversational Voice & Cinematic UI
-Local microphone, wake word, VAD, local Whisper, streaming text/TTS with an original Friday voice, barge-in/stop, deterministic runtime states, WebSocket/events, and a richer cinematic frontend. Keep Streamlit for engineering/admin use and CLI for recovery/power users. The UI/voice layer has no privileged path around Friday's planning, risk, approval, execution, validation, or audit boundary.
+Remove the legacy Streamlit product UI completely after first extracting reusable non-presentation behavior. Build the Friday interface fresh from scratch with local microphone input, wake word, VAD, local Whisper, streaming text/TTS with an original Friday voice, barge-in/stop, deterministic runtime states, WebSocket/events, and a GPU-accelerated cinematic neural-core frontend. Keep the CLI for recovery/power users. The UI/voice layer has no privileged path around Friday's planning, risk, approval, execution, validation, isolation, Git, or audit boundary.
 
 ## 16. First Codex bootstrap instructions
 

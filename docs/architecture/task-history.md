@@ -6,7 +6,7 @@ Stage 7 observes the existing pipeline:
 
 ```text
 planner ─┐
-executor ├─ canonical JSON artifacts ─ task-history index ─ CLI / Streamlit / audit / metrics
+executor ├─ canonical JSON artifacts ─ task-history index ─ CLI / interface service / audit / metrics
 validator┘
 ```
 
@@ -20,10 +20,10 @@ The validated lifecycle is `created → planning → awaiting approval/approved 
 
 SQLite uses WAL, foreign keys, a bounded busy timeout, short `BEGIN IMMEDIATE` writes, rollback on errors, and indexed common queries. `PRAGMA quick_check` detects corruption. Migrations run in deterministic transactions and never drop/recreate history.
 
-## Privacy and UI
+## Privacy and presentation boundary
 
-Stage 4 redaction is reused before database persistence and report export. Raw environment dumps and large tool output are not stored. Streamlit repository selection is limited to Git repositories directly under `LOCAL_AI_CODE_REPO_DIR`. Coding task creation invokes the existing planner; exact-plan approval requires the existing plan hash. Mutation remains in `local-ai-code-agent` until a later reviewed background-run controller can preserve the complete transaction boundary.
+Stage 4 redaction is reused before database persistence and report export. Raw environment dumps and large tool output are not stored. `FridayInterfaceService` exposes presentation-neutral repository snapshots, task/history detail, artifact previews, operational metrics, isolation status, and health information without acquiring mutation authority. Repository access remains constrained to the explicitly configured repository root.
 
-Cancellation is cooperative: the UI records a cancel request and the Stage 4 loop checks it before each new tool action. Active subprocess handling remains owned by Stage 4 timeouts/process control; UI code never kills processes directly. The eventual terminal execution artifact records rollback or cancellation outcome.
+The legacy Stage 7 Streamlit presentation layer was removed at the start of Stage 11. Future UI and voice clients must communicate through Friday's native interface/API/event boundary. Cancellation remains cooperative and active subprocess handling remains owned by Stage 4 timeouts/process control; presentation code never kills processes directly or bypasses planning, approval, execution, validation, isolation, or Git policy. The eventual terminal execution artifact records rollback or cancellation outcome.
 
 Metrics represent observed fields only. Missing model tokens, planning duration, or index timing remains `null`; no value is inferred.

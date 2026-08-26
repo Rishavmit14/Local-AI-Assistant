@@ -2,6 +2,8 @@
 
 This chronology records the working system that existed before this repository was bootstrapped.
 
+Stage 11 begins by intentionally retiring the legacy Streamlit product UI, its launcher, compatibility wrappers, UI-specific configuration, dependency, and service template. Reusable repository/history/artifact/metrics/isolation/health behavior was first extracted into the presentation-neutral `FridayInterfaceService` and regression-tested before deletion. The replacement Friday conversational and cinematic interface will be built fresh above the native API/event and safety boundaries.
+
 Stage 8 added task-bound Git worktrees, exact checkpoints and rollback, capability-aware sandbox backends, clean task environments, resource/process limits, explicit network policy, crash recovery, promotion integrity, and history/UI visibility. The current Ubuntu host exposes Bubblewrap but denies its user-namespace probe, so strong untrusted-code execution fails closed and the native backend is reported as degraded rather than overstated.
 
 Stage 7 added a versioned local SQLite task-history service, legacy artifact indexing, lifecycle/audit/search/metrics/export CLI, and read-mostly Streamlit coding/history/metrics/system workspaces. The UI invokes existing planner and exact-plan approval services; it does not bypass execution or Git safety.

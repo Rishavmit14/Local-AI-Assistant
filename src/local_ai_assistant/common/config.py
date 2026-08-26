@@ -119,14 +119,6 @@ class OCRConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class UIConfig:
-    host: str = "127.0.0.1"
-    port: int = 8501
-    headless: bool = True
-    gather_usage_stats: bool = False
-
-
-@dataclass(frozen=True, slots=True)
 class RuntimeConfig:
     log_level: str = "INFO"
     log_format: str = "json"
@@ -192,7 +184,6 @@ class AppConfig:
     )
     code_retrieval: CodeRetrievalConfig = field(default_factory=CodeRetrievalConfig)
     ocr: OCRConfig = field(default_factory=OCRConfig)
-    ui: UIConfig = field(default_factory=UIConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     isolation: IsolationConfig = field(default_factory=IsolationConfig)
@@ -273,12 +264,6 @@ class AppConfig:
                 language=values.get("LOCAL_AI_OCR_LANGUAGE", "eng"),
                 minimum_text_length=_integer(values, "LOCAL_AI_OCR_MIN_TEXT_LENGTH", 80),
                 dpi=_integer(values, "LOCAL_AI_OCR_DPI", 200),
-            ),
-            ui=UIConfig(
-                host=values.get("LOCAL_AI_UI_HOST", "127.0.0.1"),
-                port=_integer(values, "LOCAL_AI_UI_PORT", 8501),
-                headless=_boolean(values, "LOCAL_AI_UI_HEADLESS", True),
-                gather_usage_stats=_boolean(values, "LOCAL_AI_UI_GATHER_USAGE_STATS", False),
             ),
             runtime=RuntimeConfig(
                 log_level=values.get("LOCAL_AI_LOG_LEVEL", "INFO").upper(),

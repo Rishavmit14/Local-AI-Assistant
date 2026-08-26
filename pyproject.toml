@@ -23,7 +23,6 @@ rag = [
   "rank-bm25>=0.2.2,<1",
   "sentence-transformers>=5,<7",
 ]
-ui = ["streamlit>=1.50,<2"]
 coding-agent = [
   "faiss-cpu>=1.12,<2",
   "numpy>=2,<3",
@@ -53,7 +52,6 @@ local-ai-execute = "local_ai_assistant.execution.cli:main"
 local-ai-validate = "local_ai_assistant.validation.cli:main"
 local-ai-history = "local_ai_assistant.history.cli:main"
 local-ai-isolation = "local_ai_assistant.isolation.cli:main"
-local-ai-ui = "local_ai_assistant.ui.cli:main"
 local-ai-gateway = "local_ai_assistant.gateway.cli:main"
 
 [tool.setuptools.packages.find]
@@ -72,10 +70,8 @@ line-length = 100
 select = ["E4", "E7", "E9", "F", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
-"app.py" = ["F403", "F401"]
 "local_llm.py" = ["F403", "F401"]
 "rag.py" = ["F403", "F401"]
 "code_rag.py" = ["F403", "F401"]
 "code_agent.py" = ["F403", "F401"]
-"ui/streamlit/app.py" = ["F403", "F401"]
 "tests/integration/test_demo_app.py" = ["E402"]

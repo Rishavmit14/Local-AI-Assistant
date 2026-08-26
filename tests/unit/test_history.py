@@ -38,7 +38,7 @@ from local_ai_assistant.planning.models import (
     TaskCategory,
     TaskClassification,
 )
-from local_ai_assistant.ui.coding import CodingUIService
+from local_ai_assistant.interface import FridayInterfaceService
 
 
 @pytest.fixture
@@ -331,7 +331,7 @@ def test_artifact_import_rejects_symlink_escape_and_preview_detects_changed_cont
         patch_dir=runtime / "patches",
         task_history_db=runtime / "history/tasks.sqlite3",
     )
-    ui = CodingUIService(AppConfig(paths=paths))
+    ui = FridayInterfaceService(AppConfig(paths=paths))
     artifact = runtime / "index/artifact.json"
     artifact.parent.mkdir(parents=True)
     artifact.write_text('{"safe": true}')
@@ -611,7 +611,7 @@ def test_ui_service_lists_only_configured_git_repositories(tmp_path):
         code_repo_dir=roots, code_index_dir=tmp_path / "index", patch_dir=tmp_path / "patches",
         task_history_db=tmp_path / "var/history/tasks.sqlite3",
     )
-    service = CodingUIService(AppConfig(paths=paths))
+    service = FridayInterfaceService(AppConfig(paths=paths))
 
     snapshot = service.repositories()[0]
     assert snapshot.name == "demo" and snapshot.clean and snapshot.languages == ("rust",)
@@ -644,10 +644,10 @@ def test_health_tolerates_unavailable_llama_server(tmp_path, monkeypatch):
         task_history_db=tmp_path / "var/history/tasks.sqlite3",
     )
     monkeypatch.setattr(
-        "local_ai_assistant.ui.coding.urllib.request.urlopen",
+        "local_ai_assistant.interface.service.urllib.request.urlopen",
         lambda *args, **kwargs: (_ for _ in ()).throw(OSError("offline")),
     )
-    service = CodingUIService(AppConfig(paths=paths))
+    service = FridayInterfaceService(AppConfig(paths=paths))
     assert service.health()["llama_server"] == "unreachable"
     assert service.metrics().total_tasks == 0
 

@@ -2,13 +2,24 @@
 set -euo pipefail
 
 repository_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-python_command="${PYTHON:-python3}"
+python_command="${PYTHON:-}"
+
+if [[ -z "${python_command}" ]]; then
+  if [[ -x "${repository_dir}/.venv/bin/python" ]]; then
+    python_command="${repository_dir}/.venv/bin/python"
+  elif [[ -x "/AI/projects/local-ai/.venv/bin/python" ]]; then
+    python_command="/AI/projects/local-ai/.venv/bin/python"
+  else
+    python_command="python3"
+  fi
+fi
+
 cd "${repository_dir}"
 export PYTHONPATH="${repository_dir}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 "${python_command}" -m compileall -q \
-  src ui tests examples/demo-app/app \
-  app.py local_llm.py rag.py code_rag.py code_agent.py
+  src tests examples/demo-app/app \
+  local_llm.py rag.py code_rag.py code_agent.py
 "${python_command}" -m pytest
 "${python_command}" -m local_ai_assistant.agent.code_agent --help >/dev/null
 "${python_command}" -m local_ai_assistant.code_index.repository --help >/dev/null

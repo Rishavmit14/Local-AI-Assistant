@@ -1,5 +1,3 @@
-from dataclasses import replace
-
 import pytest
 
 from local_ai_assistant.agent.code_agent import (
@@ -8,8 +6,6 @@ from local_ai_assistant.agent.code_agent import (
 from local_ai_assistant.agent.code_agent import validate_cli_options
 from local_ai_assistant.code_index import repository as repository_module
 from local_ai_assistant.code_index.repository import build_parser as build_rag_parser
-from local_ai_assistant.common.config import AppConfig, UIConfig
-from local_ai_assistant.ui.cli import streamlit_command
 
 
 def test_agent_parser_preserves_existing_and_stage1_options():
@@ -93,19 +89,6 @@ def test_repository_map_cli_executes_without_llm(monkeypatch, capsys):
 
     assert repository_module.main(["--repository-map"]) == 0
     assert "└── app.py" in capsys.readouterr().out
-
-
-def test_streamlit_command_uses_typed_ui_configuration():
-    config = replace(
-        AppConfig.from_env({}),
-        ui=UIConfig(host="localhost", port=8601, headless=False, gather_usage_stats=True),
-    )
-    command = streamlit_command(config)
-
-    assert command[1:4] == ["-m", "streamlit", "run"]
-    assert command[command.index("--server.address") + 1] == "localhost"
-    assert command[command.index("--server.port") + 1] == "8601"
-    assert command[command.index("--server.headless") + 1] == "false"
 
 
 def test_cli_help_is_available_without_loading_models(capsys):

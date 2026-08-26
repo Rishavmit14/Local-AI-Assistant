@@ -8,15 +8,16 @@ Qwen GGUF
 TurboQuant llama-server (127.0.0.1:8080)
    │ OpenAI-compatible API
    ├── LocalLLM
-   │    └── document RAG ── Streamlit (127.0.0.1:8501)
+   │    └── document RAG
+   ├── FridayInterfaceService ── presentation-neutral read/service boundary
    └── code RAG ── transactional patch agent ── target Git repository
 ```
 
-`local_ai_assistant.common.config` is the typed configuration boundary. Frozen dataclasses represent llama-server metadata, runtime paths, embedding, document/code retrieval, OCR, UI, and runtime/test settings. Components accept an `AppConfig` snapshot and injectable model/embedder dependencies; environment variables remain the deployment interface.
+`local_ai_assistant.common.config` is the typed configuration boundary. Frozen dataclasses represent llama-server metadata, runtime paths, embedding, document/code retrieval, OCR, execution, isolation, gateway, and runtime/test settings. Components accept an `AppConfig` snapshot and injectable model/embedder dependencies; environment variables remain the deployment interface.
 
 `local_ai_assistant.llm` is the only model-client boundary. `rag` preserves private document retrieval. `code_index` provides one deterministic, capability-aware Tree-sitter platform for Python, Rust, Solidity, TypeScript/JavaScript, SQL, C/C++, Java, and Shell plus local hybrid retrieval. `planning` classifies requests and enforces actual patch/file/symbol scope. `execution` exposes only registered typed tools, parsed allowlisted commands, bounded observations, and atomic audit history. Qwen chooses actions but deterministic policy authorizes them. `agent` wraps mutations in the proven Git transaction.
 
-`local_ai_assistant.ui.app` is the canonical document-chat interface and `local-ai-ui` is its configured launcher. Root files and `ui/streamlit/app.py` are thin compatibility wrappers. `config/services` contains non-installed sanitized systemd examples. Runtime documents, indexes, patches, repositories, and logs live under environment-selected directories, defaulting to ignored `var/` paths.
+Stage 11 intentionally removes the legacy `local_ai_assistant.ui` Streamlit package, the `local-ai-ui` launcher, and the old root/`ui/streamlit` compatibility wrappers. `local_ai_assistant.interface.FridayInterfaceService` preserves presentation-neutral repository, history, artifact-preview, metrics, isolation-status, and health capabilities for future clients. `config/services` contains non-installed sanitized systemd examples. Runtime documents, indexes, patches, repositories, and logs live under environment-selected directories, defaulting to ignored `var/` paths.
 
 `local_ai_assistant.common.logging` emits structured event records for LLM requests, indexing/retrieval/OCR, commands, tests, patches, UI startup, and Git transaction outcomes. Existing CLI progress text remains intact for compatibility. Expected operational failures use the explicit `LocalAIError` hierarchy.
 
@@ -26,7 +27,7 @@ Stage 5 adds a plan-bound validation-intelligence layer after scoped execution. 
 
 Stage 6 generalizes Stage 2 through a typed language registry and adapters while retaining the shared symbols, provenance, graph, persistence, planner, ScopeGuard, and validation/review pipeline. Capability status prevents unsupported static semantics from masquerading as empty facts. See [multi-language code intelligence](docs/architecture/multi-language-code-intelligence.md).
 
-Stage 7 indexes compact task, plan, execution, validation, review, approval, scope, and metric records in a local versioned SQLite store while preserving Stage 3–5 JSON artifacts as canonical evidence. Streamlit coding/history/metrics/system workspaces and `local-ai-history` consume this service; they do not duplicate or weaken planner, execution, approval, validation, or Git policy. See [task history and operational UI](docs/architecture/task-history.md).
+Stage 7 indexes compact task, plan, execution, validation, review, approval, scope, and metric records in a local versioned SQLite store while preserving Stage 3–5 JSON artifacts as canonical evidence. `local-ai-history` and the presentation-neutral `FridayInterfaceService` consume this service; they do not duplicate or weaken planner, execution, approval, validation, or Git policy. The original Stage 7 Streamlit workspaces were retired at the start of Stage 11. See [task history and operational interface](docs/architecture/task-history.md).
 
 Stage 8 routes autonomous mutation into task/plan/repository/commit-bound Git worktrees, creates exact rollback checkpoints, and places repository commands behind both the Stage 4 allowlist and a capability-aware sandbox policy. Strong isolation fails closed when mount/network namespaces are unavailable. Successful work remains on its isolated branch for explicit promotion; main is never auto-merged. See [repository isolation](docs/architecture/isolation.md).
 
@@ -34,13 +35,13 @@ The `examples/demo-app` fixture is imported without its nested Git database. It 
 
 ## Deployment compatibility
 
-Stages 0 through 8 do not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Service templates preserve the selected inference arguments and localhost binding; the UI template invokes the packaged launcher.
+Stages 0 through 8 did not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Stage 11 removes the repository's obsolete Streamlit service template; the llama-server template remains independently renderable.
 
 ## Target architecture
 
 The target remains one local platform around llama-server: chat, document and repository RAG, symbol intelligence, planner/coder/reviewer/debugger/test/security roles, controlled tools, validation and policy engines, Git transactions/worktrees, history/metrics, Friday-native integration interfaces, and user interfaces. Git diffs remain mutation truth; deterministic inspection precedes inference; risk and confidence gates constrain automation. Later stages in `ROADMAP.md` introduce these pieces sequentially rather than redesigning Stage 0.
 
-Stage 9 introduces an optional native integration gateway above these services. It is localhost-bound and authenticated by default; external systems request typed task/history operations and never receive direct shell, filesystem, Git, model-tool, or approval-bypass access. Stage 11 may add conversational voice and a cinematic frontend only above the same native API/event boundary. Streamlit remains the engineering/admin surface and the CLI remains the recovery/power-user surface.
+Stage 9 introduces an optional native integration gateway above these services. It is localhost-bound and authenticated by default; external systems request typed task/history operations and never receive direct shell, filesystem, Git, model-tool, or approval-bypass access. Stage 11 builds conversational voice and a cinematic frontend above the same native API/event boundary. The legacy Streamlit surface is removed completely; the CLI remains the recovery/power-user surface.
 
 ## Trust boundaries
 

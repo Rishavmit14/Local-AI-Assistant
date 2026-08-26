@@ -8,18 +8,12 @@ fi
 
 source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 local_ai_user="$1"
-repository_dir="$2"
+_repository_dir="$2"
 llama_cpp_dir="$3"
 model_path="$4"
 output_dir="${source_dir}/var/systemd"
 
 mkdir -p "${output_dir}"
-
-sed \
-  -e "s|LOCAL_AI_USER|${local_ai_user}|g" \
-  -e "s|REPOSITORY_DIR|${repository_dir}|g" \
-  "${source_dir}/config/services/local-ai-ui.service.example" \
-  > "${output_dir}/local-ai-ui.service"
 
 sed \
   -e "s|LOCAL_AI_USER|${local_ai_user}|g" \

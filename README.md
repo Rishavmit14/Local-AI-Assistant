@@ -2,7 +2,7 @@
 
 Local-AI-Assistant is a local-first Qwen platform combining an OpenAI-compatible llama.cpp client, private document RAG, deterministic multi-language Tree-sitter code intelligence, model-assisted but deterministically governed planning, and a Git-transactional coding assistant.
 
-The runtime does not require Codex or paid inference tokens. The default model is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`, served only on `127.0.0.1:8080`; Streamlit binds to `127.0.0.1:8501`.
+The runtime does not require Codex or paid inference tokens. The default model is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`, served only on `127.0.0.1:8080`. Stage 11 removes the legacy Streamlit product UI and introduces a presentation-neutral Friday interface boundary for the new conversational and cinematic client.
 
 ## Bootstrap
 
@@ -16,13 +16,9 @@ source .venv/bin/activate
 
 Adjust `.env` to local paths. The repository defaults runtime state to `var/`; the existing MSI deployment may continue using its external `/AI/projects/local-ai` and `/AI/projects/code-assistant` directories during migration. See [configuration operations](docs/operations/configuration.md) for every setting.
 
-Start the packaged UI after llama-server is healthy:
+The legacy Streamlit launcher and its compatibility wrappers were intentionally removed at the start of Stage 11. Until the new Friday desktop client is implemented, use the supported CLI and native gateway interfaces.
 
-```bash
-local-ai-ui
-```
-
-The Stage 0 command `streamlit run ui/streamlit/app.py` and the historical root names `app.py`, `local_llm.py`, `rag.py`, `code_rag.py`, and `code_agent.py` remain compatibility wrappers.
+The historical root names `local_llm.py`, `rag.py`, `code_rag.py`, and `code_agent.py` remain compatibility wrappers.
 
 Index repositories placed under `LOCAL_AI_CODE_REPO_DIR`:
 
@@ -42,7 +38,7 @@ Tree-sitter/static analysis provides deterministic symbols and graphs. Local BGE
 
 Stage 6 supports Python, Rust, Solidity, TypeScript/JavaScript, SQL, C/C++, Java, and Shell through one capability-aware index. Static limitations are explicit; an unsupported call/reference capability is not reported as “no results.” See the [support matrix](docs/architecture/multi-language-code-intelligence.md).
 
-Stage 7 adds a local SQLite task history, deterministic audit/search/metrics APIs, `local-ai-history`, and Streamlit Coding, History, Metrics, and System workspaces. Existing JSON artifacts remain canonical and can be imported idempotently. See [task history architecture](docs/architecture/task-history.md) and [history operations](docs/operations/task-history.md).
+Stage 7 added a local SQLite task history, deterministic audit/search/metrics APIs, `local-ai-history`, and the original operational UI. Stage 11 retires that Streamlit presentation layer while preserving the history, metrics, repository-inspection, artifact-preview, and health capabilities through `FridayInterfaceService`. Existing JSON artifacts remain canonical and can be imported idempotently. See [task history architecture](docs/architecture/task-history.md) and [history operations](docs/operations/task-history.md).
 
 Generate a no-edit plan with `local-ai-code-agent REPO REQUEST --plan-only` or use the dedicated [`local-ai-plan` workflow](docs/operations/planner.md). Deterministic validation and risk policy gate patch generation; high/critical approval is bound to the exact printed plan token and cannot silently transfer to a changed plan.
 
