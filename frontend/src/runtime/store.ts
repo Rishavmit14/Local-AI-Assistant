@@ -124,10 +124,10 @@ export class FridayRuntimeStore {
     try {
       await this.client.streamConversation(
         request,
-        (chunk) => {
-          this.patch({
-            assistantText: this.state.assistantText + chunk,
-          });
+        () => {
+          // Runtime SSE events are the authoritative presentation stream.
+          // Consuming the HTTP body keeps generation active without
+          // duplicating assistant text already emitted by the runtime.
         },
         signal,
       );

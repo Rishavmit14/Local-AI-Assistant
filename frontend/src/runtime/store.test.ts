@@ -226,7 +226,7 @@ describe("FridayRuntimeStore", () => {
     expect(store.getSnapshot().connectionState).toBe("disconnected");
   });
 
-  it("streams conversation text through the client", async () => {
+  it("does not duplicate HTTP conversation chunks into presentation text", async () => {
     const client = new FakeRuntimeClient();
     client.streamChunks = ["Hello", " ", "there"];
 
@@ -238,7 +238,7 @@ describe("FridayRuntimeStore", () => {
       prompt: "Hi",
     });
 
-    expect(store.getSnapshot().assistantText).toBe("Hello there");
+    expect(store.getSnapshot().assistantText).toBe("");
   });
 
   it("notifies subscribers when view state changes", async () => {
