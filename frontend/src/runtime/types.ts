@@ -60,6 +60,21 @@ export interface FridayRuntimeEvent {
   metadata: Record<string, unknown>;
 }
 
+export type FridayConversationRole = "user" | "assistant";
+
+export type FridayConversationStatus =
+  | "streaming"
+  | "completed";
+
+export interface FridayConversationMessage {
+  id: string;
+  role: FridayConversationRole;
+  text: string;
+  status: FridayConversationStatus;
+  sequence: number;
+  timestamp: string;
+}
+
 export interface ConversationRequest {
   prompt: string;
   system_prompt?: string;

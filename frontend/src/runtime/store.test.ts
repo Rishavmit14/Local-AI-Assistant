@@ -139,6 +139,152 @@ describe("FridayRuntimeStore", () => {
     expect(state.cursor).toBe(3);
   });
 
+  it("reconstructs complete conversation history from replay", async () => {
+    const client = new FakeRuntimeClient();
+
+    client.replay = [
+      event(1, {
+        event_type: "conversation.user_text",
+        text: "Hello Friday",
+      }),
+      event(2, {
+        event_type: "conversation.assistant.started",
+        state: "thinking",
+      }),
+      event(3, {
+        event_type: "conversation.assistant.delta",
+        state: "thinking",
+        text: "Hello",
+        transient: true,
+      }),
+      event(4, {
+        event_type: "conversation.assistant.delta",
+        state: "thinking",
+        text: " Kumar",
+        transient: true,
+      }),
+      event(5, {
+        event_type: "conversation.assistant.completed",
+        text: "Hello Kumar",
+      }),
+      event(6, {
+        event_type: "conversation.user_text",
+        text: "What can you do?",
+      }),
+      event(7, {
+        event_type: "conversation.assistant.started",
+        state: "thinking",
+      }),
+      event(8, {
+        event_type: "conversation.assistant.completed",
+        text: "Quite a lot.",
+      }),
+    ];
+
+    const store = new FridayRuntimeStore(
+      client as never,
+    );
+
+    await store.start();
+
+    expect(store.getSnapshot().conversation).toEqual([
+      {
+        id: "user-1",
+        role: "user",
+        text: "Hello Friday",
+        status: "completed",
+        sequence: 1,
+        timestamp: "2026-08-27T00:00:00+00:00",
+      },
+      {
+        id: "assistant-2",
+        role: "assistant",
+        text: "Hello Kumar",
+        status: "completed",
+        sequence: 2,
+        timestamp: "2026-08-27T00:00:00+00:00",
+      },
+      {
+        id: "user-6",
+        role: "user",
+        text: "What can you do?",
+        status: "completed",
+        sequence: 6,
+        timestamp: "2026-08-27T00:00:00+00:00",
+      },
+      {
+        id: "assistant-7",
+        role: "assistant",
+        text: "Quite a lot.",
+        status: "completed",
+        sequence: 7,
+        timestamp: "2026-08-27T00:00:00+00:00",
+      },
+    ]);
+
+    expect(store.getSnapshot().assistantText).toBe("Quite a lot.");
+  });
+
+  it("updates the active assistant history message while streaming", async () => {
+    const client = new FakeRuntimeClient();
+    const store = new FridayRuntimeStore(
+      client as never,
+    );
+
+    await store.start();
+
+    client.liveHandler?.(
+      event(1, {
+        event_type: "conversation.user_text",
+        text: "Hi",
+      }),
+    );
+
+    client.liveHandler?.(
+      event(2, {
+        event_type: "conversation.assistant.started",
+        state: "thinking",
+      }),
+    );
+
+    client.liveHandler?.(
+      event(3, {
+        event_type: "conversation.assistant.delta",
+        state: "thinking",
+        text: "Hel",
+        transient: true,
+      }),
+    );
+
+    client.liveHandler?.(
+      event(4, {
+        event_type: "conversation.assistant.delta",
+        state: "thinking",
+        text: "lo",
+        transient: true,
+      }),
+    );
+
+    expect(store.getSnapshot().conversation.at(-1)).toMatchObject({
+      role: "assistant",
+      text: "Hello",
+      status: "streaming",
+    });
+
+    client.liveHandler?.(
+      event(5, {
+        event_type: "conversation.assistant.completed",
+        text: "Hello",
+      }),
+    );
+
+    expect(store.getSnapshot().conversation.at(-1)).toMatchObject({
+      role: "assistant",
+      text: "Hello",
+      status: "completed",
+    });
+  });
+
   it("ignores duplicate or stale live events", async () => {
     const client = new FakeRuntimeClient();
 

@@ -8,6 +8,9 @@ export type {
 
 export type {
   ConversationRequest,
+  FridayConversationMessage,
+  FridayConversationRole,
+  FridayConversationStatus,
   FridayEventType,
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,

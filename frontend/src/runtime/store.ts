@@ -1,6 +1,7 @@
 import { FridayRuntimeClient } from "./client";
 import type {
   ConversationRequest,
+  FridayConversationMessage,
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
   FridayRuntimeState,
@@ -19,6 +20,7 @@ export interface FridayRuntimeViewState {
   connectionState: FridayConnectionState;
   cursor: number;
   events: readonly FridayRuntimeEvent[];
+  conversation: readonly FridayConversationMessage[];
   assistantText: string;
   error: string | null;
 }
@@ -31,6 +33,7 @@ const DEFAULT_STATE: FridayRuntimeViewState = {
   connectionState: "disconnected",
   cursor: 0,
   events: [],
+  conversation: [],
   assistantText: "",
   error: null,
 };
@@ -170,15 +173,50 @@ export class FridayRuntimeStore {
       patch.runtimeState = event.state;
     }
 
+    if (
+      event.event_type === "conversation.user_text" &&
+      event.text !== null
+    ) {
+      patch.conversation = [
+        ...this.state.conversation,
+        {
+          id: `user-${event.sequence}`,
+          role: "user" as const,
+          text: event.text,
+          status: "completed" as const,
+          sequence: event.sequence,
+          timestamp: event.timestamp,
+        },
+      ].slice(-100);
+    }
+
     if (event.event_type === "conversation.assistant.started") {
       patch.assistantText = "";
+      patch.conversation = [
+        ...this.state.conversation,
+        {
+          id: `assistant-${event.sequence}`,
+          role: "assistant" as const,
+          text: "",
+          status: "streaming" as const,
+          sequence: event.sequence,
+          timestamp: event.timestamp,
+        },
+      ].slice(-100);
     }
 
     if (
       event.event_type === "conversation.assistant.delta" &&
       event.text
     ) {
-      patch.assistantText = this.state.assistantText + event.text;
+      const assistantText = this.state.assistantText + event.text;
+
+      patch.assistantText = assistantText;
+      patch.conversation = updateLatestAssistant(
+        this.state.conversation,
+        assistantText,
+        "streaming",
+      );
     }
 
     if (
@@ -186,6 +224,11 @@ export class FridayRuntimeStore {
       event.text !== null
     ) {
       patch.assistantText = event.text;
+      patch.conversation = updateLatestAssistant(
+        this.state.conversation,
+        event.text,
+        "completed",
+      );
     }
 
     if (event.event_type === "runtime.error") {
@@ -234,6 +277,30 @@ export class FridayRuntimeStore {
       listener(this.state);
     }
   }
+}
+
+function updateLatestAssistant(
+  conversation: readonly FridayConversationMessage[],
+  text: string,
+  status: FridayConversationMessage["status"],
+): readonly FridayConversationMessage[] {
+  const index = [...conversation]
+    .map((message) => message.role)
+    .lastIndexOf("assistant");
+
+  if (index < 0) {
+    return conversation;
+  }
+
+  return conversation.map((message, messageIndex) =>
+    messageIndex === index
+      ? {
+          ...message,
+          text,
+          status,
+        }
+      : message,
+  );
 }
 
 function errorMessage(error: unknown): string {
