@@ -42,6 +42,16 @@ class FridayConversationService:
         if not prompt or not prompt.strip():
             raise ValueError("prompt must be a non-empty string")
 
+        if self.runtime.state in {
+            FridayRuntimeState.COMPLETED,
+            FridayRuntimeState.ERROR,
+            FridayRuntimeState.CANCELLED,
+        }:
+            self.runtime.transition(
+                FridayRuntimeState.IDLE,
+                reason="conversation_ready",
+            )
+
         self.runtime.emit(
             FridayEventType.CONVERSATION_USER_TEXT,
             text=prompt,

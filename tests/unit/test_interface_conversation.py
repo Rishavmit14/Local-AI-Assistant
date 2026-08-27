@@ -70,6 +70,36 @@ def test_stream_response_emits_real_conversation_runtime_events():
     assert all(event.transient for event in deltas)
 
 
+def test_stream_response_accepts_consecutive_conversations():
+    runtime = FridayRuntime("session-consecutive")
+    llm = FakeStreamingLLM(["ok"])
+    service = FridayConversationService(llm, runtime)
+
+    first = "".join(service.stream_response("First"))
+    second = "".join(service.stream_response("Second"))
+
+    assert first == "ok"
+    assert second == "ok"
+    assert runtime.state is FridayRuntimeState.COMPLETED
+    assert [call["prompt"] for call in llm.calls] == ["First", "Second"]
+
+    events = runtime.events_since()
+
+    second_user_index = next(
+        index
+        for index, event in enumerate(events)
+        if event.event_type is FridayEventType.CONVERSATION_USER_TEXT
+        and event.text == "Second"
+    )
+
+    ready_event = events[second_user_index - 1]
+
+    assert ready_event.event_type is FridayEventType.RUNTIME_STATE_CHANGED
+    assert ready_event.state is FridayRuntimeState.IDLE
+    assert ready_event.metadata["previous_state"] == "completed"
+    assert ready_event.metadata["reason"] == "conversation_ready"
+
+
 def test_stream_response_passes_generation_configuration_to_llm():
     runtime = FridayRuntime("session-config")
     llm = FakeStreamingLLM(["ok"])

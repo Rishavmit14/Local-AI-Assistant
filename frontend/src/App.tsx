@@ -1,10 +1,16 @@
 import "./App.css";
 
 import { useFridayRuntime } from "./app";
-import { NeuralCore } from "./components";
+import {
+  ConversationComposer,
+  NeuralCore,
+} from "./components";
 
 function App() {
-  const { state } = useFridayRuntime();
+  const {
+    state,
+    sendConversation,
+  } = useFridayRuntime();
 
   return (
     <main
@@ -23,6 +29,18 @@ function App() {
       </header>
 
       <NeuralCore state={state.runtimeState} />
+
+      <ConversationComposer
+        runtimeState={state.runtimeState}
+        connectionState={state.connectionState}
+        assistantText={state.assistantText}
+        error={state.error}
+        sendConversation={(prompt) =>
+          sendConversation({
+            prompt,
+          })
+        }
+      />
 
       <footer className="system-strip">
         <div className="system-item">

@@ -103,6 +103,42 @@ describe("FridayRuntimeStore", () => {
     expect(state.connectionState).toBe("connected");
   });
 
+  it("restores the last completed assistant response from replay", async () => {
+    const client = new FakeRuntimeClient();
+
+    client.snapshot = {
+      session_id: "session-test",
+      state: "completed",
+    };
+
+    client.replay = [
+      event(1, {
+        event_type: "conversation.assistant.completed",
+        text: "I am Friday.",
+      }),
+      event(2, {
+        event_type: "runtime.state.changed",
+        state: "completed",
+      }),
+      event(3, {
+        event_type: "conversation.user_text",
+        text: "What can you do?",
+      }),
+    ];
+
+    const store = new FridayRuntimeStore(
+      client as never,
+    );
+
+    await store.start();
+
+    const state = store.getSnapshot();
+
+    expect(state.runtimeState).toBe("completed");
+    expect(state.assistantText).toBe("I am Friday.");
+    expect(state.cursor).toBe(3);
+  });
+
   it("ignores duplicate or stale live events", async () => {
     const client = new FakeRuntimeClient();
 
