@@ -6,6 +6,7 @@ from .events import FridayEventType, FridayRuntimeEvent
 from .runtime import FridayRuntime, InvalidRuntimeTransition
 from .service import FridayInterfaceService, RepositorySnapshot
 from .states import FridayRuntimeState
+from .voice_conversation import FridayVoiceConversationService, VoiceTranscriber
 
 __all__ = [
     "FridayConversationService",
@@ -14,8 +15,10 @@ __all__ = [
     "FridayRuntime",
     "FridayRuntimeEvent",
     "FridayRuntimeState",
+    "FridayVoiceConversationService",
     "InvalidRuntimeTransition",
     "RepositorySnapshot",
     "StreamingLLM",
+    "VoiceTranscriber",
     "create_presentation_app",
 ]
