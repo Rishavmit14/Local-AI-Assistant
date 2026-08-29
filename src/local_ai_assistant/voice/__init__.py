@@ -21,12 +21,25 @@ from .vad import (
     VoiceVadConfig,
     pcm16_dbfs,
 )
+from .whisper import (
+    DEFAULT_WHISPER_CLI_PATH,
+    DEFAULT_WHISPER_MODEL_PATH,
+    DEFAULT_WHISPER_MODEL_SHA256,
+    WhisperCppConfig,
+    WhisperCppTranscriber,
+    WhisperTranscript,
+    WhisperTranscriptionError,
+    verify_whisper_model_sha256,
+)
 
 __all__ = [
     "AlsaAudioCapture",
     "AlsaPcmStream",
     "DEFAULT_SILERO_MODEL_PATH",
     "DEFAULT_SILERO_MODEL_SHA256",
+    "DEFAULT_WHISPER_CLI_PATH",
+    "DEFAULT_WHISPER_MODEL_PATH",
+    "DEFAULT_WHISPER_MODEL_SHA256",
     "PcmEnergyVad",
     "SileroVad",
     "SileroVadConfig",
@@ -39,5 +52,10 @@ __all__ = [
     "VoiceSegmentationResult",
     "VoiceUtterance",
     "VoiceVadConfig",
+    "WhisperCppConfig",
+    "WhisperCppTranscriber",
+    "WhisperTranscript",
+    "WhisperTranscriptionError",
     "pcm16_dbfs",
+    "verify_whisper_model_sha256",
 ]
