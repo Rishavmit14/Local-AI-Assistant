@@ -3,7 +3,12 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Protocol
 
-from local_ai_assistant.voice import VoiceUtterance, WhisperTranscript
+from local_ai_assistant.voice import (
+    PiperAudioChunk,
+    SpeechPlaybackResult,
+    VoiceUtterance,
+    WhisperTranscript,
+)
 
 from .conversation import FridayConversationService
 from .events import FridayEventType
@@ -29,10 +34,30 @@ class VoiceTranscriber(Protocol):
         ...
 
 
+class VoiceSpeechSynthesizer(Protocol):
+    """Minimal local speech-synthesis boundary used by voice orchestration."""
+
+    def stream(
+        self,
+        text: str,
+    ) -> Iterator[PiperAudioChunk]:
+        ...
+
+
+class VoiceSpeechPlayer(Protocol):
+    """Minimal local speaker boundary used by voice orchestration."""
+
+    def play(
+        self,
+        chunks: Iterator[PiperAudioChunk],
+    ) -> SpeechPlaybackResult:
+        ...
+
+
 class FridayVoiceConversationService:
     """
     Route completed voice utterances through Friday's existing
-    conversation boundary.
+    conversation boundary and optionally speak the completed response.
     """
 
     def __init__(
@@ -40,10 +65,25 @@ class FridayVoiceConversationService:
         transcriber: VoiceTranscriber,
         conversation: FridayConversationService,
         runtime: FridayRuntime,
+        *,
+        speech_synthesizer: VoiceSpeechSynthesizer | None = None,
+        speech_player: VoiceSpeechPlayer | None = None,
     ) -> None:
+        if (
+            speech_synthesizer is None
+        ) != (
+            speech_player is None
+        ):
+            raise ValueError(
+                "speech_synthesizer and speech_player "
+                "must be configured together"
+            )
+
         self.transcriber = transcriber
         self.conversation = conversation
         self.runtime = runtime
+        self.speech_synthesizer = speech_synthesizer
+        self.speech_player = speech_player
 
     def start_listening(self) -> None:
         if self.runtime.state in _TERMINAL_STATES:
@@ -136,15 +176,140 @@ class FridayVoiceConversationService:
             )
             return
 
-        yield from self.conversation.stream_response(
+        response_parts: list[str] = []
+
+        for chunk in self.conversation.stream_response(
             text,
             system_prompt=system_prompt,
             temperature=temperature,
             max_tokens=max_tokens,
+        ):
+            response_parts.append(
+                chunk
+            )
+
+            yield chunk
+
+        self._speak_response(
+            "".join(
+                response_parts
+            )
+        )
+
+    def _speak_response(
+        self,
+        text: str,
+    ) -> None:
+        synthesizer = (
+            self.speech_synthesizer
+        )
+
+        player = (
+            self.speech_player
+        )
+
+        if (
+            synthesizer is None
+            or player is None
+        ):
+            return
+
+        spoken_text = text.strip()
+
+        if not spoken_text:
+            return
+
+        if (
+            self.runtime.state
+            is not FridayRuntimeState.COMPLETED
+        ):
+            raise InvalidRuntimeTransition(
+                "voice speech requires completed "
+                "conversation state; "
+                f"runtime is {self.runtime.state.value}"
+            )
+
+        self.runtime.transition(
+            FridayRuntimeState.SPEAKING,
+            reason="voice_speech_started",
+        )
+
+        self.runtime.emit(
+            FridayEventType.VOICE_SPEECH_STARTED,
+            state=FridayRuntimeState.SPEAKING,
+            text=spoken_text,
+            metadata={
+                "characters": len(
+                    spoken_text
+                ),
+            },
+        )
+
+        try:
+            result = player.play(
+                synthesizer.stream(
+                    spoken_text
+                )
+            )
+
+        except Exception as exc:
+            self.runtime.emit(
+                FridayEventType.RUNTIME_ERROR,
+                state=FridayRuntimeState.SPEAKING,
+                text="voice speech failed",
+                metadata={
+                    "error_type": type(exc).__name__,
+                },
+            )
+
+            if (
+                self.runtime.state
+                is not FridayRuntimeState.ERROR
+            ):
+                self.runtime.transition(
+                    FridayRuntimeState.ERROR,
+                    reason="voice_speech_failed",
+                )
+
+            raise
+
+        metadata = {
+            "elapsed_seconds": result.elapsed_seconds,
+            "pcm_bytes_written": result.pcm_bytes_written,
+            "sample_rate": result.sample_rate,
+        }
+
+        if result.interrupted:
+            self.runtime.emit(
+                FridayEventType.VOICE_SPEECH_INTERRUPTED,
+                state=FridayRuntimeState.SPEAKING,
+                text=spoken_text,
+                metadata=metadata,
+            )
+
+            self.runtime.transition(
+                FridayRuntimeState.IDLE,
+                reason="voice_speech_interrupted",
+            )
+
+            return
+
+        self.runtime.emit(
+            FridayEventType.VOICE_SPEECH_COMPLETED,
+            state=FridayRuntimeState.SPEAKING,
+            text=spoken_text,
+            metadata=metadata,
+        )
+
+        self.runtime.transition(
+            FridayRuntimeState.IDLE,
+            reason="voice_speech_completed",
         )
 
 
 __all__ = [
     "FridayVoiceConversationService",
+    "VoiceSpeechPlayer",
+    "VoiceSpeechSynthesizer",
     "VoiceTranscriber",
 ]
