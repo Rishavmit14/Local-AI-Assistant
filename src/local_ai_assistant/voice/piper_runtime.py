@@ -176,6 +176,8 @@ class PipeWirePlayerConfig:
         DEFAULT_PW_PLAY_PATH
     )
 
+    target: str | int | None = None
+
     stop_timeout_seconds: float = 1.0
 
     def __post_init__(
@@ -1637,10 +1639,9 @@ class PipeWireSpeechPlayer:
         self,
         sample_rate: int,
     ) -> list[str]:
-        return [
+        command = [
             str(
-                self.config
-                .player_path
+                self.config.player_path
             ),
             "--raw",
             f"--rate={sample_rate}",
@@ -1649,6 +1650,20 @@ class PipeWireSpeechPlayer:
             "--format=s16",
             "-",
         ]
+
+        if (
+            self.config.target
+            is not None
+        ):
+            command.insert(
+                1,
+                (
+                    "--target="
+                    f"{self.config.target}"
+                ),
+            )
+
+        return command
 
     def _stop_process(
         self,

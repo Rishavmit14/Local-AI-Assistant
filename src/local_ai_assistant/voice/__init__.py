@@ -1,8 +1,25 @@
+from .aec import (
+    PipeWireAecConfig,
+    PipeWireAecEndpoints,
+    PipeWireAecError,
+    PipeWireAecSession,
+    PipeWirePcmCapture,
+    PipeWirePcmCaptureConfig,
+    PipeWirePcmStream,
+)
 from .audio import (
     AlsaAudioCapture,
     AlsaPcmStream,
     VoiceAudioConfig,
     VoiceCaptureError,
+)
+from .barge_in import (
+    BargeInError,
+    BargeInPolicy,
+    BargeInResult,
+    FridayBargeInMonitor,
+    SpeechStopper,
+    build_barge_in_segmenter,
 )
 from .piper_runtime import (
     DEFAULT_PIPER_MODEL_PATH,
@@ -92,4 +109,17 @@ __all__ = [
     "pcm16_dbfs",
     "verify_piper_model_sha256",
     "verify_whisper_model_sha256",
+    "BargeInError",
+    "BargeInPolicy",
+    "BargeInResult",
+    "FridayBargeInMonitor",
+    "PipeWireAecConfig",
+    "PipeWireAecEndpoints",
+    "PipeWireAecError",
+    "PipeWireAecSession",
+    "PipeWirePcmCapture",
+    "PipeWirePcmCaptureConfig",
+    "PipeWirePcmStream",
+    "SpeechStopper",
+    "build_barge_in_segmenter",
 ]
