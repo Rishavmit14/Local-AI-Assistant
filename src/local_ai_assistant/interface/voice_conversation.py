@@ -160,6 +160,105 @@ class FridayVoiceConversationService:
             ),
         )
 
+    def stream_text(
+        self,
+        text: str,
+        *,
+        system_prompt: str = (
+            "You are Friday, a precise, technically accurate AI assistant."
+        ),
+        temperature: float = 0.2,
+        max_tokens: int = 1024,
+    ) -> Iterator[str]:
+        if (
+            self.runtime.state
+            is not
+            FridayRuntimeState
+            .LISTENING
+        ):
+            raise InvalidRuntimeTransition(
+                "voice text requires "
+                "listening state; "
+                f"runtime is "
+                f"{self.runtime.state.value}"
+            )
+
+        prompt = text.strip()
+
+        self.runtime.emit(
+            FridayEventType
+            .VOICE_LISTENING_STOPPED,
+            state=(
+                FridayRuntimeState
+                .LISTENING
+            ),
+            metadata={
+                "reason":
+                    "inline_wake_command",
+            },
+        )
+
+        self.runtime.transition(
+            FridayRuntimeState
+            .TRANSCRIBING,
+            reason=(
+                "inline_wake_command_ready"
+            ),
+        )
+
+        self.runtime.emit(
+            FridayEventType
+            .VOICE_TRANSCRIPTION,
+            state=(
+                FridayRuntimeState
+                .TRANSCRIBING
+            ),
+            text=prompt,
+            metadata={
+                "source":
+                    "wake_remainder",
+                "transcriber":
+                    "wake_asr",
+            },
+        )
+
+        if not prompt:
+            self.runtime.transition(
+                FridayRuntimeState.IDLE,
+                reason=(
+                    "voice_text_empty"
+                ),
+            )
+            return
+
+        response_parts: list[str] = []
+
+        for chunk in (
+            self.conversation
+            .stream_response(
+                prompt,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        ):
+            response_parts.append(chunk)
+            yield chunk
+
+        response_text = "".join(response_parts)
+
+        interruption = self._speak_response(
+            response_text
+        )
+
+        if interruption is not None:
+            yield from self.stream_utterance(
+                interruption,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
     def stream_utterance(
         self,
         utterance: VoiceUtterance,

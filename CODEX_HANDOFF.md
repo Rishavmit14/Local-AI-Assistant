@@ -997,3 +997,31 @@ Do not use chat history as the only project memory. The durable source of truth 
 As of the accepted Stage 11/Stage 12B voice baseline, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11 has an accepted production conversational/wake platform with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, enabled user-session systemd deployment, and production natural-language barge-in. The accepted barge-in path uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`, captures the published `friday_aec_source` explicitly, suppresses Piper/speaker echo while preserving human interruption speech, stops active playback, and feeds the captured interruption back into the existing conversation boundary. Stage 12B additionally hardens blocked wake-microphone reads: pause/stop retire the shared stream before close, retired-stream EOF/capture errors are lifecycle cancellation, genuine errors from the still-current stream fail closed, pause leaves the wake loop alive/quiescent, resume opens a fresh stream, and stop terminates cleanly. Production qualification showed patched restart/shutdown without systemd timeout and a complete live wake/pause/voice/resume sequence. Stage 12 remains active for explicit stop semantics and the remaining microphone/runtime lifecycle hardening. `ROADMAP.md` extends the product into durable personal memory, visual perception, safe desktop control, autonomous execution, proactive automation, multi-agent/multi-model orchestration, and bounded self-learning/research.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
+
+## Stage 12C-A — inline wake command semantics
+
+Status: **ACCEPTED** on 2026-08-30.
+
+What works:
+- `Hey Friday, <command>` uses the strict wake matcher remainder as the first user
+  text for the voice conversation.
+- The original wake audio is not retranscribed by Whisper for inline commands.
+- Existing runtime state semantics are preserved through a synthetic
+  `TRANSCRIBING` boundary before the conversation enters `THINKING`.
+- Wake capture is paused before the voice turn and resumed after completion.
+- Existing production WebRTC AEC barge-in topology remains unchanged.
+
+Live-qualified production PID before acceptance commit: 66990.
+
+Current limitation:
+- bare `Hey Friday` still follows the pre-12C-A utterance behavior; dedicated
+  follow-up command capture is not yet implemented.
+- Markdown intended for visual rendering is not yet normalized before Piper TTS;
+  `**4**` can be verbalized with the asterisk characters.
+
+Next Stage 12 work:
+1. Stage 12C-B bare wake -> acknowledge/listen -> second utterance command.
+2. explicit `Friday, stop` semantics.
+3. capture-thread health supervision/restart.
+4. wake voice vs HTTP/presentation concurrency policy.
+5. TTS text normalization for Markdown/symbol-heavy LLM output.

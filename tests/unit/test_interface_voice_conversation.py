@@ -422,3 +422,79 @@ def test_next_voice_turn_recovers_from_completed() -> None:
     ]
 
     assert "voice_ready" in reasons
+
+
+def test_inline_text_enters_conversation_without_transcriber() -> None:
+    voice, transcriber, llm, runtime = (
+        make_service(
+            chunks=[
+                "It is ",
+                "noon.",
+            ],
+        )
+    )
+
+    voice.start_listening()
+
+    output = "".join(
+        voice.stream_text(
+            "  what time is it  ",
+            system_prompt="Friday inline text test",
+            temperature=0.3,
+            max_tokens=64,
+        )
+    )
+
+    assert output == "It is noon."
+    assert transcriber.calls == []
+
+    assert llm.calls == [
+        {
+            "prompt": "what time is it",
+            "system_prompt": "Friday inline text test",
+            "temperature": 0.3,
+            "max_tokens": 64,
+        }
+    ]
+
+    assert (
+        runtime.state
+        is FridayRuntimeState.COMPLETED
+    )
+
+    events = runtime.events_since()
+
+    transcription = next(
+        event
+        for event in events
+        if (
+            event.event_type
+            is FridayEventType.VOICE_TRANSCRIPTION
+        )
+    )
+
+    assert transcription.text == (
+        "what time is it"
+    )
+
+    assert transcription.metadata == {
+        "source": "wake_remainder",
+        "transcriber": "wake_asr",
+    }
+
+    states = [
+        event.state
+        for event in events
+        if (
+            event.event_type
+            is FridayEventType.RUNTIME_STATE_CHANGED
+            and event.state is not None
+        )
+    ]
+
+    assert states == [
+        FridayRuntimeState.LISTENING,
+        FridayRuntimeState.TRANSCRIBING,
+        FridayRuntimeState.THINKING,
+        FridayRuntimeState.COMPLETED,
+    ]

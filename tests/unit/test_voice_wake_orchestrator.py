@@ -200,12 +200,27 @@ def test_handoff_pauses_before_voice_and_resumes_after(
     )
 
 
-def test_existing_utterance_is_reused(
+def test_inline_wake_remainder_bypasses_original_utterance(
 ) -> None:
 
     capture = FakeWakeCapture()
 
-    voice = FakeVoice()
+    class InlineVoice(FakeVoice):
+        def __init__(self) -> None:
+            super().__init__()
+            self.text_calls = []
+
+        def stream_text(
+            self,
+            text,
+            **kwargs,
+        ):
+            self.text_calls.append(
+                (text, kwargs)
+            )
+            yield "direct"
+
+    voice = InlineVoice()
 
     event = wake_event(
         remainder=(
@@ -233,15 +248,29 @@ def test_existing_utterance_is_reused(
     )
 
 
-    assert (
-        voice.received
-        is event.utterance
-    )
+    assert voice.received is None
+    assert voice.stream_calls == 0
+
+    assert voice.text_calls == [
+        (
+            "what time is it",
+            {
+                "system_prompt": (
+                    "You are Friday, a precise, "
+                    "technically accurate AI assistant."
+                ),
+                "temperature": 0.2,
+                "max_tokens": 1024,
+            },
+        )
+    ]
 
     assert (
         result.wake_remainder
         == "what time is it"
     )
+
+    assert result.response_text == "direct"
 
 
 def test_resume_occurs_when_voice_turn_fails(
@@ -384,3 +413,124 @@ def test_voice_stream_is_fully_consumed_before_resume(
     )
 
     assert not capture.paused
+
+
+def test_inline_wake_command_uses_remainder_without_retranscribing_wake_audio() -> None:
+    capture = FakeWakeCapture()
+
+    class InlineCommandVoice(FakeVoice):
+        def __init__(self) -> None:
+            super().__init__()
+            self.text_calls = []
+
+        def stream_text(
+            self,
+            text,
+            **kwargs,
+        ):
+            self.text_calls.append(
+                {
+                    "text": text,
+                    "kwargs": kwargs,
+                }
+            )
+            yield "It is noon."
+
+        def stream_utterance(
+            self,
+            utterance,
+            **kwargs,
+        ):
+            del utterance
+            del kwargs
+            raise AssertionError(
+                "inline wake command must not retranscribe the original wake utterance"
+            )
+            yield
+
+    voice = InlineCommandVoice()
+    voice.capture = capture
+
+    event = wake_event(
+        remainder="what time is it",
+    )
+
+    orchestrator = FridayWakeVoiceOrchestrator(
+        cast(
+            object,
+            capture,
+        ),
+        voice,
+    )
+
+    result = orchestrator.handle_wake_utterance(
+        event,
+        system_prompt="Friday inline command test",
+        temperature=0.3,
+        max_tokens=64,
+    )
+
+    assert capture.pause_calls == 1
+    assert capture.resume_calls == 1
+    assert not capture.paused
+
+    assert voice.started == 1
+    assert voice.stream_calls == 0
+
+    assert voice.text_calls == [
+        {
+            "text": "what time is it",
+            "kwargs": {
+                "system_prompt": "Friday inline command test",
+                "temperature": 0.3,
+                "max_tokens": 64,
+            },
+        }
+    ]
+
+    assert result.wake_remainder == (
+        "what time is it"
+    )
+    assert result.response_text == (
+        "It is noon."
+    )
+
+
+def test_bare_wake_does_not_use_inline_text_path() -> None:
+    capture = FakeWakeCapture()
+
+    class BareWakeVoice(FakeVoice):
+        def __init__(self) -> None:
+            super().__init__()
+            self.text_calls = []
+
+        def stream_text(
+            self,
+            text,
+            **kwargs,
+        ):
+            self.text_calls.append(
+                (text, kwargs)
+            )
+            yield "unexpected"
+
+    voice = BareWakeVoice()
+    voice.capture = capture
+
+    orchestrator = FridayWakeVoiceOrchestrator(
+        cast(
+            object,
+            capture,
+        ),
+        voice,
+    )
+
+    result = orchestrator.handle_wake_utterance(
+        wake_event(
+            remainder="",
+        )
+    )
+
+    assert voice.text_calls == []
+    assert voice.stream_calls == 1
+    assert result.wake_remainder == ""

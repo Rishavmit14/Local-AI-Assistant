@@ -53,3 +53,19 @@ Real-repository onboarding is partially implemented through onboarding services/
 # Stage 11
 
 The current accepted Stage 11 baseline is the persistent Friday conversational/wake platform with production WebRTC AEC-backed natural-language barge-in. Stage 12B hardened the always-on wake microphone lifecycle: deterministic concurrency tests proved that intentional pause/stop could previously surface blocked-read EOF/errors as false microphone failures; the accepted fix retires the shared stream before close, treats retired-stream unwind as cancellation, preserves fail-closed handling for genuine current-stream capture failures, keeps pause quiescent rather than terminating the loop, and reacquires a fresh stream on resume. Production qualification then completed two controlled restarts without systemd stop timeout and a live wake/pause/voice/resume turn on the patched process. Stage 12 remains active for explicit stop semantics, wake-then-separate-command behavior, capture health/recovery, concurrency policy, observability, and longer-running voice stability.
+
+## Stage 12C-A — inline wake command semantics
+
+2026-08-30 — Accepted inline wake-command semantics.
+
+- Added direct text entry to `FridayVoiceConversationService`.
+- Routed non-empty `WakeSupervisorResult.remainder` through that direct-text entry.
+- Preserved authoritative `LISTENING -> TRANSCRIBING -> THINKING -> COMPLETED`
+  runtime transitions without invoking Whisper for the wake utterance.
+- Replaced the obsolete test contract that required inline wake audio reuse.
+- Live production qualification proved wake acceptance, LLM execution, playback,
+  wake resume, and no `WHISPER_BEGIN` for inline wake commands.
+- Deterministic live command `Hey Friday, what is two plus two?` produced the
+  semantically correct answer 4.
+- Recorded the remaining Piper Markdown-verbalization limitation (`**4**` may
+  include spoken asterisks).

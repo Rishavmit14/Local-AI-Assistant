@@ -37,6 +37,19 @@ class VoiceConversationBoundary(
     ) -> None:
         ...
 
+    def stream_text(
+        self,
+        text: str,
+        *,
+        system_prompt: str = (
+            "You are Friday, a precise, "
+            "technically accurate AI assistant."
+        ),
+        temperature: float = 0.2,
+        max_tokens: int = 1024,
+    ) -> Iterator[str]:
+        ...
+
     def stream_utterance(
         self,
         utterance: VoiceUtterance,
@@ -114,21 +127,38 @@ class FridayWakeVoiceOrchestrator:
 
             self.voice.start_listening()
 
-            chunks = (
-                self.voice
-                .stream_utterance(
-                    event.utterance,
-                    system_prompt=(
-                        system_prompt
-                    ),
-                    temperature=(
-                        temperature
-                    ),
-                    max_tokens=(
-                        max_tokens
-                    ),
+            if event.result.remainder:
+                chunks = (
+                    self.voice
+                    .stream_text(
+                        event.result.remainder,
+                        system_prompt=(
+                            system_prompt
+                        ),
+                        temperature=(
+                            temperature
+                        ),
+                        max_tokens=(
+                            max_tokens
+                        ),
+                    )
                 )
-            )
+            else:
+                chunks = (
+                    self.voice
+                    .stream_utterance(
+                        event.utterance,
+                        system_prompt=(
+                            system_prompt
+                        ),
+                        temperature=(
+                            temperature
+                        ),
+                        max_tokens=(
+                            max_tokens
+                        ),
+                    )
+                )
 
             response_parts: list[str] = []
 

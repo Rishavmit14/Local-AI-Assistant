@@ -96,3 +96,47 @@ The permanent authority direction is `voice/UI/external adapters -> Friday nativ
 - localhost binding is the default network boundary; remote exposure needs authentication and TLS.
 - private/generated data never enters Git.
 - high-risk production, security, payment, smart-contract, migration, and deployment changes always require explicit human review.
+
+## Stage 12C-A — inline wake command semantics
+
+Accepted on 2026-08-30.
+
+Friday now distinguishes an inline wake command from a bare wake phrase. When the
+strict wake matcher accepts `Hey Friday, <command>`, the normalized wake remainder
+is routed directly into the existing conversation boundary instead of sending the
+original wake audio through Whisper a second time.
+
+Accepted production flow:
+
+```text
+raw wake microphone
+  -> wake VAD
+  -> Parakeet Full / Moonshine strict wake detection
+  -> strict `Hey Friday` matcher
+  -> non-empty wake remainder
+  -> Friday voice runtime LISTENING
+  -> synthetic TRANSCRIBING boundary using wake-ASR text
+  -> conversation / LLM
+  -> Piper playback
+  -> wake capture resumes
+```
+
+The runtime state contract remains authoritative:
+`LISTENING -> TRANSCRIBING -> THINKING -> COMPLETED`.
+
+This change does not alter bare-wake behavior. Bare `Hey Friday` follow-up capture
+remains the next Stage 12C capability.
+
+Qualification evidence:
+- deterministic regression proves inline wake remainder bypasses original wake audio;
+- direct-text voice regression proves no Whisper transcriber call is made;
+- repository verification passed with 614 tests before production qualification;
+- controlled production restart loaded the patch successfully;
+- live `Hey Friday, what time is it?` reached the LLM with no `WHISPER_BEGIN`;
+- live `Hey Friday, what is two plus two?` was accepted on the first retry-tolerant
+  qualification attempt, reached the LLM with no Whisper retranscription, played
+  speech, resumed wake capture, and the user confirmed the semantic answer was 4.
+
+Known limitation: LLM Markdown can currently reach Piper unsanitized. For example,
+`**4**` may be spoken as literal "asterisk asterisk four asterisk asterisk".
+This is a TTS text-normalization limitation, not a wake-command routing failure.

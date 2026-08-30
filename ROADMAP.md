@@ -120,3 +120,22 @@ Add trusted-source collection, provenance, domain indexing, knowledge-gap identi
 - Unified final platform: llama-server and specialized local models feeding local chat, document/repository RAG, code intelligence, planner/coder/reviewer/debugger/test/security roles, Git transaction manager, task history, Friday-native interface/event services, persistent conversational voice, deep memory, visual perception, safe desktop control, proactive automation, orchestrated agents/models, and the cinematic Friday desktop UI.
 
 The product definition of done includes local chat; private RAG/OCR; repo Q&A and symbol tracing; planning and multi-file safe edits; build/test/lint/typecheck; bounded repair; code/security review; deterministic project instructions; persistent Friday memory; risk/confidence gates; Git isolation/commit/rollback/worktrees; history/metrics/UI; multi-language work; a Friday-native integration gateway with optional GitHub/MCP/external adapters; production conversational voice with interruption; visual perception; safe desktop control; bounded autonomous execution; proactive automation; multi-agent/multi-model orchestration; and bounded research/self-learning workflows. High-risk changes retain explicit human review.
+
+## Stage 12C-A — inline wake command semantics
+
+**Status: ACCEPTED**
+
+Completed:
+- inline `Hey Friday, <command>` remainder routing;
+- no duplicate Whisper transcription for inline commands;
+- authoritative runtime-state preservation;
+- deterministic unit/regression coverage;
+- live production qualification with wake pause/resume and AEC preserved.
+
+Still pending within Stage 12:
+- bare `Hey Friday` acknowledgement + second-utterance capture;
+- explicit `Friday, stop`;
+- capture-thread health supervision/restart;
+- wake/HTTP runtime concurrency policy;
+- barge-in observability and long-running voice stability;
+- TTS text normalization so Markdown such as `**4**` is spoken naturally.

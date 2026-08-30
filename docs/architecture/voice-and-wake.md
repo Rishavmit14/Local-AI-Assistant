@@ -42,3 +42,22 @@ Pause semantics are deliberately quiescent rather than terminating: the wake loo
 - wake-then-separate-command semantics;
 - capture-thread health supervision/restart;
 - final concurrent HTTP/presentation versus wake-turn policy.
+
+## Stage 12C-A — inline wake command semantics
+
+For a wake transcript that strictly matches `Hey Friday` and has a non-empty
+remainder, the wake detector's remainder is authoritative for the first
+conversation turn. The orchestration layer pauses wake capture, calls the voice
+service's direct-text boundary, and does **not** pass the original wake
+`VoiceUtterance` through Whisper.
+
+The direct-text boundary emits `VOICE_LISTENING_STOPPED`, enters
+`TRANSCRIBING`, emits `VOICE_TRANSCRIPTION` with metadata identifying
+`source=wake_remainder` and `transcriber=wake_asr`, then delegates to the normal
+conversation service. This preserves existing runtime-state rules instead of
+adding a direct `LISTENING -> THINKING` transition.
+
+Bare wake semantics are intentionally not changed by this accepted substage.
+
+Known speech-output limitation: response Markdown is not yet sanitized before
+Piper; emphasis syntax such as `**4**` may be verbalized literally.
