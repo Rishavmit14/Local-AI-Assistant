@@ -76,11 +76,11 @@ Accepted: Streamlit removal; `FridayInterfaceService`; native presentation API/e
 
 Production barge-in uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`. The physical/default speaker monitor supplies the echo reference while `friday_aec_source` supplies the cleaned microphone stream exclusively to `FridayBargeInMonitor`; wake capture remains on the normal raw microphone path. Live qualification proved strong speaker-echo suppression, preserved human speech above the existing trusted interruption gate, normal wake conversation, natural interruption without repeating the wake phrase, and stable service operation.
 
-Remaining: deterministic blocked-read pause/stop hardening; explicit `Friday, stop` semantics; wake-then-separate-command semantics; capture-thread health supervision/restart; concurrent HTTP/presentation versus wake-turn policy; richer visual listening/thinking/speaking/interruption states; and longer-running voice stability qualification.
+Remaining: explicit `Friday, stop` semantics; wake-then-separate-command semantics; capture-thread health supervision/restart; concurrent HTTP/presentation versus wake-turn policy; richer visual listening/thinking/speaking/interruption states; and longer-running voice stability qualification.
 
 ## Stage 12 — Production Voice Lifecycle (**Active**)
 
-Production AEC-backed natural interruption is accepted. Continue the remaining microphone/runtime lifecycle hardening: explicit stop semantics, blocked-read pause/stop correctness, wake-then-command behavior, capture/worker recovery, concurrency policy, observability, and long-running voice stability.
+Production AEC-backed natural interruption and blocked wake-read pause/stop hardening are accepted. Wake capture now treats EOF/capture errors from an intentionally retired microphone stream as lifecycle cancellation rather than as microphone failure, while genuine failures on the current stream still fail closed. Continue explicit stop semantics, wake-then-command behavior, capture/worker recovery, concurrency policy, observability, and long-running voice stability.
 
 ## Stage 13 — Persistent Friday Memory (**Planned**)
 

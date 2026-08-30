@@ -30,9 +30,15 @@ The trusted interruption policy remains Silero >= 0.85 for at least 180 ms after
 
 The AEC session is lifecycle-owned by `FridayManagedWakeVoice` and closed with the other persistent voice resources. Explicit `Friday, stop` command semantics are still a Stage 12 hardening item rather than being claimed as separately qualified.
 
+## Wake capture pause/stop lifecycle
+
+Blocked wake reads are now hardened. The loop keeps a stream-local handle for the active `read_chunk()` while `_stream` is the lock-protected ownership reference. `pause()`/`stop()` retire `_stream` before closing the underlying stream. When the blocked read wakes, EOF or `VoiceCaptureError` from a stream that is no longer current is treated as intentional cancellation rather than as microphone failure. Genuine failures from the still-current stream continue to raise `WakeCaptureError` and fail closed.
+
+Pause semantics are deliberately quiescent rather than terminating: the wake loop stays alive while paused, releases microphone ownership, and resume reacquires a fresh stream. Stop releases the blocked stream and terminates the loop. Deterministic tests cover pause EOF, pause-induced capture error, stop EOF, stop-induced capture error, pause->immediate-resume fresh-stream reacquisition, and genuine unexpected failure. Production qualification completed two controlled restarts with no systemd stop timeout and a live wake/pause/voice/resume turn on the patched runtime.
+
 ## Known hardening items
 
-- deterministic blocked-read pause/stop race test/fix;
+- explicit `Friday, stop` semantics;
 - wake-then-separate-command semantics;
 - capture-thread health supervision/restart;
 - final concurrent HTTP/presentation versus wake-turn policy.

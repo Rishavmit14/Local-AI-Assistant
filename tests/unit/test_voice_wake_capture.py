@@ -741,3 +741,260 @@ def test_result_callback_receives_strict_misses_too() -> None:
     assert len(events) == 1
     assert events[0].utterance is utterance
     assert events[0].result is miss
+
+class BlockingWakeStream:
+    def __init__(self, *, raise_on_release: bool = False) -> None:
+        import threading
+        self.read_started = threading.Event()
+        self.release = threading.Event()
+        self.closed = False
+        self.raise_on_release = raise_on_release
+
+    def read_chunk(self) -> bytes:
+        self.read_started.set()
+        if not self.release.wait(timeout=2.0):
+            raise RuntimeError('test stream was not released')
+        if self.raise_on_release:
+            from local_ai_assistant.voice.audio import VoiceCaptureError
+            raise VoiceCaptureError('intentional blocked-read release')
+        return b''
+
+    def close(self) -> None:
+        self.closed = True
+        self.release.set()
+
+
+class SingleBlockingCapture:
+    def __init__(self, stream) -> None:
+        self.stream = stream
+        self.open_calls = 0
+
+    def open_stream(self):
+        self.open_calls += 1
+
+        if self.open_calls > 1:
+            raise RuntimeError(
+                "single blocking capture unexpectedly reopened"
+            )
+
+        return self.stream
+
+
+class SequenceBlockingCapture:
+    def __init__(self, streams) -> None:
+        self.streams = list(streams)
+        self.open_calls = 0
+
+    def open_stream(self):
+        self.open_calls += 1
+
+        if not self.streams:
+            raise RuntimeError(
+                "sequence blocking capture exhausted"
+            )
+
+        return self.streams.pop(0)
+
+
+def _start_blocked_loop(stream: BlockingWakeStream):
+    import threading
+    primary = FakeDetector('parakeet', 'Hey Friday')
+    wake = FridayWakeSupervisor(primary, enabled=True)
+    loop = FridayAlwaysOnWakeCapture(
+        wake,
+        capture=SingleBlockingCapture(stream),
+        segmenter=make_segmenter(),
+    )
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            loop.run()
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(
+        target=worker,
+        name='test-blocked-wake-capture',
+        daemon=True,
+    )
+    thread.start()
+    assert stream.read_started.wait(timeout=1.0)
+    return loop, thread, errors
+
+
+def test_blocked_read_pause_releases_stream_without_capture_error() -> None:
+    import time
+
+    stream = BlockingWakeStream()
+    loop, thread, errors = _start_blocked_loop(stream)
+
+    loop.pause()
+
+    deadline = time.monotonic() + 1.0
+
+    while (
+        time.monotonic() < deadline
+        and not stream.closed
+    ):
+        time.sleep(0.01)
+
+    assert loop.paused
+    assert stream.closed
+    assert thread.is_alive()
+    assert errors == []
+
+    loop.stop()
+    thread.join(timeout=1.0)
+
+    assert not thread.is_alive()
+    assert errors == []
+
+
+def test_blocked_read_pause_voice_capture_error_is_cancellation() -> None:
+    import time
+
+    stream = BlockingWakeStream(
+        raise_on_release=True,
+    )
+
+    loop, thread, errors = _start_blocked_loop(stream)
+
+    loop.pause()
+
+    deadline = time.monotonic() + 1.0
+
+    while (
+        time.monotonic() < deadline
+        and not stream.closed
+    ):
+        time.sleep(0.01)
+
+    assert loop.paused
+    assert stream.closed
+    assert thread.is_alive()
+    assert errors == []
+
+    loop.stop()
+    thread.join(timeout=1.0)
+
+    assert not thread.is_alive()
+    assert errors == []
+
+
+def test_blocked_read_stop_exits_without_capture_error() -> None:
+    stream = BlockingWakeStream()
+    loop, thread, errors = _start_blocked_loop(stream)
+    loop.stop()
+    thread.join(timeout=1.0)
+    assert not thread.is_alive()
+    assert stream.closed
+    assert errors == []
+
+
+def test_blocked_read_stop_voice_capture_error_is_cancellation() -> None:
+    stream = BlockingWakeStream(raise_on_release=True)
+    loop, thread, errors = _start_blocked_loop(stream)
+    loop.stop()
+    thread.join(timeout=1.0)
+    assert not thread.is_alive()
+    assert stream.closed
+    assert errors == []
+
+
+def test_unexpected_capture_error_still_fails_closed() -> None:
+    from local_ai_assistant.voice.audio import VoiceCaptureError
+
+    class FailingStream:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def read_chunk(self) -> bytes:
+            raise VoiceCaptureError('genuine capture failure')
+
+        def close(self) -> None:
+            self.closed = True
+
+    stream = FailingStream()
+    primary = FakeDetector('parakeet', 'Hey Friday')
+    wake = FridayWakeSupervisor(primary, enabled=True)
+    loop = FridayAlwaysOnWakeCapture(
+        wake,
+        capture=SingleBlockingCapture(stream),
+        segmenter=make_segmenter(),
+    )
+    with pytest.raises(
+        WakeCaptureError,
+        match='wake microphone capture failed',
+    ):
+        loop.run()
+    assert stream.closed
+
+
+def test_blocked_read_pause_then_resume_reacquires_fresh_stream() -> None:
+    import threading
+
+    first = BlockingWakeStream()
+    second = BlockingWakeStream()
+
+    primary = FakeDetector(
+        "parakeet",
+        "Hey Friday",
+    )
+
+    wake = FridayWakeSupervisor(
+        primary,
+        enabled=True,
+    )
+
+    capture = SequenceBlockingCapture(
+        [
+            first,
+            second,
+        ]
+    )
+
+    loop = FridayAlwaysOnWakeCapture(
+        wake,
+        capture=capture,
+        segmenter=make_segmenter(),
+    )
+
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            loop.run()
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(
+        target=worker,
+        name="test-pause-resume-wake-capture",
+        daemon=True,
+    )
+
+    thread.start()
+
+    assert first.read_started.wait(
+        timeout=1.0
+    )
+
+    loop.pause()
+    loop.resume()
+
+    assert second.read_started.wait(
+        timeout=1.0
+    )
+
+    assert first.closed
+    assert not loop.paused
+    assert capture.open_calls == 2
+    assert errors == []
+
+    loop.stop()
+    thread.join(timeout=1.0)
+
+    assert second.closed
+    assert not thread.is_alive()
+    assert errors == []

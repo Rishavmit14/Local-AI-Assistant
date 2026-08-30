@@ -72,7 +72,11 @@ raw physical microphone ----------------------> WebRTC AEC
                                       with interruption utterance
 ```
 
-Live production qualification proved normal wake conversation and natural interruption without repeating the wake phrase. Explicit stop-command semantics and remaining microphone lifecycle hardening stay in Stage 12.
+Live production qualification proved normal wake conversation and natural interruption without repeating the wake phrase.
+
+Wake microphone ownership is also lifecycle-safe under concurrent pause/stop. `FridayAlwaysOnWakeCapture` reads from a stream-local handle while the shared current-stream reference is protected by its state lock. `pause()` and `stop()` retire the shared stream before closing it; therefore EOF or `VoiceCaptureError` produced while a retired stream is unwinding is treated as intentional cancellation. A failure from the still-current stream remains a real capture failure and fails closed. Pause keeps the wake loop alive and quiescent, resume reacquires a fresh stream, and stop terminates the loop cleanly.
+
+Production qualification on Stage 12B proved two controlled restarts with no systemd stop timeout (patched shutdown ~0.18 seconds) and a full live `WAKE_ACCEPTED -> WAKE_PAUSED -> VOICE_THREAD_BEGIN -> VOICE_THREAD_COMPLETE -> WAKE_RESUMED` sequence on the patched process. Explicit stop-command semantics and remaining microphone lifecycle hardening stay in Stage 12.
 
 See [voice and wake architecture](docs/architecture/voice-and-wake.md).
 

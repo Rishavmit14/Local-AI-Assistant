@@ -269,7 +269,20 @@ class FridayAlwaysOnWakeCapture:
                 except VoiceCaptureError as exc:
 
                     with self._state_lock:
-                        self._close_stream_locked()
+                        stream_retired = (
+                            self._stream
+                            is not stream
+                        )
+
+                        if not stream_retired:
+                            self._close_stream_locked()
+
+                    if (
+                        stream_retired
+                        or self._stop_event.is_set()
+                        or self.paused
+                    ):
+                        continue
 
                     raise WakeCaptureError(
                         "wake microphone "
@@ -279,11 +292,23 @@ class FridayAlwaysOnWakeCapture:
 
                 if not pcm:
 
+                    with self._state_lock:
+                        stream_retired = (
+                            self._stream
+                            is not stream
+                        )
+
+                        if not stream_retired:
+                            self._close_stream_locked()
+
                     if self._stop_event.is_set():
                         break
 
-                    with self._state_lock:
-                        self._close_stream_locked()
+                    if (
+                        stream_retired
+                        or self.paused
+                    ):
+                        continue
 
                     raise WakeCaptureError(
                         "wake microphone "
