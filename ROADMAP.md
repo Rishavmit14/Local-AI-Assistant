@@ -157,3 +157,22 @@ Still pending within Stage 12: explicit stop-command semantics, capture/worker
 health recovery, wake/HTTP concurrency policy, richer cinematic voice states,
 long-running stability qualification, acknowledgement UX, and
 Markdown-to-TTS normalization.
+
+<!-- FRIDAY_DELIVERY_POLICY_START -->
+
+## Repository delivery and documentation policy
+
+Friday uses stage-owned Git branches (`stage-N/<capability>`) for roadmap
+traceability. Each fully qualified subtask is committed and pushed to its owning
+stage branch, then `main` is fast-forwarded to that same accepted commit so
+`main` always represents the newest known-good Friday.
+
+Stage branches must remain stage-accurate; work for a new stage begins on a new
+stage branch rather than being accumulated on the prior stage branch.
+
+Documentation is part of definition-of-done. Every accepted feature,
+capability, architecture/runtime/deployment change, known limitation, or
+meaningful behavioral change must reconcile the relevant canonical docs before
+the acceptance commit is pushed. `AGENTS.md` defines the mandatory mapping and
+acceptance gate; `CODEX_HANDOFF.md` records the current operational handoff.
+<!-- FRIDAY_DELIVERY_POLICY_END -->

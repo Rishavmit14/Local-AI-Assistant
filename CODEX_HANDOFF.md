@@ -1034,3 +1034,58 @@ main Whisper. The original wake utterance is never reused. Timeout/error closes
 LISTENING to IDLE before wake resumes; a subsequent bare wake can immediately
 start another follow-up turn. Inline wake remainder routing remains direct-text,
 and production AEC remains barge-in-only.
+
+<!-- FRIDAY_CROSS_SESSION_HANDOFF_START -->
+
+## Current cross-session handoff and Git policy
+
+Repository: `Rishavmit14/Local-AI-Assistant`
+
+Current active development branch:
+`stage-12/production-voice-lifecycle`
+
+Accepted checkpoint before this documentation-only governance commit:
+`70d368e49ad546d02b274c3e440f2178038a06d8`
+
+Stage branch boundaries:
+
+- Stage 11:
+  `stage-11/conversational-voice-cinematic-ui`
+  at `877cb1e6049eb6b0a6434d3eac835077be666c17`.
+- Stage 12:
+  `stage-12/production-voice-lifecycle`
+  containing accepted Stage 12A/B/C work through
+  `70d368e49ad546d02b274c3e440f2178038a06d8`.
+- `main` tracks the newest fully qualified accepted subtask and is advanced to
+  the same accepted commit after each successful stage-branch subtask.
+
+Accepted Stage 12 checkpoints currently include:
+
+- production PipeWire/WebRTC AEC-backed natural interruption;
+- wake blocked-read pause/stop lifecycle hardening;
+- inline `Hey Friday, <command>` direct-text routing without duplicate Whisper;
+- bare `Hey Friday` followed by a fresh bounded microphone command capture,
+  with no reuse of the wake utterance and fail-closed timeout/error handling.
+
+Stage 12 remains active for the remaining production voice lifecycle work
+recorded in `ROADMAP.md`.
+
+### Required behavior for every future agent/session
+
+Before making changes, read `AGENTS.md`, this handoff, `ARCHITECTURE.md`,
+`ROADMAP.md`, `HISTORY.md`, and relevant architecture/ADR files.
+
+For every accepted subtask:
+
+1. deterministic tests / relevant live qualification;
+2. update all canonical docs affected by the change;
+3. full required regression;
+4. commit on the owning `stage-N/...` branch with an explicit capability/stage
+   heading;
+5. push the stage branch;
+6. fast-forward `main` to that exact accepted commit and push;
+7. verify both remote refs and record the recovery point.
+
+A feature/capability/architecture/runtime change that exists only in code or chat
+and is not reconciled into the canonical docs is **not accepted**.
+<!-- FRIDAY_CROSS_SESSION_HANDOFF_END -->

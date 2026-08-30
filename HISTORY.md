@@ -85,3 +85,30 @@ The current accepted Stage 11 baseline is the persistent Friday conversational/w
   of complete wake ASR transcripts.
 - Production qualification proved fresh capture -> Whisper -> LLM -> Piper,
   clean timeout, second bare wake after timeout, and unchanged inline routing.
+
+<!-- FRIDAY_GOVERNANCE_HISTORY_START -->
+
+## 2026-08-30 — Repository governance and cross-session continuity
+
+Codified the persistent Friday development/handoff rules in repository
+documentation so new Codex/agent sessions do not depend on prior chat history.
+
+The repository now explicitly requires:
+
+- one stage-owned `stage-N/<capability>` branch per roadmap stage;
+- every fully accepted subtask to be committed/pushed to its owning stage
+  branch and then fast-forwarded into `main` at the same accepted commit;
+- stage branches to remain stage-accurate;
+- canonical documentation updates to be part of the acceptance gate for every
+  feature, capability, architecture/runtime/deployment change, limitation, and
+  accepted recovery point;
+- new sessions to bootstrap from `AGENTS.md`, `CODEX_HANDOFF.md`,
+  `ARCHITECTURE.md`, `ROADMAP.md`, `HISTORY.md`, and relevant ADR/architecture
+  documents rather than requiring the user to restate accepted decisions.
+
+The Stage 11/12 branch boundary was already repaired before this governance
+entry: Stage 11 ends at `877cb1e6049eb6b0a6434d3eac835077be666c17`
+and active Stage 12 is
+`stage-12/production-voice-lifecycle`, accepted through
+`70d368e49ad546d02b274c3e440f2178038a06d8` before this docs-only change.
+<!-- FRIDAY_GOVERNANCE_HISTORY_END -->

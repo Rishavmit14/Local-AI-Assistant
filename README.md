@@ -68,3 +68,14 @@ Tests use dependency injection to avoid loading the embedding model or contactin
 ## Data and privacy
 
 Models, documents, embeddings, FAISS indexes, generated patches, logs, virtual environments, secrets, and databases are ignored and must remain untracked. See `SECURITY.md`.
+
+<!-- FRIDAY_AGENT_BOOTSTRAP_START -->
+
+## AI/agent session bootstrap
+
+Friday's persistent development rules and current handoff live in the
+repository. Before modifying the project, an AI/coding-agent session should read
+`AGENTS.md` and `CODEX_HANDOFF.md`, then the canonical architecture, roadmap,
+history, and relevant ADR files. Accepted behavior must not live only in chat
+history.
+<!-- FRIDAY_AGENT_BOOTSTRAP_END -->
