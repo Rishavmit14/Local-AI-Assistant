@@ -173,3 +173,65 @@ def test_capture_target_is_explicit() -> None:
         config.audio.chunk_bytes
         == 960
     )
+
+
+def test_aec_monitor_mode_contract() -> None:
+    session = PipeWireAecSession(
+        PipeWireAecConfig(
+            monitor_mode=True,
+        )
+    )
+
+    arguments = (
+        session.module_arguments
+    )
+
+    assert (
+        "monitor.mode = true"
+        in arguments
+    )
+
+    assert (
+        'node.name = '
+        '"friday_aec_capture"'
+        in arguments
+    )
+
+    assert (
+        'node.name = '
+        '"friday_aec_source"'
+        in arguments
+    )
+
+    assert (
+        'node.name = '
+        '"friday_aec_sink"'
+        not in arguments
+    )
+
+    assert (
+        'node.name = '
+        '"friday_aec_playback"'
+        in arguments
+    )
+
+
+def test_aec_default_mode_keeps_virtual_sink() -> None:
+    session = PipeWireAecSession(
+        PipeWireAecConfig()
+    )
+
+    arguments = (
+        session.module_arguments
+    )
+
+    assert (
+        "monitor.mode = true"
+        not in arguments
+    )
+
+    assert (
+        'node.name = '
+        '"friday_aec_sink"'
+        in arguments
+    )

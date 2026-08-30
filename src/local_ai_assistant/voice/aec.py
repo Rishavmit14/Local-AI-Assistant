@@ -34,6 +34,8 @@ class PipeWireAecConfig:
     sink_node_name: str = "friday_aec_sink"
     playback_node_name: str = "friday_aec_playback"
 
+    monitor_mode: bool = False
+
     startup_timeout_seconds: float = 8.0
     shutdown_timeout_seconds: float = 3.0
     poll_interval_seconds: float = 0.1
@@ -87,7 +89,7 @@ class PipeWireAecEndpoints:
     """Published targets of Friday's AEC graph."""
 
     source_target: int
-    sink_target: int
+    sink_target: int | None
 
     source_node_name: str
     sink_node_name: str
@@ -484,28 +486,74 @@ class PipeWireAecSession:
     ) -> str:
         config = self.config
 
-        return (
-            "{\n"
-            f'    library.name = "{config.library_name}"\n'
-            "\n"
-            "    capture.props = {\n"
-            f'        node.name = "{config.capture_node_name}"\n'
-            "    }\n"
-            "\n"
-            "    source.props = {\n"
-            f'        node.name = "{config.source_node_name}"\n'
-            '        node.description = "Friday AEC Source"\n'
-            "    }\n"
-            "\n"
-            "    sink.props = {\n"
-            f'        node.name = "{config.sink_node_name}"\n'
-            '        node.description = "Friday AEC Sink"\n'
-            "    }\n"
-            "\n"
-            "    playback.props = {\n"
-            f'        node.name = "{config.playback_node_name}"\n'
-            "    }\n"
-            "}"
+        lines = [
+            "{",
+            (
+                '    library.name = '
+                f'"{config.library_name}"'
+            ),
+        ]
+
+        if config.monitor_mode:
+            lines.append(
+                "    monitor.mode = true"
+            )
+
+        lines.extend(
+            [
+                "",
+                "    capture.props = {",
+                (
+                    '        node.name = '
+                    f'"{config.capture_node_name}"'
+                ),
+                "    }",
+                "",
+                "    source.props = {",
+                (
+                    '        node.name = '
+                    f'"{config.source_node_name}"'
+                ),
+                (
+                    '        node.description = '
+                    '"Friday AEC Source"'
+                ),
+                "    }",
+            ]
+        )
+
+        if not config.monitor_mode:
+            lines.extend(
+                [
+                    "",
+                    "    sink.props = {",
+                    (
+                        '        node.name = '
+                        f'"{config.sink_node_name}"'
+                    ),
+                    (
+                        '        node.description = '
+                        '"Friday AEC Sink"'
+                    ),
+                    "    }",
+                ]
+            )
+
+        lines.extend(
+            [
+                "",
+                "    playback.props = {",
+                (
+                    '        node.name = '
+                    f'"{config.playback_node_name}"'
+                ),
+                "    }",
+                "}",
+            ]
+        )
+
+        return "\n".join(
+            lines
         )
 
     def start(
@@ -589,9 +637,14 @@ class PipeWireAecSession:
                 .sink_node_name
             )
 
+            sink_ready = (
+                self.config.monitor_mode
+                or sink is not None
+            )
+
             if (
                 source is not None
-                and sink is not None
+                and sink_ready
             ):
                 try:
                     source_serial = int(
@@ -600,10 +653,14 @@ class PipeWireAecSession:
                         ]
                     )
 
-                    sink_serial = int(
-                        sink[
-                            "serial"
-                        ]
+                    sink_serial = (
+                        int(
+                            sink[
+                                "serial"
+                            ]
+                        )
+                        if sink is not None
+                        else None
                     )
 
                 except (

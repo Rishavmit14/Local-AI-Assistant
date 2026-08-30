@@ -24,7 +24,11 @@ The accepted always-on runtime uses the user-session systemd unit `friday-local-
 
 ## Barge-in
 
-AEC and barge-in primitives are implemented and tested. Production bootstrap does not yet wire a barge-in monitor because Piper output must not be mistaken for user interruption. Stage 12 will identify/qualify the real PipeWire echo-cancelled source, prove no self-interruption, wire natural interruption and explicit stop, and run full lifecycle regression.
+Production natural-language barge-in is accepted. The wake bootstrap owns an ephemeral `PipeWireAecSession` configured with PipeWire WebRTC AEC and `monitor.mode=true`. The physical/default speaker monitor becomes the echo reference, `friday_aec_source` is published as the cleaned microphone source, and `PipeWirePcmCapture` targets that exact source for `FridayBargeInMonitor`. No global default source/sink is changed and the normal always-on wake capture remains on the raw microphone.
+
+The trusted interruption policy remains Silero >= 0.85 for at least 180 ms after the AEC arm delay. Temporary acoustic qualification measured 23.75 dB speaker-only reduction; human speech over speaker playback reached probability 1.0000 and remained above threshold for 1410 ms. A controlled production restart then proved the real graph, normal wake conversation, natural interruption while Piper was actively speaking, immediate playback stop, and continuation with the interruption utterance without another wake phrase.
+
+The AEC session is lifecycle-owned by `FridayManagedWakeVoice` and closed with the other persistent voice resources. Explicit `Friday, stop` command semantics are still a Stage 12 hardening item rather than being claimed as separately qualified.
 
 ## Known hardening items
 

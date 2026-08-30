@@ -19,6 +19,12 @@ from typing import Any, Callable, Iterator, Protocol
 
 from local_ai_assistant.common.config import AppConfig
 from local_ai_assistant.voice import (
+    BargeInPolicy,
+    FridayBargeInMonitor,
+    PipeWireAecConfig,
+    PipeWireAecSession,
+    PipeWirePcmCapture,
+    PipeWirePcmCaptureConfig,
     FridayAlwaysOnWakeCapture,
     FridayWakeSupervisor,
     FridayWakeVoiceOrchestrator,
@@ -477,6 +483,7 @@ class FridayManagedWakeVoice:
         speech_synthesizer: ManagedStartableClosable,
         voice_turn: VoiceTurnCallable,
         telemetry: VoiceTurnTelemetry | None = None,
+        aec_session: PipeWireAecSession | None = None,
     ) -> None:
 
         self.wake_capture = (
@@ -489,6 +496,7 @@ class FridayManagedWakeVoice:
         self.speech_synthesizer = (
             speech_synthesizer
         )
+        self.aec_session = aec_session
 
         self.voice_turn = (
             voice_turn
@@ -932,10 +940,14 @@ class FridayManagedWakeVoice:
     ) -> None:
 
         for resource in (
+            self.aec_session,
             self.speech_synthesizer,
             self.fallback,
             self.primary,
         ):
+
+            if resource is None:
+                continue
 
             try:
 
@@ -995,6 +1007,47 @@ def build_managed_wake_voice(
     )
 
 
+    aec_session = (
+        PipeWireAecSession(
+            PipeWireAecConfig(
+                monitor_mode=True,
+            )
+        )
+    )
+
+    try:
+        aec_endpoints = (
+            aec_session.start()
+        )
+
+        aec_capture = (
+            PipeWirePcmCapture(
+                PipeWirePcmCaptureConfig(
+                    target=(
+                        aec_endpoints
+                        .source_target
+                    ),
+                    audio=(
+                        WAKE_AUDIO_CONFIG
+                    ),
+                )
+            )
+        )
+
+        barge_in_monitor = (
+            FridayBargeInMonitor(
+                aec_capture,
+                speech_player,
+                policy=(
+                    BargeInPolicy()
+                ),
+            )
+        )
+
+    except BaseException:
+        aec_session.close()
+        raise
+
     voice = (
         FridayVoiceConversationService(
             transcriber=transcriber,
@@ -1006,7 +1059,9 @@ def build_managed_wake_voice(
             speech_player=(
                 speech_player
             ),
-            barge_in_monitor=None,
+            barge_in_monitor=(
+                barge_in_monitor
+            ),
         )
     )
 
@@ -1101,6 +1156,7 @@ def build_managed_wake_voice(
                 .handle_wake_utterance
             ),
             telemetry=telemetry,
+            aec_session=aec_session,
         )
     )
 

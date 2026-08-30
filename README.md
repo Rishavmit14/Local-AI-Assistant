@@ -50,7 +50,7 @@ Run the bounded tool workflow with `local-ai-code-agent REPO REQUEST --tool-loop
 
 The files in `config/services/` are sanitized templates. The llama-server template remains renderable through `scripts/install/render-systemd.sh`. Stage 11 also tracks `config/services/friday-local-ai.service.example`, a sanitized example of the accepted user-session Friday presentation/wake service; the live machine-specific unit remains outside Git.
 
-The production Friday service runs in the logged-in PipeWire session with exact `Hey Friday` wake enabled. The presentation API normally binds to `127.0.0.1:8765`; frontend development uses `cd frontend && npm run dev` and normally serves `http://localhost:5173`. Production voice currently supports always-on wake -> conversational STT -> local LLM -> Piper speech -> automatic return to wake listening. Production barge-in remains disabled until a real PipeWire echo-cancelled input is qualified.
+The production Friday service runs in the logged-in PipeWire session with exact `Hey Friday` wake enabled. The presentation API normally binds to `127.0.0.1:8765`; frontend development uses `cd frontend && npm run dev` and normally serves `http://localhost:5173`. Production voice supports always-on wake -> conversational STT -> local LLM -> Piper speech -> automatic return to wake listening, plus natural-language barge-in while Friday is speaking. Barge-in uses a Friday-owned ephemeral PipeWire WebRTC AEC graph in monitor mode: the normal speaker monitor is the echo reference and `friday_aec_source` is captured explicitly for trusted human interruption. It does not replace the normal wake microphone source or change global PipeWire defaults.
 
 ## Testing
 

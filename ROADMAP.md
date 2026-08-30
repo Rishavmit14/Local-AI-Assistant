@@ -70,15 +70,17 @@ Authenticated Friday-native gateway APIs, typed provenance/idempotency, bounded 
 
 Repository onboarding code/CLI and integration coverage exist. Remaining work includes broader real-repository benchmark suites, retrieval/prompt/repair/model-adapter tuning, context-budget/runtime profiles, representative framework/build/test qualification, and regression evidence across real repositories.
 
-## Stage 11 — Conversational Voice & Cinematic UI (**Advanced implementation; production voice baseline accepted**)
+## Stage 11 — Conversational Voice & Cinematic UI (**Advanced implementation; production voice + natural interruption accepted**)
 
-Accepted: Streamlit removal; `FridayInterfaceService`; native presentation API/event/runtime boundary; React/Vite frontend foundation; local microphone input; Whisper STT; streaming LLM lifecycle; Piper TTS; PipeWire playback; VAD/Silero wake segmentation; strict `Hey Friday`; Parakeet primary + Moonshine fallback wake ASR; persistent fail-closed wake workers; always-on capture; wake pause/resume around conversation; user-session systemd deployment; cold restart/shutdown qualification; voice/wake telemetry; AEC and barge-in primitives with tests.
+Accepted: Streamlit removal; `FridayInterfaceService`; native presentation API/event/runtime boundary; React/Vite frontend foundation; local microphone input; Whisper STT; streaming LLM lifecycle; Piper TTS; PipeWire playback; VAD/Silero wake segmentation; strict `Hey Friday`; Parakeet primary + Moonshine fallback wake ASR; persistent fail-closed wake workers; always-on capture; wake pause/resume around conversation; user-session systemd deployment; cold restart/shutdown qualification; voice/wake telemetry; WebRTC PipeWire AEC; and production natural-language barge-in with immediate playback interruption.
 
-Remaining: production AEC-backed barge-in; immediate speech stop/natural interruption; proof against Piper self-interruption; blocked-read pause/stop hardening; wake-then-separate-command semantics; capture-thread health supervision/restart; richer visual listening/thinking/speaking/interruption states.
+Production barge-in uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`. The physical/default speaker monitor supplies the echo reference while `friday_aec_source` supplies the cleaned microphone stream exclusively to `FridayBargeInMonitor`; wake capture remains on the normal raw microphone path. Live qualification proved strong speaker-echo suppression, preserved human speech above the existing trusted interruption gate, normal wake conversation, natural interruption without repeating the wake phrase, and stable service operation.
 
-## Stage 12 — Production Voice Lifecycle (**Next**)
+Remaining: deterministic blocked-read pause/stop hardening; explicit `Friday, stop` semantics; wake-then-separate-command semantics; capture-thread health supervision/restart; concurrent HTTP/presentation versus wake-turn policy; richer visual listening/thinking/speaking/interruption states; and longer-running voice stability qualification.
 
-Complete production AEC-backed barge-in and remaining microphone lifecycle hardening. Qualify natural interruption, explicit stop, wake-then-command, capture/worker recovery, and long-running voice stability.
+## Stage 12 — Production Voice Lifecycle (**Active**)
+
+Production AEC-backed natural interruption is accepted. Continue the remaining microphone/runtime lifecycle hardening: explicit stop semantics, blocked-read pause/stop correctness, wake-then-command behavior, capture/worker recovery, concurrency policy, observability, and long-running voice stability.
 
 ## Stage 13 — Persistent Friday Memory (**Planned**)
 

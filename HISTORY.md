@@ -6,7 +6,9 @@ Stage 11 began by retiring the legacy Streamlit product UI and extracting reusab
 
 The accepted always-on wake integration uses exact `Hey Friday`, Silero utterance segmentation, Parakeet Full primary ASR, Moonshine Medium fallback, persistent fail-closed wake workers, pause/resume orchestration, and managed startup/shutdown. Live qualification passed the accepted strict wake gate, a complete production voice turn, worker reuse, cold restart, and clean shutdown.
 
-The persistent Friday runtime is deployed as the enabled user-session `friday-local-ai.service`. Production barge-in remains intentionally unwired until the actual PipeWire echo-cancelled source is identified and qualified. The accepted wake integration was committed as `6e7de1263ecfe154e573aedd32eeb375d5e2b47f` after full Python/frontend/build/lifecycle gates and then pushed with remote HEAD verified.
+The persistent Friday runtime is deployed as the enabled user-session `friday-local-ai.service`. The original accepted wake integration was committed as `6e7de1263ecfe154e573aedd32eeb375d5e2b47f` after full Python/frontend/build/lifecycle gates and then pushed with remote HEAD verified.
+
+Stage 12A subsequently identified the installed PipeWire 1.6.2 WebRTC echo-cancel support, proved that no active AEC graph previously existed, qualified an ephemeral `monitor.mode=true` topology against the real default microphone and speaker monitor, and promoted that topology into the production wake bootstrap. Acoustic qualification measured 23.75 dB speaker-only reduction and preserved human speech with a 1.0000 maximum Silero probability and a 1410 ms continuous run above the existing 0.85 trusted-interruption threshold. After deterministic regression, a controlled production restart published `friday_aec_source`; a normal wake turn passed and the user directly verified that natural speech interrupted Friday's active playback and continued the conversation without repeating `Hey Friday`.
 
 Stage 8 added task-bound Git worktrees, exact checkpoints and rollback, capability-aware sandbox backends, clean task environments, resource/process limits, explicit network policy, crash recovery, promotion integrity, and history/UI visibility. The current Ubuntu host exposes Bubblewrap but denies its user-namespace probe, so strong untrusted-code execution fails closed and the native backend is reported as degraded rather than overstated.
 
@@ -50,4 +52,4 @@ Real-repository onboarding is partially implemented through onboarding services/
 
 # Stage 11
 
-The current accepted Stage 11 baseline is the persistent Friday conversational/wake platform. Immediate remaining work is production AEC-backed barge-in and voice lifecycle hardening.
+The current accepted Stage 11 baseline is the persistent Friday conversational/wake platform with production WebRTC AEC-backed natural-language barge-in. Stage 12 remains active for explicit stop semantics, blocked microphone-read lifecycle hardening, wake-then-separate-command behavior, capture health/recovery, concurrency policy, observability, and longer-running voice stability.

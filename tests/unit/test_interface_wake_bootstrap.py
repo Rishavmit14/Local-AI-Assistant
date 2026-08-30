@@ -604,3 +604,53 @@ def test_production_wake_audio_contract_uses_silero_32ms() -> None:
         // config.channels
         == 512
     )
+
+
+def test_production_monitor_mode_barge_in_wiring_contract() -> None:
+    from pathlib import Path
+
+    source = (
+        Path(__file__)
+        .parents[2]
+        / "src"
+        / "local_ai_assistant"
+        / "interface"
+        / "wake_bootstrap.py"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        "PipeWireAecSession("
+        in source
+    )
+
+    assert (
+        "monitor_mode=True"
+        in source
+    )
+
+    assert (
+        "PipeWirePcmCapture("
+        in source
+    )
+
+    assert (
+        "FridayBargeInMonitor("
+        in source
+    )
+
+    assert (
+        "barge_in_monitor=("
+        in source
+    )
+
+    assert (
+        "barge_in_monitor=None"
+        not in source
+    )
+
+    assert (
+        "self.aec_session"
+        in source
+    )

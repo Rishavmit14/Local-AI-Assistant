@@ -50,7 +50,29 @@ Parakeet and Moonshine run as persistent fail-closed workers. Request/protocol f
 
 Production Friday runs as the logged-in user's `systemd --user` service `friday-local-ai.service`. It has passed cold restart, controlled shutdown, live wake qualification, and full conversational turn qualification.
 
-AEC/barge-in primitives and conversational integration exist and are tested, but the normal always-on bootstrap intentionally leaves production barge-in unwired until a real PipeWire echo-cancelled capture source is identified and qualified.
+Production natural-language barge-in is accepted. Friday owns an ephemeral PipeWire WebRTC AEC graph using `monitor.mode=true`; the default physical speaker monitor is the echo reference, while the published `friday_aec_source` is captured explicitly by `FridayBargeInMonitor`. The wake path remains on the normal raw microphone and is paused during a conversational turn. The AEC session is created by the production wake bootstrap, owned by `FridayManagedWakeVoice`, and closed with the other managed voice resources.
+
+The accepted interruption path is:
+
+```text
+Piper -> default physical sink -> sink monitor ----+
+                                                    |
+raw physical microphone ----------------------> WebRTC AEC
+                                                    |
+                                                    v
+                                          friday_aec_source
+                                                    |
+                                                    v
+                                         FridayBargeInMonitor
+                                                    |
+                                       trusted human speech
+                                                    |
+                                                    v
+                                      stop playback + continue
+                                      with interruption utterance
+```
+
+Live production qualification proved normal wake conversation and natural interruption without repeating the wake phrase. Explicit stop-command semantics and remaining microphone lifecycle hardening stay in Stage 12.
 
 See [voice and wake architecture](docs/architecture/voice-and-wake.md).
 
