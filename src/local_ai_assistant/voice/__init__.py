@@ -56,6 +56,35 @@ from .vad import (
     VoiceVadConfig,
     pcm16_dbfs,
 )
+from .wake_capture import (
+    FridayAlwaysOnWakeCapture,
+    WakeAudioCapture,
+    WakeCallback,
+    WakeCaptureError,
+    WakeCaptureEvent,
+    WakePcmStream,
+)
+from .wake_orchestrator import (
+    FridayWakeVoiceOrchestrator,
+    VoiceConversationBoundary,
+    WakeVoiceOrchestrationError,
+    WakeVoiceTurnResult,
+)
+from .wake_runtime import (
+    PersistentWakeDetector,
+    PersistentWakeProcessConfig,
+    WakeRuntimeError,
+)
+from .wake import (
+    DEFAULT_WAKE_PHRASE,
+    FridayWakeSupervisor,
+    WakeDetectionResult,
+    WakeDetector,
+    WakePhraseMatch,
+    WakeSupervisorResult,
+    match_wake_phrase,
+    normalize_wake_text,
+)
 from .whisper import (
     DEFAULT_WHISPER_CLI_PATH,
     DEFAULT_WHISPER_MODEL_PATH,
@@ -68,6 +97,28 @@ from .whisper import (
 )
 
 __all__ = [
+    "DEFAULT_WAKE_PHRASE",
+    "PersistentWakeDetector",
+    "PersistentWakeProcessConfig",
+    "WakeRuntimeError",
+    "FridayWakeSupervisor",
+    "FridayWakeVoiceOrchestrator",
+    "VoiceConversationBoundary",
+    "WakeVoiceOrchestrationError",
+    "WakeVoiceTurnResult",
+    "FridayAlwaysOnWakeCapture",
+    "WakeAudioCapture",
+    "WakeCallback",
+    "WakeCaptureError",
+    "WakeCaptureEvent",
+    "WakePcmStream",
+    "WakeDetectionResult",
+    "WakeDetector",
+    "WakePhraseMatch",
+    "WakeSupervisorResult",
+    "match_wake_phrase",
+    "normalize_wake_text",
+
     "AlsaAudioCapture",
     "AlsaPcmStream",
     "DEFAULT_PIPER_MODEL_PATH",

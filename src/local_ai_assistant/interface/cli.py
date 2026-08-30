@@ -14,9 +14,10 @@ from local_ai_assistant.llm.client import LocalLLM
 from .api import create_presentation_app
 from .conversation import FridayConversationService
 from .runtime import FridayRuntime
+from .wake_bootstrap import build_managed_wake_voice
 
 
-def build_presentation_app(
+def build_presentation_components(
     config: AppConfig | None = None,
     *,
     session_id: str | None = None,
@@ -34,10 +35,36 @@ def build_presentation_app(
         runtime=runtime,
     )
 
-    return create_presentation_app(
+    app = create_presentation_app(
         runtime=runtime,
         conversation=conversation,
     )
+
+    wake_voice = build_managed_wake_voice(
+        resolved_config,
+        runtime=runtime,
+        conversation=conversation,
+    )
+
+    return (
+        app,
+        wake_voice,
+    )
+
+
+def build_presentation_app(
+    config: AppConfig | None = None,
+    *,
+    session_id: str | None = None,
+):
+    app, _wake_voice = (
+        build_presentation_components(
+            config,
+            session_id=session_id,
+        )
+    )
+
+    return app
 
 
 def main() -> int:
@@ -58,15 +85,28 @@ def main() -> int:
     config = get_config()
     configure_logging(config.runtime)
 
-    app = build_presentation_app(config)
-
-    uvicorn.run(
+    (
         app,
-        host="127.0.0.1",
-        port=args.port,
-        log_level="info",
-        access_log=False,
+        wake_voice,
+    ) = build_presentation_components(
+        config
     )
+
+    try:
+        if wake_voice is not None:
+            wake_voice.start()
+
+        uvicorn.run(
+            app,
+            host="127.0.0.1",
+            port=args.port,
+            log_level="info",
+            access_log=False,
+        )
+
+    finally:
+        if wake_voice is not None:
+            wake_voice.close()
 
     return 0
 

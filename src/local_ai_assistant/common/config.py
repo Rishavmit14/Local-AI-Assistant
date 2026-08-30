@@ -127,6 +127,14 @@ class RuntimeConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class WakeConfig:
+    """Friday wake-phrase feature policy."""
+
+    enabled: bool = False
+    phrase: str = "hey friday"
+
+
+@dataclass(frozen=True, slots=True)
 class ExecutionConfig:
     inspection_timeout_seconds: int = 15
     lint_timeout_seconds: int = 180
@@ -185,6 +193,7 @@ class AppConfig:
     code_retrieval: CodeRetrievalConfig = field(default_factory=CodeRetrievalConfig)
     ocr: OCRConfig = field(default_factory=OCRConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
+    wake: WakeConfig = field(default_factory=WakeConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     isolation: IsolationConfig = field(default_factory=IsolationConfig)
     gateway: GatewayConfig = field(default_factory=GatewayConfig)
@@ -237,6 +246,17 @@ class AppConfig:
             raise ConfigurationError("LOCAL_AI_CODE_CHUNK_OVERLAP must be smaller than chunk lines")
         gateway_host = values.get("LOCAL_AI_GATEWAY_HOST", "127.0.0.1").strip()
         github_api_host = values.get("LOCAL_AI_GITHUB_API_HOST", "https://api.github.com").strip()
+        wake_phrase = values.get(
+            "LOCAL_AI_WAKE_PHRASE",
+            "hey friday",
+        ).strip().lower()
+
+        if not wake_phrase:
+            raise ConfigurationError(
+                "LOCAL_AI_WAKE_PHRASE "
+                "must not be empty"
+            )
+
         gateway_scopes = tuple(item.strip().lower() for item in values.get("LOCAL_AI_GATEWAY_SCOPES", "read_status,read_history").split(",") if item.strip())
         allowed_gateway_scopes = {"read_status", "read_history", "create_task", "request_plan", "submit_approval", "request_execution", "request_cancel", "github_read", "github_write"}
         if not gateway_scopes or not set(gateway_scopes) <= allowed_gateway_scopes:
@@ -272,6 +292,14 @@ class AppConfig:
                 ),
                 command_timeout_seconds=_integer(values, "LOCAL_AI_COMMAND_TIMEOUT", 900),
                 test_mode=_boolean(values, "LOCAL_AI_TEST_MODE", False),
+            ),
+            wake=WakeConfig(
+                enabled=_boolean(
+                    values,
+                    "LOCAL_AI_WAKE_ENABLED",
+                    False,
+                ),
+                phrase=wake_phrase,
             ),
             execution=ExecutionConfig(
                 inspection_timeout_seconds=_integer(values, "LOCAL_AI_INSPECTION_TIMEOUT", 15),
