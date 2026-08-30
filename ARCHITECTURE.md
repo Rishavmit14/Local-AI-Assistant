@@ -1,47 +1,68 @@
 # Architecture
 
-## Current Stage 8 system
+## Current accepted Friday system
 
 ```text
 Qwen GGUF
-   │
+   |
 TurboQuant llama-server (127.0.0.1:8080)
-   │ OpenAI-compatible API
-   ├── LocalLLM
-   │    └── document RAG
-   ├── FridayInterfaceService ── presentation-neutral read/service boundary
-   └── code RAG ── transactional patch agent ── target Git repository
+   | OpenAI-compatible API
+   |
+   +-- LocalLLM / local chat / private document RAG + OCR
+   +-- deterministic code intelligence
+   |    +-- multi-language Tree-sitter index / repository RAG
+   |    +-- planning / scope / approval / controlled tools
+   |    +-- validation / review / repair / Git isolation
+   +-- Friday-native integration gateway
+   |    +-- authenticated localhost API
+   |    +-- GitHub transport boundary
+   |    +-- MCP-compatible stdio boundary
+   +-- FridayInterfaceService / native presentation boundary
+        +-- React/Vite Friday frontend
+        +-- conversational voice
+             +-- always-on microphone capture
+             +-- Silero VAD segmentation
+             +-- Parakeet Full wake ASR
+             +-- Moonshine Medium fallback ASR
+             +-- strict `Hey Friday` matcher
+             +-- Whisper conversational STT
+             +-- streaming local LLM response
+             +-- Piper TTS / PipeWire playback
 ```
 
-`local_ai_assistant.common.config` is the typed configuration boundary. Frozen dataclasses represent llama-server metadata, runtime paths, embedding, document/code retrieval, OCR, execution, isolation, gateway, and runtime/test settings. Components accept an `AppConfig` snapshot and injectable model/embedder dependencies; environment variables remain the deployment interface.
+`local_ai_assistant.common.config` remains the typed configuration boundary. `local_ai_assistant.llm` is the model-client boundary. Deterministic code intelligence, planning, execution, validation, isolation, history, and the Friday-native gateway remain the authority-bearing backend layers.
 
-`local_ai_assistant.llm` is the only model-client boundary. `rag` preserves private document retrieval. `code_index` provides one deterministic, capability-aware Tree-sitter platform for Python, Rust, Solidity, TypeScript/JavaScript, SQL, C/C++, Java, and Shell plus local hybrid retrieval. `planning` classifies requests and enforces actual patch/file/symbol scope. `execution` exposes only registered typed tools, parsed allowlisted commands, bounded observations, and atomic audit history. Qwen chooses actions but deterministic policy authorizes them. `agent` wraps mutations in the proven Git transaction.
+Stage 8 worktree/checkpoint/isolation controls are accepted in the current branch. Stage 9's authenticated gateway, GitHub transport, MCP-compatible stdio, provenance/idempotency, bounded events, and delegation into existing safety services are implemented; real external-integration hardening remains. Stage 10 repository onboarding is partially implemented and broader benchmark/tuning work remains.
 
-Stage 11 intentionally removes the legacy `local_ai_assistant.ui` Streamlit package, the `local-ai-ui` launcher, and the old root/`ui/streamlit` compatibility wrappers. `local_ai_assistant.interface.FridayInterfaceService` preserves presentation-neutral repository, history, artifact-preview, metrics, isolation-status, and health capabilities for future clients. `config/services` contains non-installed sanitized systemd examples. Runtime documents, indexes, patches, repositories, and logs live under environment-selected directories, defaulting to ignored `var/` paths.
+Stage 11 replaces Streamlit with Friday's native presentation/event architecture and conversational voice stack. The accepted wake path is:
 
-`local_ai_assistant.common.logging` emits structured event records for LLM requests, indexing/retrieval/OCR, commands, tests, patches, UI startup, and Git transaction outcomes. Existing CLI progress text remains intact for compatibility. Expected operational failures use the explicit `LocalAIError` hierarchy.
+```text
+microphone -> Silero VAD -> Parakeet Full -> strict `Hey Friday`
+                              | miss
+                              v
+                       Moonshine Medium
+                              |
+                              v
+pause wake -> Whisper -> local LLM -> Piper -> PipeWire -> resume wake
+```
 
-Coding-agent proposal mode is read-only. Applying a patch requires the isolated-branch, structural-validation, test, and rollback safeguards as one non-bypassable CLI bundle. Automatic merge additionally requires explicit approval; no default path merges an agent branch.
+Parakeet and Moonshine run as persistent fail-closed workers. Request/protocol failures invalidate a worker before reuse so stale responses cannot contaminate later requests.
 
-Stage 5 adds a plan-bound validation-intelligence layer after scoped execution. It performs structural and targeted checks, bounded scope-enforced repair, required final validation, deterministic and security review, then bounded model review. A typed final decision controls commit versus rollback; required failures and deterministic policy findings cannot be overridden. See [validation intelligence](docs/architecture/validation-intelligence.md).
+Production Friday runs as the logged-in user's `systemd --user` service `friday-local-ai.service`. It has passed cold restart, controlled shutdown, live wake qualification, and full conversational turn qualification.
 
-Stage 6 generalizes Stage 2 through a typed language registry and adapters while retaining the shared symbols, provenance, graph, persistence, planner, ScopeGuard, and validation/review pipeline. Capability status prevents unsupported static semantics from masquerading as empty facts. See [multi-language code intelligence](docs/architecture/multi-language-code-intelligence.md).
+AEC/barge-in primitives and conversational integration exist and are tested, but the normal always-on bootstrap intentionally leaves production barge-in unwired until a real PipeWire echo-cancelled capture source is identified and qualified.
 
-Stage 7 indexes compact task, plan, execution, validation, review, approval, scope, and metric records in a local versioned SQLite store while preserving Stage 3–5 JSON artifacts as canonical evidence. `local-ai-history` and the presentation-neutral `FridayInterfaceService` consume this service; they do not duplicate or weaken planner, execution, approval, validation, or Git policy. The original Stage 7 Streamlit workspaces were retired at the start of Stage 11. See [task history and operational interface](docs/architecture/task-history.md).
-
-Stage 8 routes autonomous mutation into task/plan/repository/commit-bound Git worktrees, creates exact rollback checkpoints, and places repository commands behind both the Stage 4 allowlist and a capability-aware sandbox policy. Strong isolation fails closed when mount/network namespaces are unavailable. Successful work remains on its isolated branch for explicit promotion; main is never auto-merged. See [repository isolation](docs/architecture/isolation.md).
-
-The `examples/demo-app` fixture is imported without its nested Git database. It demonstrates the existing code-agent test target, not production authentication design.
+See [voice and wake architecture](docs/architecture/voice-and-wake.md).
 
 ## Deployment compatibility
 
-Stages 0 through 8 did not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, the installed units, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so a reviewed deployment can point to the existing paths or new state directories. Stage 11 removes the repository's obsolete Streamlit service template; the llama-server template remains independently renderable.
+Stages 0 through 8 did not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so reviewed deployments can point to existing paths or new state directories. Stage 11 removed the obsolete Streamlit product service and introduced the persistent user-session Friday presentation/wake service. A sanitized example is tracked at `config/services/friday-local-ai.service.example`; machine-local installed units remain external deployment state.
 
 ## Target architecture
 
-The target remains one local platform around llama-server: chat, document and repository RAG, symbol intelligence, planner/coder/reviewer/debugger/test/security roles, controlled tools, validation and policy engines, Git transactions/worktrees, history/metrics, Friday-native integration interfaces, and user interfaces. Git diffs remain mutation truth; deterministic inspection precedes inference; risk and confidence gates constrain automation. Later stages in `ROADMAP.md` introduce these pieces sequentially rather than redesigning Stage 0.
+The target remains one local platform around llama-server and specialized local models: chat, private RAG/OCR, deterministic code intelligence, planner/coder/reviewer/debugger/test/security roles, controlled tools, validation/policy engines, Git transactions/worktrees, history/metrics, Friday-native integrations, persistent conversational voice, durable memory, visual perception, safe desktop control, proactive automation, and orchestrated agents/models. Git diffs remain mutation truth; deterministic inspection precedes inference; risk and confidence gates constrain automation.
 
-Stage 9 introduces an optional native integration gateway above these services. It is localhost-bound and authenticated by default; external systems request typed task/history operations and never receive direct shell, filesystem, Git, model-tool, or approval-bypass access. Stage 11 builds conversational voice and a cinematic frontend above the same native API/event boundary. The legacy Streamlit surface is removed completely; the CLI remains the recovery/power-user surface.
+The permanent authority direction is `voice/UI/external adapters -> Friday native API/event/policy boundary -> planning/approval/execution/validation/isolation/audit`. Later stages extend perception, memory, and autonomy without granting presentation, voice, vision, or external adapters a privileged shortcut. The CLI remains the recovery/power-user surface.
 
 ## Trust boundaries
 

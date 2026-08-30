@@ -2,7 +2,11 @@
 
 This chronology records the working system that existed before this repository was bootstrapped.
 
-Stage 11 begins by intentionally retiring the legacy Streamlit product UI, its launcher, compatibility wrappers, UI-specific configuration, dependency, and service template. Reusable repository/history/artifact/metrics/isolation/health behavior was first extracted into the presentation-neutral `FridayInterfaceService` and regression-tested before deletion. The replacement Friday conversational and cinematic interface will be built fresh above the native API/event and safety boundaries.
+Stage 11 began by retiring the legacy Streamlit product UI and extracting reusable behavior into `FridayInterfaceService`. It then delivered the native presentation/API/event foundation, React/Vite frontend state, Whisper conversational STT, Piper TTS, PipeWire playback, voice lifecycle telemetry, Silero/VAD primitives, AEC/barge-in primitives, and conversational barge-in tests.
+
+The accepted always-on wake integration uses exact `Hey Friday`, Silero utterance segmentation, Parakeet Full primary ASR, Moonshine Medium fallback, persistent fail-closed wake workers, pause/resume orchestration, and managed startup/shutdown. Live qualification passed the accepted strict wake gate, a complete production voice turn, worker reuse, cold restart, and clean shutdown.
+
+The persistent Friday runtime is deployed as the enabled user-session `friday-local-ai.service`. Production barge-in remains intentionally unwired until the actual PipeWire echo-cancelled source is identified and qualified. The accepted wake integration was committed as `6e7de1263ecfe154e573aedd32eeb375d5e2b47f` after full Python/frontend/build/lifecycle gates and then pushed with remote HEAD verified.
 
 Stage 8 added task-bound Git worktrees, exact checkpoints and rollback, capability-aware sandbox backends, clean task environments, resource/process limits, explicit network policy, crash recovery, promotion integrity, and history/UI visibility. The current Ubuntu host exposes Bubblewrap but denies its user-namespace probe, so strong untrusted-code execution fails closed and the native backend is reported as degraded rather than overstated.
 
@@ -38,4 +42,12 @@ The Stage 4 security review then hardened quoted/binary patch handling, stale-sy
 18. Stage 3 added deterministic affected-scope analysis, bounded structured Qwen planning, typed plan validation and persistence, dependency/migration/security awareness, explainable risk/confidence/approval policy, a future scope guard, planning CLI, and a mandatory planning gate before patch generation.
 # Stage 9
 
-The review branch adds the optional authenticated Friday-native integration gateway, typed external provenance/idempotency, bounded events, GitHub transport boundary, and controlled MCP capability facade. It remains disabled by default and does not replace the existing safety pipeline.
+The Friday-native integration gateway is present in the current branch with authenticated API/service boundaries, typed external provenance/idempotency, bounded events, GitHub transport/publication components, and controlled MCP-compatible interfaces. Targeted gateway/MCP tests pass; real external workflow hardening remains.
+
+# Stage 10
+
+Real-repository onboarding is partially implemented through onboarding services/CLI and integration coverage. Broader benchmark/context/runtime/model tuning remains active roadmap work.
+
+# Stage 11
+
+The current accepted Stage 11 baseline is the persistent Friday conversational/wake platform. Immediate remaining work is production AEC-backed barge-in and voice lifecycle hardening.

@@ -1,0 +1,19 @@
+[Unit]
+Description=Friday Local AI Presentation and Wake Service
+After=pipewire.service pipewire-pulse.service
+Wants=pipewire.service
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/Local-AI-Assistant
+Environment=PYTHONUNBUFFERED=1
+Environment=LOCAL_AI_WAKE_ENABLED=true
+Environment="LOCAL_AI_WAKE_PHRASE=hey friday"
+ExecStart=/path/to/local-ai-venv/bin/python -m local_ai_assistant.interface.cli
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

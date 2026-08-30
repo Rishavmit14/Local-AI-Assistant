@@ -991,3 +991,9 @@ Do not use chat history as the only project memory. The durable source of truth 
 - ADRs — important design decisions
 - Git history — implementation truth
 - tests — behavioral truth
+
+## 20. Current accepted implementation snapshot
+
+As of the accepted Stage 11 baseline, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11 has an accepted production conversational/wake baseline with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, and enabled user-session systemd deployment. AEC/barge-in primitives exist and are tested, but production barge-in remains intentionally unwired until the real PipeWire echo-cancelled source is qualified. `ROADMAP.md` extends the product beyond Stage 11 into production voice hardening, durable personal memory, visual perception, safe desktop control, autonomous execution, proactive automation, multi-agent/multi-model orchestration, and bounded self-learning/research.
+
+Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.

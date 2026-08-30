@@ -2,7 +2,7 @@
 
 Local-AI-Assistant is a local-first Qwen platform combining an OpenAI-compatible llama.cpp client, private document RAG, deterministic multi-language Tree-sitter code intelligence, model-assisted but deterministically governed planning, and a Git-transactional coding assistant.
 
-The runtime does not require Codex or paid inference tokens. The default model is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`, served only on `127.0.0.1:8080`. Stage 11 removes the legacy Streamlit product UI and introduces a presentation-neutral Friday interface boundary for the new conversational and cinematic client.
+The runtime does not require Codex or paid inference tokens. The default model is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`, served only on `127.0.0.1:8080`. Stage 11 removed the legacy Streamlit product UI and introduced Friday's presentation-neutral native interface, React/Vite frontend foundation, conversational voice stack, and persistent exact `Hey Friday` wake service.
 
 ## Bootstrap
 
@@ -16,7 +16,7 @@ source .venv/bin/activate
 
 Adjust `.env` to local paths. The repository defaults runtime state to `var/`; the existing MSI deployment may continue using its external `/AI/projects/local-ai` and `/AI/projects/code-assistant` directories during migration. See [configuration operations](docs/operations/configuration.md) for every setting.
 
-The legacy Streamlit launcher and its compatibility wrappers were intentionally removed at the start of Stage 11. Until the new Friday desktop client is implemented, use the supported CLI and native gateway interfaces.
+The legacy Streamlit launcher and compatibility wrappers were intentionally removed at the start of Stage 11. Friday now exposes the `local-ai-presentation` native presentation/API process and a React/Vite frontend. The CLI remains the recovery/power-user interface.
 
 The historical root names `local_llm.py`, `rag.py`, `code_rag.py`, and `code_agent.py` remain compatibility wrappers.
 
@@ -48,14 +48,9 @@ Run the bounded tool workflow with `local-ai-code-agent REPO REQUEST --tool-loop
 
 ## Services
 
-The files in `config/services/` are sanitized templates. Render machine-specific units without installing them:
+The files in `config/services/` are sanitized templates. The llama-server template remains renderable through `scripts/install/render-systemd.sh`. Stage 11 also tracks `config/services/friday-local-ai.service.example`, a sanitized example of the accepted user-session Friday presentation/wake service; the live machine-specific unit remains outside Git.
 
-```bash
-scripts/install/render-systemd.sh \
-  "$USER" "$PWD" /path/to/llama.cpp /path/to/model.gguf
-```
-
-Review the generated files in `var/systemd/` before any privileged installation. Existing services are deliberately untouched by Stage 0.
+The production Friday service runs in the logged-in PipeWire session with exact `Hey Friday` wake enabled. The presentation API normally binds to `127.0.0.1:8765`; frontend development uses `cd frontend && npm run dev` and normally serves `http://localhost:5173`. Production voice currently supports always-on wake -> conversational STT -> local LLM -> Piper speech -> automatic return to wake listening. Production barge-in remains disabled until a real PipeWire echo-cancelled input is qualified.
 
 ## Testing
 

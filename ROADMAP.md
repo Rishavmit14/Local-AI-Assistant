@@ -58,29 +58,55 @@ Stage 7 originally delivered Streamlit Documents, Coding, History, Metrics, and 
 
 A versioned SQLite history store normalizes tasks, lifecycle events, plans, executions, tools, validations, reviews, approvals, affected scope, imports, and metrics while retaining JSON evidence by path/hash. Deterministic search, timeline, audit, JSON/Markdown export, migration, storage/vacuum operations, redaction, concurrent readers, and synthetic multi-thousand-task benchmarking are implemented. Metrics never invent missing token/model timing data. Prompt versioning and benchmark-task quality comparisons remain Stage 10 hardening.
 
-## Stage 8 — Isolation and bounded autonomy (**Implemented on Stage 8 branch**)
+## Stage 8 — Isolation and bounded autonomy (**Done / accepted**)
 
-Task/plan/repository/commit-bound Git worktrees keep autonomous mutations away from the canonical checkout. Exact staged/unstaged/untracked/mode/symlink checkpoints, scoped rollback, deterministic task branches, local locks, crash-recovery classification, cleanup, exact promotion identities, task history, CLI, and UI visibility are implemented.
+Task-bound Git worktrees, exact checkpoints/rollback, sandbox/resource/network policy, crash recovery, explicit promotion, task history, and fail-closed strong-isolation requirements are implemented. Main is never silently auto-merged. Remaining kernel-level isolation enhancements are hardening rather than a missing Stage 8 foundation.
 
-A typed sandbox boundary probes Bubblewrap and otherwise reports a constrained native backend honestly. Task HOME/TMP/cache, allowlisted environments, process-tree cancellation, bounded output, wall/CPU/process/open-file/file-size/address-space limits, and explicit network policy are implemented. On the current host Bubblewrap user namespaces are unavailable; strong isolation therefore fails closed rather than silently downgrading to native process limits. Disk quotas, seccomp, delegated cgroups, automatic conflict resolution, and task scheduling remain limitations/later work. Stage 8 never auto-merges main.
+## Stage 9 — Native Integration Gateway / GitHub / External Interfaces (**Implemented; integration hardening remains**)
 
-## Stage 9 — Native Integration Gateway / GitHub / External Interfaces (**In progress on review branch**)
+Authenticated Friday-native gateway APIs, typed provenance/idempotency, bounded events, GitHub transport/publication components, repository mapping, and MCP-compatible stdio are implemented and tested. External inputs remain untrusted and cannot bypass planning, approval, validation, isolation, review, Git, or history controls. Remaining work is real end-to-end external workflow qualification and deployment hardening where required.
 
-Build a Friday-native internal integration/service API, then add native GitHub issue → task → branch → validation → commit → PR, PR-review, and CI-status integration. Prefer MCP-compatible external tool/interface integration where a standard protocol is useful, add a WebSocket/event interface where justified, and use direct external adapters only when justified. Friday remains independently operable and has no OpenClaw dependency. Every external action remains behind Friday's risk gates, exact plan approval, ScopeGuard, Git transaction safety, validation, Stage 8 sandbox/isolation policy, and audit/history.
+## Stage 10 — Real-repository hardening (**Partial / active**)
 
-## Stage 10 — Real-repository hardening (**Planned**)
+Repository onboarding code/CLI and integration coverage exist. Remaining work includes broader real-repository benchmark suites, retrieval/prompt/repair/model-adapter tuning, context-budget/runtime profiles, representative framework/build/test qualification, and regression evidence across real repositories.
 
-Onboarding detects languages, builds, tests, linters, typecheckers, frameworks, repo map, symbol index, candidate `AGENTS.md`, local config, and baseline health. Exercise real repositories and a benchmark suite; measure/tune retrieval, prompts, repairs, and local model adapters.
+## Stage 11 — Conversational Voice & Cinematic UI (**Advanced implementation; production voice baseline accepted**)
 
-Context management becomes budget-aware: repo map first, exact symbols/dependencies/tests next, no blind 256K filling, cached summaries/symbols, incremental/changed-only embeddings, and provenance. Runtime work adds coding and deterministic/low-temperature profiles, generation config, health/startup checks, fallbacks, context profiles, benchmark harness, and alternative local model adapters.
+Accepted: Streamlit removal; `FridayInterfaceService`; native presentation API/event/runtime boundary; React/Vite frontend foundation; local microphone input; Whisper STT; streaming LLM lifecycle; Piper TTS; PipeWire playback; VAD/Silero wake segmentation; strict `Hey Friday`; Parakeet primary + Moonshine fallback wake ASR; persistent fail-closed wake workers; always-on capture; wake pause/resume around conversation; user-session systemd deployment; cold restart/shutdown qualification; voice/wake telemetry; AEC and barge-in primitives with tests.
 
-## Stage 11 — Conversational Voice & Cinematic UI (**Planned**)
+Remaining: production AEC-backed barge-in; immediate speech stop/natural interruption; proof against Piper self-interruption; blocked-read pause/stop hardening; wake-then-separate-command semantics; capture-thread health supervision/restart; richer visual listening/thinking/speaking/interruption states.
 
-Add local microphone input, wake-word activation, voice activity detection, local Whisper speech-to-text, streaming response text, sentence/chunk streaming TTS with an original Friday assistant voice, barge-in, and immediate speech stop. The project must not clone or impersonate an identifiable actor or public figure.
+## Stage 12 — Production Voice Lifecycle (**Next**)
 
-Expose deterministic assistant states—`SLEEPING`, `LISTENING`, `TRANSCRIBING`, `THINKING`, `PLANNING`, `WAITING_FOR_APPROVAL`, `EXECUTING`, `VALIDATING`, `REVIEWING`, `SPEAKING`, `COMPLETED`, `ERROR`, and `CANCELLED`—through Friday's native WebSocket/event boundary. Build the primary Friday interface fresh from scratch with a GPU-accelerated WebGL/Three.js/Canvas-style cinematic and audio-reactive neural core driven by real conversation, task, planner, executor, validation, review, approval, retrieval, voice, and system-health events. The legacy Streamlit UI is removed completely. The CLI remains the recovery and power-user interface.
+Complete production AEC-backed barge-in and remaining microphone lifecycle hardening. Qualify natural interruption, explicit stop, wake-then-command, capture/worker recovery, and long-running voice stability.
 
-The authority boundary is permanent: voice/UI → Friday native API/event boundary → existing planning, risk, approval, execution, validation, and audit systems. Voice and UI code receives no privileged direct path to shell execution, filesystem or Git mutation, model tool execution, or approval bypass.
+## Stage 13 — Persistent Friday Memory (**Planned**)
+
+Add local-first semantic long-term memory, episodic memory, bounded working memory, preferences, project/goal/person relationships, provenance/confidence, supersession/conflict resolution, and retention/deletion policy. Deterministic repository/project instructions remain a separate engineering authority.
+
+## Stage 14 — Visual Perception / Screen Awareness (**Planned**)
+
+Add safe read-only screen capture, active-window/application context, vision-model interpretation, OCR where appropriate, UI-state understanding, provenance, and privacy controls. Visual perception initially has no mutation authority.
+
+## Stage 15 — Safe Desktop Control (**Planned**)
+
+Add policy-governed application launch/focus, bounded keyboard/mouse/UI actions, browser interaction, local file/application operations, permission classes, audit, and approval for destructive/high-risk actions.
+
+## Stage 16 — Autonomous Assistant Execution (**Planned**)
+
+Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
+
+## Stage 17 — Proactive Event and Automation Engine (**Planned**)
+
+Add local service/system/repository/filesystem/task/external event watches, schedules, meaningful notifications, relevance policy, permission policy, and rate limiting.
+
+## Stage 18 — Multi-Agent / Multi-Model Friday (**Planned**)
+
+Keep one user-facing Friday while internally routing to appropriate conversational, reasoning, coding, vision, retrieval, planner, coder, reviewer, debugger, test, and security capabilities. Specialized agents gain no implicit extra privileges.
+
+## Stage 19 — Self-Learning / Research Engine (**Planned**)
+
+Add trusted-source collection, provenance, domain indexing, knowledge-gap identification, research plans, synthesis, curriculum generation, teaching/evaluation, and refresh/versioning. This does not mean silently modifying model weights.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 
@@ -89,6 +115,6 @@ The authority boundary is permanent: voice/UI → Friday native API/event bounda
 - Documentation automation for README/API docs/docstrings/changelog/architecture/config/diagrams/data flows/release notes.
 - Architecture understanding for components, dependencies, request/DB/auth/security/runtime flows, and graph-generated diagrams.
 - Large-refactor mode: plan → dependency analysis → staged edits → checkpoint → relevant/full tests → next stage; no opaque giant patches.
-- Unified final platform: llama-server feeding local chat, document/repository RAG, code intelligence, planner/coder/reviewer/debugger/test/security roles, Git transaction manager, task history, Friday-native interface/event services, conversational voice, and the cinematic Friday desktop UI.
+- Unified final platform: llama-server and specialized local models feeding local chat, document/repository RAG, code intelligence, planner/coder/reviewer/debugger/test/security roles, Git transaction manager, task history, Friday-native interface/event services, persistent conversational voice, deep memory, visual perception, safe desktop control, proactive automation, orchestrated agents/models, and the cinematic Friday desktop UI.
 
-The product definition of done includes local chat; private RAG/OCR; repo Q&A and symbol tracing; planning and multi-file safe edits; build/test/lint/typecheck; bounded repair; code/security review; instruction memory; risk/confidence gates; Git isolation/commit/rollback and optional worktrees; history/metrics/UI; multi-language work; a Friday-native integration gateway with optional GitHub/MCP/external adapters; and optional queued autonomy. High-risk changes retain explicit human review.
+The product definition of done includes local chat; private RAG/OCR; repo Q&A and symbol tracing; planning and multi-file safe edits; build/test/lint/typecheck; bounded repair; code/security review; deterministic project instructions; persistent Friday memory; risk/confidence gates; Git isolation/commit/rollback/worktrees; history/metrics/UI; multi-language work; a Friday-native integration gateway with optional GitHub/MCP/external adapters; production conversational voice with interruption; visual perception; safe desktop control; bounded autonomous execution; proactive automation; multi-agent/multi-model orchestration; and bounded research/self-learning workflows. High-risk changes retain explicit human review.

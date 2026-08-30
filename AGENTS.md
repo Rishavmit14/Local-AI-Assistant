@@ -12,6 +12,9 @@ These instructions apply to the entire repository. Read this file and `CODEX_HAN
 - OpenClaw is not part of Friday's target architecture. Do not add OpenClaw dependencies, integrations, adapters, roadmap items, implementation work, or design assumptions unless the project owner explicitly reverses this decision.
 - Never silently remove roadmap capabilities. Update status without deleting scope.
 - Work one roadmap stage at a time. Stage 0 must be reviewed before Stage 1 begins.
+- A capability is not accepted merely because an experiment worked. Acceptance requires the selected implementation, relevant tests, canonical architecture/roadmap/history updates, a clean commit, push to the configured GitHub remote, and remote-HEAD verification.
+- Remove rejected prototypes, obsolete helpers, abandoned configuration, and competing inactive implementations before capability acceptance unless an explicit documented architecture reason requires more than one implementation.
+- Treat Git history and tests as implementation truth, `ARCHITECTURE.md` as current/target design, `ROADMAP.md` as capability/status truth, `HISTORY.md` as accepted chronology, ADRs as durable decisions, and `CODEX_HANDOFF.md` as bootstrap/vision context.
 
 ## Change workflow
 
@@ -20,6 +23,9 @@ These instructions apply to the entire repository. Read this file and `CODEX_HAN
 3. Add or update tests for behavior changes.
 4. Run `python -m pytest` and `scripts/maintenance/verify-repository.sh` when dependencies are available.
 5. Review `git diff --check`, tracked files, and Git status for prohibited or unrelated content.
-6. Require explicit human review for high-risk auth, payment, smart-contract, security, destructive migration, or deployment changes.
+6. Before completing a capability, update the canonical documentation that changed: roadmap status, current architecture, project history, relevant operations docs, and an ADR when a durable design decision was made.
+7. Remove rejected experimental implementations before the final acceptance commit.
+8. Require explicit human review for high-risk auth, payment, smart-contract, security, destructive migration, or deployment changes.
+9. After an accepted capability is committed, push it and verify the configured remote branch resolves to the exact accepted commit before beginning the next major capability.
 
 Do not perform destructive cleanup of external working directories. Do not install or enable systemd units without explicit approval; render and review templates first.
