@@ -1015,13 +1015,22 @@ Live-qualified production PID before acceptance commit: 66990.
 
 Current limitation:
 - bare `Hey Friday` still follows the pre-12C-A utterance behavior; dedicated
-  follow-up command capture is not yet implemented.
+  fresh bare-wake follow-up command capture is implemented and production-qualified in Stage 12C-B.
 - Markdown intended for visual rendering is not yet normalized before Piper TTS;
   `**4**` can be verbalized with the asterisk characters.
 
 Next Stage 12 work:
-1. Stage 12C-B bare wake -> acknowledge/listen -> second utterance command.
+1. Explicit stop-command semantics and remaining voice lifecycle hardening.
 2. explicit `Friday, stop` semantics.
 3. capture-thread health supervision/restart.
 4. wake voice vs HTTP/presentation concurrency policy.
 5. TTS text normalization for Markdown/symbol-heavy LLM output.
+
+## Stage 12C-B — bare wake fresh follow-up semantics
+
+Accepted behavior: bare `Hey Friday` pauses wake capture and opens a fresh,
+bounded raw-microphone command capture. Only the fresh second utterance enters
+main Whisper. The original wake utterance is never reused. Timeout/error closes
+LISTENING to IDLE before wake resumes; a subsequent bare wake can immediately
+start another follow-up turn. Inline wake remainder routing remains direct-text,
+and production AEC remains barge-in-only.

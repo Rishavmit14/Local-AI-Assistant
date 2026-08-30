@@ -64,6 +64,10 @@ from .wake_capture import (
     WakeCaptureEvent,
     WakePcmStream,
 )
+from .follow_up_capture import (
+    FollowUpCaptureError,
+    FridayOneShotFollowUpCapture,
+)
 from .wake_orchestrator import (
     FridayWakeVoiceOrchestrator,
     VoiceConversationBoundary,
@@ -97,6 +101,8 @@ from .whisper import (
 )
 
 __all__ = [
+    "FollowUpCaptureError",
+    "FridayOneShotFollowUpCapture",
     "DEFAULT_WAKE_PHRASE",
     "PersistentWakeDetector",
     "PersistentWakeProcessConfig",

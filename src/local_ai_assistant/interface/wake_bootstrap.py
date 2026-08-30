@@ -28,6 +28,7 @@ from local_ai_assistant.voice import (
     FridayAlwaysOnWakeCapture,
     FridayWakeSupervisor,
     FridayWakeVoiceOrchestrator,
+    FridayOneShotFollowUpCapture,
     PersistentWakeDetector,
     PersistentWakeProcessConfig,
     PiperAudioChunk,
@@ -880,6 +881,14 @@ class FridayManagedWakeVoice:
 
         except BaseException as exc:
 
+            print(
+                "FRIDAY_VOICE_STAGE "
+                "WAKE_CAPTURE_ERROR "
+                f"type={type(exc).__name__} "
+                f"message={exc}",
+                flush=True,
+            )
+
             with self._lock:
 
                 self._capture_error = (
@@ -956,6 +965,8 @@ class FridayManagedWakeVoice:
             except Exception:
 
                 pass
+
+
 
 
 def build_managed_wake_voice(
@@ -1133,10 +1144,32 @@ def build_managed_wake_voice(
     )
 
 
+    follow_up_capture = (
+        FridayOneShotFollowUpCapture(
+            capture=AlsaAudioCapture(
+                config=WAKE_AUDIO_CONFIG,
+            ),
+            segmenter_factory=lambda: (
+                UtteranceSegmenter(
+                    audio_config=WAKE_AUDIO_CONFIG,
+                    vad_config=WAKE_VAD_CONFIG,
+                    detector=SileroVad(
+                        audio_config=WAKE_AUDIO_CONFIG,
+                    ),
+                )
+            ),
+            max_wait_seconds=8.0,
+        )
+    )
+
+
     orchestrator = (
         FridayWakeVoiceOrchestrator(
             wake_capture,
             voice,
+            follow_up_capture=(
+                follow_up_capture
+            ),
         )
     )
 
@@ -1159,6 +1192,7 @@ def build_managed_wake_voice(
             aec_session=aec_session,
         )
     )
+
 
 
     wake_capture.on_wake = (

@@ -654,3 +654,44 @@ def test_production_monitor_mode_barge_in_wiring_contract() -> None:
         "self.aec_session"
         in source
     )
+
+def test_production_bare_wake_follow_up_capture_wiring_contract() -> None:
+    from pathlib import Path
+
+    source = (
+        Path(__file__)
+        .parents[2]
+        / "src"
+        / "local_ai_assistant"
+        / "interface"
+        / "wake_bootstrap.py"
+    ).read_text(
+        encoding="utf-8"
+    )
+
+    assert "FridayOneShotFollowUpCapture(" in source
+    assert "follow_up_capture=(" in source
+    assert "capture=AlsaAudioCapture(" in source
+    assert "config=WAKE_AUDIO_CONFIG" in source
+    assert "segmenter_factory=lambda:" in source
+    assert "UtteranceSegmenter(" in source
+    assert "audio_config=WAKE_AUDIO_CONFIG" in source
+    assert "vad_config=WAKE_VAD_CONFIG" in source
+    assert "detector=SileroVad(" in source
+    assert "max_wait_seconds=8.0" in source
+
+
+def test_production_wake_capture_error_observability_contract() -> None:
+    from pathlib import Path
+
+    source = (
+        Path(__file__).parents[2]
+        / "src"
+        / "local_ai_assistant"
+        / "interface"
+        / "wake_bootstrap.py"
+    ).read_text(encoding="utf-8")
+
+    assert "WAKE_CAPTURE_ERROR " in source
+    assert "FRIDAY_WAKE_RESULT " not in source
+    assert "_log_wake_result" not in source

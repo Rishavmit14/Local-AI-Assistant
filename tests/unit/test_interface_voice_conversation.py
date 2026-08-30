@@ -498,3 +498,33 @@ def test_inline_text_enters_conversation_without_transcriber() -> None:
         FridayRuntimeState.THINKING,
         FridayRuntimeState.COMPLETED,
     ]
+
+
+def test_stop_listening_returns_to_idle_and_emits_reason() -> None:
+    from local_ai_assistant.interface.events import FridayEventType
+    from local_ai_assistant.interface.states import FridayRuntimeState
+
+    voice, _, _, runtime = make_service()
+
+    voice.start_listening()
+
+    voice.stop_listening(
+        reason="bare_wake_follow_up_timeout",
+    )
+
+    assert runtime.state is FridayRuntimeState.IDLE
+
+    stopped = [
+        event
+        for event in runtime.events_since()
+        if (
+            event.event_type
+            is FridayEventType.VOICE_LISTENING_STOPPED
+        )
+    ]
+
+    assert len(stopped) == 1
+    assert stopped[0].state is FridayRuntimeState.LISTENING
+    assert stopped[0].metadata == {
+        "reason": "bare_wake_follow_up_timeout",
+    }

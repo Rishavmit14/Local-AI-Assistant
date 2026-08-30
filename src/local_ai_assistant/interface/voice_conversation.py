@@ -160,6 +160,32 @@ class FridayVoiceConversationService:
             ),
         )
 
+    def stop_listening(
+        self,
+        *,
+        reason: str = "voice_listening_stopped",
+    ) -> None:
+        # End a pending listen that produced no command utterance.
+        if (
+            self.runtime.state
+            is not FridayRuntimeState.LISTENING
+        ):
+            return
+
+        self.runtime.emit(
+            FridayEventType.VOICE_LISTENING_STOPPED,
+            state=FridayRuntimeState.LISTENING,
+            metadata={
+                "reason": reason,
+            },
+        )
+
+        self.runtime.transition(
+            FridayRuntimeState.IDLE,
+            reason=reason,
+        )
+
+
     def stream_text(
         self,
         text: str,

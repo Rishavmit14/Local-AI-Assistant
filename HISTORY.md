@@ -69,3 +69,19 @@ The current accepted Stage 11 baseline is the persistent Friday conversational/w
   semantically correct answer 4.
 - Recorded the remaining Piper Markdown-verbalization limitation (`**4**` may
   include spoken asterisks).
+
+## Stage 12C-B — bare wake fresh follow-up command
+
+2026-08-30 — Accepted bare-wake fresh follow-up semantics.
+
+- Added bounded one-shot raw-microphone follow-up capture using the accepted
+  wake PCM/VAD primitives and a fresh segmenter per turn.
+- Bare `Hey Friday` now waits for a new command utterance instead of reusing
+  wake audio; only the fresh utterance enters main Whisper.
+- Timeout/capture error closes pending LISTENING back to IDLE before wake resumes.
+- Removed the obsolete no-boundary wake-audio reuse fallback; missing wiring
+  now fails closed.
+- Retained lifecycle/error telemetry while removing qualification-only logging
+  of complete wake ASR transcripts.
+- Production qualification proved fresh capture -> Whisper -> LLM -> Piper,
+  clean timeout, second bare wake after timeout, and unchanged inline routing.

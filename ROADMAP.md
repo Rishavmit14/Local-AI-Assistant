@@ -76,11 +76,11 @@ Accepted: Streamlit removal; `FridayInterfaceService`; native presentation API/e
 
 Production barge-in uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`. The physical/default speaker monitor supplies the echo reference while `friday_aec_source` supplies the cleaned microphone stream exclusively to `FridayBargeInMonitor`; wake capture remains on the normal raw microphone path. Live qualification proved strong speaker-echo suppression, preserved human speech above the existing trusted interruption gate, normal wake conversation, natural interruption without repeating the wake phrase, and stable service operation.
 
-Remaining: explicit `Friday, stop` semantics; wake-then-separate-command semantics; capture-thread health supervision/restart; concurrent HTTP/presentation versus wake-turn policy; richer visual listening/thinking/speaking/interruption states; and longer-running voice stability qualification.
+Remaining: explicit `Friday, stop` semantics; capture-thread health supervision/restart; concurrent HTTP/presentation versus wake-turn policy; richer visual listening/thinking/speaking/interruption states; and longer-running voice stability qualification.
 
 ## Stage 12 — Production Voice Lifecycle (**Active**)
 
-Production AEC-backed natural interruption and blocked wake-read pause/stop hardening are accepted. Wake capture now treats EOF/capture errors from an intentionally retired microphone stream as lifecycle cancellation rather than as microphone failure, while genuine failures on the current stream still fail closed. Continue explicit stop semantics, wake-then-command behavior, capture/worker recovery, concurrency policy, observability, and long-running voice stability.
+Production AEC-backed natural interruption and blocked wake-read pause/stop hardening are accepted. Wake capture now treats EOF/capture errors from an intentionally retired microphone stream as lifecycle cancellation rather than as microphone failure, while genuine failures on the current stream still fail closed. Continue explicit stop semantics, capture/worker recovery, concurrency policy, observability, and long-running voice stability.
 
 ## Stage 13 — Persistent Friday Memory (**Planned**)
 
@@ -139,3 +139,21 @@ Still pending within Stage 12:
 - wake/HTTP runtime concurrency policy;
 - barge-in observability and long-running voice stability;
 - TTS text normalization so Markdown such as `**4**` is spoken naturally.
+
+## Stage 12C-B — bare wake fresh follow-up command (**Accepted**)
+
+Accepted:
+- bare `Hey Friday` opens a fresh one-shot raw-mic command capture;
+- the original wake utterance is never sent to main Whisper;
+- fresh capture reuses 16 kHz mono S16_LE 32 ms wake audio configuration;
+- each follow-up uses a fresh Silero/UtteranceSegmenter instance;
+- no-speech wait is bounded to 8 seconds;
+- timeout/capture error closes LISTENING to IDLE before wake resumes;
+- a later bare wake works immediately after timeout;
+- inline wake remainder remains direct-to-text and bypasses main Whisper;
+- AEC remains barge-in-only.
+
+Still pending within Stage 12: explicit stop-command semantics, capture/worker
+health recovery, wake/HTTP concurrency policy, richer cinematic voice states,
+long-running stability qualification, acknowledgement UX, and
+Markdown-to-TTS normalization.

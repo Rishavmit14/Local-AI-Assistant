@@ -39,7 +39,6 @@ Pause semantics are deliberately quiescent rather than terminating: the wake loo
 ## Known hardening items
 
 - explicit `Friday, stop` semantics;
-- wake-then-separate-command semantics;
 - capture-thread health supervision/restart;
 - final concurrent HTTP/presentation versus wake-turn policy.
 
@@ -57,7 +56,26 @@ The direct-text boundary emits `VOICE_LISTENING_STOPPED`, enters
 conversation service. This preserves existing runtime-state rules instead of
 adding a direct `LISTENING -> THINKING` transition.
 
-Bare wake semantics are intentionally not changed by this accepted substage.
+Bare-wake semantics are completed by Stage 12C-B below.
 
 Known speech-output limitation: response Markdown is not yet sanitized before
 Piper; emphasis syntax such as `**4**` may be verbalized literally.
+
+## Stage 12C-B — bare wake fresh follow-up
+
+A bare strict `Hey Friday` wake authorizes a turn but is not itself reused as
+conversation input. Always-on wake capture pauses and
+`FridayOneShotFollowUpCapture` opens a separate raw physical-microphone stream
+using `WAKE_AUDIO_CONFIG`. Every call creates a fresh `SileroVad` and
+`UtteranceSegmenter`; the wait is bounded to 8 seconds and the first completed
+fresh utterance enters the existing main-Whisper path.
+
+Wake stays paused while the fresh stream owns the microphone, and the stream is
+closed before wake resumes. This path does not use `friday_aec_source`; AEC
+remains exclusive to barge-in.
+
+No-speech timeout and capture error close LISTENING back to IDLE, preventing a
+stale runtime state from poisoning the next wake. If follow-up wiring is absent,
+bare wake fails closed instead of retranscribing the wake utterance. Inline
+commands remain direct-text. Follow-up lifecycle and wake-capture-error telemetry
+are retained without logging complete wake ASR transcripts.

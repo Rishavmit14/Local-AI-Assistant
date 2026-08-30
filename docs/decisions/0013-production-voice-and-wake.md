@@ -36,3 +36,18 @@ Non-goals for this decision:
 Production qualification confirmed the inline path executes without
 `WHISPER_BEGIN`, completes speech playback, and returns microphone ownership to
 the always-on wake capture.
+
+## Stage 12C-B — fresh follow-up capture decision
+
+Decision: a bare accepted wake and its command are distinct utterances. The wake
+utterance authorizes the turn but is never reused as main-Whisper conversation
+input. Friday pauses always-on wake ownership and captures at most one fresh
+raw-microphone utterance through a bounded one-shot boundary.
+
+The boundary uses the existing wake PCM configuration and a fresh Silero/VAD
+segmenter per call. Timeout is 8 seconds. Timeout or capture failure closes the
+pending LISTENING state to IDLE before wake resumes. Missing follow-up wiring
+fails closed rather than restoring the rejected wake-audio reuse path.
+
+This preserves strict wake semantics, prevents duplicate transcription, keeps
+AEC isolated to barge-in, and makes repeated bare-wake turns lifecycle-safe.

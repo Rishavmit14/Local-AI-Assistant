@@ -124,8 +124,7 @@ raw wake microphone
 The runtime state contract remains authoritative:
 `LISTENING -> TRANSCRIBING -> THINKING -> COMPLETED`.
 
-This change does not alter bare-wake behavior. Bare `Hey Friday` follow-up capture
-remains the next Stage 12C capability.
+Stage 12C-B below completes bare-wake semantics with a fresh follow-up capture; the original bare-wake audio is never reused as the command.
 
 Qualification evidence:
 - deterministic regression proves inline wake remainder bypasses original wake audio;
@@ -140,3 +139,43 @@ Qualification evidence:
 Known limitation: LLM Markdown can currently reach Piper unsanitized. For example,
 `**4**` may be spoken as literal "asterisk asterisk four asterisk asterisk".
 This is a TTS text-normalization limitation, not a wake-command routing failure.
+
+## Stage 12C-B — bare wake fresh follow-up command
+
+Accepted production behavior:
+
+```text
+raw physical microphone
+  -> strict Hey Friday wake utterance
+  -> wake capture pauses
+  -> runtime enters LISTENING
+  -> new one-shot raw-microphone stream opens
+  -> fresh Silero + UtteranceSegmenter
+  -> first completed follow-up utterance
+  -> main Whisper
+  -> local LLM
+  -> Piper
+  -> wake capture resumes
+```
+
+The follow-up path reuses the accepted wake audio format (16 kHz, mono,
+S16_LE, 32 ms chunks) while creating a fresh Silero/VAD segmenter for every
+bare-wake turn. Waiting is bounded to 8 seconds. Always-on wake capture remains
+paused while the one-shot recorder owns the raw physical microphone. AEC
+remains barge-in-only and is not used for this capture.
+
+The original bare-wake VoiceUtterance is never passed to main Whisper. If the
+follow-up boundary is unavailable, the orchestrator fails closed rather than
+restoring the obsolete wake-audio reuse behavior. Timeout or capture error
+closes LISTENING back to IDLE before wake resumes.
+
+Inline `Hey Friday, <command>` remains separate: the strict wake remainder
+enters stream_text directly and bypasses main Whisper. Production qualification
+proved fresh follow-up capture, Whisper, LLM/Piper response, clean 8-second
+timeout, a second bare wake after timeout, and unchanged inline behavior.
+
+There is no acknowledgement chime or spoken "Yes?" yet. Markdown normalization
+at the TTS boundary remains separate work. Deployment remains the logged-in
+user's `friday-local-ai.service`. The pre-Stage-12C-B recovery point is
+`3ae5292bbd1b0042e01211a657dad0fd5e9078d6`; the accepted Stage 12C-B recovery
+commit is the commit containing this section.
