@@ -17,6 +17,7 @@ function App() {
       className="friday-root"
       data-runtime-state={state.runtimeState}
       data-connection-state={state.connectionState}
+      data-voice-signal={state.voiceSignal}
     >
       <div className="space-layer space-layer-one" />
       <div className="space-layer space-layer-two" />
@@ -28,7 +29,10 @@ function App() {
         <span className="identity-version">LOCAL INTELLIGENCE</span>
       </header>
 
-      <NeuralCore state={state.runtimeState} />
+      <NeuralCore
+        state={state.runtimeState}
+        voiceSignal={state.voiceSignal}
+      />
 
       <ConversationComposer
         runtimeState={state.runtimeState}
@@ -47,6 +51,15 @@ function App() {
           <span className="system-key">CORE</span>
           <span className="system-value">
             {state.runtimeState.toUpperCase().replaceAll("_", " ")}
+          </span>
+        </div>
+
+        <div className="system-divider" />
+
+        <div className="system-item">
+          <span className="system-key">VOICE</span>
+          <span className="system-value">
+            {state.voiceSignal.toUpperCase()}
           </span>
         </div>
 

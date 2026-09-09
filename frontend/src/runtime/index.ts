@@ -15,4 +15,5 @@ export type {
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
   FridayRuntimeState,
+  FridayVoicePresentationSignal,
 } from "./types";

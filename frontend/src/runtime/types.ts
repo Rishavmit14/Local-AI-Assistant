@@ -43,6 +43,12 @@ export type FridayEventType =
   | "system.health"
   | "runtime.error";
 
+export type FridayVoicePresentationSignal =
+  | "none"
+  | "speaking"
+  | "completed"
+  | "interrupted";
+
 export interface FridayRuntimeSnapshot {
   session_id: string;
   state: FridayRuntimeState;

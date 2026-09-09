@@ -133,3 +133,12 @@ normalizer removes common Markdown presentation syntax and makes underscore
 separators readable, while retaining the meaningful written words in links,
 images, and inline code. This avoids modifying the model transcript, conversation
 history, streaming contract, or Piper/player ownership.
+
+## Stage 12K decision — event-derived cinematic voice outcomes
+
+Keep `FridayRuntimeState` authoritative for the client while deriving a separate
+presentation-only voice outcome from existing runtime events. Speech start,
+completion, and interruption must not mutate lifecycle state or ownership. Keep
+the interruption outcome visible through the immediate barge-in listening
+handoff, then clear it at the next user turn so a completed/old interruption is
+not represented as current activity.

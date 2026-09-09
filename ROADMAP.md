@@ -556,5 +556,14 @@ unit tests prove the display/speech separation and common Markdown handling.
 Physical qualification on 2026-09-10 asked Friday for a bold Markdown arithmetic
 answer; Friday spoke the answer naturally as “4”, with healthy wake capture.
 
-Remaining Stage 12 work includes richer cinematic voice states, long-running
-stability qualification, acknowledgement UX, and observability.
+## Stage 12K — cinematic voice outcome signals (**Accepted**)
+
+Accepted: the frontend now renders distinct event-derived speaking, completion,
+and interruption signals beside its authoritative runtime-state projection. A
+barge-in interruption remains visible through its listening handoff without
+creating a client-owned lifecycle state, then clears at the next user turn.
+Deterministic frontend-store coverage proves the state/outcome separation;
+frontend tests, lint, and production build passed.
+
+Remaining Stage 12 work includes long-running stability qualification,
+acknowledgement UX, and observability.

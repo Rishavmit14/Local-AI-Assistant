@@ -177,6 +177,12 @@ inline code, links, images, and underscore-separated identifiers therefore reach
 Piper as ordinary spoken prose. This is presentation-only normalization, not a
 wake-command routing or model-text mutation.
 
+The cinematic client keeps the runtime state as its authoritative activity
+projection, and separately retains the latest voice outcome signal from runtime
+events. `voice.speech.started`, `voice.speech.completed`, and
+`voice.speech.interrupted` drive distinct speaking, completion, and interruption
+visual treatment without introducing a presentation-owned runtime state.
+
 ## Stage 12C-B — bare wake fresh follow-up command
 
 Accepted production behavior:

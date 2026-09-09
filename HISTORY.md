@@ -238,3 +238,11 @@ Common Markdown formatting, links/images, and underscore-separated identifiers
 now become readable speech while the model's streamed and completed text remains
 exactly intact. Focused coverage and a live bold-Markdown arithmetic request
 confirmed natural spoken “4” and healthy wake capture.
+
+## 2026-09-10 — Stage 12K cinematic voice outcome signals
+
+Accepted an event-derived frontend voice signal alongside the authoritative
+runtime state. The cinematic client now distinguishes speech start, completion,
+and barge-in interruption without claiming lifecycle ownership; interruption
+remains visible through the listening handoff and clears with the next user turn.
+Frontend tests, lint, and production build passed.

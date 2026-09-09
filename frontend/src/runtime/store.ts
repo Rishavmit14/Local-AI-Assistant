@@ -5,6 +5,7 @@ import type {
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
   FridayRuntimeState,
+  FridayVoicePresentationSignal,
 } from "./types";
 
 export type FridayConnectionState =
@@ -23,6 +24,7 @@ export interface FridayRuntimeViewState {
   conversation: readonly FridayConversationMessage[];
   assistantText: string;
   error: string | null;
+  voiceSignal: FridayVoicePresentationSignal;
 }
 
 type Listener = (state: FridayRuntimeViewState) => void;
@@ -36,6 +38,7 @@ const DEFAULT_STATE: FridayRuntimeViewState = {
   conversation: [],
   assistantText: "",
   error: null,
+  voiceSignal: "none",
 };
 
 export class FridayRuntimeStore {
@@ -233,6 +236,29 @@ export class FridayRuntimeStore {
 
     if (event.event_type === "runtime.error") {
       patch.error = event.text ?? "Friday runtime error";
+    }
+
+    if (event.event_type === "voice.speech.started") {
+      patch.voiceSignal = "speaking";
+    }
+
+    if (event.event_type === "voice.speech.completed") {
+      patch.voiceSignal = "completed";
+    }
+
+    if (event.event_type === "voice.speech.interrupted") {
+      patch.voiceSignal = "interrupted";
+    }
+
+    if (event.event_type === "conversation.user_text") {
+      patch.voiceSignal = "none";
+    }
+
+    if (
+      event.event_type === "voice.listening.started" &&
+      event.metadata.reason !== "barge_in"
+    ) {
+      patch.voiceSignal = "none";
     }
 
     this.patch(patch);

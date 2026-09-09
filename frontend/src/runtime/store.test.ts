@@ -324,6 +324,70 @@ describe("FridayRuntimeStore", () => {
     expect(store.getSnapshot().runtimeState).toBe("executing");
   });
 
+  it("projects voice outcome signals without changing runtime authority", async () => {
+    const client = new FakeRuntimeClient();
+    const store = new FridayRuntimeStore(
+      client as never,
+    );
+
+    await store.start();
+
+    client.liveHandler?.(
+      event(1, {
+        event_type: "runtime.state.changed",
+        state: "speaking",
+      }),
+    );
+    client.liveHandler?.(
+      event(2, {
+        event_type: "voice.speech.started",
+        state: "speaking",
+      }),
+    );
+
+    expect(store.getSnapshot()).toMatchObject({
+      runtimeState: "speaking",
+      voiceSignal: "speaking",
+    });
+
+    client.liveHandler?.(
+      event(3, {
+        event_type: "voice.speech.interrupted",
+        state: "speaking",
+      }),
+    );
+    client.liveHandler?.(
+      event(4, {
+        event_type: "runtime.state.changed",
+        state: "listening",
+      }),
+    );
+
+    expect(store.getSnapshot()).toMatchObject({
+      runtimeState: "listening",
+      voiceSignal: "interrupted",
+    });
+
+    client.liveHandler?.(
+      event(5, {
+        event_type: "voice.listening.started",
+        state: "listening",
+        metadata: { reason: "barge_in" },
+      }),
+    );
+
+    expect(store.getSnapshot().voiceSignal).toBe("interrupted");
+
+    client.liveHandler?.(
+      event(6, {
+        event_type: "conversation.user_text",
+        text: "Continue with the next task.",
+      }),
+    );
+
+    expect(store.getSnapshot().voiceSignal).toBe("none");
+  });
+
   it("accumulates assistant delta events", async () => {
     const client = new FakeRuntimeClient();
     const store = new FridayRuntimeStore(

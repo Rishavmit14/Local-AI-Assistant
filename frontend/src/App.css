@@ -54,6 +54,18 @@
   --core-rgb: 77, 101, 111;
 }
 
+.friday-root[data-voice-signal="speaking"] {
+  --core-rgb: 119, 230, 255;
+}
+
+.friday-root[data-voice-signal="completed"] {
+  --core-rgb: 129, 255, 185;
+}
+
+.friday-root[data-voice-signal="interrupted"] {
+  --core-rgb: 255, 104, 128;
+}
+
 .space-layer {
   position: absolute;
   inset: -20%;
@@ -435,6 +447,10 @@
 
 .neural-stage[data-state="error"] .neural-core {
   animation: error-core 0.45s ease-in-out infinite alternate;
+}
+
+.neural-core-stage[data-voice-signal="interrupted"] {
+  filter: saturate(1.35) contrast(1.08);
 }
 
 .neural-stage[data-state="sleeping"] {

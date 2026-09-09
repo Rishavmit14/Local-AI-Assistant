@@ -62,6 +62,12 @@ common Markdown into spoken prose: headings/list markers, emphasis, strikeout,
 inline code, links, images, and underscore separators. The original model text
 continues unchanged through streamed and completed conversation events.
 
+The presentation client separately projects the latest voice outcome from the
+authoritative runtime event stream. Speech start/completion/interruption remain
+event-derived visual signals, while runtime state remains the sole lifecycle
+authority. An interrupted signal persists through the barge-in listening handoff
+and clears when the next user turn begins.
+
 ## Stage 12C-B — bare wake fresh follow-up
 
 A bare strict `Hey Friday` wake authorizes a turn but is not itself reused as

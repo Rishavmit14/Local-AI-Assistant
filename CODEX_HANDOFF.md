@@ -1023,8 +1023,9 @@ As of the qualified Stage 12E candidate, Stage 8 isolation/worktree/checkpoint c
 
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
-presentation-only Markdown-to-TTS normalization. Stage 12 now continues with
-barge-in observability, richer cinematic voice states, acknowledgement UX, and
+presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic
+event-derived speech outcome signals without presentation-owned lifecycle state.
+Stage 12 now continues with barge-in observability, acknowledgement UX, and
 longer-running stability.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
@@ -1051,7 +1052,7 @@ Current limitation:
 Next Stage 12 work:
 1. Capture-thread health supervision/restart.
 2. Barge-in observability and longer-running voice stability.
-3. Richer cinematic voice states and acknowledgement UX.
+3. Acknowledgement UX.
 
 ## Stage 12C-B — bare wake fresh follow-up semantics
 
@@ -1296,3 +1297,13 @@ acceptance checkpoint is `0c491275028ac4f2b8c52a41e356be15471d4e82`; its
 recovery documentation was then committed at
 `47db467d1f888913932c431709791b95a765a325`. Verify current branch heads from
 Git before relying on either historical checkpoint.
+
+## Stage 12K — cinematic voice outcome signals (qualified, 2026-09-10)
+
+The frontend continues to expose the runtime's state as authoritative, while a
+separate event-derived presentation signal distinguishes speech start,
+completion, and interruption. A barge-in signal remains through the immediate
+LISTENING handoff and clears with the next user turn; it never changes runtime
+state or interaction ownership. Deterministic frontend-store tests, lint, and
+the production build passed. Full repository regression and verification remain
+required before acceptance.

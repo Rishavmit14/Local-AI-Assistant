@@ -17,10 +17,14 @@ import {
   Vector3,
 } from "three";
 
-import type { FridayRuntimeState } from "../runtime";
+import type {
+  FridayRuntimeState,
+  FridayVoicePresentationSignal,
+} from "../runtime";
 
 interface NeuralCoreProps {
   state: FridayRuntimeState;
+  voiceSignal: FridayVoicePresentationSignal;
 }
 
 type Lobe = -1 | 1;
@@ -140,7 +144,12 @@ function seeded(seed: number): () => number {
 
 function stateEnergy(
   state: FridayRuntimeState,
+  voiceSignal: FridayVoicePresentationSignal,
 ): number {
+  if (voiceSignal === "interrupted") {
+    return 1.3;
+  }
+
   switch (state) {
     case "sleeping":
       return 0.24;
@@ -8272,6 +8281,7 @@ function BrainBody({
 
 function NeuralScene({
   state,
+  voiceSignal,
 }: NeuralCoreProps) {
   /*
    * ========================================================
@@ -9067,6 +9077,7 @@ const fiberMaterial =
       const energy =
         stateEnergy(
           state,
+          voiceSignal,
         );
 
       /*
@@ -9597,12 +9608,14 @@ const fiberMaterial =
 
 export function NeuralCore({
   state,
+  voiceSignal,
 }: NeuralCoreProps) {
   return (
     <section
       className="neural-core-stage"
       data-state={state}
-      aria-label={`Friday neural intelligence core ${state}`}
+      data-voice-signal={voiceSignal}
+      aria-label={`Friday neural intelligence core ${state}, voice ${voiceSignal}`}
     >
       <Canvas
         className="neural-core-canvas"
@@ -9731,6 +9744,7 @@ export function NeuralCore({
 
         <NeuralScene
           state={state}
+          voiceSignal={voiceSignal}
         />
 
         <EffectComposer
