@@ -76,7 +76,7 @@ Live production qualification proved normal wake conversation and natural interr
 
 Wake microphone ownership is also lifecycle-safe under concurrent pause/stop. `FridayAlwaysOnWakeCapture` reads from a stream-local handle while the shared current-stream reference is protected by its state lock. `pause()` and `stop()` retire the shared stream before closing it; therefore EOF or `VoiceCaptureError` produced while a retired stream is unwinding is treated as intentional cancellation. A failure from the still-current stream remains a real capture failure and fails closed. Pause keeps the wake loop alive and quiescent, resume reacquires a fresh stream, and stop terminates the loop cleanly.
 
-Production qualification on Stage 12B proved two controlled restarts with no systemd stop timeout (patched shutdown ~0.18 seconds) and a full live `WAKE_ACCEPTED -> WAKE_PAUSED -> VOICE_THREAD_BEGIN -> VOICE_THREAD_COMPLETE -> WAKE_RESUMED` sequence on the patched process. Explicit stop-command semantics and remaining microphone lifecycle hardening stay in Stage 12.
+Production qualification on Stage 12B proved two controlled restarts with no systemd stop timeout (patched shutdown ~0.18 seconds) and a full live `WAKE_ACCEPTED -> WAKE_PAUSED -> VOICE_THREAD_BEGIN -> VOICE_THREAD_COMPLETE -> WAKE_RESUMED` sequence on the patched process. Stage 12D adds exact explicit-stop semantics: normalized `stop`, `friday stop`, and `hey friday stop` end the active voice turn in IDLE before conversation, LLM, or acknowledgement speech. The same rule applies to trusted AEC interruption transcripts after the existing playback stop primitive has fired. Nonexact phrases remain conversational.
 
 See [voice and wake architecture](docs/architecture/voice-and-wake.md).
 
@@ -179,3 +179,31 @@ at the TTS boundary remains separate work. Deployment remains the logged-in
 user's `friday-local-ai.service`. The pre-Stage-12C-B recovery point is
 `3ae5292bbd1b0042e01211a657dad0fd5e9078d6`; the accepted Stage 12C-B recovery
 commit is the commit containing this section.
+
+## Stage 12D — explicit stop semantics
+
+Friday recognizes only normalized exact `stop`, `friday stop`, and
+`hey friday stop` as explicit voice stop commands. Classification occurs after
+the existing TRANSCRIBING event boundary and transitions directly to IDLE. The
+command is not added to conversation history, sent to the LLM, or acknowledged
+by TTS.
+
+For active speech, trusted WebRTC AEC and Silero detection remain responsible for
+stopping playback and returning the completed interruption utterance. Main
+Whisper transcribes that utterance, then the same exact-command classifier ends
+the turn. Nonexact phrases such as `stop loss`, `I didn't stop`, and longer
+sentences continue through the ordinary conversation path. No fuzzy, suffix, or
+ASR-error aliases are accepted.
+
+Physical qualification covered silent inline stop, trusted AEC stop during
+audible counting, and a spoken stop-loss negative control. The clean runtime
+stopped playback about 3.2 ms after the trusted trigger, transcribed
+`Friday stop.`, produced no second assistant response, and resumed wake capture.
+The stop-loss request completed through LLM and speech with no stop event.
+
+The deployed MSI required undistorted host audio levels for reliable AEC ASR.
+Qualification used microphone volume 0.5 (hardware capture +11.25 dB) and speaker
+volume at or below 1.0 after higher levels produced clipping. These remain
+machine-specific operational settings rather than application-enforced defaults.
+Complete-response buffering still delays initial speech and remains later Stage
+12 work.

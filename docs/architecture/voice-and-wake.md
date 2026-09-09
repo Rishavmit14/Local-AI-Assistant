@@ -38,9 +38,10 @@ Pause semantics are deliberately quiescent rather than terminating: the wake loo
 
 ## Known hardening items
 
-- explicit `Friday, stop` semantics;
 - capture-thread health supervision/restart;
-- final concurrent HTTP/presentation versus wake-turn policy.
+- final concurrent HTTP/presentation versus wake-turn policy;
+- streaming speech / initial-response latency;
+- longer-running voice stability and richer state observability.
 
 ## Stage 12C-A — inline wake command semantics
 
@@ -79,3 +80,24 @@ stale runtime state from poisoning the next wake. If follow-up wiring is absent,
 bare wake fails closed instead of retranscribing the wake utterance. Inline
 commands remain direct-text. Follow-up lifecycle and wake-capture-error telemetry
 are retained without logging complete wake ASR transcripts.
+
+## Stage 12D — exact explicit stop
+
+The voice conversation boundary recognizes normalized exact `stop`,
+`friday stop`, and `hey friday stop`. Classification occurs in TRANSCRIBING and
+transitions directly to IDLE before conversation history, LLM inference, or TTS.
+The absence of acknowledgement speech is intentional.
+
+Trusted barge-in continues to use the accepted AEC/Silero path to stop playback
+and capture the interruption utterance. After Whisper, the same exact classifier
+handles `Friday, stop`. Stop-like noncommands, negations, longer sentences, and
+ASR mistakes remain ordinary conversation; no context-specific alias, fuzzy
+matching, or suffix matching weakens the boundary.
+
+Final physical qualification on the cleaned runtime passed inline stop, active
+speech stop, and a stop-loss negative control. Active playback stopped about
+3.2 ms after the trusted trigger, no second response was generated, and wake
+capture resumed. Reliable transcription also required eliminating host-level
+clipping; the qualified MSI used microphone volume 0.5 / hardware capture
++11.25 dB and speaker volume no higher than 1.0. These levels are operational
+machine state, documented under `docs/operations/configuration.md`.

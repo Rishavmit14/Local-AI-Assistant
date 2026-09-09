@@ -12,6 +12,7 @@ from local_ai_assistant.voice import (
     VoiceUtterance,
     WhisperTranscript,
 )
+from local_ai_assistant.voice.wake import normalize_wake_text
 
 from .conversation import FridayConversationService
 from .events import FridayEventType
@@ -29,6 +30,13 @@ _TERMINAL_STATES = frozenset(
 _BARGE_IN_START_TIMEOUT_SECONDS = 5.0
 _BARGE_IN_JOIN_TIMEOUT_SECONDS = 35.0
 _BARGE_IN_POLL_SECONDS = 0.005
+_EXPLICIT_STOP_COMMANDS = frozenset(
+    {
+        "stop",
+        "friday stop",
+        "hey friday stop",
+    }
+)
 
 
 class VoiceTranscriber(Protocol):
@@ -186,6 +194,31 @@ class FridayVoiceConversationService:
         )
 
 
+    def _finish_explicit_stop(
+        self,
+        text: str,
+    ) -> bool:
+        """End exact voice stop commands without a conversational acknowledgement."""
+        if (
+            normalize_wake_text(text)
+            not in _EXPLICIT_STOP_COMMANDS
+        ):
+            return False
+
+        if self.runtime.state is not FridayRuntimeState.TRANSCRIBING:
+            raise InvalidRuntimeTransition(
+                "explicit voice stop requires transcribing state; "
+                f"runtime is {self.runtime.state.value}"
+            )
+
+        print("FRIDAY_VOICE_STAGE EXPLICIT_STOP_COMMAND", flush=True)
+        self.runtime.transition(
+            FridayRuntimeState.IDLE,
+            reason="voice_explicit_stop",
+        )
+
+        return True
+
     def stream_text(
         self,
         text: str,
@@ -255,6 +288,9 @@ class FridayVoiceConversationService:
                     "voice_text_empty"
                 ),
             )
+            return
+
+        if self._finish_explicit_stop(prompt):
             return
 
         response_parts: list[str] = []
@@ -446,6 +482,9 @@ class FridayVoiceConversationService:
                 ),
             )
 
+            return None
+
+        if self._finish_explicit_stop(text):
             return None
 
         response_parts: list[

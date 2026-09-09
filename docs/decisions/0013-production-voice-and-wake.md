@@ -14,7 +14,7 @@ Use exact `Hey Friday`, strict normalized matching, Silero VAD, Parakeet Full pr
 
 Wake latency avoids repeated model startup, fallback can recover primary misses without weakening phrase policy, Silero produces reliable completed utterances, stale worker responses cannot contaminate later requests, and Friday remains persistent in the user's audio session. Qualified WebRTC AEC now suppresses speaker/Piper echo sufficiently for natural interruption while preserving trusted human speech, so production natural-language barge-in is accepted.
 
-For always-on wake capture, pause/stop now use stream retirement as the cancellation boundary: the lock-protected current-stream reference is cleared before close wakes any blocked read. EOF/capture errors from the retired stream are cancellation; failures from the still-current stream remain errors and fail closed. Pause keeps the loop alive and quiescent, resume reacquires a fresh stream, and stop terminates cleanly. This behavior is deterministic-test qualified and production restart/live-turn qualified. Stage 12 continues with explicit stop semantics and the remaining microphone/runtime lifecycle hardening.
+For always-on wake capture, pause/stop now use stream retirement as the cancellation boundary: the lock-protected current-stream reference is cleared before close wakes any blocked read. EOF/capture errors from the retired stream are cancellation; failures from the still-current stream remain errors and fail closed. Pause keeps the loop alive and quiescent, resume reacquires a fresh stream, and stop terminates cleanly. This behavior is deterministic-test qualified and production restart/live-turn qualified. Stage 12 continues with the remaining microphone/runtime lifecycle hardening.
 
 ## Stage 12C-A — inline wake command semantics
 
@@ -51,3 +51,21 @@ fails closed rather than restoring the rejected wake-audio reuse path.
 
 This preserves strict wake semantics, prevents duplicate transcription, keeps
 AEC isolated to barge-in, and makes repeated bare-wake turns lifecycle-safe.
+
+## Stage 12D — exact stop-command decision
+
+Decision: recognize only normalized exact `stop`, `friday stop`, and
+`hey friday stop` at the voice conversation boundary. Once text reaches the
+existing TRANSCRIBING state, an exact stop transitions directly to IDLE and
+bypasses conversation history, LLM inference, and acknowledgement speech.
+
+For trusted AEC barge-in, the established AEC/Silero path remains authoritative
+for stopping playback and capturing speech. Whisper then supplies text to the
+same exact classifier. Do not introduce fuzzy matching, suffix matching,
+context-specific ASR-error aliases, or treat negated/longer phrases as stop.
+
+This keeps stop semantics narrow and deterministic while preserving natural
+conversation for `stop loss`, `I didn't stop`, and other noncommands. Physical
+qualification passed inline stop, active-speech stop, and the stop-loss negative
+control after clipped host audio levels were corrected. Machine audio gain is an
+operational prerequisite, not an application policy or semantic workaround.

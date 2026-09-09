@@ -52,7 +52,7 @@ Real-repository onboarding is partially implemented through onboarding services/
 
 # Stage 11
 
-The current accepted Stage 11 baseline is the persistent Friday conversational/wake platform with production WebRTC AEC-backed natural-language barge-in. Stage 12B hardened the always-on wake microphone lifecycle: deterministic concurrency tests proved that intentional pause/stop could previously surface blocked-read EOF/errors as false microphone failures; the accepted fix retires the shared stream before close, treats retired-stream unwind as cancellation, preserves fail-closed handling for genuine current-stream capture failures, keeps pause quiescent rather than terminating the loop, and reacquires a fresh stream on resume. Production qualification then completed two controlled restarts without systemd stop timeout and a live wake/pause/voice/resume turn on the patched process. Stage 12 remains active for explicit stop semantics, wake-then-separate-command behavior, capture health/recovery, concurrency policy, observability, and longer-running voice stability.
+The current accepted Stage 11 baseline is the persistent Friday conversational/wake platform with production WebRTC AEC-backed natural-language barge-in. Stage 12B hardened the always-on wake microphone lifecycle: deterministic concurrency tests proved that intentional pause/stop could previously surface blocked-read EOF/errors as false microphone failures; the accepted fix retires the shared stream before close, treats retired-stream unwind as cancellation, preserves fail-closed handling for genuine current-stream capture failures, keeps pause quiescent rather than terminating the loop, and reacquires a fresh stream on resume. Production qualification then completed two controlled restarts without systemd stop timeout and a live wake/pause/voice/resume turn on the patched process. Stage 12C added inline wake commands and fresh bare-wake follow-up capture; Stage 12D adds exact explicit stop semantics. Stage 12 remains active for capture health/recovery, concurrency policy, observability, streaming speech latency, and longer-running voice stability.
 
 ## Stage 12C-A — inline wake command semantics
 
@@ -85,6 +85,28 @@ The current accepted Stage 11 baseline is the persistent Friday conversational/w
   of complete wake ASR transcripts.
 - Production qualification proved fresh capture -> Whisper -> LLM -> Piper,
   clean timeout, second bare wake after timeout, and unchanged inline routing.
+
+## Stage 12D — explicit stop semantics
+
+2026-09-09 — Accepted exact voice stop commands.
+
+- Added normalized exact `stop`, `friday stop`, and `hey friday stop` handling
+  at the existing voice TRANSCRIBING boundary.
+- Exact stop now returns directly to IDLE without conversation history, LLM
+  inference, TTS acknowledgement, or a second assistant turn.
+- Reused the accepted WebRTC AEC/Silero playback interruption and main-Whisper
+  path for stop commands spoken while Friday is audibly speaking.
+- Kept stop-loss, negation, longer phrases, and ASR mistakes conversational;
+  removed the rejected context-specific `go ahead and stop` alias.
+- Diagnosed failed physical trials to clipped host audio. Reducing microphone
+  volume from 1.0 / +30 dB to 0.5 / +11.25 dB and keeping speaker volume at or
+  below 1.0 eliminated clipping in captured raw, AEC, and Whisper input.
+- Final clean-runtime physical qualification passed silent inline stop, trusted
+  active-speech stop, and the stop-loss negative control without diagnostic
+  microphone readers. Active playback stopped about 3.2 ms after the trusted
+  trigger, no stop acknowledgement followed, and wake capture resumed.
+- Recorded complete-response buffering and initial speech latency as remaining
+  Stage 12 work rather than expanding Stage 12D scope.
 
 <!-- FRIDAY_GOVERNANCE_HISTORY_START -->
 

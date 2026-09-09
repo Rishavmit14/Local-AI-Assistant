@@ -994,7 +994,7 @@ Do not use chat history as the only project memory. The durable source of truth 
 
 ## 20. Current accepted implementation snapshot
 
-As of the accepted Stage 11/Stage 12B voice baseline, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11 has an accepted production conversational/wake platform with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, enabled user-session systemd deployment, and production natural-language barge-in. The accepted barge-in path uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`, captures the published `friday_aec_source` explicitly, suppresses Piper/speaker echo while preserving human interruption speech, stops active playback, and feeds the captured interruption back into the existing conversation boundary. Stage 12B additionally hardens blocked wake-microphone reads: pause/stop retire the shared stream before close, retired-stream EOF/capture errors are lifecycle cancellation, genuine errors from the still-current stream fail closed, pause leaves the wake loop alive/quiescent, resume opens a fresh stream, and stop terminates cleanly. Production qualification showed patched restart/shutdown without systemd timeout and a complete live wake/pause/voice/resume sequence. Stage 12 remains active for explicit stop semantics and the remaining microphone/runtime lifecycle hardening. `ROADMAP.md` extends the product into durable personal memory, visual perception, safe desktop control, autonomous execution, proactive automation, multi-agent/multi-model orchestration, and bounded self-learning/research.
+As of the accepted Stage 12D voice baseline, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11/12 provide the production conversational/wake platform with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, enabled user-session systemd deployment, production natural-language barge-in, hardened blocked-read cancellation, inline wake commands, fresh bare-wake follow-up capture, and exact explicit stop semantics. The accepted barge-in path uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`, captures `friday_aec_source`, stops active playback, and feeds trusted interruption audio through main Whisper. Exact `stop`, `friday stop`, and `hey friday stop` end in IDLE without LLM or acknowledgement speech; nonexact phrases remain conversational. Stage 12 remains active for capture recovery, concurrency policy, observability, streaming speech latency, and longer-running stability. `ROADMAP.md` extends the product into durable personal memory, visual perception, safe desktop control, autonomous execution, proactive automation, multi-agent/multi-model orchestration, and bounded self-learning/research.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 
@@ -1020,11 +1020,10 @@ Current limitation:
   `**4**` can be verbalized with the asterisk characters.
 
 Next Stage 12 work:
-1. Explicit stop-command semantics and remaining voice lifecycle hardening.
-2. explicit `Friday, stop` semantics.
-3. capture-thread health supervision/restart.
-4. wake voice vs HTTP/presentation concurrency policy.
-5. TTS text normalization for Markdown/symbol-heavy LLM output.
+1. Capture-thread health supervision/restart.
+2. Wake voice vs HTTP/presentation concurrency policy.
+3. Streaming speech / initial-response latency.
+4. TTS text normalization for Markdown/symbol-heavy LLM output.
 
 ## Stage 12C-B — bare wake fresh follow-up semantics
 
@@ -1089,3 +1088,47 @@ For every accepted subtask:
 A feature/capability/architecture/runtime change that exists only in code or chat
 and is not reconciled into the canonical docs is **not accepted**.
 <!-- FRIDAY_CROSS_SESSION_HANDOFF_END -->
+
+## Stage 12D — explicit stop semantics (accepted, 2026-09-09)
+
+Active branch: `stage-12/production-voice-lifecycle`. The accepted implementation handles only
+normalized exact `stop`, `friday stop`, and `hey friday stop`, ends TRANSCRIBING
+in IDLE before conversation/LLM/TTS, and reuses the accepted AEC/player stop path.
+The rejected R2 `go ahead and stop` ASR alias and its context plumbing are removed.
+Full-path tests cover exact stops and normal nonexact continuation from both
+inline and audio-first turns, including stop-loss, negation, and the removed alias.
+
+Physical evidence on PID 3408:
+- inline stop passed (an earlier no-telemetry attempt remains inconclusive);
+- two barge-in attempts failed when distorted audio yielded `I didn't stop.` and
+  `Friday night.`, followed by unwanted conversational replies;
+- recording preserved the exact Whisper input and reproduced the latter error;
+  larger surrounding audio and alternate installed ASR models did not establish
+  a reliable ASR-only replacement;
+- raw input clipped during playback at hardware capture +30 dB / speaker 129%;
+- after backing up host settings, microphone volume 0.5 (capture +11.25 dB) and
+  speaker volume 1.0 eliminated clipping in the recorded raw/AEC/Whisper input;
+- the owner then reported instant stop and no reply; Whisper heard `Friday stop.`,
+  trusted AEC stopped playback in 3.2 ms after the trigger, explicit-stop IDLE and
+  wake resume occurred, with only the initial LLM/speech turn.
+
+After a controlled reload, final live qualification passed on PID 37679 without
+companion diagnostic readers. Inline stop reached explicit-stop IDLE with no
+Whisper, LLM, or playback. Trusted AEC barge-in transcribed `Friday stop.`,
+stopped playback about 3.2 ms after the trigger, produced no second response,
+and resumed wake capture. The stop-loss negative control completed one normal
+LLM and spoken response with zero explicit-stop events. The acceptance recovery
+point is the commit containing this section; verify the stage branch and `main`
+remote refs resolve to that exact commit before starting further capability work.
+
+Known latency: speech currently starts after complete response generation. The
+successful counting request spent 10.7 seconds generating text plus about 3.0
+seconds to first Piper audio; an earlier request spent 52.8 seconds generating.
+Streaming speech/initial-response latency remains future Stage 12 work. Barge-in
+monitor elapsed time is measured from monitoring start, not human speech onset.
+
+Evidence/cursors, private recordings, model comparisons, and recovery snapshots:
+`/AI/tools/friday-stage12d-live/codex_physical_20260909-003505/`.
+Host audio restoration commands are in `audio-levels-before/`. Diagnostic workers
+and recorders have exited. Continue physical actions through Codex replies;
+never use child-process stdin prompts or substitute synthetic audio for live gates.

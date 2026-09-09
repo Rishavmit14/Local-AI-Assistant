@@ -76,11 +76,24 @@ Accepted: Streamlit removal; `FridayInterfaceService`; native presentation API/e
 
 Production barge-in uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`. The physical/default speaker monitor supplies the echo reference while `friday_aec_source` supplies the cleaned microphone stream exclusively to `FridayBargeInMonitor`; wake capture remains on the normal raw microphone path. Live qualification proved strong speaker-echo suppression, preserved human speech above the existing trusted interruption gate, normal wake conversation, natural interruption without repeating the wake phrase, and stable service operation.
 
-Remaining: explicit `Friday, stop` semantics; capture-thread health supervision/restart; concurrent HTTP/presentation versus wake-turn policy; richer visual listening/thinking/speaking/interruption states; and longer-running voice stability qualification.
+Remaining: capture-thread health supervision/restart; concurrent HTTP/presentation versus wake-turn policy; richer visual listening/thinking/speaking/interruption states; streaming speech/initial-response latency; and longer-running voice stability qualification.
 
 ## Stage 12 — Production Voice Lifecycle (**Active**)
 
-Production AEC-backed natural interruption and blocked wake-read pause/stop hardening are accepted. Wake capture now treats EOF/capture errors from an intentionally retired microphone stream as lifecycle cancellation rather than as microphone failure, while genuine failures on the current stream still fail closed. Continue explicit stop semantics, capture/worker recovery, concurrency policy, observability, and long-running voice stability.
+Production AEC-backed natural interruption, blocked wake-read pause/stop
+hardening, and Stage 12D exact explicit-stop semantics are accepted. Wake capture
+treats EOF/capture errors from an intentionally retired microphone stream as
+lifecycle cancellation while genuine failures on the current stream fail closed.
+
+Stage 12D accepts only normalized exact `stop`, `friday stop`, and
+`hey friday stop`; these return the voice turn to IDLE without LLM or spoken
+acknowledgement. The same classifier handles trusted AEC interruption transcripts
+after immediate playback stop. Nonexact phrases remain conversational. Final
+physical qualification passed inline stop, active-speech stop, and stop-loss
+negative control on the clean runtime without diagnostic readers. Clipped host
+audio was corrected and the rejected ASR alias was removed. Continue capture/
+worker recovery, concurrency policy, observability, streaming speech latency,
+and long-running voice stability.
 
 ## Stage 13 — Persistent Friday Memory (**Planned**)
 
@@ -134,7 +147,6 @@ Completed:
 
 Still pending within Stage 12:
 - bare `Hey Friday` acknowledgement + second-utterance capture;
-- explicit `Friday, stop`;
 - capture-thread health supervision/restart;
 - wake/HTTP runtime concurrency policy;
 - barge-in observability and long-running voice stability;
@@ -153,10 +165,25 @@ Accepted:
 - inline wake remainder remains direct-to-text and bypasses main Whisper;
 - AEC remains barge-in-only.
 
-Still pending within Stage 12: explicit stop-command semantics, capture/worker
-health recovery, wake/HTTP concurrency policy, richer cinematic voice states,
-long-running stability qualification, acknowledgement UX, and
+Still pending within Stage 12: capture/worker health recovery, wake/HTTP
+concurrency policy, richer cinematic voice states, long-running stability
+qualification, acknowledgement UX, streaming speech latency, and
 Markdown-to-TTS normalization.
+
+## Stage 12D — exact explicit stop semantics (**Accepted**)
+
+Accepted:
+- exact normalized `stop`, `friday stop`, and `hey friday stop` classification;
+- direct TRANSCRIBING-to-IDLE completion with no LLM or spoken acknowledgement;
+- the same narrow classifier after trusted AEC barge-in stops active playback;
+- nonexact stop-like phrases remain normal conversation;
+- deterministic full-path tests and live inline/AEC/stop-loss qualification;
+- removal of the rejected context-specific ASR alias;
+- operational documentation for the undistorted MSI microphone/speaker levels.
+
+Known remaining limitation: the current voice path buffers the complete LLM
+response before TTS. The final counting trial took about 10.7 seconds for full
+generation before synthesis began; streaming speech remains later Stage 12 work.
 
 <!-- FRIDAY_DELIVERY_POLICY_START -->
 

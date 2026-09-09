@@ -1014,3 +1014,117 @@ def test_untrusted_playback_interruption_keeps_existing_idle_path(
         "voice_barge_in"
         not in reasons
     )
+
+
+@pytest.mark.parametrize(
+    "inline",
+    [False, True],
+)
+@pytest.mark.parametrize(
+    "command, stops",
+    [
+        ("stop", True),
+        ("Friday, STOP!", True),
+        ("Hey Friday stop.", True),
+        ("Friday, stop loss.", False),
+        ("Go ahead and stop.", False),
+        ("Go ahead and stop loss.", False),
+        ("I didn't stop.", False),
+        ("Friday night.", False),
+        (
+            "Friday stop. I need to say something.",
+            False,
+        ),
+    ],
+)
+def test_barge_in_exact_stop_or_normal_continuation(
+    inline: bool,
+    command: str,
+    stops: bool,
+) -> None:
+    initial = make_utterance(1)
+    interruption = make_utterance(2)
+    runtime = FridayRuntime("stage12d-barge-stop")
+    transcriber = FakeTranscriber(
+        [command]
+        if inline
+        else ["Initial request", command]
+    )
+    llm = FakeStreamingLLM(
+        [["first answer"], ["second answer"]]
+    )
+    conversation = FridayConversationService(
+        llm,
+        runtime,
+    )
+    synthesizer = FakeSpeechSynthesizer()
+    player = BlockingSpeechPlayer(
+        first_play_waits_for_stop=True
+    )
+    monitor = FakeBargeInMonitor(
+        player,
+        interruption,
+        trigger_first=True,
+    )
+    service = FridayVoiceConversationService(
+        transcriber,
+        conversation,
+        runtime,
+        speech_synthesizer=synthesizer,
+        speech_player=player,
+        barge_in_monitor=monitor,
+    )
+    service.start_listening()
+
+    stream = (
+        service.stream_text("Initial request")
+        if inline
+        else service.stream_utterance(initial)
+    )
+    output = "".join(stream)
+
+    assert output == (
+        "first answer"
+        if stops
+        else "first answersecond answer"
+    )
+    assert [
+        call["prompt"]
+        for call in llm.calls
+    ] == (
+        ["Initial request"]
+        if stops
+        else ["Initial request", command]
+    )
+    assert transcriber.calls == (
+        [interruption]
+        if inline
+        else [initial, interruption]
+    )
+    assert synthesizer.calls == (
+        ["first answer"]
+        if stops
+        else ["first answer", "second answer"]
+    )
+    assert player.play_calls == (1 if stops else 2)
+    assert player.stop_calls == 1
+    assert runtime.state is FridayRuntimeState.IDLE
+    events = list(runtime.events_since())
+    assert sum(
+        event.metadata.get("reason")
+        == "voice_explicit_stop"
+        for event in events
+    ) == int(stops)
+    interruptions = [
+        event
+        for event in events
+        if event.event_type
+        is FridayEventType.VOICE_SPEECH_INTERRUPTED
+    ]
+    assert len(interruptions) == 1
+    assert interruptions[0].metadata["barge_in_triggered"] is True
+    assert sum(
+        event.event_type
+        is FridayEventType.CONVERSATION_USER_TEXT
+        for event in events
+    ) == (1 if stops else 2)

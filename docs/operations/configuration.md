@@ -28,3 +28,20 @@ Compatibility entry points remain:
 - `python code_rag.py --reindex` and `python code_agent.py --help`
 
 The legacy Streamlit commands and `local-ai-ui` launcher were intentionally removed in Stage 11. Canonical backend commands include `local-ai-chat`, `local-ai-code-rag`, `local-ai-code-agent`, `local-ai-plan`, `local-ai-execute`, `local-ai-validate`, `local-ai-history`, `local-ai-isolation`, and `local-ai-gateway`.
+
+
+## Friday physical voice levels
+
+AEC qualification depends on undistorted microphone and speaker audio. During
+Stage 12D diagnosis on the MSI, microphone volume 1.0 mapped to hardware capture
++30 dB and the speaker was at 1.29. Recorded physical input clipped during
+playback and stop-command transcription failed. Reducing microphone volume to
+0.5 (hardware capture +11.25 dB) and speaker volume to 1.0 removed clipping in
+that diagnostic recording and restored exact stop recognition.
+
+These are machine-specific user-session levels, not universal defaults or values
+Friday enforces at startup. Keep a backup of the current source/sink and mixer
+levels before adjustment, verify the selected physical devices and unclipped
+recorded input, and requalify wake and AEC interruption on the actual hardware.
+Do not compensate for damaged audio with fuzzy stop matching or extra ASR aliases.
+The raw wake microphone and the AEC-only barge-in topology stay unchanged.
