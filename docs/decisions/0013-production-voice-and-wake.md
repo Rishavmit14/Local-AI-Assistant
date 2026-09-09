@@ -115,3 +115,12 @@ may need several seconds to produce first audio for a long response. Wait up to
 its explicit timeout while playback remains active. Preserve a failed playback
 stop as an error. Emit only outcome/timing/pass/VAD summary metadata. Live late
 exact-stop qualification passed with a 3.3 ms playback stop and no runtime error.
+
+## Stage 12I decision — sentence-gated incremental Piper speech
+
+Use model streaming as the only text producer. A deterministic chunker hands
+complete sentences to a bounded ordered queue, consumed serially by the already
+authoritative Piper/player path. This begins audible synthesis before completion
+without parallel Piper workers, reordering, text loss, or unbounded buffering.
+SPEAKING is a valid concurrent lifecycle state at model completion; cancellation,
+barge-in and explicit stop retain their existing ownership and failure boundaries.

@@ -9,7 +9,10 @@ from typing import Protocol
 from local_ai_assistant.voice import (
     BargeInResult,
     PiperAudioChunk,
+    SpeechChunker,
     SpeechPlaybackResult,
+    SpeechQueue,
+    SpeechQueueClosed,
     VoiceUtterance,
     WhisperTranscript,
 )
@@ -311,24 +314,11 @@ class FridayVoiceConversationService:
         if self._finish_explicit_stop(prompt):
             return
 
-        response_parts: list[str] = []
-
-        for chunk in (
-            self.conversation
-            .stream_response(
-                prompt,
-                system_prompt=system_prompt,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-        ):
-            response_parts.append(chunk)
-            yield chunk
-
-        response_text = "".join(response_parts)
-
-        interruption = self._speak_response(
-            response_text
+        interruption = yield from self._stream_response_with_speech(
+            prompt,
+            system_prompt=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
 
         if interruption is not None:
@@ -505,40 +495,112 @@ class FridayVoiceConversationService:
         if self._finish_explicit_stop(text):
             return None
 
-        response_parts: list[
-            str
-        ] = []
-
-        for chunk in (
-            self.conversation
-            .stream_response(
+        return (
+            yield from self._stream_response_with_speech(
                 text,
-                system_prompt=(
-                    system_prompt
-                ),
-                temperature=(
-                    temperature
-                ),
-                max_tokens=(
-                    max_tokens
-                ),
-            )
-        ):
-            response_parts.append(
-                chunk
-            )
-
-            yield chunk
-
-        return self._speak_response(
-            "".join(
-                response_parts
+                system_prompt=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
             )
         )
+
+    def _stream_response_with_speech(
+        self,
+        prompt: str,
+        *,
+        system_prompt: str,
+        temperature: float,
+        max_tokens: int,
+    ) -> Generator[str, None, VoiceUtterance | None]:
+        """Yield model text while a completed sentence unlocks local speech."""
+        synthesizer = self.speech_synthesizer
+        player = self.speech_player
+        response = self.conversation.stream_response(
+            prompt,
+            system_prompt=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+        if synthesizer is None or player is None:
+            yield from response
+            return None
+
+        chunker = SpeechChunker()
+        queue = SpeechQueue()
+        speech_results: list[VoiceUtterance | None] = []
+        speech_errors: list[BaseException] = []
+        speech_thread: threading.Thread | None = None
+
+        def synthesize_queued_sentences() -> Iterator[PiperAudioChunk]:
+            for sentence in queue:
+                yield from synthesizer.stream(sentence)
+
+        def play_sentences(first_sentence: str) -> None:
+            try:
+                speech_results.append(
+                    self._speak_response(
+                        first_sentence,
+                        chunks=synthesize_queued_sentences(),
+                        streaming=True,
+                    )
+                )
+            except BaseException as exc:
+                speech_errors.append(exc)
+                queue.close()
+
+        def enqueue(sentence: str) -> None:
+            nonlocal speech_thread
+            while True:
+                if speech_errors:
+                    raise speech_errors[0]
+                try:
+                    queue.put(sentence, timeout=0.1)
+                    break
+                except SpeechQueueClosed:
+                    if speech_errors:
+                        raise speech_errors[0]
+                    continue
+            if speech_thread is None:
+                speech_thread = threading.Thread(
+                    target=play_sentences,
+                    args=(sentence,),
+                    daemon=True,
+                    name="friday-streaming-speech",
+                )
+                speech_thread.start()
+
+        completed = False
+        try:
+            for chunk in response:
+                if speech_errors:
+                    raise speech_errors[0]
+                for sentence in chunker.push(chunk):
+                    enqueue(sentence)
+                yield chunk
+
+            for sentence in chunker.finish():
+                enqueue(sentence)
+            completed = True
+        finally:
+            queue.close()
+            if not completed:
+                response.close()
+
+        if speech_thread is None:
+            return None
+
+        speech_thread.join()
+        if speech_errors:
+            raise speech_errors[0]
+        return speech_results[0]
 
     def _speak_response(
         self,
         text: str,
+        *,
+        chunks: Iterator[PiperAudioChunk] | None = None,
+        streaming: bool = False,
     ) -> VoiceUtterance | None:
         synthesizer = (
             self.speech_synthesizer
@@ -563,12 +625,10 @@ class FridayVoiceConversationService:
         if not spoken_text:
             return None
 
-        if (
-            self.runtime.state
-            is not
-            FridayRuntimeState
-            .COMPLETED
-        ):
+        if self.runtime.state not in {
+            FridayRuntimeState.COMPLETED,
+            FridayRuntimeState.THINKING,
+        }:
             raise InvalidRuntimeTransition(
                 "voice speech requires "
                 "completed conversation state; "
@@ -596,6 +656,7 @@ class FridayVoiceConversationService:
                 "characters": len(
                     spoken_text
                 ),
+                "streaming": streaming,
             },
         )
 
@@ -606,9 +667,9 @@ class FridayVoiceConversationService:
             ) = (
                 self
                 ._play_with_barge_in(
-                    synthesizer.stream(
-                        spoken_text
-                    )
+                    chunks
+                    if chunks is not None
+                    else synthesizer.stream(spoken_text)
                 )
             )
 

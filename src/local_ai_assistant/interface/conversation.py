@@ -120,7 +120,7 @@ class FridayConversationService:
             text=completed_text,
         )
 
-        if self.runtime.state is not FridayRuntimeState.COMPLETED:
+        if self.runtime.state is FridayRuntimeState.THINKING:
             self.runtime.transition(
                 FridayRuntimeState.COMPLETED,
                 reason="conversation_completed",

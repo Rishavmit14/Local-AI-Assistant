@@ -190,3 +190,22 @@ def test_empty_model_stream_still_completes_deterministically():
 
     assert len(completed) == 1
     assert completed[0].text == ""
+
+
+def test_stream_completion_preserves_speaking_started_by_incremental_voice():
+    runtime = FridayRuntime("session-incremental-voice")
+    service = FridayConversationService(FakeStreamingLLM(["First.", " Second."]), runtime)
+
+    stream = service.stream_response("Hello")
+    assert next(stream) == "First."
+    runtime.transition(FridayRuntimeState.SPEAKING, reason="voice_speech_started")
+
+    assert list(stream) == [" Second."]
+    assert runtime.state is FridayRuntimeState.SPEAKING
+    completed = [
+        event
+        for event in runtime.events_since()
+        if event.event_type is FridayEventType.CONVERSATION_ASSISTANT_COMPLETED
+    ]
+    assert len(completed) == 1
+    assert completed[0].text == "First. Second."

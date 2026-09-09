@@ -169,3 +169,15 @@ qualification passed without a runtime error.
 A bare wake now speaks a short local “I'm listening” cue while wake capture is
 paused, returns to LISTENING, and only then opens fresh follow-up capture. This
 keeps Friday's cue out of microphone input and preserves the one-shot boundary.
+
+## Stage 12I — incremental speech
+
+Voice response generation remains the single model-text producer. A deterministic
+sentence chunker releases complete sentence-like text (or a bounded word split),
+then an ordered bounded queue feeds sequential Piper requests through the existing
+single playback process. The first ready sentence may move the authoritative
+runtime from THINKING to SPEAKING while the model is still generating; model
+completion emits its complete text without overwriting SPEAKING. The queue closes
+without blocking shutdown and applies backpressure rather than dropping text.
+Piper, playback, barge-in, explicit stop and wake-resume ownership remain at their
+existing boundaries.

@@ -531,3 +531,16 @@ After accepted Stage 12H, the next Stage 12 capability is streaming speech and
 initial-response latency; all other Stage 12 scope above remains scheduled. Human involvement is reserved
 for unavoidable physical input or genuine capability boundaries.
 <!-- FRIDAY_DELIVERY_POLICY_END -->
+
+## Stage 12I — streaming speech / initial-response latency (**Accepted**)
+
+Accepted: deterministic sentence chunking and a bounded ordered speech queue let
+the first completed sentence enter the existing persistent Piper/player path while
+the Qwen response continues streaming. The conversation lifecycle now preserves
+SPEAKING at model completion, then finishes playback to IDLE without duplicate or
+dropped model text. Focused concurrency/error tests cover sentence order,
+backpressure, queue close and the lifecycle race. Physical qualification on
+2026-09-10 spoke the requested sky explanation: Piper began at 00:56:36 and LLM
+completion followed at 00:56:38; three ordered Piper requests completed and wake
+capture returned to healthy listening. Barge-in, exact stop, single-player
+ownership and bounded memory remain intact.

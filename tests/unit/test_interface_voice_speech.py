@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
@@ -284,7 +285,6 @@ def test_completed_response_enters_speaking_then_idle() -> None:
         FridayRuntimeState.LISTENING,
         FridayRuntimeState.TRANSCRIBING,
         FridayRuntimeState.THINKING,
-        FridayRuntimeState.COMPLETED,
         FridayRuntimeState.SPEAKING,
         FridayRuntimeState.IDLE,
     ]
@@ -308,16 +308,57 @@ def test_completed_response_enters_speaking_then_idle() -> None:
         )
     )
 
-    assert (
-        completed_index
-        < speaking_index
-        < speech_completed_index
-    )
+    assert speaking_index < completed_index < speech_completed_index
 
     assert (
         FridayEventType.VOICE_SPEECH_INTERRUPTED
         not in event_types
     )
+
+
+def test_first_complete_sentence_starts_speech_before_model_completion() -> None:
+    speech_started = threading.Event()
+
+    class GatedStreamingLLM:
+        def stream_chat(
+            self,
+            prompt: str,
+            *,
+            system_prompt: str,
+            temperature: float,
+            max_tokens: int,
+        ) -> Iterator[str]:
+            del prompt, system_prompt, temperature, max_tokens
+            yield "First sentence."
+            assert speech_started.wait(timeout=1.0)
+            yield " Second sentence."
+
+    class SignallingSynthesizer(FakeSpeechSynthesizer):
+        def stream(self, text: str) -> Iterator[PiperAudioChunk]:
+            speech_started.set()
+            yield from super().stream(text)
+
+    runtime = FridayRuntime("stage-12i-streaming-speech")
+    synthesizer = SignallingSynthesizer()
+    voice = FridayVoiceConversationService(
+        FakeTranscriber(),
+        FridayConversationService(GatedStreamingLLM(), runtime),
+        runtime,
+        speech_synthesizer=synthesizer,
+        speech_player=FakeSpeechPlayer(),
+    )
+    voice.start_listening()
+
+    assert "".join(voice.stream_utterance(make_utterance())) == (
+        "First sentence. Second sentence."
+    )
+    assert synthesizer.calls == ["First sentence.", "Second sentence."]
+
+    event_types = [event.event_type for event in runtime.events_since()]
+    assert event_types.index(FridayEventType.VOICE_SPEECH_STARTED) < event_types.index(
+        FridayEventType.CONVERSATION_ASSISTANT_COMPLETED
+    )
+    assert runtime.state is FridayRuntimeState.IDLE
 
 
 def test_interrupted_playback_emits_interrupted_and_returns_idle() -> None:

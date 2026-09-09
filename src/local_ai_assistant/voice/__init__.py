@@ -68,6 +68,8 @@ from .follow_up_capture import (
     FollowUpCaptureError,
     FridayOneShotFollowUpCapture,
 )
+from .speech_chunks import SpeechChunker
+from .speech_queue import SpeechQueue, SpeechQueueClosed
 from .wake_orchestrator import (
     FridayWakeVoiceOrchestrator,
     VoiceConversationBoundary,

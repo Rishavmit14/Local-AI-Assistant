@@ -219,3 +219,14 @@ Accepted a local “I'm listening” cue before fresh bare-wake capture. It keep
 wake paused, returns from SPEAKING to LISTENING, then opens the independent raw
 follow-up stream. Physical qualification heard the cue, transcribed “What time
 is it?”, completed the normal response, and returned to healthy listening.
+
+## 2026-09-10 — Stage 12I incremental streaming speech
+
+Accepted sentence-gated streaming speech through the persistent local Piper
+process. The model remains the sole producer; a deterministic chunker and bounded
+ordered queue begin ordered synthesis at the first complete sentence, while the
+authoritative runtime can remain SPEAKING through model completion. Deterministic
+tests cover chunks, queue closure/backpressure, lifecycle completion, incremental
+start and speech failure. Physical `Hey Friday` qualification confirmed the sky
+explanation, Piper start before LLM completion, orderly synthesis and healthy wake
+resume.

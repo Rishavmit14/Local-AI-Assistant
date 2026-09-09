@@ -1264,3 +1264,17 @@ Evidence/cursors, private recordings, model comparisons, and recovery snapshots:
 Host audio restoration commands are in `audio-levels-before/`. Diagnostic workers
 and recorders have exited. Continue physical actions through Codex replies;
 never use child-process stdin prompts or substitute synthetic audio for live gates.
+
+## Stage 12I — incremental speech (qualified pending final publication)
+
+The Stage 12I candidate keeps Qwen streaming as the sole text producer. Complete
+sentences enter a deterministic bounded ordered queue, which serially feeds the
+existing persistent Piper/player path. The first sentence transitions THINKING to
+SPEAKING; model completion preserves SPEAKING until ordered playback completes.
+Focused tests cover chunking, queue shutdown/backpressure, lifecycle completion,
+early speech start and speech failure. On 2026-09-10, `Hey Friday, explain in
+three short sentences why the sky appears blue` produced a correct spoken answer;
+telemetry recorded Piper begin at 00:56:36 before LLM completion at 00:56:38,
+then three sequential Piper requests and healthy wake resume. Complete acceptance
+still requires final regression, repository verification, commit and remote
+recovery publication.
