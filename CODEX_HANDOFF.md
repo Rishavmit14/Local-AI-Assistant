@@ -1027,7 +1027,8 @@ presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic
 event-derived speech outcome signals without presentation-owned lifecycle state.
 Stage 12L bounds in-process voice-stage telemetry. Stage 12 now continues with
 Stage 12M bounds the Piper worker event handoff. Stage 12 now continues with
-barge-in observability and longer-running stability.
+Stage 12N exposes resident worker health. Stage 12 now continues with barge-in
+observability and longer-running stability.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 
@@ -1330,3 +1331,11 @@ regression, repository verification, and a healthy service restart passed. The
 Stage 12M implementation acceptance checkpoint is
 `a3c5bd80e65acaa618621e8568788350c2ea00a1`; verify current branch heads from
 Git before relying on this historical checkpoint.
+
+## Stage 12N — resident worker health projection (qualified, 2026-09-10)
+
+Voice health now exposes read-only running/PID projections for primary wake,
+fallback wake, and Piper workers alongside capture state. A live restart showed
+all three workers running and capture healthy; deterministic wake-bootstrap
+coverage passed. Full regression, repository verification, and publication remain
+required before acceptance.

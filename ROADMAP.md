@@ -581,5 +581,12 @@ event flood cannot grow Friday's memory indefinitely and a full queue cannot
 trap the reader during shutdown. Deterministic capacity and retirement tests
 preserve ordered single-worker delivery.
 
+## Stage 12N — resident worker health projection (**Accepted**)
+
+Accepted: read-only voice health now reports liveness and local PIDs for the
+resident primary wake ASR, fallback wake ASR, and Piper workers, in addition to
+capture health. A live restart confirmed all workers healthy; deterministic
+coverage verifies the projection without transferring lifecycle authority.
+
 Remaining Stage 12 work includes long-running stability qualification and
 observability.

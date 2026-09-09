@@ -746,6 +746,16 @@ def test_voice_turn_telemetry_requires_positive_capacity():
         VoiceTurnTelemetry(max_events=0)
 
 
+def test_health_projects_managed_worker_liveness():
+    service, *_ = make_service()
+
+    assert service.health()["workers"] == {
+        "primary": {"running": True, "pid": 100},
+        "fallback": {"running": True, "pid": 100},
+        "piper": {"running": True, "pid": 100},
+    }
+
+
 def test_transient_capture_failure_recovers_without_reloading_models():
     from local_ai_assistant.voice.wake_capture import WakeCaptureError
 

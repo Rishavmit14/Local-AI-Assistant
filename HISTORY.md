@@ -260,3 +260,9 @@ Accepted a bounded, cancellation-aware Piper worker event queue. Persistent
 protocol output now has a 128-record in-process limit, and reader retirement
 unblocks saturation during shutdown. Deterministic Piper capacity and lifecycle
 tests passed.
+
+## 2026-09-10 — Stage 12N resident worker health projection
+
+Accepted read-only liveness/PID health projections for persistent primary wake,
+fallback wake, and Piper workers. A live service restart confirmed all three
+workers and wake capture healthy; deterministic projection coverage passed.

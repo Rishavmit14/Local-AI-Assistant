@@ -192,6 +192,11 @@ The persistent Piper worker protocol also has a bounded event handoff (128
 records). Reader backpressure is cancellation-aware, so shutdown retires a
 reader blocked by a saturated queue instead of leaving a worker thread behind.
 
+Voice health exposes read-only liveness and local PIDs for the resident primary
+wake ASR, fallback wake ASR, and Piper processes alongside capture health. This
+detects an idle dead worker without granting the presentation layer control over
+its lifecycle.
+
 ## Stage 12C-B — bare wake fresh follow-up command
 
 Accepted production behavior:

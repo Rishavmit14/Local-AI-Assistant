@@ -158,3 +158,10 @@ backpressure cancellation-aware. A malformed/flooding worker must not accumulate
 unbounded decoded audio/events, and a service shutdown must retire a reader
 waiting on a saturated queue. Preserve ordered event delivery and the existing
 single Piper-process ownership.
+
+## Stage 12N decision — resident worker health projection
+
+Expose read-only liveness and local PID information for persistent primary wake,
+fallback wake, and Piper workers through voice health. This provides early
+operational evidence of an idle worker death without coupling presentation/API
+consumers to worker lifecycle controls.

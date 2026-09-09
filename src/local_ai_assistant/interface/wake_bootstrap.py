@@ -980,6 +980,11 @@ class FridayManagedWakeVoice:
                     type(self._capture_error).__name__ if self._capture_error else None
                 ),
                 "capture": capture,
+                "workers": {
+                    "primary": _managed_worker_health(self.primary),
+                    "fallback": _managed_worker_health(self.fallback),
+                    "piper": _managed_worker_health(self.speech_synthesizer),
+                },
             }
 
 
@@ -1292,6 +1297,16 @@ def build_managed_wake_voice(
 
 
     return managed
+
+
+def _managed_worker_health(resource: ManagedStartableClosable) -> dict[str, object]:
+    """Return only local operational liveness for a managed child process."""
+    worker_pid = getattr(resource, "worker_pid", None)
+    running = isinstance(worker_pid, int) and worker_pid > 0
+    return {
+        "running": running,
+        "pid": worker_pid if running else None,
+    }
 
 
 __all__ = [

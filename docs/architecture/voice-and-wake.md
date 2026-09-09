@@ -78,6 +78,11 @@ applies backpressure during an abnormal event flood, while reader retirement
 unblocks a full queue during shutdown so boundedness cannot create a lifecycle
 leak.
 
+The read-only voice-health endpoint includes liveness/PID projections for the
+primary wake worker, fallback wake worker, and Piper worker. It remains an
+operational observation boundary; worker start/stop ownership stays managed by
+the production wake service.
+
 ## Stage 12C-B — bare wake fresh follow-up
 
 A bare strict `Hey Friday` wake authorizes a turn but is not itself reused as
