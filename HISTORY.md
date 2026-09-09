@@ -203,3 +203,12 @@ read retains microphone ownership until the iterator reaches a safe stop.
 The long voice qualification also exposed a trusted barge-in stop with no
 completed utterance. Friday now records that incomplete interruption and returns
 to IDLE without passing partial audio to Whisper or raising a false voice failure.
+
+## 2026-09-09 — Stage 12G long-playback barge-in stability
+
+Accepted playback-lifetime barge monitoring and privacy-safe interruption
+outcomes. The former five-second first-audio deadline could expire while Piper
+was still preparing a long response, silently disabling barge-in and later
+reporting a false voice error. The bounded arm deadline is now 30 seconds, and
+explicit monitor timeouts re-arm while playback continues. A live late stop
+reached the exact-stop IDLE path with no runtime error.

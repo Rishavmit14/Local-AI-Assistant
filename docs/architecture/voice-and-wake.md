@@ -38,7 +38,6 @@ Pause semantics are deliberately quiescent rather than terminating: the wake loo
 
 ## Known hardening items
 
-- final concurrent HTTP/presentation versus wake-turn policy;
 - streaming speech / initial-response latency;
 - longer-running voice stability and richer state observability.
 
@@ -156,3 +155,11 @@ presentation stream that yielded no reply or accepted wake. Both paths returned
 to healthy listening. If a trusted barge-in stops playback but does not yield a
 complete bounded utterance, Friday records an incomplete interruption and returns
 to IDLE without forwarding partial audio to Whisper.
+
+## Stage 12G — long-playback barge-in stability
+
+Barge monitoring waits a bounded 30 seconds for Piper's first audible playback.
+After an explicit monitor timeout it opens a new bounded pass while playback is
+still active. Runtime speech events expose only outcome, pass count, elapsed time
+and maximum speech probability. Real delayed playback and late exact-stop
+qualification passed without a runtime error.

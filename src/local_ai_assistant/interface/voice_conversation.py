@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 import time
 from collections.abc import Generator, Iterator
+from dataclasses import replace
 from typing import Protocol
 
 from local_ai_assistant.voice import (
@@ -27,7 +28,9 @@ _TERMINAL_STATES = frozenset(
     }
 )
 
-_BARGE_IN_START_TIMEOUT_SECONDS = 5.0
+# Piper can take several seconds to yield the first audio chunk for a long
+# response. Keep this bounded, but do not abandon barge-in before playback arms.
+_BARGE_IN_START_TIMEOUT_SECONDS = 30.0
 _BARGE_IN_JOIN_TIMEOUT_SECONDS = 35.0
 _BARGE_IN_POLL_SECONDS = 0.005
 _EXPLICIT_STOP_COMMANDS = frozenset(
@@ -644,6 +647,20 @@ class FridayVoiceConversationService:
                 result.sample_rate,
         }
 
+        if barge_in is not None:
+            metadata.update(
+                {
+                    "barge_in_outcome": barge_in.outcome,
+                    "barge_in_monitor_passes": barge_in.monitor_passes,
+                    "barge_in_monitor_elapsed_seconds": (
+                        barge_in.monitor_elapsed_seconds
+                    ),
+                    "barge_in_max_speech_probability": (
+                        barge_in.max_speech_probability
+                    ),
+                }
+            )
+
         if (
             barge_in
             is not None
@@ -869,11 +886,33 @@ class FridayVoiceConversationService:
                     _BARGE_IN_POLL_SECONDS
                 )
 
+            monitor_started = time.monotonic()
+            passes = 0
+
             try:
-                monitor_results.append(
-                    monitor
-                    .capture_interruption()
-                )
+                while True:
+                    result = monitor.capture_interruption()
+                    passes += 1
+                    completed = not player.is_playing
+                    if (
+                        result.triggered
+                        or result.stop_result is not None
+                        or completed
+                        or result.outcome != "monitor_timeout"
+                    ):
+                        monitor_results.append(
+                            replace(
+                                result,
+                                monitor_passes=passes,
+                                monitor_elapsed_seconds=time.monotonic() - monitor_started,
+                                outcome=(
+                                    "playback_completed"
+                                    if completed and not result.triggered
+                                    else result.outcome
+                                ),
+                            )
+                        )
+                        return
 
             except Exception as exc:
                 monitor_errors.append(

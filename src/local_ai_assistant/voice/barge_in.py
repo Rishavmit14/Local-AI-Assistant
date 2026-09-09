@@ -116,6 +116,12 @@ class BargeInResult:
 
     max_speech_probability: float
 
+    monitor_passes: int = 1
+
+    monitor_elapsed_seconds: float | None = None
+
+    outcome: str = "unknown"
+
 
 class SpeechStopper(Protocol):
     @property
@@ -325,6 +331,7 @@ class FridayBargeInMonitor:
                         max_speech_probability=(
                             max_probability
                         ),
+                        outcome="playback_completed",
                     )
 
                 pcm = (
@@ -395,6 +402,7 @@ class FridayBargeInMonitor:
                             max_speech_probability=(
                                 max_probability
                             ),
+                            outcome="stop_failed",
                         )
 
                     triggered = True
@@ -424,6 +432,7 @@ class FridayBargeInMonitor:
                         max_speech_probability=(
                             max_probability
                         ),
+                        outcome="triggered",
                     )
 
         return BargeInResult(
@@ -437,6 +446,11 @@ class FridayBargeInMonitor:
             utterance=None,
             max_speech_probability=(
                 max_probability
+            ),
+            outcome=(
+                "triggered"
+                if triggered
+                else "monitor_timeout"
             ),
         )
 

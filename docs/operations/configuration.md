@@ -80,3 +80,12 @@ synchronous local-model read has already begun, the presentation lease and wake
 pause remain until that read reaches a safe cancellation boundary; the runtime
 then reports `cancelled` before later work resets it to idle. This is intentional
 fail-closed microphone ownership, not a hung wake service.
+
+## Stage 12G barge-in monitoring
+
+Piper first audio may take longer than a short response deadline. Friday waits a
+bounded 30 seconds before declaring that barge monitoring never armed. During
+long playback, an explicit monitor timeout re-arms another bounded pass. Inspect
+`voice.speech.interrupted` or `voice.speech.completed` metadata for the
+privacy-safe `barge_in_outcome`, monitor pass count, elapsed time, and maximum
+speech probability; no microphone audio or transcript is retained by this data.

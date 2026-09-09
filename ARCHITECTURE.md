@@ -295,3 +295,11 @@ bounded completed utterance is available. Friday now records the interruption an
 returns to IDLE without sending partial audio to Whisper or incorrectly reporting
 a voice failure. This remains fail-closed and does not claim a conversational
 continuation without a completed utterance.
+
+## Stage 12G — long-playback barge monitoring
+
+Friday waits a bounded 30 seconds for Piper's first audible playback, then keeps
+barge coverage alive through explicit bounded-monitor timeout passes while speech
+continues. Speech events report only aggregate outcome/pass/elapsed/VAD metadata.
+The live delayed-counting trial stopped on `Friday, stop` in 3.3 ms and completed
+the exact-stop IDLE path without a runtime error.

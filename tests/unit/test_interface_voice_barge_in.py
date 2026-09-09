@@ -359,6 +359,7 @@ class FakeBargeInMonitor:
         interruption: VoiceUtterance,
         *,
         trigger_first: bool,
+        timeout_first: bool = False,
     ) -> None:
         self.player = player
         self.interruption = (
@@ -368,6 +369,8 @@ class FakeBargeInMonitor:
         self.trigger_first = (
             trigger_first
         )
+
+        self.timeout_first = timeout_first
 
         self.calls = 0
 
@@ -405,6 +408,11 @@ class FakeBargeInMonitor:
             stop_result=None,
             utterance=None,
             max_speech_probability=0.10,
+            outcome=(
+                "monitor_timeout"
+                if self.timeout_first and self.calls == 1
+                else "playback_completed"
+            ),
         )
 
 
@@ -893,7 +901,8 @@ def test_non_triggering_monitor_preserves_normal_completion(
             make_utterance(
                 3
             ),
-            trigger_first=False,
+        trigger_first=False,
+        timeout_first=True,
         )
     )
 
@@ -933,8 +942,18 @@ def test_non_triggering_monitor_preserves_normal_completion(
 
     assert (
         monitor.calls
-        == 1
+        == 2
     )
+
+    completed = next(
+        event
+        for event in runtime.events_since()
+        if event.event_type is FridayEventType.VOICE_SPEECH_COMPLETED
+    )
+    assert completed.metadata["barge_in_outcome"] == "playback_completed"
+    assert completed.metadata["barge_in_monitor_passes"] == 2
+    assert completed.metadata["barge_in_monitor_elapsed_seconds"] is not None
+    assert completed.metadata["barge_in_max_speech_probability"] == pytest.approx(0.10)
 
     assert (
         player.stop_calls

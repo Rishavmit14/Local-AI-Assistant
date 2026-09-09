@@ -106,3 +106,12 @@ If trusted barge-in has already stopped playback but cannot produce a completed
 bounded utterance, do not replay or transcribe partial audio. Record the
 interruption and return to IDLE. This is fail-closed recovery, not permission to
 invent a conversational continuation.
+
+## Stage 12G decision — bounded playback-lifetime barge monitoring
+
+Do not use a short pre-playback arm deadline as an interruption failure. Piper
+may need several seconds to produce first audio for a long response. Wait up to
+30 seconds to arm, then retain the existing bounded capture pass and re-arm only
+its explicit timeout while playback remains active. Preserve a failed playback
+stop as an error. Emit only outcome/timing/pass/VAD summary metadata. Live late
+exact-stop qualification passed with a 3.3 ms playback stop and no runtime error.

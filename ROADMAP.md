@@ -76,10 +76,10 @@ Accepted: Streamlit removal; `FridayInterfaceService`; native presentation API/e
 
 Production barge-in uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`. The physical/default speaker monitor supplies the echo reference while `friday_aec_source` supplies the cleaned microphone stream exclusively to `FridayBargeInMonitor`; wake capture remains on the normal raw microphone path. Live qualification proved strong speaker-echo suppression, preserved human speech above the existing trusted interruption gate, normal wake conversation, natural interruption without repeating the wake phrase, and stable service operation.
 
-Remaining: concurrent HTTP/presentation versus wake-turn policy; richer visual
-listening/thinking/speaking/interruption states; streaming speech/initial-response
-latency; and longer-running voice stability qualification. Capture/worker health
-recovery is accepted in Stage 12E.
+Remaining: richer visual listening/thinking/speaking/interruption states;
+streaming speech/initial-response latency; and longer-running voice stability
+qualification. Capture/worker health recovery is accepted in Stage 12E and
+wake/HTTP interaction ownership in Stage 12F.
 
 ## Stage 12 — Production Voice Lifecycle (**Active**)
 
@@ -95,8 +95,8 @@ acknowledgement. The same classifier handles trusted AEC interruption transcript
 after immediate playback stop. Nonexact phrases remain conversational. Final
 physical qualification passed inline stop, active-speech stop, and stop-loss
 negative control on the clean runtime without diagnostic readers. Clipped host
-audio was corrected and the rejected ASR alias was removed. Continue concurrency
-policy, observability, streaming speech latency, and long-running voice stability.
+audio was corrected and the rejected ASR alias was removed. Continue barge-in
+observability, streaming speech latency, and long-running voice stability.
 
 ## Stage 12E — capture/worker health recovery (**Accepted**)
 
@@ -130,6 +130,15 @@ IDLE without partial-ASR replay or a false runtime error.
 Remaining Stage 12 follow-up: bare `Hey Friday` enters fresh-command capture but
 does not currently emit a dependable audible ready cue. Keep that feedback work
 after Stage 12F acceptance; it is not evidence that a recognized wake was lost.
+
+## Stage 12G — barge-in observability and long-playback stability (**Accepted**)
+
+Accepted: bounded 30-second Piper first-audio arming, playback-lifetime barge
+monitor passes after explicit monitor timeouts, and privacy-safe outcome, pass,
+elapsed, and maximum VAD-probability event metadata. Stop failures remain hard
+failures. Physical requalification proved a delayed start and late `Friday,
+stop` interruption: playback stopped in 3.3 ms and the exact-stop path returned
+to IDLE without a runtime error.
 
 ## Stage 13 — Persistent Friday Memory (**Planned**)
 

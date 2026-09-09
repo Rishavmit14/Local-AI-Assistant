@@ -1076,16 +1076,17 @@ Latest accepted capability recovery checkpoint:
 Stage 12D is closed; reopen only upon evidence of a genuine regression.
 
 Latest accepted repository recovery checkpoint:
-`42777b1380f058b873165c2debcfcca3444722ff`
-(`Stage 12E: add wake capture recovery`). Stage/main, fetched tracking refs, and
-direct remote refs were verified equal with a clean accepted tree. The checkpoint
-also canonically accepts Local Intelligence Sovereignty, the current single-
-general-model policy, and detailed planned Stages 20–22 as product requirements;
-it does not claim those future stages implemented.
+`7cc288f089057349fd09bcfbce8115d1b0fa036d`
+(`Stage 12F: enforce voice and presentation interaction ownership`). Stage/main,
+fetched tracking refs, and direct remote refs were verified equal with a clean
+accepted tree. The earlier Stage 12E checkpoint canonically accepted Local
+Intelligence Sovereignty, the current single-general-model policy, and detailed
+planned Stages 20–22 as product requirements; it does not claim those future
+stages implemented.
 
-Current capability: Stage 12F wake/HTTP runtime concurrency policy, QUALIFIED
-and ready for final regression/publication. Stage 12E is accepted and must not
-be reopened absent genuine regression.
+Current capability: Stage 12G barge-in observability and longer-running voice
+stability, QUALIFIED and ready for final regression/publication. Stage 12F is
+accepted at `7cc288f` and must not be reopened absent genuine regression.
 
 Initial 12F finding: production wake and HTTP conversation share one runtime and
 LLM service without an admission boundary. Concurrent HTTP streams can both emit
@@ -1148,10 +1149,11 @@ input or a false runtime error. The Stage 12F acceptance recovery is the commit
 containing this section; record its literal SHA in the following capability's
 discovery.
 
-Run final full regression/repository verification/frontend tests/build, review
-the diff, commit/publish Stage 12F on the stage/main refs, fetch/verify equal refs
-and clean state, then immediately begin discovery of Stage 12 barge-in
-observability and longer-running voice stability.
+Stage 12G discovery found the current barge-in monitor has a fixed 30-second
+wait. A long Piper playback can outlive that one monitor pass, silently losing
+interruption coverage after the wait expires. Add playback-lifetime-aware,
+bounded monitoring with privacy-safe outcome/elapsed telemetry, deterministic
+long-playback/cancellation/error coverage, and then requalify the real service.
 
 Final lifecycle finding: the first restart exposed a product race where the old
 CLI waited until Uvicorn returned before closing voice; SIGTERM recorder unwind
