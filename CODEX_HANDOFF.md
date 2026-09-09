@@ -1320,11 +1320,13 @@ repository verification passed. The Stage 12L implementation acceptance
 checkpoint is `773f010ea39df9ab071bcd4ee23afc7650277f1d`; verify current branch
 heads from Git before relying on this historical checkpoint.
 
-## Stage 12M — bounded Piper protocol handoff (qualified, 2026-09-10)
+## Stage 12M — bounded Piper protocol handoff (accepted, 2026-09-10)
 
 The persistent Piper reader now uses a 128-record bounded event queue. Its
 backpressure loop notices reader retirement, preventing a saturated queue from
 stranding a shutdown thread while still preserving ordered single-worker event
-delivery. Focused Piper tests cover validation and full-queue retirement. Full
-regression, repository verification, runtime restart, and publication remain
-required before acceptance.
+delivery. Focused Piper tests cover validation and full-queue retirement; full
+regression, repository verification, and a healthy service restart passed. The
+Stage 12M implementation acceptance checkpoint is
+`a3c5bd80e65acaa618621e8568788350c2ea00a1`; verify current branch heads from
+Git before relying on this historical checkpoint.
