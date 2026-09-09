@@ -217,8 +217,9 @@ enters stream_text directly and bypasses main Whisper. Production qualification
 proved fresh follow-up capture, Whisper, LLM/Piper response, clean 8-second
 timeout, a second bare wake after timeout, and unchanged inline behavior.
 
-There is no acknowledgement chime or spoken "Yes?" yet. Deployment remains the
-logged-in user's `friday-local-ai.service`. The pre-Stage-12C-B recovery point is
+At that checkpoint there was no acknowledgement chime or spoken "Yes?"; Stage
+12H later accepted the local bare-wake “I'm listening” cue. Deployment remains
+the logged-in user's `friday-local-ai.service`. The pre-Stage-12C-B recovery point is
 `3ae5292bbd1b0042e01211a657dad0fd5e9078d6`; the accepted Stage 12C-B recovery
 commit is the commit containing this section.
 

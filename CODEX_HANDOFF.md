@@ -1025,8 +1025,7 @@ Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic
 event-derived speech outcome signals without presentation-owned lifecycle state.
-Stage 12 now continues with barge-in observability, acknowledgement UX, and
-longer-running stability.
+Stage 12 now continues with barge-in observability and longer-running stability.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 
@@ -1052,7 +1051,6 @@ Current limitation:
 Next Stage 12 work:
 1. Capture-thread health supervision/restart.
 2. Barge-in observability and longer-running voice stability.
-3. Acknowledgement UX.
 
 ## Stage 12C-B — bare wake fresh follow-up semantics
 

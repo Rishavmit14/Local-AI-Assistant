@@ -127,9 +127,9 @@ wakes. The following stream completion returned Friday to listening. A trusted
 barge-in that stops playback without a completed utterance now returns safely to
 IDLE without partial-ASR replay or a false runtime error.
 
-Remaining Stage 12 follow-up: bare `Hey Friday` enters fresh-command capture but
-does not currently emit a dependable audible ready cue. Keep that feedback work
-after Stage 12F acceptance; it is not evidence that a recognized wake was lost.
+At that checkpoint, bare `Hey Friday` entered fresh-command capture without a
+dependable audible ready cue. Stage 12H subsequently accepted the local “I'm
+listening” acknowledgement; a missing cue is no longer an open Stage 12 item.
 
 ## Stage 12G — barge-in observability and long-playback stability (**Accepted**)
 
@@ -565,5 +565,5 @@ creating a client-owned lifecycle state, then clears at the next user turn.
 Deterministic frontend-store coverage proves the state/outcome separation;
 frontend tests, lint, and production build passed.
 
-Remaining Stage 12 work includes long-running stability qualification,
-acknowledgement UX, and observability.
+Remaining Stage 12 work includes long-running stability qualification and
+observability.
