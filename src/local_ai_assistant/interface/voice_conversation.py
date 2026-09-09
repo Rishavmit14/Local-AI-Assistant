@@ -196,6 +196,21 @@ class FridayVoiceConversationService:
             reason=reason,
         )
 
+    def speak_ready_acknowledgement(self) -> None:
+        """Speak the bare-wake cue before opening fresh microphone capture."""
+        synthesizer = self.speech_synthesizer
+        player = self.speech_player
+        if synthesizer is None or player is None:
+            return
+        if self.runtime.state is not FridayRuntimeState.LISTENING:
+            raise InvalidRuntimeTransition("ready acknowledgement requires listening")
+        text = "I'm listening."
+        self.runtime.transition(FridayRuntimeState.SPEAKING, reason="voice_ready_acknowledgement")
+        self.runtime.emit(FridayEventType.VOICE_SPEECH_STARTED, state=FridayRuntimeState.SPEAKING, text=text, metadata={"acknowledgement": True})
+        result = player.play(synthesizer.stream(text))
+        self.runtime.emit(FridayEventType.VOICE_SPEECH_COMPLETED, state=FridayRuntimeState.SPEAKING, text=text, metadata={"acknowledgement": True, "elapsed_seconds": result.elapsed_seconds})
+        self.runtime.transition(FridayRuntimeState.IDLE, reason="voice_ready_acknowledgement_completed")
+        self.start_listening()
 
     def _finish_explicit_stop(
         self,

@@ -80,6 +80,7 @@ class FakeVoice:
         self.received = None
         self.capture = None
         self.stop_reasons = []
+        self.acknowledgements = 0
 
 
     def start_listening(
@@ -105,6 +106,9 @@ class FakeVoice:
         self.stop_reasons.append(
             reason
         )
+
+    def speak_ready_acknowledgement(self) -> None:
+        self.acknowledgements += 1
 
 
     def stream_utterance(

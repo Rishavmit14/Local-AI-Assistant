@@ -31,6 +31,7 @@ _ALLOWED_TRANSITIONS: dict[
         FridayRuntimeState.ERROR,
     }),
     FridayRuntimeState.LISTENING: frozenset({
+        FridayRuntimeState.SPEAKING,
         FridayRuntimeState.TRANSCRIBING,
         FridayRuntimeState.IDLE,
         FridayRuntimeState.ERROR,

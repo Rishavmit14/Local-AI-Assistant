@@ -212,3 +212,10 @@ was still preparing a long response, silently disabling barge-in and later
 reporting a false voice error. The bounded arm deadline is now 30 seconds, and
 explicit monitor timeouts re-arm while playback continues. A live late stop
 reached the exact-stop IDLE path with no runtime error.
+
+## 2026-09-09 — Stage 12H bare-wake acknowledgement
+
+Accepted a local “I'm listening” cue before fresh bare-wake capture. It keeps
+wake paused, returns from SPEAKING to LISTENING, then opens the independent raw
+follow-up stream. Physical qualification heard the cue, transcribed “What time
+is it?”, completed the normal response, and returned to healthy listening.

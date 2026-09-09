@@ -55,6 +55,9 @@ class VoiceConversationBoundary(
     ) -> None:
         ...
 
+    def speak_ready_acknowledgement(self) -> None:
+        ...
+
 
     def stream_text(
         self,
@@ -168,6 +171,13 @@ class FridayWakeVoiceOrchestrator:
                     )
                 )
             else:
+                acknowledgement = getattr(
+                    self.voice,
+                    "speak_ready_acknowledgement",
+                    None,
+                )
+                if acknowledgement is not None:
+                    acknowledgement()
                 follow_up_capture = (
                     self.follow_up_capture
                 )

@@ -527,7 +527,7 @@ acceptance gate; `CODEX_HANDOFF.md` records the current operational handoff.
 The durable owner policy in `AGENTS.md` requires continuous autonomous execution:
 accepted and remotely recoverable capabilities are checkpoints, not approval
 pauses. Verify recovery/clean state and immediately begin the next capability.
-After accepted Stage 12F, the next Stage 12 capability is barge-in observability
-and longer-running voice stability; all other Stage 12 scope above remains scheduled. Human involvement is reserved
+After accepted Stage 12H, the next Stage 12 capability is streaming speech and
+initial-response latency; all other Stage 12 scope above remains scheduled. Human involvement is reserved
 for unavoidable physical input or genuine capability boundaries.
 <!-- FRIDAY_DELIVERY_POLICY_END -->

@@ -1155,6 +1155,11 @@ interruption coverage after the wait expires. Add playback-lifetime-aware,
 bounded monitoring with privacy-safe outcome/elapsed telemetry, deterministic
 long-playback/cancellation/error coverage, and then requalify the real service.
 
+Stage 12H is qualified and ready for publication: a bare wake now speaks “I'm
+listening” before fresh capture. Live evidence confirmed cue -> fresh “What time
+is it?” transcription -> normal response -> listening, with wake paused during
+the cue and capture.
+
 Final lifecycle finding: the first restart exposed a product race where the old
 CLI waited until Uvicorn returned before closing voice; SIGTERM recorder unwind
 scheduled a false retry. Cleanup now begins at Uvicorn's first exit signal and

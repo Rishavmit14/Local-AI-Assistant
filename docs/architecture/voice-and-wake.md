@@ -163,3 +163,9 @@ After an explicit monitor timeout it opens a new bounded pass while playback is
 still active. Runtime speech events expose only outcome, pass count, elapsed time
 and maximum speech probability. Real delayed playback and late exact-stop
 qualification passed without a runtime error.
+
+## Stage 12H — bare-wake ready acknowledgement
+
+A bare wake now speaks a short local “I'm listening” cue while wake capture is
+paused, returns to LISTENING, and only then opens fresh follow-up capture. This
+keeps Friday's cue out of microphone input and preserves the one-shot boundary.

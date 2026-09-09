@@ -148,6 +148,23 @@ def make_utterance() -> VoiceUtterance:
     )
 
 
+def test_bare_wake_ready_acknowledgement_returns_to_listening() -> None:
+    voice, runtime, _, _, synthesizer, player = make_voice_service()
+    voice.start_listening()
+
+    voice.speak_ready_acknowledgement()
+
+    assert runtime.state is FridayRuntimeState.LISTENING
+    assert synthesizer.calls == ["I'm listening."]
+    assert player.calls == 1
+    events = runtime.events_since()
+    started = next(event for event in events if event.event_type is FridayEventType.VOICE_SPEECH_STARTED)
+    completed = next(event for event in events if event.event_type is FridayEventType.VOICE_SPEECH_COMPLETED)
+    assert started.metadata["acknowledgement"] is True
+    assert completed.metadata["acknowledgement"] is True
+    assert any(event.metadata.get("reason") == "voice_ready_acknowledgement_completed" for event in events)
+
+
 def make_voice_service(
     *,
     chunks: list[str] | None = None,
