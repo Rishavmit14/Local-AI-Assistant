@@ -150,3 +150,11 @@ Recent ordered stages remain available for lifecycle diagnostics, while the
 always-on service cannot grow memory indefinitely during normal operation.
 Continue emitting the existing journal records; the bounded in-process trace is
 not a replacement for durable operational logs.
+
+## Stage 12M decision — bounded Piper protocol handoff
+
+Bound the persistent Piper worker reader's in-process event queue and make its
+backpressure cancellation-aware. A malformed/flooding worker must not accumulate
+unbounded decoded audio/events, and a service shutdown must retire a reader
+waiting on a saturated queue. Preserve ordered event delivery and the existing
+single Piper-process ownership.

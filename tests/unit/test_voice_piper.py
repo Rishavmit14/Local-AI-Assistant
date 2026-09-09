@@ -5,6 +5,7 @@ import hashlib
 import sys
 import threading
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -299,6 +300,32 @@ def test_missing_model_fails_first(
                 worker_path=worker,
             )
         )
+
+
+def test_worker_event_queue_capacity_must_be_positive(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="event_queue_max_items"):
+        replace(
+            runtime_config(tmp_path),
+            event_queue_max_items=0,
+        )
+
+
+def test_full_worker_event_queue_unblocks_on_reader_retirement(tmp_path: Path) -> None:
+    config = runtime_config(tmp_path)
+    synth = PiperSpeechSynthesizer(replace(config, event_queue_max_items=1))
+    synth._events.put_nowait({"type": "occupied"})
+    worker = threading.Thread(
+        target=synth._queue_event,
+        args=({"type": "later"},),
+    )
+    worker.start()
+    time.sleep(0.05)
+    assert worker.is_alive()
+
+    synth._reader_stop.set()
+    worker.join(timeout=1)
+
+    assert not worker.is_alive()
 
 
 def test_persistent_worker_streams(

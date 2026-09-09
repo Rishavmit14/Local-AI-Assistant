@@ -73,6 +73,11 @@ production stages. This preserves in-process ordering diagnostics without an
 unbounded always-on memory cost; structured service-journal records remain the
 external operational evidence.
 
+Piper's persistent worker reader uses a bounded 128-event protocol queue. It
+applies backpressure during an abnormal event flood, while reader retirement
+unblocks a full queue during shutdown so boundedness cannot create a lifecycle
+leak.
+
 ## Stage 12C-B — bare wake fresh follow-up
 
 A bare strict `Hey Friday` wake authorizes a turn but is not itself reused as

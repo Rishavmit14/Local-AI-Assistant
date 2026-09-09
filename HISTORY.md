@@ -253,3 +253,10 @@ Accepted a 2,048-record rolling telemetry trace for the always-on production
 voice service. Recent ordering diagnostics remain available while normal uptime
 can no longer grow the in-process trace indefinitely; journal output remains the
 durable operations record. Focused capacity/order coverage passed.
+
+## 2026-09-10 — Stage 12M bounded Piper protocol handoff
+
+Accepted a bounded, cancellation-aware Piper worker event queue. Persistent
+protocol output now has a 128-record in-process limit, and reader retirement
+unblocks saturation during shutdown. Deterministic Piper capacity and lifecycle
+tests passed.

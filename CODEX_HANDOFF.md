@@ -1026,6 +1026,7 @@ Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic
 event-derived speech outcome signals without presentation-owned lifecycle state.
 Stage 12L bounds in-process voice-stage telemetry. Stage 12 now continues with
+Stage 12M bounds the Piper worker event handoff. Stage 12 now continues with
 barge-in observability and longer-running stability.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
@@ -1318,3 +1319,12 @@ wake-bootstrap regression, a healthy service restart, full regression, and
 repository verification passed. The Stage 12L implementation acceptance
 checkpoint is `773f010ea39df9ab071bcd4ee23afc7650277f1d`; verify current branch
 heads from Git before relying on this historical checkpoint.
+
+## Stage 12M — bounded Piper protocol handoff (qualified, 2026-09-10)
+
+The persistent Piper reader now uses a 128-record bounded event queue. Its
+backpressure loop notices reader retirement, preventing a saturated queue from
+stranding a shutdown thread while still preserving ordered single-worker event
+delivery. Focused Piper tests cover validation and full-queue retirement. Full
+regression, repository verification, runtime restart, and publication remain
+required before acceptance.

@@ -573,5 +573,13 @@ accumulating unbounded in-process diagnostic memory. Service-journal output
 remains the durable evidence path. Deterministic capacity/order and validation
 tests cover the boundary.
 
+## Stage 12M — bounded Piper protocol handoff (**Accepted**)
+
+Accepted: the persistent Piper worker reader now hands decoded protocol events
+through a bounded 128-record queue. Backpressure is cancellation-aware, so an
+event flood cannot grow Friday's memory indefinitely and a full queue cannot
+trap the reader during shutdown. Deterministic capacity and retirement tests
+preserve ordered single-worker delivery.
+
 Remaining Stage 12 work includes long-running stability qualification and
 observability.

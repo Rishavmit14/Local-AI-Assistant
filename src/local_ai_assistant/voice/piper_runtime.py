@@ -10,7 +10,7 @@ from collections import deque
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from queue import Empty, Queue
+from queue import Empty, Full, Queue
 from typing import Any, BinaryIO
 
 DEFAULT_PIPER_PYTHON_PATH = Path(
@@ -74,6 +74,7 @@ class PiperSpeechConfig:
     startup_timeout_seconds: float = 10.0
     synthesis_timeout_seconds: float = 20.0
     shutdown_timeout_seconds: float = 3.0
+    event_queue_max_items: int = 128
 
     def __post_init__(
         self,
@@ -101,6 +102,9 @@ class PiperSpeechConfig:
             self.expected_model_sha256
             .lower()
         )
+
+        if self.event_queue_max_items < 1:
+            raise ValueError("event_queue_max_items must be positive")
 
         if (
             len(digest) != 64
@@ -244,7 +248,9 @@ class PiperSpeechSynthesizer:
                     Any,
                 ]
             ]
-        ) = Queue()
+        ) = Queue(maxsize=self.config.event_queue_max_items)
+
+        self._reader_stop = threading.Event()
 
         self._stderr_tail: (
             deque[str]
@@ -371,7 +377,8 @@ class PiperSpeechSynthesizer:
 
                 self._process = None
 
-            self._events = Queue()
+            self._reader_stop.clear()
+            self._events = Queue(maxsize=self.config.event_queue_max_items)
 
             self._stderr_tail = deque(
                 maxlen=50
@@ -921,6 +928,15 @@ class PiperSpeechSynthesizer:
 
         return process
 
+    def _queue_event(self, event: dict[str, Any]) -> None:
+        """Apply bounded backpressure without trapping a retiring reader."""
+        while not self._reader_stop.is_set():
+            try:
+                self._events.put(event, timeout=0.1)
+                return
+            except Full:
+                continue
+
     def _read_stdout(
         self,
         stream: BinaryIO,
@@ -932,7 +948,7 @@ class PiperSpeechSynthesizer:
                 )
 
                 if not header:
-                    self._events.put(
+                    self._queue_event(
                         {
                             "type": "_eof",
                         }
@@ -976,7 +992,7 @@ class PiperSpeechSynthesizer:
                         )
                     )
 
-                    self._events.put(
+                    self._queue_event(
                         json.loads(
                             payload.decode(
                                 "utf-8"
@@ -1017,7 +1033,7 @@ class PiperSpeechSynthesizer:
                         ),
                     )
 
-                    self._events.put(
+                    self._queue_event(
                         {
                             "type": "audio",
                             "id": request_id,
@@ -1053,7 +1069,7 @@ class PiperSpeechSynthesizer:
                 and process.poll()
                 is None
             ):
-                self._events.put(
+                self._queue_event(
                     {
                         "type": (
                             "_reader_error"
@@ -1065,7 +1081,7 @@ class PiperSpeechSynthesizer:
                 )
 
         except BaseException as exc:
-            self._events.put(
+            self._queue_event(
                 {
                     "type": (
                         "_reader_error"
@@ -1254,6 +1270,8 @@ class PiperSpeechSynthesizer:
             bytes
         ],
     ) -> None:
+        self._reader_stop.set()
+
         for thread in (
             self._reader_thread,
             self._stderr_thread,

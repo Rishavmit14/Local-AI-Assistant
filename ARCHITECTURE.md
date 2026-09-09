@@ -188,6 +188,10 @@ records. It retains recent diagnostic order for in-process consumers without
 allowing an always-on service to accumulate unbounded stage history; operational
 journal output remains the durable external diagnostic stream.
 
+The persistent Piper worker protocol also has a bounded event handoff (128
+records). Reader backpressure is cancellation-aware, so shutdown retires a
+reader blocked by a saturated queue instead of leaving a worker thread behind.
+
 ## Stage 12C-B — bare wake fresh follow-up command
 
 Accepted production behavior:
