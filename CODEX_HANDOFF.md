@@ -1298,12 +1298,14 @@ recovery documentation was then committed at
 `47db467d1f888913932c431709791b95a765a325`. Verify current branch heads from
 Git before relying on either historical checkpoint.
 
-## Stage 12K — cinematic voice outcome signals (qualified, 2026-09-10)
+## Stage 12K — cinematic voice outcome signals (accepted, 2026-09-10)
 
 The frontend continues to expose the runtime's state as authoritative, while a
 separate event-derived presentation signal distinguishes speech start,
 completion, and interruption. A barge-in signal remains through the immediate
 LISTENING handoff and clears with the next user turn; it never changes runtime
-state or interaction ownership. Deterministic frontend-store tests, lint, and
-the production build passed. Full repository regression and verification remain
-required before acceptance.
+state or interaction ownership. Deterministic frontend-store tests, lint, the
+production build, full Python regression, and repository verification passed.
+The Stage 12K implementation acceptance checkpoint is
+`d9d66bee516c9a73ef387d8faa6ff5949e396f7d`; verify current branch heads from
+Git before relying on this historical checkpoint.
