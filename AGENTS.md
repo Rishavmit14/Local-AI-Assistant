@@ -28,7 +28,9 @@ These instructions apply to the entire repository. Read this file and `CODEX_HAN
 8. Require explicit human review for high-risk auth, payment, smart-contract, security, destructive migration, or deployment changes.
 9. After an accepted capability is committed, push it and verify the configured remote branch resolves to the exact accepted commit before beginning the next major capability.
 
-Do not perform destructive cleanup of external working directories. Do not install or enable systemd units without explicit approval; render and review templates first.
+Do not perform destructive cleanup of external working directories. Render and
+review service templates before installation or enablement; ordinary roadmap
+service operations are covered by the owner's standing authorization below.
 
 <!-- FRIDAY_GOVERNANCE_START -->
 
@@ -53,6 +55,58 @@ Before planning or changing Friday:
 
 Do not require the user to reconstruct previously accepted architecture or
 workflow decisions when the repository already records them.
+
+### Durable owner policy: continuous autonomous roadmap execution
+
+The owner established this standing Friday policy on 2026-09-09. It applies to
+future sessions through this mandatory bootstrap, not just the originating chat.
+
+- Codex is the primary local engineering agent and owns ordinary Friday work
+  end-to-end: discovery, implementation, diagnosis, tests, builds, dependency and
+  service operations, documentation, Git publication, and recovery verification.
+  Choose routine implementation details from the architecture, hardware, tests,
+  and roadmap. Do not request PROCEED, routine approval, or implementation choices.
+- An accepted, remotely recoverable capability is a checkpoint, not an approval
+  pause. Record its recovery SHA in the current handoff, verify the owning stage
+  branch, main, and fetched remote refs agree, verify a clean accepted worktree,
+  then immediately begin DISCOVERY of the next canonical ROADMAP capability.
+  Continue the loop without waiting for the owner between capabilities.
+- Preserve the complete lifecycle: DISCOVERY -> EXPERIMENT -> QUALIFIED;
+  remove rejected/stale alternatives, reconcile canonical docs, run required full
+  regression, review the final scope/diff, commit the accepted candidate, push
+  its stage branch, fast-forward/push main to that exact commit, fetch/verify
+  remote recovery and clean state, then begin the next capability. Acceptance
+  is complete only after all these gates; experimental work never advances main.
+- Continue through ordinary failures: classify PRODUCT, HARNESS, ENVIRONMENT,
+  TEST, or INCONCLUSIVE evidence; diagnose, make the minimum justified repair,
+  add deterministic coverage, and requalify. Do not delegate diagnosis to the
+  owner or weaken a gate to make progress appear complete.
+- Human intervention is reserved for unavoidable physical voice/hardware input,
+  legitimately unavailable credentials/authentication/OS privileges, irreversible
+  external actions whose authorization cannot be inferred from project intent,
+  or fundamental product direction unresolved by canonical evidence and sound
+  engineering inference. A technical blocker requires reasonable investigation
+  and attempts to resolve it first. Otherwise continue until the roadmap is done.
+- Before requesting physical voice input, prepare the runtime and persist event
+  and journal cursors nonblockingly. Ask only for the physical action and a Codex
+  reply, then collect/classify evidence directly. Never use child-process stdin
+  or key-press prompts, or substitute injected/synthetic audio for required real
+  microphone qualification. Do not ask the owner to run commands or shuttle logs.
+- Global Codex settings govern machine access; this repository governs Friday
+  engineering quality, runtime authority, and acceptance/recovery. These gates
+  are quality controls, not new permission prompts. Standing authorization covers
+  ordinary engineering/service/Git work; retain human review for genuinely
+  high-risk actions beyond that scope. Friday's own runtime permission and
+  isolation controls are not relaxed by Codex's engineering authorization.
+- Preserve practical rollback points before risky changes. Do not casually
+  reset, clean, or stash unaccepted work, force-push accepted history, or carry
+  unaccepted implementation into the next capability. If capacity interrupts
+  work, persist active scope, evidence, next actions, and recovery SHA in the
+  existing canonical handoff. Fresh sessions reconstruct from canonical docs,
+  accepted commits, tests, and host evidence rather than conversation memory.
+
+User-run script requirements below apply only when delegating terminal work to
+the human; they never prevent Codex from directly running engineering commands.
 
 ### Stage branch and `main` policy
 

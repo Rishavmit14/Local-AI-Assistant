@@ -202,4 +202,11 @@ capability, architecture/runtime/deployment change, known limitation, or
 meaningful behavioral change must reconcile the relevant canonical docs before
 the acceptance commit is pushed. `AGENTS.md` defines the mandatory mapping and
 acceptance gate; `CODEX_HANDOFF.md` records the current operational handoff.
+
+The durable owner policy in `AGENTS.md` requires continuous autonomous execution:
+accepted and remotely recoverable capabilities are checkpoints, not approval
+pauses. Verify recovery/clean state and immediately begin the next capability.
+After accepted Stage 12D, Stage 12E starts with capture/worker health recovery;
+all other Stage 12 scope above remains scheduled. Human involvement is reserved
+for unavoidable physical input or genuine capability boundaries.
 <!-- FRIDAY_DELIVERY_POLICY_END -->

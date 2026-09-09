@@ -134,3 +134,15 @@ and active Stage 12 is
 `stage-12/production-voice-lifecycle`, accepted through
 `70d368e49ad546d02b274c3e440f2178038a06d8` before this docs-only change.
 <!-- FRIDAY_GOVERNANCE_HISTORY_END -->
+
+## 2026-09-09 — Durable continuous-autonomy owner policy
+
+Starting from accepted Stage 12D recovery
+`2ce0686cf05c379280c6643a3e6aba82ac3a58b0`, the owner made autonomous roadmap
+continuation durable. `AGENTS.md` now directs future sessions to own ordinary
+engineering end-to-end and treat accepted checkpoints as the start of the next
+capability's discovery. Human intervention is reserved for unavoidable physical
+actions or true capability boundaries. Quality, documentation, isolation,
+acceptance, and remote recovery gates remain mandatory. The canonical handoff
+records recovery and active work; fresh sessions discover the policy through
+the normal root AGENTS/bootstrap path without depending on conversation history.

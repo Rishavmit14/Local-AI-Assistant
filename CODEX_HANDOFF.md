@@ -5,6 +5,11 @@
 > Target machine: MSI GT62VR 7RE, Ubuntu 26.04
 > Constraint: final runtime remains local-first and usable without paid inference/API tokens.
 
+Fresh sessions must read the durable continuous-autonomy policy in `AGENTS.md`
+and the **Current cross-session handoff and Git policy** section below. Historical
+bootstrap instructions describe completed work; use current recovery refs and
+`ROADMAP.md` to continue automatically after each accepted checkpoint.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.
@@ -1043,8 +1048,15 @@ Repository: `Rishavmit14/Local-AI-Assistant`
 Current active development branch:
 `stage-12/production-voice-lifecycle`
 
-Accepted checkpoint before this documentation-only governance commit:
-`70d368e49ad546d02b274c3e440f2178038a06d8`
+Latest accepted capability recovery checkpoint:
+`2ce0686cf05c379280c6643a3e6aba82ac3a58b0`
+(`Stage 12D: add explicit stop semantics`, accepted and remotely verified).
+Stage 12D is closed; reopen only upon evidence of a genuine regression.
+
+Current work: persist and qualify the owner's continuous-autonomy governance
+update, then immediately begin Stage 12E capture/worker health recovery DISCOVERY
+on the existing Stage 12 branch. No physical voice input is needed for governance.
+Friday remains active on the accepted runtime; verify host state on every resume.
 
 Stage branch boundaries:
 
@@ -1053,8 +1065,8 @@ Stage branch boundaries:
   at `877cb1e6049eb6b0a6434d3eac835077be666c17`.
 - Stage 12:
   `stage-12/production-voice-lifecycle`
-  containing accepted Stage 12A/B/C work through
-  `70d368e49ad546d02b274c3e440f2178038a06d8`.
+  containing accepted Stage 12A/B/C/D work through
+  `2ce0686cf05c379280c6643a3e6aba82ac3a58b0`.
 - `main` tracks the newest fully qualified accepted subtask and is advanced to
   the same accepted commit after each successful stage-branch subtask.
 
@@ -1064,7 +1076,9 @@ Accepted Stage 12 checkpoints currently include:
 - wake blocked-read pause/stop lifecycle hardening;
 - inline `Hey Friday, <command>` direct-text routing without duplicate Whisper;
 - bare `Hey Friday` followed by a fresh bounded microphone command capture,
-  with no reuse of the wake utterance and fail-closed timeout/error handling.
+  with no reuse of the wake utterance and fail-closed timeout/error handling;
+- exact explicit stop without LLM or acknowledgement, including trusted AEC
+  interruption and the stop-loss negative control.
 
 Stage 12 remains active for the remaining production voice lifecycle work
 recorded in `ROADMAP.md`.
@@ -1083,7 +1097,9 @@ For every accepted subtask:
    heading;
 5. push the stage branch;
 6. fast-forward `main` to that exact accepted commit and push;
-7. verify both remote refs and record the recovery point.
+7. fetch/verify both remote refs, record the recovery SHA, and verify clean state;
+8. immediately begin DISCOVERY of the next canonical-roadmap capability without
+   an approval pause, following the durable owner policy in `AGENTS.md`.
 
 A feature/capability/architecture/runtime change that exists only in code or chat
 and is not reconciled into the canonical docs is **not accepted**.
