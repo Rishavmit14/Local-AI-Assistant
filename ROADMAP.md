@@ -565,5 +565,13 @@ creating a client-owned lifecycle state, then clears at the next user turn.
 Deterministic frontend-store coverage proves the state/outcome separation;
 frontend tests, lint, and production build passed.
 
+## Stage 12L — bounded voice-stage telemetry (**Accepted**)
+
+Accepted: always-on production voice telemetry now uses a thread-safe rolling
+buffer limited to 2,048 ordered stage records, preventing normal operation from
+accumulating unbounded in-process diagnostic memory. Service-journal output
+remains the durable evidence path. Deterministic capacity/order and validation
+tests cover the boundary.
+
 Remaining Stage 12 work includes long-running stability qualification and
 observability.

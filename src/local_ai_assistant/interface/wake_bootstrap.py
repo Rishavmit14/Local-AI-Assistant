@@ -15,6 +15,7 @@ from __future__ import annotations
 import math
 import threading
 import time
+from collections import deque
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, Protocol
@@ -146,22 +147,27 @@ class WakeCaptureBoundary(
 
 
 class VoiceTurnTelemetry:
-    """Thread-safe ordered production voice-stage trace."""
+    """Thread-safe bounded rolling production voice-stage trace."""
 
     def __init__(
         self,
+        *,
+        max_events: int = 2_048,
     ) -> None:
+
+        if max_events < 1:
+            raise ValueError("max_events must be positive")
 
         self._lock = (
             threading.Lock()
         )
 
-        self._events: list[
+        self._events: deque[
             tuple[
                 float,
                 str,
             ]
-        ] = []
+        ] = deque(maxlen=max_events)
 
 
     def mark(

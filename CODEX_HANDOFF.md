@@ -1025,7 +1025,8 @@ Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic
 event-derived speech outcome signals without presentation-owned lifecycle state.
-Stage 12 now continues with barge-in observability and longer-running stability.
+Stage 12L bounds in-process voice-stage telemetry. Stage 12 now continues with
+barge-in observability and longer-running stability.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 
@@ -1307,3 +1308,11 @@ production build, full Python regression, and repository verification passed.
 The Stage 12K implementation acceptance checkpoint is
 `d9d66bee516c9a73ef387d8faa6ff5949e396f7d`; verify current branch heads from
 Git before relying on this historical checkpoint.
+
+## Stage 12L — bounded voice-stage telemetry (qualified, 2026-09-10)
+
+`VoiceTurnTelemetry` now retains only its newest 2,048 ordered stage records,
+instead of growing without bound for an always-on runtime. Journal records remain
+the durable operational path. Deterministic capacity/order validation and focused
+wake-bootstrap regression passed. Runtime restart, full regression, repository
+verification, and publication remain required before acceptance.

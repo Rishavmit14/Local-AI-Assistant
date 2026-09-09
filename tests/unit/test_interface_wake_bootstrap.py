@@ -731,6 +731,21 @@ def test_production_wake_capture_error_observability_contract() -> None:
     assert "_log_wake_result" not in source
 
 
+def test_voice_turn_telemetry_keeps_a_bounded_ordered_trace():
+    telemetry = VoiceTurnTelemetry(max_events=3)
+
+    for stage in ("one", "two", "three", "four"):
+        telemetry.mark(stage)
+
+    assert telemetry.stages() == ("two", "three", "four")
+    assert len(telemetry.snapshot()) == 3
+
+
+def test_voice_turn_telemetry_requires_positive_capacity():
+    with pytest.raises(ValueError, match="positive"):
+        VoiceTurnTelemetry(max_events=0)
+
+
 def test_transient_capture_failure_recovers_without_reloading_models():
     from local_ai_assistant.voice.wake_capture import WakeCaptureError
 

@@ -246,3 +246,10 @@ runtime state. The cinematic client now distinguishes speech start, completion,
 and barge-in interruption without claiming lifecycle ownership; interruption
 remains visible through the listening handoff and clears with the next user turn.
 Frontend tests, lint, and production build passed.
+
+## 2026-09-10 — Stage 12L bounded voice-stage telemetry
+
+Accepted a 2,048-record rolling telemetry trace for the always-on production
+voice service. Recent ordering diagnostics remain available while normal uptime
+can no longer grow the in-process trace indefinitely; journal output remains the
+durable operations record. Focused capacity/order coverage passed.

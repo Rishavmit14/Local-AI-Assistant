@@ -68,6 +68,11 @@ event-derived visual signals, while runtime state remains the sole lifecycle
 authority. An interrupted signal persists through the barge-in listening handoff
 and clears when the next user turn begins.
 
+`VoiceTurnTelemetry` retains a bounded rolling trace of the most recent 2,048
+production stages. This preserves in-process ordering diagnostics without an
+unbounded always-on memory cost; structured service-journal records remain the
+external operational evidence.
+
 ## Stage 12C-B — bare wake fresh follow-up
 
 A bare strict `Hey Friday` wake authorizes a turn but is not itself reused as

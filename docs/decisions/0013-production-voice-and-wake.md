@@ -142,3 +142,11 @@ completion, and interruption must not mutate lifecycle state or ownership. Keep
 the interruption outcome visible through the immediate barge-in listening
 handoff, then clear it at the next user turn so a completed/old interruption is
 not represented as current activity.
+
+## Stage 12L decision — bounded voice-stage telemetry
+
+Keep the production voice-stage trace in a bounded in-memory rolling buffer.
+Recent ordered stages remain available for lifecycle diagnostics, while the
+always-on service cannot grow memory indefinitely during normal operation.
+Continue emitting the existing journal records; the bounded in-process trace is
+not a replacement for durable operational logs.

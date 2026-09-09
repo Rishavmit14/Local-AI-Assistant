@@ -183,6 +183,11 @@ events. `voice.speech.started`, `voice.speech.completed`, and
 `voice.speech.interrupted` drive distinct speaking, completion, and interruption
 visual treatment without introducing a presentation-owned runtime state.
 
+Production voice-stage telemetry is a thread-safe rolling trace capped at 2,048
+records. It retains recent diagnostic order for in-process consumers without
+allowing an always-on service to accumulate unbounded stage history; operational
+journal output remains the durable external diagnostic stream.
+
 ## Stage 12C-B — bare wake fresh follow-up command
 
 Accepted production behavior:
