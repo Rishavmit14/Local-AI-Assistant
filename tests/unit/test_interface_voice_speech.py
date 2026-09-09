@@ -517,6 +517,22 @@ def test_empty_assistant_response_does_not_start_speech() -> None:
     )
 
 
+def test_speech_normalizes_markdown_without_changing_streamed_model_text() -> None:
+    voice, runtime, _, _, synthesizer, _ = make_voice_service(
+        chunks=["**4** is `four`."],
+    )
+    voice.start_listening()
+
+    assert "".join(voice.stream_utterance(make_utterance())) == "**4** is `four`."
+    assert synthesizer.calls == ["4 is four."]
+    completed = next(
+        event
+        for event in runtime.events_since()
+        if event.event_type is FridayEventType.CONVERSATION_ASSISTANT_COMPLETED
+    )
+    assert completed.text == "**4** is `four`."
+
+
 def test_partial_speech_configuration_is_rejected() -> None:
     runtime = FridayRuntime(
         "stage-11f3-config"

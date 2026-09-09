@@ -170,9 +170,12 @@ Qualification evidence:
   qualification attempt, reached the LLM with no Whisper retranscription, played
   speech, resumed wake capture, and the user confirmed the semantic answer was 4.
 
-Known limitation: LLM Markdown can currently reach Piper unsanitized. For example,
-`**4**` may be spoken as literal "asterisk asterisk four asterisk asterisk".
-This is a TTS text-normalization limitation, not a wake-command routing failure.
+The TTS boundary deterministically normalizes common Markdown and readable
+identifier separators before Piper without changing the streamed/model-completed
+text used by the conversation. Headings and list markers, emphasis, strikeout,
+inline code, links, images, and underscore-separated identifiers therefore reach
+Piper as ordinary spoken prose. This is presentation-only normalization, not a
+wake-command routing or model-text mutation.
 
 ## Stage 12C-B — bare wake fresh follow-up command
 
@@ -208,9 +211,8 @@ enters stream_text directly and bypasses main Whisper. Production qualification
 proved fresh follow-up capture, Whisper, LLM/Piper response, clean 8-second
 timeout, a second bare wake after timeout, and unchanged inline behavior.
 
-There is no acknowledgement chime or spoken "Yes?" yet. Markdown normalization
-at the TTS boundary remains separate work. Deployment remains the logged-in
-user's `friday-local-ai.service`. The pre-Stage-12C-B recovery point is
+There is no acknowledgement chime or spoken "Yes?" yet. Deployment remains the
+logged-in user's `friday-local-ai.service`. The pre-Stage-12C-B recovery point is
 `3ae5292bbd1b0042e01211a657dad0fd5e9078d6`; the accepted Stage 12C-B recovery
 commit is the commit containing this section.
 

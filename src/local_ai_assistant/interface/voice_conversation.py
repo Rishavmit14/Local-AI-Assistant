@@ -15,6 +15,7 @@ from local_ai_assistant.voice import (
     SpeechQueueClosed,
     VoiceUtterance,
     WhisperTranscript,
+    normalize_speech_text,
 )
 from local_ai_assistant.voice.wake import normalize_wake_text
 
@@ -534,7 +535,9 @@ class FridayVoiceConversationService:
 
         def synthesize_queued_sentences() -> Iterator[PiperAudioChunk]:
             for sentence in queue:
-                yield from synthesizer.stream(sentence)
+                normalized = normalize_speech_text(sentence)
+                if normalized:
+                    yield from synthesizer.stream(normalized)
 
         def play_sentences(first_sentence: str) -> None:
             try:
@@ -618,9 +621,7 @@ class FridayVoiceConversationService:
         ):
             return None
 
-        spoken_text = (
-            text.strip()
-        )
+        spoken_text = normalize_speech_text(text)
 
         if not spoken_text:
             return None

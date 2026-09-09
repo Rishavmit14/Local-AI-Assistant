@@ -67,8 +67,8 @@ The current accepted Stage 11 baseline is the persistent Friday conversational/w
   wake resume, and no `WHISPER_BEGIN` for inline wake commands.
 - Deterministic live command `Hey Friday, what is two plus two?` produced the
   semantically correct answer 4.
-- Recorded the remaining Piper Markdown-verbalization limitation (`**4**` may
-  include spoken asterisks).
+- Recorded the then-remaining Piper Markdown-verbalization limitation; Stage
+  12J later replaced it with deterministic TTS normalization.
 
 ## Stage 12C-B — bare wake fresh follow-up command
 
@@ -230,3 +230,11 @@ tests cover chunks, queue closure/backpressure, lifecycle completion, incrementa
 start and speech failure. Physical `Hey Friday` qualification confirmed the sky
 explanation, Piper start before LLM completion, orderly synthesis and healthy wake
 resume.
+
+## 2026-09-10 — Stage 12J Markdown-to-TTS normalization
+
+Accepted deterministic presentation-only normalization at the Piper boundary.
+Common Markdown formatting, links/images, and underscore-separated identifiers
+now become readable speech while the model's streamed and completed text remains
+exactly intact. Focused coverage and a live bold-Markdown arithmetic request
+confirmed natural spoken “4” and healthy wake capture.

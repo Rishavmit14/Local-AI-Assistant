@@ -1021,7 +1021,11 @@ Do not use chat history as the only project memory. The durable source of truth 
 
 As of the qualified Stage 12E candidate, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11/12 provide the production conversational/wake platform with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, enabled user-session systemd deployment, production natural-language barge-in, hardened blocked-read cancellation, inline wake commands, fresh bare-wake follow-up capture, exact explicit stop, and supervised capture/worker recovery. The accepted barge-in path uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`, captures `friday_aec_source`, stops active playback, and feeds trusted interruption audio through main Whisper. Exact `stop`, `friday stop`, and `hey friday stop` end in IDLE without LLM or acknowledgement speech; nonexact phrases remain conversational. Stage 12 remains active for concurrency policy, observability, streaming speech latency, and longer-running stability. `ROADMAP.md` extends the product through memory, perception, desktop/autonomy/events, same-model role orchestration, research, market intelligence, cognitive amplification, and creator intelligence under Local Intelligence Sovereignty.
 
-Stage 12F subsequently accepted the wake/HTTP concurrency policy; Stage 12 now continues with barge-in observability, streaming speech latency, and longer-running stability.
+Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
+12J subsequently accepted incremental sentence-gated Piper speech and
+presentation-only Markdown-to-TTS normalization. Stage 12 now continues with
+barge-in observability, richer cinematic voice states, acknowledgement UX, and
+longer-running stability.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 
@@ -1043,14 +1047,11 @@ Live-qualified production PID before acceptance commit: 66990.
 Current limitation:
 - bare `Hey Friday` still follows the pre-12C-A utterance behavior; dedicated
   fresh bare-wake follow-up command capture is implemented and production-qualified in Stage 12C-B.
-- Markdown intended for visual rendering is not yet normalized before Piper TTS;
-  `**4**` can be verbalized with the asterisk characters.
 
 Next Stage 12 work:
 1. Capture-thread health supervision/restart.
 2. Barge-in observability and longer-running voice stability.
-3. Streaming speech / initial-response latency.
-4. TTS text normalization for Markdown/symbol-heavy LLM output.
+3. Richer cinematic voice states and acknowledgement UX.
 
 ## Stage 12C-B — bare wake fresh follow-up semantics
 
@@ -1278,5 +1279,18 @@ telemetry recorded Piper begin at 00:56:36 before LLM completion at 00:56:38,
 then three sequential Piper requests and healthy wake resume. Complete acceptance
 passed full Python regression and repository verification. The accepted remotely
 recoverable checkpoint is
-`17fcdf1c0733d0d5079323945f4362f52dfa7632`; the Stage 12 branch and `main`
+`809fa9587a89818872ad65060932f59765b0f57e`; the Stage 12 branch and `main`
 both resolve to this commit.
+
+## Stage 12J — Markdown-to-TTS normalization (qualified, 2026-09-10)
+
+The Piper boundary now uses a deterministic presentation-only normalizer, after
+model streaming and completion events have preserved the original model text.
+It removes common headings/list markers, emphasis, strikeout, inline-code,
+link/image syntax and makes underscore-separated identifiers readable. Focused
+tests prove the speech/display split and formatting cases. Physical qualification
+asked “Hey Friday, what is two plus two? Please answer in bold Markdown.” Friday
+spoke “4” naturally; the service remained healthy/listening afterward. Full
+regression and repository verification passed. The accepted recovery commit is
+the commit containing this section; record its literal SHA in the next
+capability's discovery.

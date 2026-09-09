@@ -57,8 +57,10 @@ adding a direct `LISTENING -> THINKING` transition.
 
 Bare-wake semantics are completed by Stage 12C-B below.
 
-Known speech-output limitation: response Markdown is not yet sanitized before
-Piper; emphasis syntax such as `**4**` may be verbalized literally.
+Before Piper synthesis, a deterministic presentation-only normalizer converts
+common Markdown into spoken prose: headings/list markers, emphasis, strikeout,
+inline code, links, images, and underscore separators. The original model text
+continues unchanged through streamed and completed conversation events.
 
 ## Stage 12C-B — bare wake fresh follow-up
 

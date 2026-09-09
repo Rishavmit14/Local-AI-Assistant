@@ -124,3 +124,12 @@ authoritative Piper/player path. This begins audible synthesis before completion
 without parallel Piper workers, reordering, text loss, or unbounded buffering.
 SPEAKING is a valid concurrent lifecycle state at model completion; cancellation,
 barge-in and explicit stop retain their existing ownership and failure boundaries.
+
+## Stage 12J decision — presentation-only TTS text normalization
+
+Normalize speech text immediately before Piper synthesis, after model streaming
+and conversation events have retained the original text. The deterministic local
+normalizer removes common Markdown presentation syntax and makes underscore
+separators readable, while retaining the meaningful written words in links,
+images, and inline code. This avoids modifying the model transcript, conversation
+history, streaming contract, or Piper/player ownership.

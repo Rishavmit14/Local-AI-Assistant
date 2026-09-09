@@ -21,6 +21,10 @@ from .barge_in import (
     SpeechStopper,
     build_barge_in_segmenter,
 )
+from .follow_up_capture import (
+    FollowUpCaptureError,
+    FridayOneShotFollowUpCapture,
+)
 from .piper_runtime import (
     DEFAULT_PIPER_MODEL_PATH,
     DEFAULT_PIPER_MODEL_SHA256,
@@ -46,6 +50,9 @@ from .silero import (
     SileroVadConfig,
     SileroVadError,
 )
+from .speech_chunks import SpeechChunker
+from .speech_queue import SpeechQueue, SpeechQueueClosed
+from .speech_text import normalize_speech_text
 from .vad import (
     PcmEnergyVad,
     UtteranceSegmenter,
@@ -56,6 +63,16 @@ from .vad import (
     VoiceVadConfig,
     pcm16_dbfs,
 )
+from .wake import (
+    DEFAULT_WAKE_PHRASE,
+    FridayWakeSupervisor,
+    WakeDetectionResult,
+    WakeDetector,
+    WakePhraseMatch,
+    WakeSupervisorResult,
+    match_wake_phrase,
+    normalize_wake_text,
+)
 from .wake_capture import (
     FridayAlwaysOnWakeCapture,
     WakeAudioCapture,
@@ -64,12 +81,6 @@ from .wake_capture import (
     WakeCaptureEvent,
     WakePcmStream,
 )
-from .follow_up_capture import (
-    FollowUpCaptureError,
-    FridayOneShotFollowUpCapture,
-)
-from .speech_chunks import SpeechChunker
-from .speech_queue import SpeechQueue, SpeechQueueClosed
 from .wake_orchestrator import (
     FridayWakeVoiceOrchestrator,
     VoiceConversationBoundary,
@@ -80,16 +91,6 @@ from .wake_runtime import (
     PersistentWakeDetector,
     PersistentWakeProcessConfig,
     WakeRuntimeError,
-)
-from .wake import (
-    DEFAULT_WAKE_PHRASE,
-    FridayWakeSupervisor,
-    WakeDetectionResult,
-    WakeDetector,
-    WakePhraseMatch,
-    WakeSupervisorResult,
-    match_wake_phrase,
-    normalize_wake_text,
 )
 from .whisper import (
     DEFAULT_WHISPER_CLI_PATH,
@@ -179,6 +180,10 @@ __all__ = [
     "PipeWirePcmCapture",
     "PipeWirePcmCaptureConfig",
     "PipeWirePcmStream",
+    "SpeechChunker",
+    "SpeechQueue",
+    "SpeechQueueClosed",
     "SpeechStopper",
     "build_barge_in_segmenter",
+    "normalize_speech_text",
 ]

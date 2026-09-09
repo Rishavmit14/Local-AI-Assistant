@@ -468,10 +468,10 @@ Completed:
 - deterministic unit/regression coverage;
 - live production qualification with wake pause/resume and AEC preserved.
 
-Still pending within Stage 12:
+At that checkpoint, remaining Stage 12 work included:
 - bare `Hey Friday` acknowledgement UX;
 - barge-in observability and long-running voice stability;
-- TTS text normalization so Markdown such as `**4**` is spoken naturally.
+- TTS text normalization (accepted later as Stage 12J).
 
 ## Stage 12C-B — bare wake fresh follow-up command (**Accepted**)
 
@@ -486,10 +486,10 @@ Accepted:
 - inline wake remainder remains direct-to-text and bypasses main Whisper;
 - AEC remains barge-in-only.
 
-Still pending within Stage 12: richer cinematic
-voice states, long-running stability
-qualification, acknowledgement UX, streaming speech latency, and
-Markdown-to-TTS normalization.
+At that checkpoint, remaining Stage 12 work included richer cinematic voice
+states, long-running stability qualification, acknowledgement UX, streaming
+speech latency (accepted later as Stage 12I), and Markdown-to-TTS normalization
+(accepted later as Stage 12J).
 
 ## Stage 12D — exact explicit stop semantics (**Accepted**)
 
@@ -502,9 +502,10 @@ Accepted:
 - removal of the rejected context-specific ASR alias;
 - operational documentation for the undistorted MSI microphone/speaker levels.
 
-Known remaining limitation: the current voice path buffers the complete LLM
-response before TTS. The final counting trial took about 10.7 seconds for full
-generation before synthesis began; streaming speech remains later Stage 12 work.
+At that checkpoint, the voice path buffered the complete LLM response before
+TTS. The final counting trial took about 10.7 seconds for full generation before
+synthesis began; Stage 12I later replaced that behavior with sentence-gated
+incremental speech.
 
 <!-- FRIDAY_DELIVERY_POLICY_START -->
 
@@ -544,3 +545,16 @@ backpressure, queue close and the lifecycle race. Physical qualification on
 completion followed at 00:56:38; three ordered Piper requests completed and wake
 capture returned to healthy listening. Barge-in, exact stop, single-player
 ownership and bounded memory remain intact.
+
+## Stage 12J — Markdown-to-TTS normalization (**Accepted**)
+
+Accepted: deterministic presentation-only text normalization runs immediately
+before Piper, leaving model streaming and completed conversation text unchanged.
+It removes common headings/list markers, emphasis, strikeout, inline-code,
+link/image syntax and makes underscore-separated identifiers readable. Focused
+unit tests prove the display/speech separation and common Markdown handling.
+Physical qualification on 2026-09-10 asked Friday for a bold Markdown arithmetic
+answer; Friday spoke the answer naturally as “4”, with healthy wake capture.
+
+Remaining Stage 12 work includes richer cinematic voice states, long-running
+stability qualification, acknowledgement UX, and observability.
