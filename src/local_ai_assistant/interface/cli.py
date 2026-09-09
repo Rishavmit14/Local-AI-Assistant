@@ -15,6 +15,7 @@ from local_ai_assistant.llm.client import LocalLLM
 
 from .api import create_presentation_app
 from .conversation import FridayConversationService
+from .interaction import FridayInteractionCoordinator
 from .runtime import FridayRuntime
 from .wake_bootstrap import build_managed_wake_voice
 
@@ -56,16 +57,26 @@ def build_presentation_components(
         runtime=runtime,
     )
 
+    interactions = FridayInteractionCoordinator()
+
     wake_voice = build_managed_wake_voice(
         resolved_config,
         runtime=runtime,
         conversation=conversation,
+        interactions=interactions,
     )
 
     app = create_presentation_app(
         runtime=runtime,
         conversation=conversation,
         voice_health=wake_voice.health if wake_voice is not None else None,
+        interactions=interactions,
+        presentation_pause=(
+            wake_voice.pause_for_presentation if wake_voice is not None else None
+        ),
+        presentation_resume=(
+            wake_voice.resume_after_presentation if wake_voice is not None else None
+        ),
     )
 
     return (

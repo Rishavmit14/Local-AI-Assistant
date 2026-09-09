@@ -133,3 +133,26 @@ A final restart gate found that Uvicorn previously began HTTP shutdown before
 the CLI's `finally` closed voice capture, allowing recorder unwind to schedule a
 false recovery. Friday now closes voice ownership at Uvicorn's first exit signal;
 cleanup is idempotent, and the requalified restart emitted no error or retry.
+
+## Stage 12F — voice/presentation concurrency
+
+Production construction shares one nonblocking coordinator between wake callbacks
+and HTTP conversation admission. Voice claims before pausing the microphone or
+mutating runtime. HTTP claims before returning its stream and pauses wake capture.
+The losing side does no conversation work: HTTP receives 409 with the current
+owner, while a wake during presentation ownership is suppressed. Completion,
+failure, disconnect, and shutdown resume wake before release. The read-only
+`/api/v1/interaction/state` exposes owner and monotonic generation.
+
+An immediate client disconnect cleans an unstarted stream. A disconnect during a
+synchronous model read leaves presentation ownership active until that read has
+returned safely; the closed conversation becomes `CANCELLED`, then wake resumes.
+This avoids both a lease leak and unsafe microphone reuse while synchronous model
+work is still running.
+
+Live qualification passed a physical `Hey Friday` count-to-100 voice turn while
+the concurrent HTTP probe received 409, and a physical wake phrase during a long
+presentation stream that yielded no reply or accepted wake. Both paths returned
+to healthy listening. If a trusted barge-in stops playback but does not yield a
+complete bounded utterance, Friday records an incomplete interruption and returns
+to IDLE without forwarding partial audio to Whisper.

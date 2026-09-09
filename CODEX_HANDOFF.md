@@ -1021,6 +1021,8 @@ Do not use chat history as the only project memory. The durable source of truth 
 
 As of the qualified Stage 12E candidate, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11/12 provide the production conversational/wake platform with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, enabled user-session systemd deployment, production natural-language barge-in, hardened blocked-read cancellation, inline wake commands, fresh bare-wake follow-up capture, exact explicit stop, and supervised capture/worker recovery. The accepted barge-in path uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`, captures `friday_aec_source`, stops active playback, and feeds trusted interruption audio through main Whisper. Exact `stop`, `friday stop`, and `hey friday stop` end in IDLE without LLM or acknowledgement speech; nonexact phrases remain conversational. Stage 12 remains active for concurrency policy, observability, streaming speech latency, and longer-running stability. `ROADMAP.md` extends the product through memory, perception, desktop/autonomy/events, same-model role orchestration, research, market intelligence, cognitive amplification, and creator intelligence under Local Intelligence Sovereignty.
 
+Stage 12F subsequently accepted the wake/HTTP concurrency policy; Stage 12 now continues with barge-in observability, streaming speech latency, and longer-running stability.
+
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 
 ## Stage 12C-A — inline wake command semantics
@@ -1046,7 +1048,7 @@ Current limitation:
 
 Next Stage 12 work:
 1. Capture-thread health supervision/restart.
-2. Wake voice vs HTTP/presentation concurrency policy.
+2. Barge-in observability and longer-running voice stability.
 3. Streaming speech / initial-response latency.
 4. TTS text normalization for Markdown/symbol-heavy LLM output.
 
@@ -1073,13 +1075,29 @@ Latest accepted capability recovery checkpoint:
 (`Stage 12D: add explicit stop semantics`, accepted and remotely verified).
 Stage 12D is closed; reopen only upon evidence of a genuine regression.
 
-Latest accepted repository recovery checkpoint (governance, runtime unchanged):
-`58b396c794bacfe36097e1617f8074183e71a2d3`. Stage/main and fetched remote refs
-were verified equal with a clean tree; 664 Python tests, repository verification,
-12 frontend tests and frontend build passed.
+Latest accepted repository recovery checkpoint:
+`42777b1380f058b873165c2debcfcca3444722ff`
+(`Stage 12E: add wake capture recovery`). Stage/main, fetched tracking refs, and
+direct remote refs were verified equal with a clean accepted tree. The checkpoint
+also canonically accepts Local Intelligence Sovereignty, the current single-
+general-model policy, and detailed planned Stages 20–22 as product requirements;
+it does not claim those future stages implemented.
 
-Current capability: Stage 12E capture/worker health recovery, QUALIFIED with all
-runtime and regression evidence passed; publication is the remaining gate.
+Current capability: Stage 12F wake/HTTP runtime concurrency policy, QUALIFIED
+and ready for final regression/publication. Stage 12E is accepted and must not
+be reopened absent genuine regression.
+
+Initial 12F finding: production wake and HTTP conversation share one runtime and
+LLM service without an admission boundary. Concurrent HTTP streams can both emit
+user events before one fails an invalid transition; HTTP can win a race while a
+wake callback later fails LISTENING transition; and an exception inside a lazy
+stream begins after HTTP status 200, preventing a truthful busy response. The
+candidate policy should admit exactly one interaction owner before state/events:
+voice ownership rejects HTTP with 409, presentation ownership pauses/resumes wake
+capture and suppresses an in-flight wake, concurrent presentation requests reject
+without phantom events, and disconnect/error/shutdown releases ownership. Add a
+read-only owner projection and deterministic race/cancellation coverage. Physical
+qualification will be required after implementation; prepare nonblocking cursors.
 Discovery found that capture/worker exceptions terminate the wake thread while
 HTTP remains available; shutdown can feed retired partial PCM into segmentation;
 raw capture reads have no deadline. Implement recovery with capped backoff,
@@ -1110,10 +1128,30 @@ model policy, and mandatory planned Stages 20–22. Their canonical scope is in
 `AGENTS.md`, `ARCHITECTURE.md`, `ROADMAP.md`, README, and ADR 0014; none is
 implemented or allowed to jump ahead of active dependency work.
 
-Finish full final regression/repository verification/frontend tests/build,
-review the diff, commit/publish Stage 12E and the product-policy additions on the
-stage/main refs, fetch/verify equal refs and clean state, record the accepted
-recovery SHA, then immediately begin DISCOVERY of wake/HTTP concurrency policy.
+Stage 12F implementation and qualification added one interaction coordinator
+shared by production wake and presentation HTTP. Voice claims before runtime
+mutation and pauses microphone ownership; active voice makes HTTP return 409.
+Presentation claims before its response stream, pauses raw wake capture, and
+suppresses wake dispatch. Completion, failure, disconnect and shutdown release
+idempotently. Immediate disconnects release unstarted streams, while an active
+synchronous model read retains ownership until safe cancellation and transitions
+the runtime to `CANCELLED`. The read-only interaction endpoint exposes only
+busy/owner/generation.
+
+Live qualification passed both directions on the user-session service: a physical
+count-to-100 voice turn held `owner=voice` while the HTTP probe returned 409, and
+a physical wake phrase during a long presentation stream yielded no reply and
+zero accepted wakes before presentation completion resumed listening. A separate
+long trusted-barge-in qualification exposed an interruption stop without a
+completed utterance; Friday now returns safely to IDLE without partial Whisper
+input or a false runtime error. The Stage 12F acceptance recovery is the commit
+containing this section; record its literal SHA in the following capability's
+discovery.
+
+Run final full regression/repository verification/frontend tests/build, review
+the diff, commit/publish Stage 12F on the stage/main refs, fetch/verify equal refs
+and clean state, then immediately begin discovery of Stage 12 barge-in
+observability and longer-running voice stability.
 
 Final lifecycle finding: the first restart exposed a product race where the old
 CLI waited until Uvicorn returned before closing voice; SIGTERM recorder unwind

@@ -264,3 +264,34 @@ speech, Friday replied, and capture resumed. Stage 12E is accepted.
 Voice shutdown begins at Uvicorn's first exit signal, before HTTP teardown. This
 removed the observed false recovery during service stop and a controlled restart
 then completed without capture-error or retry telemetry.
+
+## Stage 12F — interaction ownership
+
+Friday now shares one `FridayInteractionCoordinator` between production wake
+orchestration and the HTTP presentation API. It grants a nonblocking,
+generation-bound lease to exactly one `voice` or `presentation` interaction
+before runtime mutation. Voice ownership makes overlapping HTTP return 409;
+presentation ownership pauses raw wake capture before streaming and resumes it
+before releasing the lease. A wake that loses admission is discarded without a
+voice thread or phantom runtime event. Completion, failure, thread-start error,
+client disconnect, and shutdown cleanup release ownership idempotently.
+
+Synchronous LLM streaming has an explicit cancellation boundary: an immediate
+disconnect releases a never-started stream, while an in-flight synchronous read
+keeps microphone ownership fail-closed until that read reaches a safe stop. A
+closed started stream becomes `CANCELLED`, so it cannot poison the next voice
+turn. `/api/v1/interaction/state` is the read-only busy/owner/generation
+projection.
+
+Live qualification on the user-session service proved both directions. During a
+physical `Hey Friday, count slowly from one to one hundred` turn, the watcher
+observed `owner=voice`, paused capture, and HTTP 409 with no presentation work.
+During a long presentation stream, the owner spoke `Hey Friday, say this voice
+request should be blocked`; Friday gave no reply, accepted zero wakes, and
+resumed listening after the stream completed. Stage 12F is accepted.
+
+Qualification also found a long trusted interruption may stop playback before a
+bounded completed utterance is available. Friday now records the interruption and
+returns to IDLE without sending partial audio to Whisper or incorrectly reporting
+a voice failure. This remains fail-closed and does not claim a conversational
+continuation without a completed utterance.

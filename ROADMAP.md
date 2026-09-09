@@ -110,6 +110,27 @@ stopped, a fresh physical inline wake recreated it, recognized the command,
 spoke the expected response, and returned to listening. Final acceptance gates
 and remote recovery are recorded in the current handoff and Git history.
 
+## Stage 12F — wake/HTTP interaction concurrency (**Accepted**)
+
+Accepted: one deterministic interaction owner across physical voice and
+presentation HTTP streams. Admission occurs before runtime mutation: active
+voice rejects HTTP with 409; active HTTP pauses raw wake ownership and suppresses
+wake dispatch; second HTTP requests reject without phantom events; completion,
+disconnect, error and shutdown restore wake and release ownership. A read-only
+owner projection and cancellation-safe synchronous streaming keep microphone
+ownership fail-closed until a started model read reaches a safe stop.
+
+Physical qualification passed both directions: voice ownership rejected the live
+HTTP probe with 409 while a `Hey Friday` counting request completed, and a spoken
+wake phrase during presentation ownership received no reply with zero accepted
+wakes. The following stream completion returned Friday to listening. A trusted
+barge-in that stops playback without a completed utterance now returns safely to
+IDLE without partial-ASR replay or a false runtime error.
+
+Remaining Stage 12 follow-up: bare `Hey Friday` enters fresh-command capture but
+does not currently emit a dependable audible ready cue. Keep that feedback work
+after Stage 12F acceptance; it is not evidence that a recognized wake was lost.
+
 ## Stage 13 — Persistent Friday Memory (**Planned**)
 
 Add local-first semantic long-term memory, episodic memory, bounded working memory, preferences, project/goal/person relationships, provenance/confidence, supersession/conflict resolution, and retention/deletion policy. Deterministic repository/project instructions remain a separate engineering authority.
@@ -440,7 +461,6 @@ Completed:
 
 Still pending within Stage 12:
 - bare `Hey Friday` acknowledgement UX;
-- wake/HTTP runtime concurrency policy;
 - barge-in observability and long-running voice stability;
 - TTS text normalization so Markdown such as `**4**` is spoken naturally.
 
@@ -457,7 +477,7 @@ Accepted:
 - inline wake remainder remains direct-to-text and bypasses main Whisper;
 - AEC remains barge-in-only.
 
-Still pending within Stage 12: wake/HTTP concurrency policy, richer cinematic
+Still pending within Stage 12: richer cinematic
 voice states, long-running stability
 qualification, acknowledgement UX, streaming speech latency, and
 Markdown-to-TTS normalization.
@@ -498,7 +518,7 @@ acceptance gate; `CODEX_HANDOFF.md` records the current operational handoff.
 The durable owner policy in `AGENTS.md` requires continuous autonomous execution:
 accepted and remotely recoverable capabilities are checkpoints, not approval
 pauses. Verify recovery/clean state and immediately begin the next capability.
-After accepted Stage 12E, the next Stage 12 capability is wake/HTTP runtime
-concurrency policy; all other Stage 12 scope above remains scheduled. Human involvement is reserved
+After accepted Stage 12F, the next Stage 12 capability is barge-in observability
+and longer-running voice stability; all other Stage 12 scope above remains scheduled. Human involvement is reserved
 for unavoidable physical input or genuine capability boundaries.
 <!-- FRIDAY_DELIVERY_POLICY_END -->

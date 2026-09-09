@@ -1,9 +1,13 @@
+import asyncio
+import json
+import threading
 
 from fastapi.testclient import TestClient
 
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.events import FridayEventType
+from local_ai_assistant.interface.interaction import FridayInteractionCoordinator
 from local_ai_assistant.interface.runtime import FridayRuntime
 from local_ai_assistant.interface.states import FridayRuntimeState
 
@@ -60,6 +64,308 @@ def test_voice_health_is_separate_from_http_liveness():
     assert disabled.get("/api/v1/voice/health").json() == {
         "enabled": False, "status": "disabled",
     }
+
+
+def test_busy_voice_rejects_http_before_runtime_events():
+    runtime = FridayRuntime("busy-voice")
+    conversation = FridayConversationService(FakeStreamingLLM(["unused"]), runtime)
+    interactions = FridayInteractionCoordinator()
+    lease = interactions.try_acquire("voice")
+    client = TestClient(create_presentation_app(
+        runtime, conversation, interactions=interactions,
+    ))
+    try:
+        response = client.post("/api/v1/conversation/stream", json={"prompt": "Hi"})
+        assert response.status_code == 409
+        assert response.json()["detail"] == {
+            "code": "interaction_busy", "owner": "voice",
+        }
+        assert runtime.events_since() == ()
+        assert conversation.llm.chunks == ["unused"]
+    finally:
+        lease.release()
+
+
+def test_presentation_pauses_wake_and_releases_lease_after_stream():
+    runtime = FridayRuntime("presentation-owner")
+    interactions = FridayInteractionCoordinator()
+    lifecycle = []
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(["ok"]), runtime),
+        interactions=interactions,
+        presentation_pause=lambda: lifecycle.append("pause"),
+        presentation_resume=lambda: lifecycle.append("resume"),
+    ))
+    response = client.post("/api/v1/conversation/stream", json={"prompt": "Hi"})
+    assert response.status_code == 200
+    assert response.text == "ok"
+    assert lifecycle == ["pause", "resume"]
+    assert interactions.snapshot().owner is None
+
+
+def test_interaction_state_is_read_only_projection():
+    runtime = FridayRuntime("interaction-state")
+    interactions = FridayInteractionCoordinator()
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        interactions=interactions,
+    ))
+    assert client.get("/api/v1/interaction/state").json() == {
+        "busy": False, "owner": None, "generation": 0,
+    }
+    lease = interactions.try_acquire("voice")
+    assert client.get("/api/v1/interaction/state").json()["owner"] == "voice"
+    lease.release()
+
+
+def test_overlapping_http_stream_is_rejected_without_phantom_prompt():
+    entered = threading.Event()
+    release = threading.Event()
+
+    class BlockingLLM(FakeStreamingLLM):
+        def stream_chat(self, prompt, **kwargs):
+            del kwargs
+            self.calls = getattr(self, "calls", [])
+            self.calls.append(prompt)
+            entered.set()
+            assert release.wait(2)
+            yield "done"
+
+    runtime = FridayRuntime("overlap")
+    llm = BlockingLLM()
+    app = create_presentation_app(runtime, FridayConversationService(llm, runtime))
+    first_client = TestClient(app)
+    second_client = TestClient(app)
+    first = {}
+
+    thread = threading.Thread(
+        target=lambda: first.setdefault(
+            "response",
+            first_client.post("/api/v1/conversation/stream", json={"prompt": "first"}),
+        ),
+        daemon=True,
+    )
+    thread.start()
+    assert entered.wait(1)
+    try:
+        rejected = second_client.post(
+            "/api/v1/conversation/stream", json={"prompt": "second"},
+        )
+        assert rejected.status_code == 409
+        assert llm.calls == ["first"]
+        assert [
+            event.text for event in runtime.events_since()
+            if event.event_type is FridayEventType.CONVERSATION_USER_TEXT
+        ] == ["first"]
+    finally:
+        release.set()
+        thread.join(2)
+    assert not thread.is_alive()
+    assert first["response"].text == "done"
+
+
+def test_failed_http_stream_resumes_wake_and_releases_owner():
+    class FailingLLM:
+        def stream_chat(self, *args, **kwargs):
+            del args, kwargs
+            raise RuntimeError("generation failed")
+            yield  # pragma: no cover
+
+    runtime = FridayRuntime("failed-http")
+    interactions = FridayInteractionCoordinator()
+    lifecycle = []
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FailingLLM(), runtime),
+        interactions=interactions,
+        presentation_pause=lambda: lifecycle.append("pause"),
+        presentation_resume=lambda: lifecycle.append("resume"),
+    ))
+    try:
+        client.post("/api/v1/conversation/stream", json={"prompt": "fail"})
+    except Exception:
+        pass
+    assert lifecycle == ["pause", "resume"]
+    assert interactions.snapshot().owner is None
+
+
+def test_presentation_pause_failure_releases_owner_before_streaming():
+    runtime = FridayRuntime("pause-failure")
+    interactions = FridayInteractionCoordinator()
+
+    def fail_pause():
+        raise RuntimeError("pause failed")
+
+    client = TestClient(create_presentation_app(
+        runtime,
+        FridayConversationService(FakeStreamingLLM(["unused"]), runtime),
+        interactions=interactions,
+        presentation_pause=fail_pause,
+    ))
+
+    try:
+        client.post("/api/v1/conversation/stream", json={"prompt": "fail"})
+    except RuntimeError as exc:
+        assert str(exc) == "pause failed"
+    else:
+        raise AssertionError("presentation pause failure was not surfaced")
+
+    assert interactions.snapshot().owner is None
+    assert runtime.events_since() == ()
+
+
+def test_presentation_resume_failure_still_releases_owner():
+    runtime = FridayRuntime("resume-failure")
+    interactions = FridayInteractionCoordinator()
+
+    def fail_resume():
+        raise RuntimeError("resume failed")
+
+    client = TestClient(create_presentation_app(
+        runtime,
+        FridayConversationService(FakeStreamingLLM(["ok"]), runtime),
+        interactions=interactions,
+        presentation_resume=fail_resume,
+    ))
+
+    try:
+        client.post("/api/v1/conversation/stream", json={"prompt": "fail"})
+    except RuntimeError as exc:
+        assert str(exc) == "resume failed"
+    else:
+        raise AssertionError("presentation resume failure was not surfaced")
+
+    assert interactions.snapshot().owner is None
+
+
+def test_disconnect_before_body_iteration_resumes_wake_and_releases_owner():
+    runtime = FridayRuntime("early-disconnect")
+    interactions = FridayInteractionCoordinator()
+    lifecycle = []
+    llm = FakeStreamingLLM(["must not start"])
+    app = create_presentation_app(
+        runtime,
+        FridayConversationService(llm, runtime),
+        interactions=interactions,
+        presentation_pause=lambda: lifecycle.append("pause"),
+        presentation_resume=lambda: lifecycle.append("resume"),
+    )
+    body = json.dumps({"prompt": "disconnect"}).encode()
+    incoming = [
+        {"type": "http.request", "body": body, "more_body": False},
+        {"type": "http.disconnect"},
+    ]
+
+    async def receive():
+        if incoming:
+            return incoming.pop(0)
+        await asyncio.sleep(1)
+        return {"type": "http.disconnect"}
+
+    async def send(_message):
+        return None
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/api/v1/conversation/stream",
+        "raw_path": b"/api/v1/conversation/stream",
+        "query_string": b"",
+        "root_path": "",
+        "headers": [(b"content-type", b"application/json")],
+        "client": ("test", 1),
+        "server": ("test", 80),
+        "state": {},
+    }
+
+    asyncio.run(app(scope, receive, send))
+
+    assert lifecycle == ["pause", "resume"]
+    assert interactions.snapshot().owner is None
+    assert runtime.events_since() == ()
+    assert llm.chunks == ["must not start"]
+
+
+def test_disconnect_during_blocked_generation_holds_owner_until_safe_cancel():
+    first_chunk = threading.Event()
+    finish_next = threading.Event()
+
+    class BlockingAfterFirstChunk(FakeStreamingLLM):
+        def stream_chat(self, *args, **kwargs):
+            del args, kwargs
+            yield "first"
+            first_chunk.set()
+            assert finish_next.wait(2)
+            yield "must not send"
+
+    runtime = FridayRuntime("started-disconnect")
+    interactions = FridayInteractionCoordinator()
+    lifecycle = []
+    app = create_presentation_app(
+        runtime,
+        FridayConversationService(BlockingAfterFirstChunk(), runtime),
+        interactions=interactions,
+        presentation_pause=lambda: lifecycle.append("pause"),
+        presentation_resume=lambda: lifecycle.append("resume"),
+    )
+    body = json.dumps({"prompt": "disconnect"}).encode()
+    request_sent = False
+
+    async def receive():
+        nonlocal request_sent
+        if not request_sent:
+            request_sent = True
+            return {"type": "http.request", "body": body, "more_body": False}
+        while not first_chunk.is_set():
+            await asyncio.sleep(0.001)
+        return {"type": "http.disconnect"}
+
+    async def send(_message):
+        return None
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/api/v1/conversation/stream",
+        "raw_path": b"/api/v1/conversation/stream",
+        "query_string": b"",
+        "root_path": "",
+        "headers": [(b"content-type", b"application/json")],
+        "client": ("test", 1),
+        "server": ("test", 80),
+        "state": {},
+    }
+
+    observed_during_block = {}
+
+    async def release_blocked_generation():
+        while not first_chunk.is_set():
+            await asyncio.sleep(0.001)
+        await asyncio.sleep(0.01)
+        observed_during_block["owner"] = interactions.snapshot().owner
+        observed_during_block["lifecycle"] = list(lifecycle)
+        finish_next.set()
+
+    async def run_disconnected_request():
+        await asyncio.gather(
+            app(scope, receive, send),
+            release_blocked_generation(),
+        )
+
+    asyncio.run(run_disconnected_request())
+
+    assert observed_during_block == {
+        "owner": "presentation",
+        "lifecycle": ["pause"],
+    }
+    assert interactions.snapshot().owner is None
+    assert lifecycle == ["pause", "resume"]
+    assert runtime.state is FridayRuntimeState.CANCELLED
 
 
 def test_runtime_state_is_read_only_projection():
@@ -165,6 +471,7 @@ def test_presentation_api_has_no_execution_routes():
         "/health",
         "/api/v1/runtime/state",
         "/api/v1/voice/health",
+        "/api/v1/interaction/state",
         "/api/v1/runtime/events",
         "/api/v1/runtime/events/stream",
         "/api/v1/conversation/stream",

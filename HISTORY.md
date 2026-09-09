@@ -184,3 +184,22 @@ The canonical roadmap now preserves detailed mandatory future Market Intelligenc
 Amplification, and Creator Studio & Digital Media Intelligence stages after their
 existing prerequisites. The update grants no real-money trading or publishing
 authority and does not mark any of those future capabilities implemented.
+
+## 2026-09-09 — Stage 12F voice/presentation interaction ownership
+
+Accepted a shared nonblocking interaction coordinator across physical voice and
+presentation HTTP streams. Admission happens before runtime mutation. A live
+physical `Hey Friday, count slowly from one to one hundred` turn held voice
+ownership while the concurrent HTTP probe received 409; wake capture was paused
+for the turn. Conversely, a physical wake phrase during a long presentation
+stream produced no reply and zero accepted wakes, then normal stream completion
+returned Friday to listening.
+
+Deterministic coverage includes concurrent claims, no phantom prompts,
+pause/resume and thread-start failures, immediate and in-flight HTTP disconnects,
+and cancellation state recovery. A disconnect during an active synchronous model
+read retains microphone ownership until the iterator reaches a safe stop.
+
+The long voice qualification also exposed a trusted barge-in stop with no
+completed utterance. Friday now records that incomplete interruption and returns
+to IDLE without passing partial audio to Whisper or raising a false voice failure.

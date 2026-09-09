@@ -87,3 +87,22 @@ and physical wake qualification passed, so this decision is accepted.
 Managed voice cleanup begins at Uvicorn's first exit signal, before HTTP server
 shutdown. The outer `finally` remains as an idempotent guarantee. This prevents
 recorder unwind from being retried between SIGTERM and application teardown.
+
+## Stage 12F decision — one interaction owner
+
+Use one fail-fast lease coordinator across wake voice turns and presentation HTTP
+streams. Admit before any runtime event, keep the active interaction, and never
+preempt or queue. Voice makes overlapping HTTP return 409. HTTP pauses wake for
+its stream, so presentation ownership suppresses an in-flight wake. Resume
+microphone ownership before release and expose read-only ownership state.
+
+Disconnect cleanup distinguishes an unstarted stream from a synchronous model
+read already in progress: the former releases immediately; the latter retains the
+lease until the iterator reaches a safe cancellation boundary. This prevents
+unsafe raw-microphone reuse and leaves the runtime `CANCELLED` rather than stuck
+in `THINKING`. Physical bidirectional qualification passed.
+
+If trusted barge-in has already stopped playback but cannot produce a completed
+bounded utterance, do not replay or transcribe partial audio. Record the
+interruption and return to IDLE. This is fail-closed recovery, not permission to
+invent a conversational continuation.

@@ -51,6 +51,7 @@ from local_ai_assistant.voice.wake_capture import WakeCaptureError
 from local_ai_assistant.voice.wake_runtime import WakeRuntimeError
 
 from .conversation import FridayConversationService
+from .interaction import FridayInteractionCoordinator, FridayInteractionLease
 from .runtime import FridayRuntime
 from .voice_conversation import FridayVoiceConversationService
 
@@ -490,6 +491,7 @@ class FridayManagedWakeVoice:
         aec_session: PipeWireAecSession | None = None,
         recovery_initial_seconds: float = 1.0,
         recovery_max_seconds: float = 30.0,
+        interactions: FridayInteractionCoordinator | None = None,
     ) -> None:
 
         if not (
@@ -503,6 +505,7 @@ class FridayManagedWakeVoice:
         self._closing = threading.Event()
         self._capture_status = "stopped"
         self._recovery_count = 0
+        self.interactions = interactions or FridayInteractionCoordinator()
 
         self.wake_capture = (
             wake_capture
@@ -711,15 +714,21 @@ class FridayManagedWakeVoice:
         if self._closing.is_set():
             return
 
-        self.telemetry.mark(
-            "WAKE_ACCEPTED"
-        )
+        lease = self.interactions.try_acquire("voice")
+        if lease is None:
+            owner = self.interactions.snapshot().owner
+            self.telemetry.mark(f"WAKE_REJECTED_BUSY owner={owner}")
+            return
 
+        try:
+            self.telemetry.mark("WAKE_ACCEPTED")
 
-        # Critical ordering:
-        # microphone ownership is released before
-        # the wake callback returns to the capture loop.
-        self.wake_capture.pause()
+            # Critical ordering: microphone ownership is released before
+            # the wake callback returns to the capture loop.
+            self.wake_capture.pause()
+        except BaseException:
+            lease.release()
+            raise
 
         self.telemetry.mark(
             "WAKE_PAUSED"
@@ -729,6 +738,7 @@ class FridayManagedWakeVoice:
         with self._lock:
 
             if self._closing.is_set():
+                lease.release()
                 return
 
             existing = (
@@ -742,6 +752,7 @@ class FridayManagedWakeVoice:
             ):
 
                 self.wake_capture.resume()
+                lease.release()
 
                 self.telemetry.mark(
                     "WAKE_RESUMED_DUPLICATE"
@@ -760,6 +771,7 @@ class FridayManagedWakeVoice:
                 target=self._run_voice_turn,
                 args=(
                     event,
+                    lease,
                 ),
                 daemon=True,
                 name="friday-wake-voice-turn",
@@ -777,14 +789,22 @@ class FridayManagedWakeVoice:
             except BaseException:
 
                 self._voice_thread = None
-
-                self.wake_capture.resume()
-
-                self.telemetry.mark(
-                    "WAKE_RESUMED_THREAD_START_ERROR"
-                )
+                try:
+                    self.wake_capture.resume()
+                    self.telemetry.mark("WAKE_RESUMED_THREAD_START_ERROR")
+                finally:
+                    lease.release()
 
                 raise
+
+    def pause_for_presentation(self) -> None:
+        self.wake_capture.pause()
+        self.telemetry.mark("WAKE_PAUSED_PRESENTATION")
+
+    def resume_after_presentation(self) -> None:
+        if not self._closing.is_set():
+            self.wake_capture.resume()
+            self.telemetry.mark("WAKE_RESUMED_PRESENTATION")
 
 
     def close(
@@ -960,6 +980,7 @@ class FridayManagedWakeVoice:
     def _run_voice_turn(
         self,
         event: WakeCaptureEvent,
+        lease: FridayInteractionLease,
     ) -> None:
 
         self.telemetry.mark(
@@ -998,9 +1019,12 @@ class FridayManagedWakeVoice:
             # The orchestrator already resumes in its own finally.
             # This second call is an idempotent ownership guarantee
             # if a future voice boundary fails before reaching it.
-            if not self._closing.is_set():
-                self.wake_capture.resume()
-                self.telemetry.mark("WAKE_RESUMED")
+            try:
+                if not self._closing.is_set():
+                    self.wake_capture.resume()
+                    self.telemetry.mark("WAKE_RESUMED")
+            finally:
+                lease.release()
 
 
     def _close_resources_locked(
@@ -1033,6 +1057,7 @@ def build_managed_wake_voice(
     *,
     runtime: FridayRuntime,
     conversation: FridayConversationService,
+    interactions: FridayInteractionCoordinator | None = None,
 ) -> FridayManagedWakeVoice | None:
 
     if not config.wake.enabled:
@@ -1249,6 +1274,7 @@ def build_managed_wake_voice(
             ),
             telemetry=telemetry,
             aec_session=aec_session,
+            interactions=interactions,
         )
     )
 

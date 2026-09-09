@@ -473,7 +473,7 @@ class FridayVoiceConversationService:
             },
         )
 
-        if not text:
+        if not text or text.casefold() == "[blank_audio]":
             self.runtime.transition(
                 FridayRuntimeState
                 .IDLE,
@@ -663,13 +663,10 @@ class FridayVoiceConversationService:
             if (
                 stop_result
                 is None
-                or interruption
-                is None
             ):
                 raise RuntimeError(
                     "validated barge-in "
-                    "result lost required "
-                    "interruption data"
+                    "result lost stop metadata"
                 )
 
             metadata.update(
@@ -694,6 +691,10 @@ class FridayVoiceConversationService:
                     ):
                         barge_in
                         .max_speech_probability,
+                    "barge_in_utterance_complete": (
+                        interruption
+                        is not None
+                    ),
                 }
             )
 
@@ -707,6 +708,20 @@ class FridayVoiceConversationService:
                 text=spoken_text,
                 metadata=metadata,
             )
+
+            if interruption is None:
+                # Trusted speech stopped playback, but no bounded completed
+                # utterance was available to transcribe. Do not invent or
+                # replay user audio; release the turn safely instead.
+                self.runtime.transition(
+                    FridayRuntimeState
+                    .IDLE,
+                    reason=(
+                        "voice_barge_in_incomplete"
+                    ),
+                )
+
+                return None
 
             self.runtime.transition(
                 FridayRuntimeState
@@ -1009,16 +1024,6 @@ class FridayVoiceConversationService:
                 "triggered barge-in "
                 "did not stop "
                 "Friday speech"
-            )
-
-        if (
-            barge_in.utterance
-            is None
-        ):
-            raise RuntimeError(
-                "triggered barge-in "
-                "did not preserve "
-                "the user utterance"
             )
 
         if not (

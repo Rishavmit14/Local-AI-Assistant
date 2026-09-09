@@ -100,6 +100,18 @@ def test_stream_response_accepts_consecutive_conversations():
     assert ready_event.metadata["reason"] == "conversation_ready"
 
 
+def test_closing_started_stream_marks_runtime_cancelled():
+    runtime = FridayRuntime("session-cancelled")
+    service = FridayConversationService(FakeStreamingLLM(["one", "two"]), runtime)
+    stream = service.stream_response("Cancel me")
+
+    assert next(stream) == "one"
+    stream.close()
+
+    assert runtime.state is FridayRuntimeState.CANCELLED
+    assert runtime.events_since()[-1].metadata["reason"] == "conversation_stream_closed"
+
+
 def test_stream_response_passes_generation_configuration_to_llm():
     runtime = FridayRuntime("session-config")
     llm = FakeStreamingLLM(["ok"])

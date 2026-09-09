@@ -7,6 +7,7 @@ from typing import cast
 
 import pytest
 
+from local_ai_assistant.interface.interaction import FridayInteractionCoordinator
 from local_ai_assistant.interface.wake_bootstrap import (
     FridayManagedWakeVoice,
     VoiceTurnTelemetry,
@@ -268,6 +269,7 @@ def test_close_is_idempotent():
 
 def test_wake_callback_pauses_before_async_voice_turn(
 ):
+    interactions = FridayInteractionCoordinator()
     voice_started = (
         threading.Event()
     )
@@ -304,7 +306,8 @@ def test_wake_callback_pauses_before_async_voice_turn(
         telemetry,
         _,
     ) = make_service(
-        voice_turn=voice_turn
+        voice_turn=voice_turn,
+        interactions=interactions,
     )
 
 
@@ -334,6 +337,7 @@ def test_wake_callback_pauses_before_async_voice_turn(
     )
 
     assert service.voice_turn_running
+    assert interactions.snapshot().owner == "voice"
 
     stages = telemetry.stages()
 
@@ -361,11 +365,29 @@ def test_wake_callback_pauses_before_async_voice_turn(
 
     assert not service.voice_turn_running
     assert not capture.paused
+    assert interactions.snapshot().owner is None
 
     assert (
         "WAKE_RESUMED"
         in telemetry.stages()
     )
+
+
+def test_presentation_owner_suppresses_wake_before_pause_or_voice_turn():
+    interactions = FridayInteractionCoordinator()
+    owner = interactions.try_acquire("presentation")
+    turns = []
+    service, capture, *_, telemetry, log = make_service(
+        voice_turn=turns.append, interactions=interactions,
+    )
+    try:
+        service.handle_wake(cast(object, object()))
+        assert capture.pause_calls == 0
+        assert turns == []
+        assert "WAKE_REJECTED_BUSY owner=presentation" in telemetry.stages()
+        assert log == []
+    finally:
+        owner.release()
 
 
 def test_voice_error_is_retained_and_microphone_resumes(

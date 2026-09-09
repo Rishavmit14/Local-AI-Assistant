@@ -66,3 +66,17 @@ child PID.
 Managed voice cleanup starts at Uvicorn's first exit signal. A normal controlled
 restart should contain neither `WAKE_CAPTURE_ERROR` nor `WAKE_CAPTURE_RETRY`;
 either entry during shutdown fails the lifecycle gate.
+
+## Stage 12F interaction ownership
+
+`/api/v1/interaction/state` is a read-only localhost projection of the active
+interaction (`busy`, `owner`, and monotonic `generation`). It does not grant
+execution authority. A presentation stream holds `owner=presentation` and pauses
+raw wake capture; an overlapping request returns HTTP 409. A wake voice turn
+holds `owner=voice` and likewise rejects presentation with HTTP 409.
+
+On HTTP disconnect, Friday releases an unstarted response immediately. If a
+synchronous local-model read has already begun, the presentation lease and wake
+pause remain until that read reaches a safe cancellation boundary; the runtime
+then reports `cancelled` before later work resets it to idle. This is intentional
+fail-closed microphone ownership, not a hung wake service.

@@ -90,6 +90,14 @@ class FridayConversationService:
 
                 yield chunk
 
+        except GeneratorExit:
+            if self.runtime.state is FridayRuntimeState.THINKING:
+                self.runtime.transition(
+                    FridayRuntimeState.CANCELLED,
+                    reason="conversation_stream_closed",
+                )
+            raise
+
         except Exception as exc:
             self.runtime.emit(
                 FridayEventType.RUNTIME_ERROR,

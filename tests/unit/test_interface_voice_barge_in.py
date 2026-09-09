@@ -408,6 +408,30 @@ class FakeBargeInMonitor:
         )
 
 
+class IncompleteBargeInMonitor:
+    """Trusted speech can stop playback before a completed utterance exists."""
+
+    def __init__(
+        self,
+        player: BlockingSpeechPlayer,
+    ) -> None:
+        self.player = player
+        self.calls = 0
+
+    def capture_interruption(
+        self,
+    ) -> BargeInResult:
+        self.calls += 1
+        stop = self.player.stop()
+        return BargeInResult(
+            triggered=True,
+            detection_elapsed_seconds=0.18,
+            stop_result=stop,
+            utterance=None,
+            max_speech_probability=0.99,
+        )
+
+
 class PlaceholderMonitor:
     def capture_interruption(
         self,
@@ -772,6 +796,53 @@ def test_trusted_barge_in_reenters_existing_voice_path(
     assert (
         "voice_barge_in"
         in transition_reasons
+    )
+
+
+def test_incomplete_trusted_barge_in_stops_safely_without_runtime_error(
+) -> None:
+    runtime = FridayRuntime(
+        "session-incomplete-barge"
+    )
+    transcriber = FakeTranscriber(["Initial request"])
+    llm = FakeStreamingLLM([["answer"]])
+    conversation = FridayConversationService(llm, runtime)
+    synthesizer = FakeSpeechSynthesizer()
+    player = BlockingSpeechPlayer(first_play_waits_for_stop=True)
+    monitor = IncompleteBargeInMonitor(player)
+    service = FridayVoiceConversationService(
+        transcriber,
+        conversation,
+        runtime,
+        speech_synthesizer=synthesizer,
+        speech_player=player,
+        barge_in_monitor=monitor,
+    )
+
+    service.start_listening()
+
+    assert "".join(service.stream_utterance(make_utterance(1))) == "answer"
+    assert runtime.state is FridayRuntimeState.IDLE
+    assert transcriber.calls == [make_utterance(1)]
+    assert len(llm.calls) == 1
+    assert monitor.calls == 1
+    assert player.stop_calls == 1
+
+    events = runtime.events_since()
+    interrupted = next(
+        event for event in events
+        if event.event_type is FridayEventType.VOICE_SPEECH_INTERRUPTED
+    )
+    assert interrupted.metadata["barge_in_triggered"] is True
+    assert interrupted.metadata["barge_in_utterance_complete"] is False
+    assert not any(
+        event.event_type is FridayEventType.RUNTIME_ERROR
+        for event in events
+    )
+    assert any(
+        event.metadata.get("reason") == "voice_barge_in_incomplete"
+        for event in events
+        if event.event_type is FridayEventType.RUNTIME_STATE_CHANGED
     )
 
 

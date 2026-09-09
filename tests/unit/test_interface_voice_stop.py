@@ -191,6 +191,17 @@ def test_transcribed_friday_stop_loss_remains_conversation() -> None:
     assert transcriber.calls == 1
 
 
+def test_whisper_blank_audio_marker_never_reaches_conversation() -> None:
+    voice, runtime, conversation, transcriber = build_voice(
+        transcript="[BLANK_AUDIO]"
+    )
+
+    assert list(voice.stream_utterance(object())) == []
+    assert conversation.prompts == []
+    assert transcriber.calls == 1
+    assert runtime.state is FridayRuntimeState.IDLE
+
+
 @pytest.mark.parametrize(
     "command",
     [
