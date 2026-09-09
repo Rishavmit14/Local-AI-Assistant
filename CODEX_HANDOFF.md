@@ -1282,7 +1282,7 @@ recoverable checkpoint is
 `809fa9587a89818872ad65060932f59765b0f57e`; the Stage 12 branch and `main`
 both resolve to this commit.
 
-## Stage 12J — Markdown-to-TTS normalization (qualified, 2026-09-10)
+## Stage 12J — Markdown-to-TTS normalization (accepted, 2026-09-10)
 
 The Piper boundary now uses a deterministic presentation-only normalizer, after
 model streaming and completion events have preserved the original model text.
@@ -1291,6 +1291,6 @@ link/image syntax and makes underscore-separated identifiers readable. Focused
 tests prove the speech/display split and formatting cases. Physical qualification
 asked “Hey Friday, what is two plus two? Please answer in bold Markdown.” Friday
 spoke “4” naturally; the service remained healthy/listening afterward. Full
-regression and repository verification passed. The accepted recovery commit is
-the commit containing this section; record its literal SHA in the next
-capability's discovery.
+regression and repository verification passed. The accepted remotely recoverable
+checkpoint is `0c491275028ac4f2b8c52a41e356be15471d4e82`; the Stage 12 branch
+and `main` both resolve to this commit.
