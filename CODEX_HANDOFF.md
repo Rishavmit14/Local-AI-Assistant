@@ -1291,6 +1291,8 @@ link/image syntax and makes underscore-separated identifiers readable. Focused
 tests prove the speech/display split and formatting cases. Physical qualification
 asked “Hey Friday, what is two plus two? Please answer in bold Markdown.” Friday
 spoke “4” naturally; the service remained healthy/listening afterward. Full
-regression and repository verification passed. The accepted remotely recoverable
-checkpoint is `0c491275028ac4f2b8c52a41e356be15471d4e82`; the Stage 12 branch
-and `main` both resolve to this commit.
+regression and repository verification passed. The Stage 12J implementation
+acceptance checkpoint is `0c491275028ac4f2b8c52a41e356be15471d4e82`; its
+recovery documentation was then committed at
+`47db467d1f888913932c431709791b95a765a325`. Verify current branch heads from
+Git before relying on either historical checkpoint.
