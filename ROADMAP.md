@@ -76,12 +76,16 @@ Accepted: Streamlit removal; `FridayInterfaceService`; native presentation API/e
 
 Production barge-in uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`. The physical/default speaker monitor supplies the echo reference while `friday_aec_source` supplies the cleaned microphone stream exclusively to `FridayBargeInMonitor`; wake capture remains on the normal raw microphone path. Live qualification proved strong speaker-echo suppression, preserved human speech above the existing trusted interruption gate, normal wake conversation, natural interruption without repeating the wake phrase, and stable service operation.
 
-Remaining: capture-thread health supervision/restart; concurrent HTTP/presentation versus wake-turn policy; richer visual listening/thinking/speaking/interruption states; streaming speech/initial-response latency; and longer-running voice stability qualification.
+Remaining: concurrent HTTP/presentation versus wake-turn policy; richer visual
+listening/thinking/speaking/interruption states; streaming speech/initial-response
+latency; and longer-running voice stability qualification. Capture/worker health
+recovery is accepted in Stage 12E.
 
 ## Stage 12 — Production Voice Lifecycle (**Active**)
 
 Production AEC-backed natural interruption, blocked wake-read pause/stop
-hardening, and Stage 12D exact explicit-stop semantics are accepted. Wake capture
+hardening, Stage 12D exact explicit-stop semantics, and Stage 12E supervised
+capture/worker recovery are accepted. Wake capture
 treats EOF/capture errors from an intentionally retired microphone stream as
 lifecycle cancellation while genuine failures on the current stream fail closed.
 
@@ -91,9 +95,20 @@ acknowledgement. The same classifier handles trusted AEC interruption transcript
 after immediate playback stop. Nonexact phrases remain conversational. Final
 physical qualification passed inline stop, active-speech stop, and stop-loss
 negative control on the clean runtime without diagnostic readers. Clipped host
-audio was corrected and the rejected ASR alias was removed. Continue capture/
-worker recovery, concurrency policy, observability, streaming speech latency,
-and long-running voice stability.
+audio was corrected and the rejected ASR alias was removed. Continue concurrency
+policy, observability, streaming speech latency, and long-running voice stability.
+
+## Stage 12E — capture/worker health recovery (**Accepted**)
+
+Accepted: capped recovery backoff after microphone or wake-worker failures,
+bounded raw PCM reads, retired partial-frame/late-ASR cancellation, terminal
+shutdown, old worker pipe cleanup, and a read-only voice-health endpoint.
+Qualification passed deterministic failure/cancellation/backoff coverage and
+683-test repository verification. Actual recorder death and stall recovered in
+1.23/5.19 seconds on the same service PID. After the idle primary wake worker was
+stopped, a fresh physical inline wake recreated it, recognized the command,
+spoke the expected response, and returned to listening. Final acceptance gates
+and remote recovery are recorded in the current handoff and Git history.
 
 ## Stage 13 — Persistent Friday Memory (**Planned**)
 
@@ -115,13 +130,276 @@ Generalize Friday into a bounded objective loop: objective -> plan -> inspect ->
 
 Add local service/system/repository/filesystem/task/external event watches, schedules, meaningful notifications, relevance policy, permission policy, and rate limiting.
 
-## Stage 18 — Multi-Agent / Multi-Model Friday (**Planned**)
+## Stage 18 — Agent / Role Orchestration (**Planned**)
 
-Keep one user-facing Friday while internally routing to appropriate conversational, reasoning, coding, vision, retrieval, planner, coder, reviewer, debugger, test, and security capabilities. Specialized agents gain no implicit extra privileges.
+Keep one user-facing Friday while internally routing conversational, reasoning,
+coding, vision, retrieval, planner, coder, reviewer, debugger, test, and security
+roles. Roles use sequential invocations of the current sole general-purpose Qwen
+model unless later evidence qualifies another model; specialized components gain
+no implicit extra privileges.
 
 ## Stage 19 — Self-Learning / Research Engine (**Planned**)
 
 Add trusted-source collection, provenance, domain indexing, knowledge-gap identification, research plans, synthesis, curriculum generation, teaching/evaluation, and refresh/versioning. This does not mean silently modifying model weights.
+
+## Stage 20 — Market Intelligence & Adaptive Trading Research (**Planned — durable owner requirement**)
+
+Build a research, forecasting, charting, empirical-evaluation, and adaptive
+learning specialization over Stages 13–19. The initial boundary is knowledge,
+analysis, historical replay/backtesting, paper/live-shadow evaluation, and useful
+alerts. It does not authorize autonomous real-money trading.
+
+### Knowledge and provenance
+
+- Ingest owner-authorized playlists/videos, captions/transcripts, local audio and
+  video, PDFs, notes, documents, screenshots, annotated examples, and later
+  trusted research. Preserve source/publication date/video/playlist/timestamp,
+  transcript segment, speaker, chart frame/OCR/annotations, instrument, timeframe,
+  session, and concept relationships as durable structured knowledge.
+- Build a versioned trading knowledge graph for structure, buy/sell-side and
+  internal/external liquidity, FVG/inverse FVG, order blocks, breakers,
+  mitigation, displacement, structure shift, dealing ranges, premium/discount/
+  equilibrium, PD arrays, imbalance, sweeps, inducement, session ranges,
+  London/New York/Asian timing, killzones/macros/opening ranges, profiles and
+  opens/highs/lows, SMT/correlation, draw on liquidity, HTF narrative/LTF
+  execution, event context, entries, targets, invalidation, and risk.
+- Preserve provenance, confidence, competing definitions, ambiguity,
+  contradictions, temporal evolution, supersession, examples, and counterexamples.
+  Keep `SOURCE TEACHING -> FRIDAY INTERPRETATION -> FORMAL HYPOTHESIS -> TESTED
+  RULE -> PRODUCTION-ELIGIBLE MARKET MODEL` as explicit, non-collapsible states.
+
+### Data, state, detectors, and forecasts
+
+- Build an authoritative numerical market-data boundary for permitted OHLC(V),
+  timestamps, bid/ask, volume, open interest, volatility, liquidations, useful
+  order book/L2 and funding, economic calendars, instrument/session metadata,
+  revision provenance, and careful timezone normalization. Derive coherent
+  Monthly/Weekly/Daily/4H/1H/15m/5m/1m views. TradingView pixels are context for
+  educational or visible charts, not the primary numerical source.
+- Represent multi-timeframe bias/narrative, draw and liquidity, dealing range,
+  premium/discount, imbalance/displacement/structure, session/event state,
+  candidate arrays, targets and invalidation, with explainable HTF-to-LTF links.
+- Add small versioned detectors rather than an opaque mega-algorithm. Each emits
+  timeframe/timestamp, structure/evidence, confidence when supported, rule/model
+  version, lineage, and ambiguity; prefer deterministic raw-data rules.
+- Generate structured point-in-time scenarios before outcomes: instrument,
+  creation time/price, horizon/timeframe, HTF context, expected direction/path,
+  retracement/watch/entry zones, liquidity objectives/targets, invalidation,
+  setup, reasoning, evidence/rule versions, calibrated confidence, and alternatives.
+  Lock meaningful forecasts immutably; corrections create new versions.
+- Enforce and test non-bypassable anti-leakage. At historical time T, prompts,
+  higher-timeframe closes, events, revisions, annotations, and outcomes contain
+  only information available at T. Post-outcome edits cannot rewrite forecasts.
+
+### Visual analysis, evaluation, and improvement
+
+- Annotate charts with liquidity, imbalance/FVG, blocks, structure/ranges,
+  premium/discount, sessions/highs/lows, expected paths, watch/entry/target/
+  invalidation zones, confidence, and explanation. Visually distinguish observed,
+  detected, hypothesis, active forecast, invalidated, and completed state.
+- Provide deterministic market replay that runs narrative, detectors, forecasting,
+  chart annotations, alerts, and trade-plan reasoning exactly as if live.
+- Evaluate individual concepts, combinations, setups, sessions, timeframes,
+  instruments, and regimes. Record explicit execution/fill assumptions and sample
+  count, direction/target/invalidation/timing accuracy, expectancy, MAE/MFE,
+  profit factor/drawdown when appropriate, and confidence calibration.
+- Separate research/training, validation, final out-of-sample, walk-forward, paper,
+  and live-shadow phases. Live-shadow watches and locks real-time predictions but
+  places no trades. Backtest success is not live evidence.
+- Score locked forecasts across path, target, invalidation, timing, zones, HTF/LTF
+  reasoning, and confidence. Retain successes and failures. Classify bias/draw/
+  entry/structure/FVG/session/HTF/event/regime/timing/target/risk/data/detector/
+  hallucination/insufficient-evidence mistakes as research evidence.
+- Improve only through versioned production-model -> weakness -> hypothesis ->
+  challenger -> historical/validation/out-of-sample/walk-forward -> paper/live-
+  shadow -> compare -> promote/reject. Retain rejected hypotheses; one loss cannot
+  rewrite strategy. Specialize evidence by approved market (initially NQ, ES,
+  Gold, BTC), session, timeframe, volatility, regime, and events.
+
+### Product surfaces and boundaries
+
+- Integrate Stage 17 for low-noise `SETUP FORMING -> CONDITIONS STRENGTHENING ->
+  CONFIRMATION -> INVALIDATION -> TARGET` monitoring and pre-market/session/
+  multi-timeframe/post-session/performance briefings, including “Friday, market
+  briefing.”
+- Explain bias, conflicts, invalidation, targets, dominating timeframe, contributing
+  concepts, empirical evidence, source lineage, and uncertainty. Sequential Market
+  Director, HTF/LTF, Liquidity, Session, SMT/Correlation, Macro/Event, Statistical,
+  Risk, and Skeptic roles use the same current general-purpose LLM.
+- Provide a dashboard by forecast, timeframe, instrument, session, setup,
+  confidence bucket and version, with target/invalidation/MAE/MFE/calibration/
+  expectancy/drawdown views and a `KNOWN -> PREDICTED -> OUTCOME -> SCORE` audit.
+- New curriculum follows source -> extract -> compare -> duplicate/extension/
+  contradiction/revision -> hypothesis -> experiment without erasing provenance.
+  Keep teacher claim, interpretation, hypothesis, historical, out-of-sample, and
+  live-shadow evidence separate.
+- Real-money execution requires a separately scoped high-risk stage and explicit
+  owner authorization, risk/position/daily-loss controls, kill switch, order and
+  partial-fill reconciliation, deduplication, disconnect recovery, broker security,
+  audit, and live qualification. It is outside Stage 20.
+
+Definition of done: demonstrate the full provenance-preserving curriculum flow,
+chart understanding, formal hypotheses, authoritative multi-timeframe data/state,
+versioned detectors and locked pre-outcome forecasts, leakage-safe replay and
+evaluation splits, backtest/walk-forward/paper/live-shadow measurement, outcome
+and mistake learning, evidence-gated challengers, domain specialization, useful
+alerts/briefings/explanations, and transparent performance views.
+
+## Stage 21 — Cognitive Architecture & Local Intelligence Amplification (**Planned — durable owner requirement**)
+
+Make the same current local general-purpose model materially more effective via
+memory, retrieval, structured knowledge, planning, decomposition, tools, skills,
+observation, critique, verification, repair, and experience. Do not imply that
+architecture changes pretrained weights. Benchmark raw current model versus the
+same model plus Friday's cognitive system.
+
+- A cognitive controller classifies task type, complexity, ambiguity, information,
+  memory/research/tool needs, risk, verification, and duration. Select bounded
+  `TRIVIAL/ROUTINE/MODERATE/COMPLEX/DEEP` strategies so easy work stays fast and
+  difficult work earns context, decomposition, iterations, tools, and critique.
+- Complex work follows objective -> unknowns/subgoals/dependencies -> solve ->
+  validate -> integrate -> review and Stage 16's bounded inspect/act/observe/
+  evaluate/revise/verify loop rather than one giant prompt.
+- Retrieve relevant conversational/working/episodic/semantic/project/preference/
+  attempt/failure/research memory and document/repository/knowledge/database/local
+  manual/permitted-internet evidence on demand. Filter, summarize, compress,
+  evict stale context, and preserve authority; do not indiscriminately retrieve.
+- Represent useful entities, relationships, time, provenance, confidence and
+  contradiction structurally. Inspect before inference and use filesystem, Git,
+  tests, calculators, APIs, databases, market data, indexes, and validators for
+  measurable facts.
+- Turn repeatedly proven workflows into versioned procedural skills with triggers,
+  inputs, steps, tools, evidence, validation, failure handling, permissions,
+  provenance, and version. One successful attempt is insufficient for promotion.
+- Scale self-critique to task significance: objective satisfaction, assumptions,
+  contradictions, dependencies, security, tests, unsupported conclusions and
+  simplification. For significant work support sequential `PRIMARY -> CRITIC ->
+  RECONCILIATION` roles using the same model and verify before claiming success.
+- Track evidence-based confidence without fake precision. Classify reasoning,
+  retrieval, data, tool, environment, dependency, permission, model limitation,
+  ambiguity, product, test and harness failures, then perform bounded minimum
+  repair and retest rather than random retry.
+- Retain useful experience abstractions (task, strategy, evidence, outcome,
+  failure, correction, lesson), not hidden reasoning tokens. Learn which strategies
+  work by task class and compare prompt/context/decomposition/retrieval/review/tool
+  policy versions. Reject complexity that harms correctness, reliability, latency,
+  resource cost, completion, or verification rates.
+- Budget VRAM/RAM/CPU, latency, context, iterations, retrieval, and tools. Provide
+  FAST and DEEP paths using the same model. Preserve offline chat, voice, memory,
+  documents, code/repository intelligence, local tools/desktop/skills/knowledge,
+  local market history, reasoning, and validation when internet is unavailable.
+- Keep the model client replaceable; a future open model can plug into memory,
+  skills, knowledge, tools, cognition, market/creator specializations, autonomy,
+  and evaluation without adding another general model now.
+
+Definition of done: a durable suite spanning reasoning, coding/debugging,
+repository understanding, planning/tools, memory/research, long tasks, and later
+market/creator tasks compares `RAW CURRENT MODEL` with `SAME MODEL + FRIDAY` on
+correctness, reliability, latency/resource cost, completion, and verification.
+Only evidence-positive, versioned cognitive changes are promoted.
+
+## Stage 22 — Creator Studio & Digital Media Intelligence (**Planned — durable owner requirement**)
+
+Build one owner-controlled local creator studio for original, valuable, accurate,
+high-retention, trustworthy content and sustainable monetization across YouTube,
+Shorts, Instagram/Reels/carousels/posts, X, and later approved platforms. Avoid
+mass-generated spam, plagiarism, engagement bait, and dependence on expensive
+neural text-to-video generation.
+
+### Strategy, audience, and editorial intelligence
+
+- Persist owner-authoritative brand/niche/audience/tone/style/visual identity,
+  pillars/formats/lengths, topic history, wins/losses, objectives, offers, and
+  preferences. Learn audience interests/questions/pain points/sophistication,
+  engagement/retention/platform behavior only from legitimate provenance-bearing
+  data; avoid unsupported demographic or psychological inference.
+- Research public/permitted emerging and evergreen opportunities, unanswered
+  questions, information gaps, stale explanations, and worthwhile contrarian
+  angles. Analyze public creator/channel topics, formats, packaging, engagement,
+  questions and gaps without cloning scripts, thumbnails, identity, art, or
+  protected expression.
+- Rank ideas by topic/audience/problem/angle/platform/format, novelty/timeliness,
+  research/production cost, pillar alignment and series potential. Maintain
+  daily/weekly/monthly campaigns, recurring series without repetitive duplication,
+  and master-content trees from long video to native Shorts/Reels/carousels/X.
+
+### Research, writing, production, and packaging
+
+- For factual content use topic -> research questions/sources/evidence/claim map ->
+  outline/script -> claim verification. Mark fact, interpretation, opinion,
+  prediction and anecdote. Editorial review catches unsupported/stale/contradictory
+  claims, misinformation risk, excessive similarity, and logical gaps.
+- Support long video, Shorts/Reels, tutorials, explainers, demonstrations,
+  educational/documentary/commentary storytelling. Generate meaningfully different,
+  accurate hooks and titles; evaluate clarity, curiosity, audience/platform fit
+  and promise fulfillment without deceptive clickbait or rigid universal formulas.
+- Storyboard scene duration, narration, visual/overlay/motion/transition and asset
+  source. Analyze owner footage through transcription, topic/segment/pause/cut/
+  retake/strong-moment detection, chapters, captions, editorial notes and suitable
+  self-contained clips.
+- Use efficient local image tools for thumbnails, illustrations, diagrams,
+  backgrounds, cards, carousels and infographics. Build thumbnail variants around
+  hierarchy, focus, mobile readability, truthfulness, and available analytics.
+- Reuse local TTS for chunked normalized narration/pronunciation/silence/loudness;
+  treat owner-authorized voice personalization separately. Add local noise
+  processing, trim/fade/mix/duck/loudness and licensed music/SFX handling.
+- Compose locally with script + narration + owner footage + owned/generated
+  visuals/diagrams/screen recordings/licensed B-roll + captions/transitions using
+  FFmpeg/renderers. Support deterministic motion text/titles/lower-thirds/charts/
+  highlights/pan-zoom/callouts and aligned SRT/VTT/burned/styled captions. Do not
+  synthesize every video frame with AI.
+- Extract Shorts/Reels for self-contained context, hook, payoff, duration, clarity
+  and platform fit. Adapt each derivative natively. Package YouTube titles,
+  description/chapters/thumbnail/subtitles/metadata/CTA; Instagram Reel/cover/
+  caption/carousel/posts; and X posts/threads/visuals/clips without engagement bait.
+  Support quality-appropriate localization beyond literal translation.
+
+### Assets, publication, analytics, and learning
+
+- Index local footage, B-roll, images, thumbnails, logos, diagrams, audio/music/
+  SFX, templates and prior content with source, license, date, usage and derivatives.
+  Classify `OWNER-CREATED/GENERATED/PUBLIC DOMAIN/LICENSED/ATTRIBUTION REQUIRED/
+  UNKNOWN`; unknown external licensing fails closed for automated production.
+- Detect excessive similarity to owner archives, templates, sources and competitors.
+  The owner supplies expertise, opinions, experience, demonstrations, personality
+  and ideas; Friday amplifies that identity through research, structure, production,
+  repurposing, analytics and experiments.
+- Initial publication is `PRODUCTION READY -> OWNER REVIEW -> OWNER APPROVAL ->
+  PUBLISH`. Later policy-governed APIs remain optional. Protect credentials and
+  track dated platform monetization/reuse/AI-disclosure/copyright/spam/synthetic-
+  media/music rules as changing external facts.
+- With authorization, ingest YouTube impressions/CTR/views/retention/watch-time/
+  subscribers/traffic, Instagram reach/watch/shares/saves/comments/follows, and X
+  impressions/engagement/reposts/replies/bookmarks/profile actions. Journal every
+  item, platform/brand/topic/format/time, hook/title/thumbnail/script/assets/CTA,
+  experiment, metrics and lessons.
+- Analyze performance by topic/format/length/hook/title/thumbnail/timing/series/
+  platform without false causality. Link opening drops/spikes/replays/weak segments/
+  intro/payoffs to script structure. Preserve A/B experiments for hooks, titles,
+  thumbnails, lengths, formats, CTAs and stories; one viral item cannot redefine
+  strategy. Version `content -> performance -> hypothesis -> experiment -> compare
+  -> accept/reject` learning.
+- Add reusable versioned creator skills, low-noise Stage 17 topic/deadline/
+  performance/question/draft/series alerts, and a command center for pipeline,
+  performance, experiments, and learning. Analyze real revenue/RPM/sponsorship/
+  affiliate/product/funnel/audience/cost/time/ROI data without promising earnings;
+  connect only legitimate owner-defined products, services, newsletters, courses,
+  communities, consulting, affiliates and sponsorships without deceptive marketing.
+- Post-publication review explains hook, retention, thumbnail, audience fit, weak
+  sections, CTA, effort versus result and next experiment, optimizing trust,
+  originality, accuracy, audience value, brand, and sustainable monetization.
+
+Hardware target remains i7-7700HQ, 32 GB RAM, GTX 1070 8 GB. Prefer the current
+single local LLM, existing STT/TTS, FFmpeg, deterministic rendering, efficient
+image generation, CPU/RAM offload and offline/batch work. Do not require cloud
+GPUs, paid generation APIs, multiple large LLMs, or long photoreal neural video.
+
+Definition of done: prove brand/audience memory, sourced opportunity research,
+original idea/calendar/series and verified scripts, owner-footage understanding,
+local visual/audio/video/caption/repurposing pipelines, provenance-safe assets,
+review-gated packaging/publication, authorized cross-platform analytics, durable
+performance/experiment journals, evidence-driven learning, useful proactive views,
+business-value analysis, and versioned creator skills as one Friday capability.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 
@@ -131,8 +409,23 @@ Add trusted-source collection, provenance, domain indexing, knowledge-gap identi
 - Architecture understanding for components, dependencies, request/DB/auth/security/runtime flows, and graph-generated diagrams.
 - Large-refactor mode: plan → dependency analysis → staged edits → checkpoint → relevant/full tests → next stage; no opaque giant patches.
 - Unified final platform: llama-server and specialized local models feeding local chat, document/repository RAG, code intelligence, planner/coder/reviewer/debugger/test/security roles, Git transaction manager, task history, Friday-native interface/event services, persistent conversational voice, deep memory, visual perception, safe desktop control, proactive automation, orchestrated agents/models, and the cinematic Friday desktop UI.
+- Local Intelligence Sovereignty: core cognition stays on owner-controlled
+  hardware; external services supply optional information rather than mandatory
+  intelligence. Cognitive roles share the current general-purpose local Qwen.
+- First-class market-research, cognitive-amplification, and creator-studio
+  specializations are mandatory planned Stages 20–22 and inherit provenance,
+  memory, evaluation, autonomy, permissions, and local-first boundaries.
 
-The product definition of done includes local chat; private RAG/OCR; repo Q&A and symbol tracing; planning and multi-file safe edits; build/test/lint/typecheck; bounded repair; code/security review; deterministic project instructions; persistent Friday memory; risk/confidence gates; Git isolation/commit/rollback/worktrees; history/metrics/UI; multi-language work; a Friday-native integration gateway with optional GitHub/MCP/external adapters; production conversational voice with interruption; visual perception; safe desktop control; bounded autonomous execution; proactive automation; multi-agent/multi-model orchestration; and bounded research/self-learning workflows. High-risk changes retain explicit human review.
+The product definition of done is **Friday — Local Personal Cognitive Operating
+System**: local chat and voice; cinematic interface; private RAG/OCR; repository/
+code intelligence; planning/tools/validation; safe autonomous execution; Git/
+isolation/recovery; persistent personal memory; vision/screen awareness; safe
+desktop control; proactive automation; role orchestration; research/self-learning;
+market intelligence and adaptive trading research; cognitive amplification; and
+creator/media/business intelligence. The unifying system is `CURRENT LOCAL LLM +
+MEMORY + KNOWLEDGE + RETRIEVAL + SKILLS + TOOLS + PLANNING + OBSERVATION +
+VERIFICATION + EXPERIENCE + SPECIALIZED CAPABILITIES = FRIDAY`. High-risk work
+retains explicit review, and Stage 20 does not authorize real-money execution.
 
 ## Stage 12C-A — inline wake command semantics
 
@@ -146,8 +439,7 @@ Completed:
 - live production qualification with wake pause/resume and AEC preserved.
 
 Still pending within Stage 12:
-- bare `Hey Friday` acknowledgement + second-utterance capture;
-- capture-thread health supervision/restart;
+- bare `Hey Friday` acknowledgement UX;
 - wake/HTTP runtime concurrency policy;
 - barge-in observability and long-running voice stability;
 - TTS text normalization so Markdown such as `**4**` is spoken naturally.
@@ -165,8 +457,8 @@ Accepted:
 - inline wake remainder remains direct-to-text and bypasses main Whisper;
 - AEC remains barge-in-only.
 
-Still pending within Stage 12: capture/worker health recovery, wake/HTTP
-concurrency policy, richer cinematic voice states, long-running stability
+Still pending within Stage 12: wake/HTTP concurrency policy, richer cinematic
+voice states, long-running stability
 qualification, acknowledgement UX, streaming speech latency, and
 Markdown-to-TTS normalization.
 
@@ -206,7 +498,7 @@ acceptance gate; `CODEX_HANDOFF.md` records the current operational handoff.
 The durable owner policy in `AGENTS.md` requires continuous autonomous execution:
 accepted and remotely recoverable capabilities are checkpoints, not approval
 pauses. Verify recovery/clean state and immediately begin the next capability.
-After accepted Stage 12D, Stage 12E starts with capture/worker health recovery;
-all other Stage 12 scope above remains scheduled. Human involvement is reserved
+After accepted Stage 12E, the next Stage 12 capability is wake/HTTP runtime
+concurrency policy; all other Stage 12 scope above remains scheduled. Human involvement is reserved
 for unavoidable physical input or genuine capability boundaries.
 <!-- FRIDAY_DELIVERY_POLICY_END -->

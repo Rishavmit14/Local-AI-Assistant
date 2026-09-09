@@ -16,8 +16,9 @@ microphone before normal conversation or barge-in capture begins.
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Protocol
+from typing import Protocol
 
 from .audio import (
     AlsaAudioCapture,
@@ -137,6 +138,7 @@ class FridayAlwaysOnWakeCapture:
         ) = None
 
         self._running = False
+        self._phase = "stopped"
 
         self._utterance_count = 0
         self._wake_count = 0
@@ -155,6 +157,15 @@ class FridayAlwaysOnWakeCapture:
         self,
     ) -> bool:
         return self._pause_event.is_set()
+
+    def health(self) -> dict[str, object]:
+        with self._state_lock:
+            return {
+                "phase": "paused" if self.paused and self._running else self._phase,
+                "running": self._running,
+                "utterances": self._utterance_count,
+                "wakes": self._wake_count,
+            }
 
 
     @property
@@ -176,12 +187,10 @@ class FridayAlwaysOnWakeCapture:
     ) -> None:
         """Release wake microphone ownership for another voice path."""
 
-        self._pause_event.set()
-
         with self._state_lock:
+            self._pause_event.set()
             self._close_stream_locked()
-
-        self.segmenter.reset()
+            self.segmenter.reset()
 
 
     def resume(
@@ -189,9 +198,11 @@ class FridayAlwaysOnWakeCapture:
     ) -> None:
         """Allow the always-on loop to reacquire the microphone."""
 
-        self.segmenter.reset()
-
-        self._pause_event.clear()
+        with self._state_lock:
+            self.segmenter.reset()
+            self._pause_event.clear()
+            if self._stream is None and self._running:
+                self._phase = "opening"
 
 
     def stop(
@@ -235,10 +246,10 @@ class FridayAlwaysOnWakeCapture:
                     "is already running"
                 )
 
+            if self._stop_event.is_set():
+                return  # stop is terminal, including stop-before-thread-entry.
             self._running = True
-
-
-        self._stop_event.clear()
+            self._phase = "opening"
 
 
         try:
@@ -259,6 +270,8 @@ class FridayAlwaysOnWakeCapture:
                     self._ensure_stream()
                 )
 
+                if stream is None:
+                    continue
 
                 try:
 
@@ -266,7 +279,7 @@ class FridayAlwaysOnWakeCapture:
                         stream.read_chunk()
                     )
 
-                except VoiceCaptureError as exc:
+                except (VoiceCaptureError, OSError, ValueError) as exc:
 
                     with self._state_lock:
                         stream_retired = (
@@ -317,12 +330,17 @@ class FridayAlwaysOnWakeCapture:
 
 
                 try:
-
-                    segmentation = (
-                        self.segmenter.process(
-                            pcm
-                        )
-                    )
+                    with self._state_lock:
+                        # A retired read can return nonempty, partial PCM too.
+                        # Serialize process/reset; never hold this lock over read.
+                        if (
+                            self._stream is not stream
+                            or self._stop_event.is_set()
+                            or self.paused
+                        ):
+                            continue
+                        segmentation = self.segmenter.process(pcm)
+                        self._phase = "listening"
 
                 except (
                     ValueError,
@@ -345,6 +363,8 @@ class FridayAlwaysOnWakeCapture:
 
 
                 self._utterance_count += 1
+                with self._state_lock:
+                    self._phase = "detecting"
 
 
                 result = (
@@ -353,6 +373,11 @@ class FridayAlwaysOnWakeCapture:
                         utterance
                     )
                 )
+
+                with self._state_lock:
+                    if self._stop_event.is_set() or self.paused or self._stream is not stream:
+                        continue  # Never dispatch a result from a retired generation.
+                    self._phase = "listening"
 
                 if self.on_result is not None:
                     self.on_result(
@@ -396,15 +421,18 @@ class FridayAlwaysOnWakeCapture:
             with self._state_lock:
                 self._close_stream_locked()
                 self._running = False
-
-            self.segmenter.reset()
+                self._phase = "stopped"
+                self.segmenter.reset()
 
 
     def _ensure_stream(
         self,
-    ) -> WakePcmStream:
+    ) -> WakePcmStream | None:
 
         with self._state_lock:
+
+            if self._stop_event.is_set() or self.paused:
+                return None
 
             if self._stream is not None:
                 return self._stream

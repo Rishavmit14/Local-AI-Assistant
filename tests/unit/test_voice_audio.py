@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import subprocess
 from io import BytesIO
 from pathlib import Path
-import subprocess
 
 import pytest
 
 from local_ai_assistant.voice.audio import (
     AlsaAudioCapture,
+    AlsaPcmStream,
     VoiceAudioConfig,
     VoiceCaptureError,
 )
@@ -291,3 +292,41 @@ def test_list_devices_returns_arecord_output(
 
     assert "default" in devices
     assert "plughw:CARD=PCH,DEV=0" in devices
+
+
+@pytest.mark.parametrize("payload", [b"", b"ab"])
+def test_stalled_pcm_read_has_whole_chunk_deadline(payload):
+    import sys
+    import time
+
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import sys,time;sys.stdout.buffer.write(" + repr(payload)
+         + ");sys.stdout.flush();time.sleep(5)"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
+    )
+    stream = AlsaPcmStream(process, 16, read_timeout_seconds=0.1)
+    try:
+        started = time.monotonic()
+        with pytest.raises(VoiceCaptureError, match="timed out"):
+            stream.read_chunk()
+        assert time.monotonic() - started < 1
+    finally:
+        stream.close()
+    assert process.poll() is not None
+
+
+def test_bounded_pcm_read_preserves_complete_frame():
+    import sys
+
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import sys;sys.stdout.buffer.write(b'abcdefgh')"],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
+    )
+    with AlsaPcmStream(process, 8, read_timeout_seconds=1) as stream:
+        assert stream.read_chunk() == b"abcdefgh"
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
+def test_invalid_capture_deadline_is_rejected(timeout):
+    with pytest.raises(ValueError, match="read_timeout_seconds"):
+        VoiceAudioConfig(read_timeout_seconds=timeout)

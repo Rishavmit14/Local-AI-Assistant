@@ -86,7 +86,38 @@ Stages 0 through 8 did not mutate `/AI/projects/local-ai`, `/AI/projects/code-as
 
 ## Target architecture
 
-The target remains one local platform around llama-server and specialized local models: chat, private RAG/OCR, deterministic code intelligence, planner/coder/reviewer/debugger/test/security roles, controlled tools, validation/policy engines, Git transactions/worktrees, history/metrics, Friday-native integrations, persistent conversational voice, durable memory, visual perception, safe desktop control, proactive automation, and orchestrated agents/models. Git diffs remain mutation truth; deterministic inspection precedes inference; risk and confidence gates constrain automation.
+The target is **Friday — Local Personal Cognitive Operating System**, one coherent
+owner-controlled platform around the current Qwen llama-server and specialized
+local components. It combines chat, private RAG/OCR, deterministic code
+intelligence, role-based planning/coding/review/debug/test/security, controlled
+tools, validation/policy, Git transactions/worktrees, history/metrics, native
+integrations, voice/UI, durable memory, visual perception, desktop control,
+autonomy, proactive events, research/self-learning, market intelligence,
+cognitive amplification, and creator/media intelligence. Git diffs remain
+mutation truth; deterministic inspection precedes inference; risk and confidence
+gates constrain automation.
+
+Local Intelligence Sovereignty governs the system: current external information
+may arrive through provenance-bearing adapters, while reasoning, planning,
+memory, knowledge integration, evaluation, learning, orchestration, decisions,
+and execution remain local and owner-controlled. Core cognition cannot require
+paid/proprietary AI inference or cloud GPUs. The accepted Qwen model remains the
+sole general-purpose LLM; multiple roles are sequential uses of it. Whisper,
+Piper, wake/VAD, embeddings, OCR, and later vision/image models are specialized
+components. ADR 0014 defines evidence required for any future general-model
+addition or replacement.
+
+The compounding architecture is:
+
+```text
+current local LLM
+  + memory + structured knowledge + retrieval
+  + skills + tools + planning
+  + observation + verification + experience
+  + voice + vision + desktop + proactive automation
+  + market and creator specializations
+  = Friday
+```
 
 The permanent authority direction is `voice/UI/external adapters -> Friday native API/event/policy boundary -> planning/approval/execution/validation/isolation/audit`. Later stages extend perception, memory, and autonomy without granting presentation, voice, vision, or external adapters a privileged shortcut. The CLI remains the recovery/power-user surface.
 
@@ -96,6 +127,9 @@ The permanent authority direction is `voice/UI/external adapters -> Friday nativ
 - localhost binding is the default network boundary; remote exposure needs authentication and TLS.
 - private/generated data never enters Git.
 - high-risk production, security, payment, smart-contract, migration, and deployment changes always require explicit human review.
+- real-money trade execution and content publication require their separately
+  defined authorization/review boundaries; planned analysis or production does
+  not imply permission to transact or publish.
 
 ## Stage 12C-A — inline wake command semantics
 
@@ -207,3 +241,26 @@ volume at or below 1.0 after higher levels produced clipping. These remain
 machine-specific operational settings rather than application-enforced defaults.
 Complete-response buffering still delays initial speech and remains later Stage
 12 work.
+
+## Stage 12E — capture/worker recovery
+
+The managed wake loop supervises capture and wake-worker failures in
+the existing capture thread, closes the failed stream, resets segmentation, and
+retries with 1/2/4/8/16/30-second capped backoff. A run lasting 60 seconds resets
+the delay. Failed utterances are discarded; no ASR request or voice action is
+replayed. Existing fail-closed workers restart lazily on fresh input; dead idle
+workers release old pipes before replacement. Unclassified failures remain
+visible as failed rather than being blindly retried.
+
+Production raw wake/follow-up capture has a two-second whole-PCM-chunk deadline.
+Stream retirement suppresses incomplete PCM and late ASR results from cancelled
+generations. Segmentation and reset are serialized, and shutdown is terminal and
+interrupts recovery waits. `/api/v1/voice/health` exposes capture phase, managed
+thread state, recovery count, and last error type separately from HTTP `/health`.
+The API remains read-only. Host qualification proved actual recorder death and
+stall recovery without a service restart, then a physical inline wake turn after
+an idle Parakeet worker was stopped. The replacement worker recognized the fresh
+speech, Friday replied, and capture resumed. Stage 12E is accepted.
+Voice shutdown begins at Uvicorn's first exit signal, before HTTP teardown. This
+removed the observed false recovery during service stop and a controlled restart
+then completed without capture-error or retry telemetry.

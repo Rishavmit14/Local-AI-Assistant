@@ -37,7 +37,6 @@ from pathlib import Path
 from .vad import VoiceUtterance
 from .wake import WakeDetectionResult
 
-
 _PROTOCOL_PREFIX = "FRIDAY_JSON:"
 
 
@@ -198,6 +197,10 @@ class PersistentWakeDetector:
 
             if self.is_started:
                 return
+
+            # A worker can exit while idle, outside detect()'s invalidation path.
+            # Retire its descriptors before replacing the process reference.
+            self._terminate_process()
 
             python_path = (
                 self.config

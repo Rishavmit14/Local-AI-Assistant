@@ -1,4 +1,3 @@
-import json
 
 from fastapi.testclient import TestClient
 
@@ -43,6 +42,23 @@ def test_health_identifies_presentation_service():
         "status": "ok",
         "service": "friday-presentation",
         "api_version": "v1",
+    }
+
+
+def test_voice_health_is_separate_from_http_liveness():
+    runtime = FridayRuntime("voice-health")
+    observed = {"enabled": True, "status": "recovering", "recovery_count": 1}
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        voice_health=lambda: dict(observed),
+    ))
+    assert client.get("/health").json()["status"] == "ok"
+    assert client.get("/api/v1/voice/health").json() == observed
+    observed["status"] = "running"
+    assert client.get("/api/v1/voice/health").json() == observed
+    disabled, _ = make_client()
+    assert disabled.get("/api/v1/voice/health").json() == {
+        "enabled": False, "status": "disabled",
     }
 
 
@@ -148,6 +164,7 @@ def test_presentation_api_has_no_execution_routes():
     assert paths == {
         "/health",
         "/api/v1/runtime/state",
+        "/api/v1/voice/health",
         "/api/v1/runtime/events",
         "/api/v1/runtime/events/stream",
         "/api/v1/conversation/stream",

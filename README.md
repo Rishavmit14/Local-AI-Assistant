@@ -1,8 +1,26 @@
 # Local-AI-Assistant
 
-Local-AI-Assistant is a local-first Qwen platform combining an OpenAI-compatible llama.cpp client, private document RAG, deterministic multi-language Tree-sitter code intelligence, model-assisted but deterministically governed planning, and a Git-transactional coding assistant.
+Local-AI-Assistant is **Friday — a Local Personal Cognitive Operating System**.
+It combines a local Qwen llama.cpp client, private document RAG, deterministic
+multi-language code intelligence, governed planning/tools, Git-safe execution,
+and an expanding voice, memory, perception, autonomy, research, market, and
+creator platform.
 
-The runtime does not require Codex or paid inference tokens. The default model is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`, served only on `127.0.0.1:8080`. Stage 11 removed the legacy Streamlit product UI and introduced Friday's presentation-neutral native interface, React/Vite frontend foundation, conversational voice stack, and persistent exact `Hey Friday` wake service.
+The runtime does not require Codex, a cloud GPU, or paid/proprietary AI inference.
+Under Local Intelligence Sovereignty, external services may supply authorized
+information while core cognition stays on owner-controlled hardware. The sole
+current general-purpose model is `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`, served on
+`127.0.0.1:8080`; multiple cognitive roles reuse it sequentially. Specialized
+speech, embeddings, OCR, and later vision/image components remain allowed. Stage
+11 removed Streamlit and introduced Friday's native interface, React/Vite
+foundation, conversational voice, and persistent exact `Hey Friday` service.
+
+The canonical roadmap preserves mandatory future Market Intelligence & Adaptive
+Trading Research, Cognitive Architecture & Local Intelligence Amplification, and
+Creator Studio & Digital Media Intelligence stages after memory, perception,
+desktop, autonomy, events, role orchestration, and research prerequisites. They
+are planned capabilities; no current implementation or transaction/publication
+authority is implied.
 
 ## Bootstrap
 

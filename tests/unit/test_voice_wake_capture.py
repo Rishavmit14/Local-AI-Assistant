@@ -1,22 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
 
 import pytest
 
 from local_ai_assistant.voice import (
     FridayAlwaysOnWakeCapture,
     FridayWakeSupervisor,
+    UtteranceSegmenter,
     VoiceAudioConfig,
     VoiceUtterance,
     VoiceVadConfig,
     WakeCaptureError,
     WakeCaptureEvent,
     WakeDetectionResult,
-    UtteranceSegmenter,
 )
-
 
 CHUNK_MS = 30
 SAMPLE_RATE = 16000
@@ -849,6 +847,79 @@ def test_blocked_read_pause_releases_stream_without_capture_error() -> None:
 
     assert not thread.is_alive()
     assert errors == []
+
+
+@pytest.mark.parametrize("action", ["pause", "stop"])
+def test_retired_partial_pcm_never_reaches_segmenter(action):
+    class PartialStream(BlockingWakeStream):
+        def read_chunk(self):
+            super().read_chunk()
+            return b"x"  # Real arecord shutdown may return an incomplete frame.
+
+    stream = PartialStream()
+    loop, thread, errors = _start_blocked_loop(stream)
+    getattr(loop, action)()
+    loop.stop()
+    thread.join(timeout=1)
+    assert not thread.is_alive()
+    assert errors == []
+
+
+def test_stop_before_run_never_reopens_microphone():
+    loop = FridayAlwaysOnWakeCapture(
+        FridayWakeSupervisor(FakeDetector("primary", "Hey Friday")),
+        capture=FakeCapture([]),
+        segmenter=make_segmenter(),
+    )
+    loop.stop()
+    loop.run()
+    assert loop.capture.open_calls == 0
+
+
+@pytest.mark.parametrize("action", ["pause_resume", "stop"])
+def test_in_flight_asr_result_is_discarded_after_stream_retirement(action):
+    import threading
+
+    entered, release = threading.Event(), threading.Event()
+
+    class SlowDetector(FakeDetector):
+        def detect(self, utterance):
+            entered.set()
+            assert release.wait(2)
+            return super().detect(utterance)
+
+    events, errors = [], []
+    second = BlockingWakeStream()
+    loop = FridayAlwaysOnWakeCapture(
+        FridayWakeSupervisor(SlowDetector("primary", "Hey Friday"), enabled=True),
+        capture=SequenceBlockingCapture([FakeStream(one_utterance_chunks()), second]),
+        segmenter=make_segmenter(), on_wake=events.append,
+    )
+
+    def run():
+        try:
+            loop.run()
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    assert entered.wait(1)
+    try:
+        if action == "pause_resume":
+            loop.pause()
+            loop.resume()
+        else:
+            loop.stop()
+        release.set()
+        if action == "pause_resume":
+            assert second.read_started.wait(1)
+    finally:
+        release.set()
+        loop.stop()
+        thread.join(2)
+    assert not thread.is_alive()
+    assert events == errors == []
 
 
 def test_blocked_read_pause_voice_capture_error_is_cancellation() -> None:

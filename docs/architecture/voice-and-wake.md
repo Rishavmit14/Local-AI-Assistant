@@ -28,7 +28,7 @@ Production natural-language barge-in is accepted. The wake bootstrap owns an eph
 
 The trusted interruption policy remains Silero >= 0.85 for at least 180 ms after the AEC arm delay. Temporary acoustic qualification measured 23.75 dB speaker-only reduction; human speech over speaker playback reached probability 1.0000 and remained above threshold for 1410 ms. A controlled production restart then proved the real graph, normal wake conversation, natural interruption while Piper was actively speaking, immediate playback stop, and continuation with the interruption utterance without another wake phrase.
 
-The AEC session is lifecycle-owned by `FridayManagedWakeVoice` and closed with the other persistent voice resources. Explicit `Friday, stop` command semantics are still a Stage 12 hardening item rather than being claimed as separately qualified.
+The AEC session is lifecycle-owned by `FridayManagedWakeVoice` and closed with the other persistent voice resources. Exact explicit stop semantics were separately accepted in Stage 12D below.
 
 ## Wake capture pause/stop lifecycle
 
@@ -38,7 +38,6 @@ Pause semantics are deliberately quiescent rather than terminating: the wake loo
 
 ## Known hardening items
 
-- capture-thread health supervision/restart;
 - final concurrent HTTP/presentation versus wake-turn policy;
 - streaming speech / initial-response latency;
 - longer-running voice stability and richer state observability.
@@ -101,3 +100,36 @@ capture resumed. Reliable transcription also required eliminating host-level
 clipping; the qualified MSI used microphone volume 0.5 / hardware capture
 +11.25 dB and speaker volume no higher than 1.0. These levels are operational
 machine state, documented under `docs/operations/configuration.md`.
+
+## Stage 12E — supervised capture recovery
+
+The existing managed capture thread retries `WakeCaptureError`,
+`WakeRuntimeError`, and OS transport failures after stream cleanup/reset. Retry
+waits grow from one second to at most 30 seconds and reset after a run lasting
+60 seconds. They are interruptible by shutdown. Unexpected programming errors or
+an unsolicited normal loop return remain failed and observable. Failed audio is
+never replayed, and the strict matcher is unchanged. Invalidated workers restart
+on the next fresh utterance; idle-dead worker descriptors are closed first.
+
+The raw wake/follow-up ALSA adapter uses a two-second deadline for the whole PCM
+chunk, including partial reads. A stalled recorder is retired and terminated;
+normal wake silence still supplies continuous PCM. Pause/stop retire nonempty
+partial reads as well as EOF/errors. Late ASR results from retired streams are
+discarded. The state lock serializes segmentation and reset without covering
+blocking microphone reads or model inference. Stop is terminal even before run
+entry, and a closed managed service cannot be restarted in place.
+
+`/api/v1/voice/health` reports managed status (`running`, `recovering`, `failed`,
+`stopped`), capture phase (`opening`, `listening`, `detecting`, `paused`, `stopped`),
+thread liveness, turn activity, recovery count and last error type. A historical
+error remains visible after recovery. HTTP `/health` reports only presentation
+liveness. Host qualification terminated and stalled the real recorder: recovery
+took 1.23 and 5.19 seconds without replacing Friday's service process. A stopped
+idle Parakeet worker was recreated by a fresh physical inline wake; the command
+completed through LLM/Piper and raw capture resumed. This does not claim general
+AEC/Piper/model supervision or complete long-running voice stability.
+
+A final restart gate found that Uvicorn previously began HTTP shutdown before
+the CLI's `finally` closed voice capture, allowing recorder unwind to schedule a
+false recovery. Friday now closes voice ownership at Uvicorn's first exit signal;
+cleanup is idempotent, and the requalified restart emitted no error or retry.

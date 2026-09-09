@@ -4,6 +4,10 @@
 > Repository: https://github.com/Rishavmit14/Local-AI-Assistant
 > Target machine: MSI GT62VR 7RE, Ubuntu 26.04
 > Constraint: final runtime remains local-first and usable without paid inference/API tokens.
+> Product: Friday — Local Personal Cognitive Operating System.
+> Intelligence policy: ADR 0014 Local Intelligence Sovereignty; current Qwen is
+> the sole general-purpose reasoning model, with sequential roles and specialized
+> local speech/embedding/OCR/vision/image components as justified.
 
 Fresh sessions must read the durable continuous-autonomy policy in `AGENTS.md`
 and the **Current cross-session handoff and Git policy** section below. Historical
@@ -982,6 +986,22 @@ The final assistant should support:
 - Friday-native integration gateway with optional GitHub, MCP-compatible, WebSocket/event, and justified direct external adapters
 - optional queued autonomy
 - local conversational voice and cinematic UI through Friday's non-privileged native API/event boundary
+- persistent personal memory, visual perception, safe desktop control, proactive
+  automation, and bounded research/self-learning;
+- provenance-bearing Market Intelligence & Adaptive Trading Research with no
+  implied real-money execution authority;
+- measured Cognitive Architecture & Local Intelligence Amplification using the
+  same current general-purpose LLM;
+- an original, provenance-safe Creator Studio & Digital Media Intelligence
+  workflow with review-gated publication.
+
+The final product is **Friday — Local Personal Cognitive Operating System**:
+`CURRENT LOCAL LLM + MEMORY + KNOWLEDGE + RETRIEVAL + SKILLS + TOOLS + PLANNING
++ OBSERVATION + VERIFICATION + EXPERIENCE + SPECIALIZED CAPABILITIES = FRIDAY`.
+Its target is the most capable owner-controlled local AI system practical on the
+owner's hardware using free/open technologies. Internet services may provide
+current information; they cannot be mandatory intelligence providers. See ADR
+0014 and detailed planned Stages 20–22 in `ROADMAP.md`.
 
 Still require explicit human review for high-risk production/security/payment/smart-contract/destructive migration/deployment changes.
 
@@ -997,9 +1017,9 @@ Do not use chat history as the only project memory. The durable source of truth 
 - Git history — implementation truth
 - tests — behavioral truth
 
-## 20. Current accepted implementation snapshot
+## 20. Current implementation snapshot
 
-As of the accepted Stage 12D voice baseline, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11/12 provide the production conversational/wake platform with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, enabled user-session systemd deployment, production natural-language barge-in, hardened blocked-read cancellation, inline wake commands, fresh bare-wake follow-up capture, and exact explicit stop semantics. The accepted barge-in path uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`, captures `friday_aec_source`, stops active playback, and feeds trusted interruption audio through main Whisper. Exact `stop`, `friday stop`, and `hey friday stop` end in IDLE without LLM or acknowledgement speech; nonexact phrases remain conversational. Stage 12 remains active for capture recovery, concurrency policy, observability, streaming speech latency, and longer-running stability. `ROADMAP.md` extends the product into durable personal memory, visual perception, safe desktop control, autonomous execution, proactive automation, multi-agent/multi-model orchestration, and bounded self-learning/research.
+As of the qualified Stage 12E candidate, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11/12 provide the production conversational/wake platform with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, enabled user-session systemd deployment, production natural-language barge-in, hardened blocked-read cancellation, inline wake commands, fresh bare-wake follow-up capture, exact explicit stop, and supervised capture/worker recovery. The accepted barge-in path uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`, captures `friday_aec_source`, stops active playback, and feeds trusted interruption audio through main Whisper. Exact `stop`, `friday stop`, and `hey friday stop` end in IDLE without LLM or acknowledgement speech; nonexact phrases remain conversational. Stage 12 remains active for concurrency policy, observability, streaming speech latency, and longer-running stability. `ROADMAP.md` extends the product through memory, perception, desktop/autonomy/events, same-model role orchestration, research, market intelligence, cognitive amplification, and creator intelligence under Local Intelligence Sovereignty.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 
@@ -1053,10 +1073,61 @@ Latest accepted capability recovery checkpoint:
 (`Stage 12D: add explicit stop semantics`, accepted and remotely verified).
 Stage 12D is closed; reopen only upon evidence of a genuine regression.
 
-Current work: persist and qualify the owner's continuous-autonomy governance
-update, then immediately begin Stage 12E capture/worker health recovery DISCOVERY
-on the existing Stage 12 branch. No physical voice input is needed for governance.
-Friday remains active on the accepted runtime; verify host state on every resume.
+Latest accepted repository recovery checkpoint (governance, runtime unchanged):
+`58b396c794bacfe36097e1617f8074183e71a2d3`. Stage/main and fetched remote refs
+were verified equal with a clean tree; 664 Python tests, repository verification,
+12 frontend tests and frontend build passed.
+
+Current capability: Stage 12E capture/worker health recovery, QUALIFIED with all
+runtime and regression evidence passed; publication is the remaining gate.
+Discovery found that capture/worker exceptions terminate the wake thread while
+HTTP remains available; shutdown can feed retired partial PCM into segmentation;
+raw capture reads have no deadline. Implement recovery with capped backoff,
+fail-closed failed-utterance disposal, cancellation-safe capture, and read-only
+voice health. Evidence is under ignored `var/stage12e/`. Stage 12D stays closed.
+Candidate qualification on 2026-09-09: targeted voice/API/worker tests passed;
+full repository verification passed with 683 Python tests and healthy dependency
+checks. The controlled service reload installed the candidate on PID 64096.
+Actual recorder termination recovered in 1.23 seconds; SIGSTOP stall recovered in
+5.19 seconds with two-second PCM timeout, child termination/reaping, and backoff.
+Both preserved the same Friday process and returned to IDLE/listening. Host
+microphone/speaker levels remain 0.50/0.94. Evidence and rollback archive are in
+`var/stage12e/`; `host-fault-results.json` and `host-fault-journal.txt` prove the
+fault trials. These agent-induced faults are not product regressions.
+
+The fresh physical wake passed. The preflight bound PID 64096, source hashes,
+event cursor 0, journal cursor, and terminated Parakeet PID 64118. New Parakeet
+PID 64624 recognized “Hey Friday, say recovery is working” as an inline command.
+Runtime events 1–19 prove LISTENING -> TRANSCRIBING -> THINKING -> SPEAKING ->
+IDLE with assistant text “Recovery is working.” The owner reported it worked
+perfectly. Journal evidence proves WAKE_ACCEPTED, LLM/Piper/playback completion,
+VOICE_THREAD_COMPLETE and WAKE_RESUMED; voice health then reported running,
+listening, one utterance/wake, and the same service PID. No injected audio or
+stdin-waiting harness was used.
+
+The owner also added durable Local Intelligence Sovereignty, one-current-general-
+model policy, and mandatory planned Stages 20–22. Their canonical scope is in
+`AGENTS.md`, `ARCHITECTURE.md`, `ROADMAP.md`, README, and ADR 0014; none is
+implemented or allowed to jump ahead of active dependency work.
+
+Finish full final regression/repository verification/frontend tests/build,
+review the diff, commit/publish Stage 12E and the product-policy additions on the
+stage/main refs, fetch/verify equal refs and clean state, record the accepted
+recovery SHA, then immediately begin DISCOVERY of wake/HTTP concurrency policy.
+
+Final lifecycle finding: the first restart exposed a product race where the old
+CLI waited until Uvicorn returned before closing voice; SIGTERM recorder unwind
+scheduled a false retry. Cleanup now begins at Uvicorn's first exit signal and
+is idempotent. PID 68914, which loaded the fix, shut down in about 0.34 seconds
+with no capture error/retry; PID 69073 reached healthy IDLE/listening. Targeted
+shutdown tests passed.
+
+Final gates completed after cleanup: 686 Python tests passed twice (direct suite
+and repository verifier), dependency/repository checks passed, Ruff passed on
+every changed Python file, 12 frontend tests passed, and the production build
+completed with only the existing large-chunk advisory. The accepted Stage 12E
+recovery point is the commit containing this section; after publication record
+its literal SHA here as part of the next capability's discovery.
 
 Stage branch boundaries:
 

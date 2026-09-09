@@ -5,12 +5,30 @@ These instructions apply to the entire repository. Read this file and `CODEX_HAN
 ## Project invariants
 
 - Keep the runtime local-first. The default is the local Qwen model through the localhost llama.cpp OpenAI-compatible API; paid inference and Codex must never become runtime requirements.
+- Preserve **Local Intelligence Sovereignty**. Friday's core reasoning, planning,
+  memory, knowledge integration, evaluation, learning, tool orchestration,
+  decision logic, and autonomous execution must run on owner-controlled hardware
+  with locally controlled models, data, tools, and free/open software wherever
+  practical. Internet services may supply owner-authorized information, but must
+  not become mandatory sources of intelligence. Tasks that do not inherently
+  need current external data should retain useful offline operation.
+- Keep the accepted Qwen model as Friday's sole general-purpose reasoning model
+  for now. Cognitive roles may call that same model sequentially. Specialized
+  speech, embedding, OCR, vision, image, and deterministic ML components are
+  allowed. Do not add another general-purpose LLM without measured evidence that
+  its benefit justifies hardware, latency, lifecycle, and maintenance costs.
+  Preserve the model-client boundary so a future open model can replace Qwen
+  without redesigning Friday.
 - Preserve working behavior before refactoring. Treat tests and actual machine files as implementation truth and document differences from historical prose.
 - Never track GGUF or other model weights, virtual environments, FAISS indexes, embeddings, user documents, caches, secrets, generated logs, patches, or temporary/database state.
 - Do not bypass Git isolation for coding-agent mutations. Patch preflight, structural/static validation, tests, bounded repair, auditability, and deterministic rollback are foundational requirements.
 - Prefer parsers, Git, tests, linters, and build tools over model inference for deterministic facts.
 - OpenClaw is not part of Friday's target architecture. Do not add OpenClaw dependencies, integrations, adapters, roadmap items, implementation work, or design assumptions unless the project owner explicitly reverses this decision.
 - Never silently remove roadmap capabilities. Update status without deleting scope.
+- Stages 20–22 (market intelligence, cognitive amplification, and creator studio)
+  are durable owner requirements. Keep them planned and dependency-ordered until
+  prior roadmap work is accepted; never silently remove or prematurely implement
+  them.
 - Work one roadmap stage at a time. Stage 0 must be reviewed before Stage 1 begins.
 - A capability is not accepted merely because an experiment worked. Acceptance requires the selected implementation, relevant tests, canonical architecture/roadmap/history updates, a clean commit, push to the configured GitHub remote, and remote-HEAD verification.
 - Remove rejected prototypes, obsolete helpers, abandoned configuration, and competing inactive implementations before capability acceptance unless an explicit documented architecture reason requires more than one implementation.

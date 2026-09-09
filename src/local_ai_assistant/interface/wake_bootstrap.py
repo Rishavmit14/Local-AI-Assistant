@@ -12,45 +12,47 @@ Wake remains completely dormant unless AppConfig.wake.enabled is true.
 
 from __future__ import annotations
 
+import math
 import threading
 import time
+from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import Any, Callable, Iterator, Protocol
+from typing import Any, Protocol
 
 from local_ai_assistant.common.config import AppConfig
 from local_ai_assistant.voice import (
+    AlsaAudioCapture,
     BargeInPolicy,
-    FridayBargeInMonitor,
-    PipeWireAecConfig,
-    PipeWireAecSession,
-    PipeWirePcmCapture,
-    PipeWirePcmCaptureConfig,
     FridayAlwaysOnWakeCapture,
+    FridayBargeInMonitor,
+    FridayOneShotFollowUpCapture,
     FridayWakeSupervisor,
     FridayWakeVoiceOrchestrator,
-    FridayOneShotFollowUpCapture,
     PersistentWakeDetector,
     PersistentWakeProcessConfig,
     PiperAudioChunk,
     PiperSpeechSynthesizer,
+    PipeWireAecConfig,
+    PipeWireAecSession,
+    PipeWirePcmCapture,
+    PipeWirePcmCaptureConfig,
     PipeWireSpeechPlayer,
-    SpeechPlaybackResult,
-    VoiceUtterance,
-    WhisperCppTranscriber,
-    WhisperTranscript,
-    WakeCaptureEvent,
-    AlsaAudioCapture,
     SileroVad,
+    SpeechPlaybackResult,
     UtteranceSegmenter,
     VoiceAudioConfig,
+    VoiceUtterance,
     VoiceVadConfig,
-
+    WakeCaptureEvent,
+    WhisperCppTranscriber,
+    WhisperTranscript,
 )
+from local_ai_assistant.voice.wake_capture import WakeCaptureError
+from local_ai_assistant.voice.wake_runtime import WakeRuntimeError
 
 from .conversation import FridayConversationService
 from .runtime import FridayRuntime
 from .voice_conversation import FridayVoiceConversationService
-
 
 PROJECT_ROOT = (
     Path(__file__)
@@ -94,6 +96,7 @@ WAKE_AUDIO_CONFIG = VoiceAudioConfig(
     sample_format="S16_LE",
     sample_width_bytes=2,
     chunk_ms=32,
+    read_timeout_seconds=2.0,
 )
 
 WAKE_VAD_CONFIG = VoiceVadConfig()
@@ -485,7 +488,21 @@ class FridayManagedWakeVoice:
         voice_turn: VoiceTurnCallable,
         telemetry: VoiceTurnTelemetry | None = None,
         aec_session: PipeWireAecSession | None = None,
+        recovery_initial_seconds: float = 1.0,
+        recovery_max_seconds: float = 30.0,
     ) -> None:
+
+        if not (
+            math.isfinite(recovery_initial_seconds)
+            and math.isfinite(recovery_max_seconds)
+            and 0 < recovery_initial_seconds <= recovery_max_seconds
+        ):
+            raise ValueError("invalid wake recovery delays")
+        self._recovery_initial_seconds = recovery_initial_seconds
+        self._recovery_max_seconds = recovery_max_seconds
+        self._closing = threading.Event()
+        self._capture_status = "stopped"
+        self._recovery_count = 0
 
         self.wake_capture = (
             wake_capture
@@ -607,6 +624,9 @@ class FridayManagedWakeVoice:
 
         with self._lock:
 
+            if self._closing.is_set():
+                raise RuntimeError("Friday managed wake voice is closed")
+
             existing = (
                 self._capture_thread
             )
@@ -688,6 +708,9 @@ class FridayManagedWakeVoice:
     ) -> None:
         """Pause microphone ownership synchronously and schedule the voice turn."""
 
+        if self._closing.is_set():
+            return
+
         self.telemetry.mark(
             "WAKE_ACCEPTED"
         )
@@ -704,6 +727,9 @@ class FridayManagedWakeVoice:
 
 
         with self._lock:
+
+            if self._closing.is_set():
+                return
 
             existing = (
                 self._voice_thread
@@ -766,6 +792,10 @@ class FridayManagedWakeVoice:
     ) -> None:
         """Always clean subprocesses, even if conversational work is stuck."""
 
+        with self._lock:
+            if self._closing.is_set():
+                return
+            self._closing.set()
         self.wake_capture.stop()
 
 
@@ -874,26 +904,57 @@ class FridayManagedWakeVoice:
     def _run_capture(
         self,
     ) -> None:
-
-        try:
-
-            self.wake_capture.run()
-
-        except BaseException as exc:
-
-            print(
-                "FRIDAY_VOICE_STAGE "
-                "WAKE_CAPTURE_ERROR "
-                f"type={type(exc).__name__} "
-                f"message={exc}",
-                flush=True,
-            )
-
+        delay = self._recovery_initial_seconds
+        while not self._closing.is_set():
+            started = time.monotonic()
             with self._lock:
-
-                self._capture_error = (
-                    exc
+                self._capture_status = "running"
+            try:
+                self.wake_capture.run()
+                if self._closing.is_set():
+                    break
+                raise RuntimeError("wake loop returned without shutdown")
+            except BaseException as exc:
+                if self._closing.is_set():
+                    break
+                with self._lock:
+                    self._capture_error = exc
+                    retryable = isinstance(exc, (WakeCaptureError, WakeRuntimeError, OSError))
+                    self._capture_status = "recovering" if retryable else "failed"
+                self.telemetry.mark(f"WAKE_CAPTURE_ERROR type={type(exc).__name__}")
+                if not retryable:
+                    return  # Programming/unclassified errors require diagnosis.
+                if time.monotonic() - started >= 60.0:
+                    delay = self._recovery_initial_seconds
+                with self._lock:
+                    self._recovery_count += 1
+                    attempt = self._recovery_count
+                self.telemetry.mark(
+                    f"WAKE_CAPTURE_RETRY attempt={attempt} delay_seconds={delay:g}"
                 )
+                if self._closing.wait(delay):
+                    break
+                # run() has closed the failed stream and discarded segmentation.
+                # Failed ASR requests are never replayed. The detector's existing
+                # fail-closed boundary starts a fresh worker on the next utterance.
+                delay = min(delay * 2, self._recovery_max_seconds)
+        with self._lock:
+            self._capture_status = "stopped"
+
+    def health(self) -> dict[str, object]:
+        with self._lock:
+            capture = getattr(self.wake_capture, "health", lambda: {})()
+            return {
+                "enabled": True,
+                "status": self._capture_status,
+                "capture_thread_alive": self.running,
+                "voice_turn_running": self.voice_turn_running,
+                "recovery_count": self._recovery_count,
+                "last_error_type": (
+                    type(self._capture_error).__name__ if self._capture_error else None
+                ),
+                "capture": capture,
+            }
 
 
     def _run_voice_turn(
@@ -937,11 +998,9 @@ class FridayManagedWakeVoice:
             # The orchestrator already resumes in its own finally.
             # This second call is an idempotent ownership guarantee
             # if a future voice boundary fails before reaching it.
-            self.wake_capture.resume()
-
-            self.telemetry.mark(
-                "WAKE_RESUMED"
-            )
+            if not self._closing.is_set():
+                self.wake_capture.resume()
+                self.telemetry.mark("WAKE_RESUMED")
 
 
     def _close_resources_locked(

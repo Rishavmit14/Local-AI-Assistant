@@ -69,3 +69,21 @@ conversation for `stop loss`, `I didn't stop`, and other noncommands. Physical
 qualification passed inline stop, active-speech stop, and the stop-loss negative
 control after clipped host audio levels were corrected. Machine audio gain is an
 operational prerequisite, not an application policy or semantic workaround.
+
+## Stage 12E decision — recover at the capture ownership boundary
+
+Decision: supervise retryable microphone/wake-worker
+failures in the existing managed capture thread. Reuse loaded models and the
+accepted AEC graph instead of restarting the whole service. Retire and close
+failed streams, reset VAD state, discard failed utterances, and retry at a capped
+rate; worker protocol invalidation stays authoritative and no failed request is
+replayed. Two-second raw chunk deadlines cover stopped recorder processes.
+Shutdown is terminal and interrupts backoff; unclassified failures remain failed.
+Keep voice health separate from HTTP liveness. This confines recovery ownership
+and avoids introducing a second competing microphone supervisor or weakening
+strict wake/stop policy. Deterministic, host recorder fault, worker replacement,
+and physical wake qualification passed, so this decision is accepted.
+
+Managed voice cleanup begins at Uvicorn's first exit signal, before HTTP server
+shutdown. The outer `finally` remains as an idempotent guarantee. This prevents
+recorder unwind from being retried between SIGTERM and application teardown.

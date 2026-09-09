@@ -146,3 +146,41 @@ actions or true capability boundaries. Quality, documentation, isolation,
 acceptance, and remote recovery gates remain mandatory. The canonical handoff
 records recovery and active work; fresh sessions discover the policy through
 the normal root AGENTS/bootstrap path without depending on conversation history.
+
+## 2026-09-09 — Stage 12E capture and wake-worker recovery
+
+Accepted recovery at the existing capture ownership boundary. Friday now bounds
+raw PCM chunk reads, suppresses partial audio and late ASR results from retired
+streams, retries microphone and wake-worker failures with capped backoff, closes
+dead idle-worker pipes before replacement, and exposes voice readiness separately
+from presentation HTTP liveness. Shutdown interrupts retry waits and cannot reopen
+the microphone after stop.
+
+Deterministic coverage exercised capture errors, recorder stalls, cancellation
+races, late results, retry capping, worker replacement, and health reporting.
+On PID 64096, terminating the actual recorder recovered in 1.23 seconds and a
+SIGSTOP stall recovered in 5.19 seconds without restarting Friday. The owner then
+physically said “Hey Friday, say recovery is working” after Parakeet PID 64118
+had been stopped. Fresh Parakeet PID 64624 recognized the inline command; Friday
+spoke “Recovery is working,” completed the turn, and resumed listening.
+
+The final restart gate exposed and repaired a shutdown-order race: the old
+launcher waited for Uvicorn to return before closing voice resources, so SIGTERM
+could briefly look like recorder failure. Cleanup now begins at Uvicorn's first
+exit signal and is idempotent. A repeat restart completed without capture-error
+or retry telemetry.
+
+## 2026-09-09 — Local sovereignty and durable Stages 20–22
+
+Accepted the product architecture and roadmap scope, not implementations, for
+Local Intelligence Sovereignty and Friday as a Local Personal Cognitive Operating
+System. Core cognition remains owner-controlled and locally executable; external
+services may supply information but not mandatory intelligence. The tuned Qwen
+remains the sole current general-purpose model, while sequential roles and
+specialized local components remain available. ADR 0014 records the decision.
+
+The canonical roadmap now preserves detailed mandatory future Market Intelligence
+& Adaptive Trading Research, Cognitive Architecture & Local Intelligence
+Amplification, and Creator Studio & Digital Media Intelligence stages after their
+existing prerequisites. The update grants no real-money trading or publishing
+authority and does not mark any of those future capabilities implemented.

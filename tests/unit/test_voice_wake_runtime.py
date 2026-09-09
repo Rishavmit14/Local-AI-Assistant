@@ -13,7 +13,6 @@ from local_ai_assistant.voice import (
     WakeRuntimeError,
 )
 
-
 FAKE_WORKER = r"""
 from __future__ import annotations
 
@@ -167,6 +166,21 @@ def test_worker_is_lazy(
 
     assert not detector.is_started
     assert detector.worker_pid is None
+
+
+def test_idle_worker_death_closes_old_pipes_before_replacement(tmp_path):
+    detector = make_detector(tmp_path)
+    try:
+        detector.start()
+        old = detector._process
+        old.kill()
+        old.wait(timeout=2)
+        result = detector.detect(make_utterance())
+        assert result.transcript == "Hey Friday"
+        assert detector.worker_pid != old.pid
+        assert old.stdin.closed and old.stdout.closed
+    finally:
+        detector.close()
 
 
 def test_start_keeps_process_resident(

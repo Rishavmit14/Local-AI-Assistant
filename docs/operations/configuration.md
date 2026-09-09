@@ -45,3 +45,24 @@ levels before adjustment, verify the selected physical devices and unclipped
 recorded input, and requalify wake and AEC interruption on the actual hardware.
 Do not compensate for damaged audio with fuzzy stop matching or extra ASR aliases.
 The raw wake microphone and the AEC-only barge-in topology stay unchanged.
+
+## Stage 12E recovery diagnostics
+
+Stage 12E exposes read-only `/api/v1/voice/health` on the existing localhost
+presentation port. Inspect managed status together with capture phase and thread
+liveness; `/health` alone does not prove microphone readiness. Retry counts and
+last error type survive successful recovery within a process. Journal stages
+`WAKE_CAPTURE_ERROR` and `WAKE_CAPTURE_RETRY` show failures and scheduled delays.
+
+Production `WAKE_AUDIO_CONFIG` sets `read_timeout_seconds=2.0` for raw wake and
+fresh follow-up ALSA streams. Generic audio callers retain the optional unbounded
+default. Retry delay is 1/2/4/8/16/30 seconds, capped at 30, resetting after a
+60-second run; shutdown interrupts the wait. No systemd-unit or host audio-level
+change is required. Stage 12E qualification proved both recorder failure modes
+and fresh wake-worker recreation. Voice actions must follow prepared nonblocking
+evidence cursors; agent-run fault tests must target only the verified service
+child PID.
+
+Managed voice cleanup starts at Uvicorn's first exit signal. A normal controlled
+restart should contain neither `WAKE_CAPTURE_ERROR` nor `WAKE_CAPTURE_RETRY`;
+either entry during shutdown fails the lifecycle gate.

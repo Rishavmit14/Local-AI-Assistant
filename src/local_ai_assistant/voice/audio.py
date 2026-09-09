@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
 import os
-from pathlib import Path
+import select
 import subprocess
+import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import BinaryIO
 
 
@@ -22,8 +25,13 @@ class VoiceAudioConfig:
     sample_width_bytes: int = 2
     chunk_ms: int = 30
     arecord_path: str = "arecord"
+    read_timeout_seconds: float | None = None
 
     def __post_init__(self) -> None:
+        if self.read_timeout_seconds is not None and (
+            not math.isfinite(self.read_timeout_seconds) or self.read_timeout_seconds <= 0
+        ):
+            raise ValueError("read_timeout_seconds must be finite and positive")
         if not self.device:
             raise ValueError("audio device must not be empty")
 
@@ -88,6 +96,8 @@ class AlsaPcmStream:
         self,
         process: subprocess.Popen[bytes],
         chunk_bytes: int,
+        *,
+        read_timeout_seconds: float | None = None,
     ) -> None:
         if process.stdout is None:
             raise VoiceCaptureError(
@@ -98,6 +108,7 @@ class AlsaPcmStream:
         self._stdout: BinaryIO = process.stdout
         self._chunk_bytes = chunk_bytes
         self._closed = False
+        self._read_timeout_seconds = read_timeout_seconds
 
     @property
     def chunk_bytes(self) -> int:
@@ -118,9 +129,29 @@ class AlsaPcmStream:
 
         remaining = self._chunk_bytes
         parts: list[bytes] = []
+        deadline = (
+            time.monotonic() + self._read_timeout_seconds
+            if self._read_timeout_seconds is not None else None
+        )
 
         while remaining > 0:
-            data = self._stdout.read(remaining)
+            try:
+                if deadline is not None:
+                    remaining_seconds = deadline - time.monotonic()
+                    if remaining_seconds <= 0:
+                        raise VoiceCaptureError("microphone PCM chunk timed out")
+                    ready, _, _ = select.select(
+                        [self._stdout], [], [], remaining_seconds
+                    )
+                    if not ready:
+                        raise VoiceCaptureError("microphone PCM chunk timed out")
+                    data = os.read(self._stdout.fileno(), remaining)
+                else:
+                    data = self._stdout.read(remaining)
+            except (OSError, ValueError) as exc:
+                if self._closed:
+                    return b""
+                raise VoiceCaptureError("microphone PCM read failed") from exc
 
             if not data:
                 break
@@ -232,6 +263,7 @@ class AlsaAudioCapture:
         return AlsaPcmStream(
             process,
             self.config.chunk_bytes,
+            read_timeout_seconds=self.config.read_timeout_seconds,
         )
 
     def capture_wav(
@@ -267,8 +299,7 @@ class AlsaAudioCapture:
         try:
             result = subprocess.run(
                 command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 check=False,
             )
         except OSError as exc:
@@ -301,8 +332,7 @@ class AlsaAudioCapture:
                     self.config.arecord_path,
                     "-L",
                 ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 check=False,
                 text=True,
             )

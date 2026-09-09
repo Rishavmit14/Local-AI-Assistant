@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
+from types import FrameType
 from uuid import uuid4
 
 import uvicorn
@@ -15,6 +17,25 @@ from .api import create_presentation_app
 from .conversation import FridayConversationService
 from .runtime import FridayRuntime
 from .wake_bootstrap import build_managed_wake_voice
+
+
+class FridayUvicornServer(uvicorn.Server):
+    """Release voice ownership at Uvicorn's first shutdown signal."""
+
+    def __init__(self, config: uvicorn.Config, *, before_exit: Callable[[], None]):
+        super().__init__(config)
+        self._before_exit = before_exit
+        self._voice_exit_started = False
+
+    def handle_exit(self, sig: int, frame: FrameType | None) -> None:
+        if not self._voice_exit_started:
+            self._voice_exit_started = True
+            try:
+                self._before_exit()
+            finally:
+                super().handle_exit(sig, frame)
+            return
+        super().handle_exit(sig, frame)
 
 
 def build_presentation_components(
@@ -35,15 +56,16 @@ def build_presentation_components(
         runtime=runtime,
     )
 
-    app = create_presentation_app(
-        runtime=runtime,
-        conversation=conversation,
-    )
-
     wake_voice = build_managed_wake_voice(
         resolved_config,
         runtime=runtime,
         conversation=conversation,
+    )
+
+    app = create_presentation_app(
+        runtime=runtime,
+        conversation=conversation,
+        voice_health=wake_voice.health if wake_voice is not None else None,
     )
 
     return (
@@ -96,13 +118,17 @@ def main() -> int:
         if wake_voice is not None:
             wake_voice.start()
 
-        uvicorn.run(
-            app,
-            host="127.0.0.1",
-            port=args.port,
-            log_level="info",
-            access_log=False,
+        server = FridayUvicornServer(
+            uvicorn.Config(
+                app,
+                host="127.0.0.1",
+                port=args.port,
+                log_level="info",
+                access_log=False,
+            ),
+            before_exit=(wake_voice.close if wake_voice is not None else lambda: None),
         )
+        server.run()
 
     finally:
         if wake_voice is not None:

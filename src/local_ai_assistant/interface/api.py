@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from queue import Empty
 
 try:
@@ -20,6 +21,7 @@ def create_presentation_app(
     conversation: FridayConversationService,
     *,
     max_prompt_chars: int = 20_000,
+    voice_health: Callable[[], dict[str, object]] | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -49,6 +51,10 @@ def create_presentation_app(
             "session_id": runtime.session_id,
             "state": runtime.state.value,
         }
+
+    @app.get("/api/v1/voice/health")
+    def wake_health():
+        return voice_health() if voice_health else {"enabled": False, "status": "disabled"}
 
     @app.get("/api/v1/runtime/events")
     def runtime_events(cursor: int = 0, limit: int = 100):
@@ -145,13 +151,12 @@ def create_presentation_app(
             )
 
         def chunks():
-            for chunk in conversation.stream_response(
+            yield from conversation.stream_response(
                 prompt,
                 system_prompt=system_prompt,
                 temperature=float(temperature),
                 max_tokens=max_tokens,
-            ):
-                yield chunk
+            )
 
         return StreamingResponse(
             chunks(),

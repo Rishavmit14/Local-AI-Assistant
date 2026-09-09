@@ -128,6 +128,7 @@ def make_service(
     *,
     capture_cls=FakeCapture,
     voice_turn=None,
+    **kwargs,
 ):
     log = []
 
@@ -172,6 +173,7 @@ def make_service(
             speech_synthesizer=piper,
             voice_turn=voice_turn,
             telemetry=telemetry,
+            **kwargs,
         )
     )
 
@@ -252,6 +254,16 @@ def test_double_start_is_idempotent(
     finally:
 
         service.close()
+
+
+def test_close_is_idempotent():
+    service, capture, primary, fallback, piper, *_ = make_service()
+    service.start()
+    assert capture.started.wait(2)
+    service.close()
+    service.close()
+    assert capture.stop_calls == 1
+    assert primary.closed == fallback.closed == piper.closed == 1
 
 
 def test_wake_callback_pauses_before_async_voice_turn(
@@ -695,3 +707,111 @@ def test_production_wake_capture_error_observability_contract() -> None:
     assert "WAKE_CAPTURE_ERROR " in source
     assert "FRIDAY_WAKE_RESULT " not in source
     assert "_log_wake_result" not in source
+
+
+def test_transient_capture_failure_recovers_without_reloading_models():
+    from local_ai_assistant.voice.wake_capture import WakeCaptureError
+
+    class RecoveringCapture(FakeCapture):
+        calls = 0
+
+        def run(self, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                raise WakeCaptureError("device disappeared")
+            super().run(**kwargs)
+
+    service, capture, primary, fallback, piper, telemetry, _ = make_service(
+        capture_cls=RecoveringCapture, recovery_initial_seconds=0.01,
+    )
+    try:
+        service.start()
+        assert capture.started.wait(2)
+        assert capture.calls == 2
+        assert service.running
+        assert primary.started == fallback.started == piper.started == 1
+        assert "WAKE_CAPTURE_RETRY attempt=1 delay_seconds=0.01" in telemetry.stages()
+        assert service.capture_thread_error is not None  # Retain last failure.
+    finally:
+        service.close()
+
+
+def test_close_interrupts_recovery_backoff_and_prevents_restart():
+    from local_ai_assistant.voice.wake_capture import WakeCaptureError
+
+    class BrokenCapture(FakeCapture):
+        calls = 0
+
+        def run(self, **kwargs):
+            self.calls += 1
+            self.started.set()
+            raise WakeCaptureError("unavailable")
+
+    service, capture, *_ = make_service(
+        capture_cls=BrokenCapture, recovery_initial_seconds=30,
+    )
+    service.start()
+    assert capture.started.wait(2)
+    service.close()
+    assert capture.calls == 1
+    assert not service.running
+    with pytest.raises(RuntimeError, match="closed"):
+        service.start()
+
+
+def test_worker_failure_discards_failed_turn_and_recovers_loop():
+    from local_ai_assistant.voice.wake_runtime import WakeRuntimeError
+
+    class WorkerFailure(FakeCapture):
+        calls = 0
+
+        def run(self, **kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                raise WakeRuntimeError("worker response timed out")
+            super().run(**kwargs)
+
+    turns = []
+    service, capture, *_ = make_service(
+        capture_cls=WorkerFailure, voice_turn=turns.append,
+        recovery_initial_seconds=0.01,
+    )
+    try:
+        service.start()
+        assert capture.started.wait(2)
+        assert capture.calls == 2
+        assert turns == []
+    finally:
+        service.close()
+
+
+def test_repeated_failures_back_off_at_a_capped_rate():
+    from local_ai_assistant.voice.wake_capture import WakeCaptureError
+
+    class BrokenCapture(FakeCapture):
+        def run(self, **kwargs):
+            raise WakeCaptureError("unavailable")
+
+    service, *_ = make_service(capture_cls=BrokenCapture, recovery_max_seconds=4)
+    delays = []
+
+    class RecordedStop(threading.Event):
+        def wait(self, timeout=None):
+            delays.append(timeout)
+            assert service.health()["status"] == "recovering"
+            if len(delays) == 5:
+                self.set()
+            return self.is_set()
+
+    service._closing = RecordedStop()
+    service._run_capture()
+    assert delays == [1, 2, 4, 4, 4]
+    assert service.health()["recovery_count"] == 5
+
+
+def test_unclassified_error_is_visible_and_not_retried():
+    service, *_ = make_service(capture_cls=FailingCapture)
+    service._run_capture()
+    assert service.health()["status"] == "failed"
+    assert service.health()["last_error_type"] == "RuntimeError"
+    assert service.health()["recovery_count"] == 0
