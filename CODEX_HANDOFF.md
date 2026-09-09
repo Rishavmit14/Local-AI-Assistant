@@ -1332,10 +1332,12 @@ Stage 12M implementation acceptance checkpoint is
 `a3c5bd80e65acaa618621e8568788350c2ea00a1`; verify current branch heads from
 Git before relying on this historical checkpoint.
 
-## Stage 12N — resident worker health projection (qualified, 2026-09-10)
+## Stage 12N — resident worker health projection (accepted, 2026-09-10)
 
 Voice health now exposes read-only running/PID projections for primary wake,
 fallback wake, and Piper workers alongside capture state. A live restart showed
 all three workers running and capture healthy; deterministic wake-bootstrap
-coverage passed. Full regression, repository verification, and publication remain
-required before acceptance.
+coverage, full regression, and repository verification passed. The Stage 12N
+implementation acceptance checkpoint is
+`fbec1a22e9c0c9097e8700b84f99ff6d1bbf21cf`; verify current branch heads from
+Git before relying on this historical checkpoint.
