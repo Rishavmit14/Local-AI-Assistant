@@ -1309,10 +1309,12 @@ The Stage 12K implementation acceptance checkpoint is
 `d9d66bee516c9a73ef387d8faa6ff5949e396f7d`; verify current branch heads from
 Git before relying on this historical checkpoint.
 
-## Stage 12L — bounded voice-stage telemetry (qualified, 2026-09-10)
+## Stage 12L — bounded voice-stage telemetry (accepted, 2026-09-10)
 
 `VoiceTurnTelemetry` now retains only its newest 2,048 ordered stage records,
 instead of growing without bound for an always-on runtime. Journal records remain
-the durable operational path. Deterministic capacity/order validation and focused
-wake-bootstrap regression passed. Runtime restart, full regression, repository
-verification, and publication remain required before acceptance.
+the durable operational path. Deterministic capacity/order validation, focused
+wake-bootstrap regression, a healthy service restart, full regression, and
+repository verification passed. The Stage 12L implementation acceptance
+checkpoint is `773f010ea39df9ab071bcd4ee23afc7650277f1d`; verify current branch
+heads from Git before relying on this historical checkpoint.
