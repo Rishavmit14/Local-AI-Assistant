@@ -12,6 +12,7 @@ license = "MIT"
 dependencies = ["openai>=3,<4"]
 
 [project.optional-dependencies]
+memory = ["sentence-transformers>=5,<7"]
 rag = [
   "faiss-cpu>=1.12,<2",
   "numpy>=2,<3",

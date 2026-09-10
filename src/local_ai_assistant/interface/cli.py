@@ -52,7 +52,11 @@ def build_presentation_components(
     )
 
     llm = LocalLLM(config=resolved_config)
-    memory = FridayMemoryService(resolved_config.paths.memory_db)
+    memory = FridayMemoryService(
+        resolved_config.paths.memory_db,
+        embedding_model=resolved_config.embedding.model,
+        embedding_device=resolved_config.embedding.device,
+    )
 
     conversation = FridayConversationService(
         llm=llm,

@@ -1,5 +1,21 @@
 """Local-first persistent Friday memory."""
 
-from .service import FridayMemoryService, MemoryKind, MemoryRecord, MemoryState
+from .service import (
+    FridayMemoryService,
+    MemoryKind,
+    MemoryRecord,
+    MemoryRelationship,
+    MemoryState,
+    RelationshipState,
+    RetentionResult,
+)
 
-__all__ = ["FridayMemoryService", "MemoryKind", "MemoryRecord", "MemoryState"]
+__all__ = [
+    "FridayMemoryService",
+    "MemoryKind",
+    "MemoryRecord",
+    "MemoryRelationship",
+    "MemoryState",
+    "RelationshipState",
+    "RetentionResult",
+]

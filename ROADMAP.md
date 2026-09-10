@@ -153,13 +153,16 @@ to IDLE without a runtime error.
 
 Add local-first semantic long-term memory, episodic memory, bounded working memory, preferences, project/goal/person relationships, provenance/confidence, supersession/conflict resolution, and retention/deletion policy. Deterministic repository/project instructions remain a separate engineering authority.
 
-The accepted first foundation is a separate local SQLite memory boundary with
-typed episodic, preference, fact, and working records; provenance, confidence,
-expiry, active/superseded/conflicted/deleted lifecycle, deterministic recall, and
-explicit forgetting. It deliberately does not overload task history or grant
-memory mutation authority to model output. Semantic retrieval, conversation
-integration, relationship knowledge, retention policy execution, and user-facing
-controls remain active Stage 13 work.
+The accepted foundation is a separate local SQLite memory boundary with typed
+episodic, preference, fact, and working records; provenance/confidence,
+active/superseded/conflicted/expired/deleted lifecycle, deterministic recall,
+and explicit forgetting. It now has bounded per-subject working retention,
+provenance-bearing subject relationships, owner CLI controls, and bounded hybrid
+lexical/local-BGE retrieval. Production conversation can consume only labelled
+untrusted read-only memory context. It deliberately does not overload task
+history or grant memory mutation authority to model output. Deliberate
+owner/session capture policy and richer conflict-resolution qualification remain
+active Stage 13 work.
 
 ## Stage 14 — Friday Career Forge Core V1 (**Planned**)
 

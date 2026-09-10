@@ -115,11 +115,16 @@ voice, and presentation surfaces, while keeping private learning evidence
 separate from review-gated public career artifacts. Its detailed contract is in
 `docs/architecture/career-forge.md`; ADR 0015 freezes its roadmap priority.
 
-Stage 13 starts with `local_ai_assistant.memory.FridayMemoryService`, a separate
-local SQLite boundary rather than a reinterpretation of task-history audit data.
-Every record carries typed kind, provenance, confidence, lifecycle state and
-optional expiry/supersession. Only deterministic service operations alter those
-states; model output remains untrusted input.
+Stage 13 uses `local_ai_assistant.memory.FridayMemoryService`, a separate local
+SQLite boundary rather than a reinterpretation of task-history audit data. It
+stores typed episodic/preference/fact/working records, provenance/confidence,
+expiry/supersession/conflict/deletion lifecycle, bounded working-memory retention,
+and typed project/goal/person-capable relationships. Bounded hybrid retrieval
+uses deterministic lexical evidence plus lazy local BGE embeddings; the SQLite
+embedding cache is rebuildable and offline-only. Production conversation receives
+retrieved text only as labelled untrusted reference context, while deterministic
+service operations retain all memory mutation authority. See
+`docs/architecture/memory.md`.
 
 The compounding architecture is:
 

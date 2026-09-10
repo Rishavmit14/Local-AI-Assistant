@@ -226,6 +226,17 @@ supersession/conflict/deletion lifecycle without conflating personal memory with
 the existing task-history audit authority. Semantic retrieval and conversational
 integration remain active work.
 
+## 2026-09-10 — Stage 13 memory retrieval and retention candidate
+
+The active Stage 13 candidate adds deterministic expiry and bounded
+per-subject working-memory retention, explicit provenance/confidence-bearing
+subject relationships, and owner CLI controls. Retrieval is hybrid lexical plus
+lazy local-only BGE semantic ranking with a rebuildable SQLite vector cache.
+The production conversation boundary consumes at most bounded, labelled
+untrusted reference text and retains no model-output memory mutation path.
+This is an active candidate, not a Stage 13 acceptance record: capture policy
+and conflict-resolution qualification still require evidence.
+
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 
 Accepted a shared nonblocking interaction coordinator across physical voice and

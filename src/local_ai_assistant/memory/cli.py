@@ -22,6 +22,8 @@ def build_parser() -> argparse.ArgumentParser:
     remember.add_argument("content")
     remember.add_argument("--provenance", required=True)
     remember.add_argument("--confidence", type=float, required=True)
+    remember.add_argument("--supersedes")
+    remember.add_argument("--expires-at")
     recall = commands.add_parser("recall")
     recall.add_argument("subject")
     recall.add_argument("--limit", type=int, default=20)
@@ -30,6 +32,18 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--limit", type=int, default=20)
     forget = commands.add_parser("forget")
     forget.add_argument("memory_id")
+    relate = commands.add_parser("relate")
+    relate.add_argument("source_subject")
+    relate.add_argument("relationship")
+    relate.add_argument("target_subject")
+    relate.add_argument("--provenance", required=True)
+    relate.add_argument("--confidence", type=float, required=True)
+    relationships = commands.add_parser("relationships")
+    relationships.add_argument("subject")
+    relationships.add_argument("--limit", type=int, default=20)
+    forget_relation = commands.add_parser("forget-relation")
+    forget_relation.add_argument("relationship_id")
+    commands.add_parser("retention")
     return parser
 
 
@@ -43,6 +57,8 @@ def main(argv: list[str] | None = None) -> int:
             content=args.content,
             provenance=args.provenance,
             confidence=args.confidence,
+            supersedes=args.supersedes,
+            expires_at=args.expires_at,
         )
         print(json.dumps(asdict(record), default=str))
     elif args.command == "recall":
@@ -57,8 +73,34 @@ def main(argv: list[str] | None = None) -> int:
                 [asdict(item) for item in memory.search(args.query, args.limit)], default=str
             )
         )
-    else:
+    elif args.command == "forget":
         memory.forget(args.memory_id)
+    elif args.command == "relate":
+        print(
+            json.dumps(
+                asdict(
+                    memory.relate(
+                        source_subject=args.source_subject,
+                        relationship=args.relationship,
+                        target_subject=args.target_subject,
+                        provenance=args.provenance,
+                        confidence=args.confidence,
+                    )
+                ),
+                default=str,
+            )
+        )
+    elif args.command == "relationships":
+        print(
+            json.dumps(
+                [asdict(item) for item in memory.relationships(args.subject, args.limit)],
+                default=str,
+            )
+        )
+    elif args.command == "forget-relation":
+        memory.forget_relationship(args.relationship_id)
+    else:
+        print(json.dumps(asdict(memory.enforce_retention())))
     return 0
 
 
