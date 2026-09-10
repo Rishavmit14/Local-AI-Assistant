@@ -322,6 +322,16 @@ declared by its competency, with the local Learner Twin persisting and the
 cinematic PROJECTS surface displaying that relationship. The link is not mastery
 evidence and grants no execution, Git, or publication authority.
 
+## 2026-09-10 — Stage 14 Career Forge Core V1 accepted
+
+Career Forge Core V1 is accepted: the local Learner Twin, dependency graph,
+mission/tutor/evidence/mastery loop, canonical project links, private/public
+evidence boundary, and unified cinematic LEARN/MAP/PROJECTS/PROGRESS projection
+are qualified. Full deterministic regressions, repository verification, frontend
+lint/tests/build, and a controlled live Friday restart passed; the service read
+back the 16-competency journey and project-link projection with voice running.
+Stage 15 Visual Perception / Screen Awareness is next.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

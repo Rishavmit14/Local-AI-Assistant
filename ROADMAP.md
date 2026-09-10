@@ -167,7 +167,7 @@ coverage, 729-test regression, repository verification, and live local service
 qualification prove explicit capture, read-back, and deletion with healthy
 resident voice workers. Stage 14 is now next.
 
-## Stage 14 — Friday Career Forge Core V1 (**Partial / active**)
+## Stage 14 — Friday Career Forge Core V1 (**Accepted**)
 
 Build Friday's first flagship specialization: a persistent, local-first ML/AI
 Engineer apprenticeship on top of Stage 13 memory. Its versioned competency
@@ -189,8 +189,10 @@ briefs and only later uses adaptation after evidence. Project/public-evidence
 gates reject fake, unvalidated, secret-bearing, private/proprietary,
 undocumented, or low-quality artifacts and never publish automatically. Further
 presentation controls now include local mission resume, assistance and evidence
-submission, plus one-rung matching-evidence mastery advancement. Fuller project
-execution integration remains active.
+submission, plus one-rung matching-evidence mastery advancement. The accepted
+V1 stops at bounded local project linkage; project execution integration belongs
+to the later perception, desktop-control, autonomy, and advanced-integration
+stages.
 
 The current tutor checkpoint uses Friday's existing local Qwen conversation
 boundary with mission-specific context. It records generated assistance only when
@@ -214,6 +216,12 @@ The core loop now also persists a mission's link to its canonical evolving
 project family and projects those links in the cinematic UI. This is local
 learning context only: it neither proves mastery nor grants project execution,
 Git, or publication authority.
+
+Acceptance: deterministic Career Forge/API coverage, complete Python regression,
+repository verification, frontend lint/tests/production build, and a controlled
+local-service restart passed. The live service returned the 16-competency journey
+and the project-link projection while resident voice remained running. Stage 15
+Visual Perception / Screen Awareness is next.
 
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 

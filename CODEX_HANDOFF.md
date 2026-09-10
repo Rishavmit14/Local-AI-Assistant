@@ -1047,6 +1047,14 @@ competency-defined project-family link locally and projects it in PROJECTS. It
 cannot attach arbitrary projects and is not mastery evidence or execution/Git/
 publication authority.
 
+Stage 14 Career Forge Core V1 is accepted through implementation checkpoint
+`82e74eb83694516d2a4453b9168744f75bcbd682`: full deterministic Python and
+repository verification, frontend lint/tests/build, and a controlled live Friday
+restart passed. The service returned the complete 16-competency journey with the
+project-link projection while voice remained running. Start Stage 15 on its own
+stage branch; it must extend Friday's existing cinematic interface and remain
+read-only at first.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic
