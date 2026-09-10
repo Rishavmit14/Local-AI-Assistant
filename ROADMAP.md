@@ -240,13 +240,18 @@ The active-window projection is a fixed read-only query and fails closed as
 unavailable on desktops that disable it; it has no focus or enumeration fallback.
 Owner-selected screenshots from the native desktop UI can be explicitly copied
 into private perception retention with source provenance, allowing consent-safe
-local OCR and UI-state qualification where portal parenting is unavailable.
+local OCR and UI-state qualification where portal parenting is unavailable. An
+explicit retained capture can receive up to ten labels from a pre-cached,
+CPU-only local ViT specialist; it never downloads, uploads, persists labels, or
+uses Qwen, and is not a second general-purpose model.
 The existing cinematic UI now projects local perception status and presents an
 explicit capture request; it does not receive pixels, paths, OCR text, or control
 authority.
 The current GNOME desktop denies direct session capture; Friday exposes this as a
-bounded privacy-permission outcome and does not bypass it. Live screenshot
-qualification awaits the desktop's physical owner-consent flow.
+bounded privacy-permission outcome and does not bypass it. An owner-selected
+native screenshot has qualified OCR, deterministic UI-state, and local visual
+labels through private retention; direct GNOME capture remains subject to desktop
+consent.
 
 ## Stage 16 — Safe Desktop Control (**Planned**)
 

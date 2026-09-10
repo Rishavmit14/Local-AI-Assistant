@@ -14,7 +14,11 @@ from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
-from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
+from local_ai_assistant.perception import (
+    ActiveWindowService,
+    LocalVisionClassifier,
+    ScreenCaptureService,
+)
 
 from .api import create_presentation_app
 from .conversation import FridayConversationService
@@ -60,6 +64,8 @@ def build_presentation_components(
         embedding_device=resolved_config.embedding.device,
     )
     career_forge = CareerForgeService(resolved_config.paths.career_forge_db)
+    perception = ScreenCaptureService(resolved_config.paths.perception_dir)
+    perception.set_vision_classifier(LocalVisionClassifier(resolved_config.paths.vision_cache_dir))
 
     conversation = FridayConversationService(
         llm=llm,
@@ -90,7 +96,7 @@ def build_presentation_components(
         ),
         memory=memory,
         career_forge=career_forge,
-        perception=ScreenCaptureService(resolved_config.paths.perception_dir),
+        perception=perception,
         active_window=ActiveWindowService(),
     )
 

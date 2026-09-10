@@ -24,6 +24,7 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
         {
             "LOCAL_AI_VAR_DIR": str(tmp_path),
             "LOCAL_AI_DOCUMENT_DIR": str(tmp_path / "private-docs"),
+            "LOCAL_AI_VISION_CACHE_DIR": str(tmp_path / "vision-cache"),
             "LOCAL_AI_OCR_ENABLED": "false",
             "LOCAL_AI_RAG_FINAL_TOP_K": "7",
             "LOCAL_AI_CODE_CHUNK_LINES": "80",
@@ -47,6 +48,7 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
     assert config.runtime.test_mode is True
     assert config.execution.max_steps == 7
     assert config.paths.worktree_dir == (tmp_path / "worktrees").resolve()
+    assert config.paths.vision_cache_dir == (tmp_path / "vision-cache").resolve()
     assert config.isolation.backend == "native"
     assert config.isolation.network_policy == "allowed"
     assert config.isolation.require_strong_isolation is False

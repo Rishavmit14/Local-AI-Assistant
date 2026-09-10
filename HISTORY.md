@@ -378,6 +378,15 @@ qualified metadata/OCR/deterministic UI state without exposing pixels, and
 removed the external source copy. A local owner CLI now supports the same
 explicit provenance-preserving ingestion flow.
 
+## 2026-09-10 — Stage 15 offline visual-label candidate
+
+Friday can now classify an explicit retained capture with the local cached
+`google/vit-base-patch16-224` specialist on CPU. The classifier is a bounded
+image-label component, not a second general-purpose model: it performs no
+download, upload, label persistence, Qwen call, or desktop action. A private
+owner-selected capture qualified the local inference path without exposing its
+pixels or label text.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

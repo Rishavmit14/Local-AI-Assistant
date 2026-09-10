@@ -215,6 +215,18 @@ def create_presentation_app(
         except (RuntimeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.post("/api/v1/perception/screen/captures/{capture_id}/visual-labels")
+    def classify_screen_capture(capture_id: str, top_k: int = 3):
+        try:
+            return {
+                "labels": [
+                    asdict(item)
+                    for item in owner_perception().visual_labels(capture_id, top_k=top_k)
+                ]
+            }
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.get("/api/v1/career-forge/journey")
     def career_journey():
         forge = owner_career_forge()

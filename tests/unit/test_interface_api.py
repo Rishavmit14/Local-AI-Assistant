@@ -563,6 +563,7 @@ def test_presentation_api_has_no_execution_routes():
         "/api/v1/perception/screen/captures",
         "/api/v1/perception/screen/captures/{capture_id}/ocr",
         "/api/v1/perception/screen/captures/{capture_id}/ui-state",
+        "/api/v1/perception/screen/captures/{capture_id}/visual-labels",
         "/api/v1/career-forge/journey",
         "/api/v1/career-forge/missions",
         "/api/v1/career-forge/missions/{mission_id}/project",

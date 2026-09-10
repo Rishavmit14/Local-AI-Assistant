@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from local_ai_assistant.perception import ScreenCaptureService
+from local_ai_assistant.perception import ScreenCaptureService, VisualLabel
 
 
 def test_screen_capture_is_private_metadata_and_uses_gnome_shell(tmp_path):
@@ -79,3 +79,17 @@ def test_owner_selected_image_is_copied_into_private_retention_state(tmp_path):
     capture = ScreenCaptureService(tmp_path / "private").ingest_owner_file(source)
     assert capture.source == "owner-selected-local-file"
     assert (tmp_path / "private" / f"{capture.capture_id}.png").is_file()
+
+
+def test_visual_labels_require_retained_capture_and_explicit_specialist(tmp_path):
+    class FakeVision:
+        def classify(self, _path, *, top_k):
+            assert top_k == 2
+            return (VisualLabel("monitor", 0.8), VisualLabel("screen", 0.1))
+
+    source = tmp_path / "owner.png"
+    source.write_bytes(b"owner-screen")
+    service = ScreenCaptureService(tmp_path / "private")
+    capture = service.ingest_owner_file(source)
+    service.set_vision_classifier(FakeVision())
+    assert service.visual_labels(capture.capture_id, top_k=2)[0].label == "monitor"

@@ -11,6 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
+from .vision import LocalVisionClassifier, VisualLabel
+
 
 @dataclass(frozen=True, slots=True)
 class ScreenCapture:
@@ -49,6 +51,10 @@ class ScreenCaptureService:
         self.retention_seconds = retention_seconds
         self._runner = runner
         self._ocr = ocr or self._local_ocr
+        self._vision: LocalVisionClassifier | None = None
+
+    def set_vision_classifier(self, classifier: LocalVisionClassifier) -> None:
+        self._vision = classifier
 
     @staticmethod
     def _local_ocr(image_path: Path) -> str:
@@ -156,6 +162,16 @@ class ScreenCaptureService:
         if code_terms:
             return ScreenUiState(capture_id, "code_like", text.character_count, code_terms)
         return ScreenUiState(capture_id, "text_present", text.character_count, ())
+
+    def visual_labels(self, capture_id: str, *, top_k: int = 3) -> tuple[VisualLabel, ...]:
+        if self._vision is None:
+            raise RuntimeError("local vision classifier is unavailable")
+        image_path = self.capture_dir / f"{capture_id}.png"
+        with self._db() as db:
+            exists = db.execute("SELECT 1 FROM captures WHERE capture_id=?", (capture_id,)).fetchone()
+        if exists is None or not image_path.is_file():
+            raise ValueError("capture is unavailable")
+        return self._vision.classify(image_path, top_k=top_k)
 
     def purge_expired(self, *, now: datetime | None = None) -> int:
         current = now or datetime.now(UTC)
