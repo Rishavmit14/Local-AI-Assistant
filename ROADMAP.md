@@ -149,7 +149,7 @@ failures. Physical requalification proved a delayed start and late `Friday,
 stop` interruption: playback stopped in 3.3 ms and the exact-stop path returned
 to IDLE without a runtime error.
 
-## Stage 13 — Persistent Friday Memory (**Partial / active**)
+## Stage 13 — Persistent Friday Memory (**Accepted**)
 
 Add local-first semantic long-term memory, episodic memory, bounded working memory, preferences, project/goal/person relationships, provenance/confidence, supersession/conflict resolution, and retention/deletion policy. Deterministic repository/project instructions remain a separate engineering authority.
 
@@ -162,9 +162,10 @@ lexical/local-BGE retrieval. Production conversation can consume only labelled
 untrusted read-only memory context. It deliberately does not overload task
 history or grant memory mutation authority to model output. Owner/session capture
 requires a complete direct owner API/CLI request; conflicted records stay
-excluded until an explicit owner keep/discard resolution. Real owner-workflow
-qualification and richer conflict-resolution qualification remain active Stage 13
-work.
+excluded until an explicit owner keep/discard resolution. Full deterministic
+coverage, 729-test regression, repository verification, and live local service
+qualification prove explicit capture, read-back, and deletion with healthy
+resident voice workers. Stage 14 is now next.
 
 ## Stage 14 — Friday Career Forge Core V1 (**Planned**)
 

@@ -1094,21 +1094,23 @@ Latest accepted capability recovery checkpoint:
 next canonical capability is Stage 13 Persistent Friday Memory on a new
 `stage-13/...` branch. Do not begin Career Forge before that foundation.
 
-Stage 13 is active on `stage-13/persistent-friday-memory`, accepted through
+Stage 13 is accepted on `stage-13/persistent-friday-memory`, accepted through
 `b65f99926bb4ff4be475c5965d4fd0f4fec34426`. It has a separate local SQLite
 memory boundary, provenance/confidence and lifecycle records, deterministic
 recall/search, explicit owner CLI operations, and read-only production
 conversation context. The accepted semantic-memory checkpoint adds bounded
 working-memory retention, typed relationship edges, and lazy local BGE semantic
-ranking over SQLite-cached vectors. Deliberate owner/session capture policy and
-richer conflict-resolution qualification remain unfinished Stage 13 scope.
+ranking over SQLite-cached vectors.
 
 The explicit-owner-capture checkpoint is
 `27e6010d71d9e5f567da7f043b95fa7f2f8404c0`: the local presentation API accepts
 only complete direct owner records and supports read-back. Conflict resolution is
 explicit (`keep` restores an active record; `discard` deletes it). No chat/model
-text is treated as a memory-write command. Continue the remaining Stage 13
-qualification before Career Forge.
+text is treated as a memory-write command. Complete regression (729 tests) and
+repository verification passed. A controlled local service restart completed its
+normal worker startup, then live explicit capture, read-back, and deletion all
+passed while voice health showed every resident worker alive and zero recovery
+errors. Stage 14 Career Forge Core V1 is now the next canonical stage.
 
 Initial 12F finding: production wake and HTTP conversation share one runtime and
 LLM service without an admission boundary. Concurrent HTTP streams can both emit

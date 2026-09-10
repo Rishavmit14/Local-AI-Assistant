@@ -235,8 +235,7 @@ lazy local-only BGE semantic ranking with a rebuildable SQLite vector cache.
 The production conversation boundary consumes at most bounded, labelled
 untrusted reference text and retains no model-output memory mutation path.
 The qualified recovery checkpoint is
-`b65f99926bb4ff4be475c5965d4fd0f4fec34426`. Stage 13 remains active: capture
-policy and conflict-resolution qualification still require evidence.
+`b65f99926bb4ff4be475c5965d4fd0f4fec34426`.
 
 ## 2026-09-10 — Stage 13 explicit capture and conflict checkpoint
 
@@ -246,8 +245,17 @@ memory mutations from chat/model text. Conflicted records remain unavailable to
 retrieval until an explicit owner keep/discard decision. Owner CLI operations
 mirror the resolution policy. Full regression and repository verification passed;
 the qualified recovery checkpoint is
-`27e6010d71d9e5f567da7f043b95fa7f2f8404c0`. Stage 13 remains active for the
-remaining end-to-end memory qualification.
+`27e6010d71d9e5f567da7f043b95fa7f2f8404c0`.
+
+## 2026-09-10 — Stage 13 Persistent Friday Memory accepted
+
+Stage 13 is accepted after deterministic coverage, a 729-test full regression,
+and repository verification. A controlled production restart loaded the accepted
+local service. Direct owner capture, read-back, and deletion succeeded against
+the real local SQLite state; post-operation voice health had live capture,
+primary/fallback/Piper workers, zero recovery count, and no recorded error.
+The local editable installation was refreshed so the documented
+`local-ai-memory` command is available. Stage 14 Career Forge Core V1 is next.
 
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 
