@@ -283,7 +283,11 @@ returns an empty audit and rejects a non-allowlisted action while voice remains
 running. Continue the remaining Stage 16 action classes only through independent
 policy and audit extensions.
 
-## Stage 17 — Autonomous Assistant Execution (**Planned**)
+## Stage 17 — Autonomous Assistant Execution (**Partial / active**)
+
+The active foundation persists bounded local objectives with explicit
+create/resume/cancel lifecycle state. It does not itself plan, execute tools, or
+grant any authority outside Friday's existing guarded execution stack.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

@@ -416,6 +416,12 @@ Friday can open only an existing regular file beneath an explicit local root
 after proposal, approval, and audit. It has no file read API, enumeration, or
 mutation authority.
 
+## 2026-09-10 — Stage 17 durable objective-lifecycle candidate
+
+Friday now has a bounded local objective journal with explicit create, resume,
+and cancel state. It deliberately does not create a second planning or execution
+authority.
+
 ## 2026-09-10 — Stage 16 semantic accessibility-action candidate
 
 Friday can invoke only exact preconfigured AT-SPI semantic actions under the
