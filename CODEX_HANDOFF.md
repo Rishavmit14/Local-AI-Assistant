@@ -1135,6 +1135,11 @@ proposal/approval/audit. It has no file-management or mutation authority;
 live default-deny verification passed with voice running. Any high-risk local
 file operation needs a separate policy decision and qualification.
 
+The current Stage 16 candidate adds exact preconfigured semantic AT-SPI actions
+through the same lifecycle. It is empty-by-default and bounded to a 500-node
+local traversal; no selector, screen content, raw keyboard/mouse, or coordinate
+input is accepted. Run full qualification before publishing.
+
 Host discovery for the remaining bounded UI-input work found the AT-SPI bus but
 not the `pyatspi` binding or any installed native keyboard/mouse adapter. Do not
 simulate input or enable an unrestricted injection mechanism as a substitute;

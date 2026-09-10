@@ -273,6 +273,9 @@ automation or web-content access.
 The local-file foundation is approval-gated opening of an existing regular file
 below an exact empty-by-default root allowlist. It is not file management or
 mutation authority.
+The semantic UI foundation uses exact preconfigured AT-SPI
+`application::control::action` entries under the same approval/audit lifecycle;
+it is not raw keyboard/mouse injection or screen-derived automation.
 
 Acceptance checkpoint: complete Python/repository verification and frontend
 lint/tests/build passed. A controlled Friday restart proved the live endpoint

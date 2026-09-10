@@ -416,6 +416,12 @@ Friday can open only an existing regular file beneath an explicit local root
 after proposal, approval, and audit. It has no file read API, enumeration, or
 mutation authority.
 
+## 2026-09-10 — Stage 16 semantic accessibility-action candidate
+
+Friday can invoke only exact preconfigured AT-SPI semantic actions under the
+existing proposal, approval, and audit lifecycle. There is no selector, screen
+text, coordinate, keyboard, or mouse injection authority.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

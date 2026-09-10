@@ -12,12 +12,15 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from .accessibility import AccessibilityActionAdapter
+
 
 class DesktopAction(StrEnum):
     FOCUS_APP = "focus_app"
     LAUNCH_APP = "launch_app"
     OPEN_URI = "open_uri"
     OPEN_FILE = "open_file"
+    ACTIVATE_ACCESSIBLE = "activate_accessible"
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +42,7 @@ class DesktopControlService:
     def __init__(self, database: Path, *, allowed_apps: tuple[str, ...] = (),
                  allowed_origins: tuple[str, ...] = (),
                  allowed_file_roots: tuple[Path, ...] = (),
+                 allowed_accessibility_targets: tuple[str, ...] = (),
                  approval_seconds: int = 60, runner=subprocess.run) -> None:
         if approval_seconds < 1:
             raise ValueError("approval_seconds must be positive")
@@ -48,6 +52,8 @@ class DesktopControlService:
         self.allowed_apps = frozenset(allowed_apps)
         self.allowed_origins = frozenset(allowed_origins)
         self.allowed_file_roots = tuple(root.resolve() for root in allowed_file_roots)
+        self.allowed_accessibility_targets = frozenset(allowed_accessibility_targets)
+        self._accessibility = AccessibilityActionAdapter(runner=runner)
         self.approval_seconds = approval_seconds
         self._runner = runner
 
@@ -76,7 +82,9 @@ class DesktopControlService:
             ):
                 raise ValueError("desktop file is not allowed")
             app_id = str(candidate)
-        if action not in {DesktopAction.OPEN_URI, DesktopAction.OPEN_FILE} and (
+        if action is DesktopAction.ACTIVATE_ACCESSIBLE and app_id not in self.allowed_accessibility_targets:
+            raise ValueError("accessible desktop target is not allowed")
+        if action not in {DesktopAction.OPEN_URI, DesktopAction.OPEN_FILE, DesktopAction.ACTIVATE_ACCESSIBLE} and (
             not self._APP_ID.fullmatch(app_id) or app_id not in self.allowed_apps
         ):
             raise ValueError("desktop app is not allowed")
@@ -105,6 +113,10 @@ class DesktopControlService:
         if record.state != "approved":
             raise ValueError("desktop action requires explicit approval")
         command = self._command(record)
+        if record.action is DesktopAction.ACTIVATE_ACCESSIBLE:
+            self._accessibility.invoke(record.app_id)
+            self._update(action_id, state="executed", executed_at=datetime.now(UTC).isoformat())
+            return self._record(action_id)
         result = self._runner(command, capture_output=True, text=True, check=False, timeout=10)
         if result.returncode != 0:
             self._update(action_id, state="failed")

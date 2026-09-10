@@ -68,3 +68,18 @@ def test_file_open_requires_existing_file_beneath_allowlisted_root(tmp_path):
     service.approve(record.action_id)
     service.execute(record.action_id)
     assert commands == [["gio", "open", str(document.resolve())]]
+
+
+def test_accessible_action_requires_exact_target_and_approval(tmp_path):
+    target = "Example::Save::click"
+    commands = []
+    service = DesktopControlService(
+        tmp_path / "audit.sqlite3", allowed_accessibility_targets=(target,),
+        runner=lambda command, **_kwargs: commands.append(command) or SimpleNamespace(returncode=0),
+    )
+    with pytest.raises(ValueError, match="target"):
+        service.propose(DesktopAction.ACTIVATE_ACCESSIBLE, "Example::Delete::click")
+    record = service.propose(DesktopAction.ACTIVATE_ACCESSIBLE, target)
+    service.approve(record.action_id)
+    assert service.execute(record.action_id).state == "executed"
+    assert commands[0][0:2] == ["/usr/bin/python3", "-c"]

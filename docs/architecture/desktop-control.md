@@ -24,6 +24,12 @@ It resolves the path before audit and approval, then uses fixed `gio open`
 arguments. It cannot enumerate, read through the API, create, overwrite, move,
 rename, or delete files.
 
+The semantic UI boundary accepts only exact `application::control::action`
+entries in the empty-by-default `LOCAL_AI_DESKTOP_ALLOWED_ACCESSIBILITY_TARGETS`
+list. A bounded local AT-SPI traversal may invoke only that named accessibility
+action after approval. It never accepts a selector, coordinate, key sequence, or
+screen-derived target and emits no accessibility-tree text through Friday.
+
 The Friday cinematic UI is a projection of this same local action audit. It
 shows a pending action and offers a deliberate approval action. It cannot create
 an action, expand the allowlist, or bypass the lifecycle.
