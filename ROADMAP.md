@@ -232,6 +232,8 @@ persists private pixels only under `var/perception` and returns bounded metadata
 it has no control, OCR, interpretation, network, or shell authority.
 Capture metadata is local and bounded; expired pixels and metadata are purged
 together, and the API exposes no image paths or raw pixels.
+An explicit retained-capture OCR route reuses local Tesseract with bounded output
+and no persistence of OCR text in perception state.
 The current GNOME desktop denies direct session capture; Friday exposes this as a
 bounded privacy-permission outcome and does not bypass it. Live screenshot
 qualification awaits the desktop's physical owner-consent flow.

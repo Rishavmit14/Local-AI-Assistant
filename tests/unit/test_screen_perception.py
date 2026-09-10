@@ -47,3 +47,15 @@ def test_screen_capture_keeps_metadata_private_and_purges_expired_pixels(tmp_pat
     assert service.purge_expired(now=datetime.now(UTC) + timedelta(seconds=2)) == 1
     assert service.recent() == ()
     assert not (tmp_path / f"{capture.capture_id}.png").exists()
+
+
+def test_screen_capture_ocr_is_local_bounded_and_requires_a_retained_capture(tmp_path):
+    def runner(command, **_kwargs):
+        Path(command[-1]).write_bytes(b"screen")
+        return SimpleNamespace(returncode=0)
+
+    service = ScreenCaptureService(tmp_path, runner=runner, ocr=lambda _path: "  Friday\nlocal OCR  ")
+    capture = service.capture()
+    assert service.ocr(capture.capture_id).text == "Friday\nlocal OCR"
+    with pytest.raises(ValueError, match="unavailable"):
+        service.ocr("screen_missing")

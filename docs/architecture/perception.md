@@ -15,8 +15,11 @@ files. Images are generated private state and must never be committed. A local
 SQLite metadata index retains only capture id, timestamp, hash, size, and source;
 the capture service purges both pixels and metadata after its bounded retention
 window. OCR, screen interpretation, active-window context, and the cinematic
-projection remain subsequent Stage 15 work; any later Stage 16 action uses an
-independent policy-governed desktop-control boundary.
+projection remain subsequent Stage 15 work. A retained capture can be sent to
+the existing local Tesseract stack only by an explicit request; text is bounded,
+not persisted by the perception boundary, and unavailable after retention purge.
+Any later Stage 16 action uses an independent policy-governed desktop-control
+boundary.
 
 On the current GNOME/Wayland host, direct session-bus capture is denied by the
 desktop privacy policy. Friday returns only a bounded permission-required result;

@@ -194,6 +194,13 @@ def create_presentation_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.post("/api/v1/perception/screen/captures/{capture_id}/ocr")
+    def ocr_screen_capture(capture_id: str):
+        try:
+            return {"ocr": asdict(owner_perception().ocr(capture_id))}
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.get("/api/v1/career-forge/journey")
     def career_journey():
         forge = owner_career_forge()

@@ -1071,6 +1071,10 @@ owner physical consent only when the portal-based live capture test is prepared.
 The active retention candidate indexes capture provenance locally and purges
 expired pixels plus metadata together. No API route exposes paths or image data.
 
+The next candidate adds bounded local Tesseract OCR for an explicit retained
+capture. OCR output is not persisted in perception state and the route cannot
+read missing or expired captures.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic

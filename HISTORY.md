@@ -345,6 +345,12 @@ The local perception boundary now indexes only private capture provenance and
 automatically purges expired pixels and metadata together. Its read-only API
 still never returns image paths or raw screen content.
 
+## 2026-09-10 — Stage 15 local screen OCR candidate
+
+Friday can now run bounded local Tesseract OCR only on a retained,
+explicitly-selected capture. OCR text is neither persisted by perception nor
+available after retention purge; no cloud or new general-purpose model was added.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking
