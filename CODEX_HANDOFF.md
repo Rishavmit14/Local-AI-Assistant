@@ -1094,6 +1094,12 @@ Latest accepted capability recovery checkpoint:
 next canonical capability is Stage 13 Persistent Friday Memory on a new
 `stage-13/...` branch. Do not begin Career Forge before that foundation.
 
+Stage 13 is active on `stage-13/persistent-friday-memory`, accepted through
+`e09f19e`. It has a separate local SQLite memory boundary, provenance/confidence
+and lifecycle records, deterministic recall/search, and explicit owner CLI
+operations. Semantic retrieval, conversation integration, relationship memory,
+and retention policy execution remain unfinished Stage 13 scope.
+
 Initial 12F finding: production wake and HTTP conversation share one runtime and
 LLM service without an admission boundary. Concurrent HTTP streams can both emit
 user events before one fails an invalid transition; HTTP can win a race while a
