@@ -1122,6 +1122,11 @@ restart passed; the running service returned an empty audit and rejected an
 unallowlisted action while voice stayed running. Continue with the remaining
 Stage 16 policy classes on this branch.
 
+The current Stage 16 URI candidate extends the same lifecycle to exact
+HTTPS origins from the empty-by-default `LOCAL_AI_DESKTOP_ALLOWED_ORIGINS` list
+and uses only fixed `gio open` arguments. It is URI dispatch, not browser
+automation; qualify and publish it before further desktop capability work.
+
 Host discovery for the remaining bounded UI-input work found the AT-SPI bus but
 not the `pyatspi` binding or any installed native keyboard/mouse adapter. Do not
 simulate input or enable an unrestricted injection mechanism as a substitute;

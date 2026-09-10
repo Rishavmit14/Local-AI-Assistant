@@ -70,6 +70,7 @@ def build_presentation_components(
     desktop_control = DesktopControlService(
         resolved_config.paths.desktop_control_db,
         allowed_apps=resolved_config.desktop_control.allowed_apps,
+        allowed_origins=resolved_config.desktop_control.allowed_origins,
         approval_seconds=resolved_config.desktop_control.approval_seconds,
     )
 

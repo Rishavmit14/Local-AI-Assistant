@@ -267,6 +267,9 @@ The active foundation is a separate local action lifecycle: an exact
 empty-by-default app allowlist, SQLite audit records, proposal, explicit
 approval, and one-time fixed-vector GNOME focus/GIO launch execution. It has no
 arbitrary shell, keyboard, mouse, browser, file, or perception authority.
+The browser foundation is an approval-gated `gio open` request for an exact
+HTTPS origin from an empty-by-default local allowlist; it is not generic browser
+automation or web-content access.
 
 Acceptance checkpoint: complete Python/repository verification and frontend
 lint/tests/build passed. A controlled Friday restart proved the live endpoint

@@ -36,3 +36,17 @@ def test_desktop_actions_fail_closed_for_unknown_apps_and_expired_approval(tmp_p
     with pytest.raises(ValueError, match="expired"):
         service.approve(record.action_id)
     assert service.recent()[0].state == "expired"
+
+
+def test_browser_uri_requires_exact_https_origin_and_explicit_approval(tmp_path):
+    commands = []
+    service = DesktopControlService(
+        tmp_path / "audit.sqlite3", allowed_origins=("https://docs.python.org",),
+        runner=lambda command, **_kwargs: commands.append(command) or SimpleNamespace(returncode=0),
+    )
+    with pytest.raises(ValueError, match="origin"):
+        service.propose(DesktopAction.OPEN_URI, "https://example.com")
+    record = service.propose(DesktopAction.OPEN_URI, "https://docs.python.org/3/")
+    service.approve(record.action_id)
+    service.execute(record.action_id)
+    assert commands == [["gio", "open", "https://docs.python.org/3/"]]

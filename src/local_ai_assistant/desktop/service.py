@@ -9,12 +9,14 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 
 class DesktopAction(StrEnum):
     FOCUS_APP = "focus_app"
     LAUNCH_APP = "launch_app"
+    OPEN_URI = "open_uri"
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +36,7 @@ class DesktopControlService:
     _APP_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$")
 
     def __init__(self, database: Path, *, allowed_apps: tuple[str, ...] = (),
+                 allowed_origins: tuple[str, ...] = (),
                  approval_seconds: int = 60, runner=subprocess.run) -> None:
         if approval_seconds < 1:
             raise ValueError("approval_seconds must be positive")
@@ -41,6 +44,7 @@ class DesktopControlService:
             raise ValueError("desktop allowed_apps contains an invalid app id")
         self.database = database.resolve()
         self.allowed_apps = frozenset(allowed_apps)
+        self.allowed_origins = frozenset(allowed_origins)
         self.approval_seconds = approval_seconds
         self._runner = runner
 
@@ -56,7 +60,15 @@ class DesktopControlService:
     def propose(self, action: DesktopAction, app_id: str) -> DesktopActionRecord:
         if not isinstance(action, DesktopAction):
             raise ValueError("desktop action is invalid")
-        if not self._APP_ID.fullmatch(app_id) or app_id not in self.allowed_apps:
+        parsed = urlsplit(app_id)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+        if action is DesktopAction.OPEN_URI and (
+            parsed.scheme != "https" or not parsed.netloc or origin not in self.allowed_origins
+        ):
+            raise ValueError("desktop URI origin is not allowed")
+        if action is not DesktopAction.OPEN_URI and (
+            not self._APP_ID.fullmatch(app_id) or app_id not in self.allowed_apps
+        ):
             raise ValueError("desktop app is not allowed")
         record = DesktopActionRecord(uuid4().hex, action, app_id, "proposed", datetime.now(UTC).isoformat(), None, None)
         with self._db() as db:
@@ -120,4 +132,6 @@ class DesktopControlService:
         if record.action is DesktopAction.FOCUS_APP:
             return ["gdbus", "call", "--session", "--dest", "org.gnome.Shell", "--object-path",
                     "/org/gnome/Shell", "--method", "org.gnome.Shell.FocusApp", record.app_id]
+        if record.action is DesktopAction.OPEN_URI:
+            return ["gio", "open", record.app_id]
         return ["gio", "launch", record.app_id]
