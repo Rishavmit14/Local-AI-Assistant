@@ -149,9 +149,17 @@ failures. Physical requalification proved a delayed start and late `Friday,
 stop` interruption: playback stopped in 3.3 ms and the exact-stop path returned
 to IDLE without a runtime error.
 
-## Stage 13 — Persistent Friday Memory (**Planned**)
+## Stage 13 — Persistent Friday Memory (**Partial / active**)
 
 Add local-first semantic long-term memory, episodic memory, bounded working memory, preferences, project/goal/person relationships, provenance/confidence, supersession/conflict resolution, and retention/deletion policy. Deterministic repository/project instructions remain a separate engineering authority.
+
+The accepted first foundation is a separate local SQLite memory boundary with
+typed episodic, preference, fact, and working records; provenance, confidence,
+expiry, active/superseded/conflicted/deleted lifecycle, deterministic recall, and
+explicit forgetting. It deliberately does not overload task history or grant
+memory mutation authority to model output. Semantic retrieval, conversation
+integration, relationship knowledge, retention policy execution, and user-facing
+controls remain active Stage 13 work.
 
 ## Stage 14 — Friday Career Forge Core V1 (**Planned**)
 

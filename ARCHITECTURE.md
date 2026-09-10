@@ -115,6 +115,12 @@ voice, and presentation surfaces, while keeping private learning evidence
 separate from review-gated public career artifacts. Its detailed contract is in
 `docs/architecture/career-forge.md`; ADR 0015 freezes its roadmap priority.
 
+Stage 13 starts with `local_ai_assistant.memory.FridayMemoryService`, a separate
+local SQLite boundary rather than a reinterpretation of task-history audit data.
+Every record carries typed kind, provenance, confidence, lifecycle state and
+optional expiry/supersession. Only deterministic service operations alter those
+states; model output remains untrusted input.
+
 The compounding architecture is:
 
 ```text

@@ -218,6 +218,14 @@ long-running real-microphone stability/observability qualification. The
 implementation recovery checkpoint is
 `94b0fedb3393e6e2a110670c750b123dde2c7a31`.
 
+## 2026-09-10 — Stage 13 local memory foundation
+
+Opened the Stage 13 branch with a separate local SQLite memory service. The
+first foundation preserves typed memory kind, provenance, confidence, expiry and
+supersession/conflict/deletion lifecycle without conflating personal memory with
+the existing task-history audit authority. Semantic retrieval and conversational
+integration remain active work.
+
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 
 Accepted a shared nonblocking interaction coordinator across physical voice and

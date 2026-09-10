@@ -78,6 +78,7 @@ class PathConfig:
     code_index_dir: Path = PROJECT_ROOT / "var/code-index"
     patch_dir: Path = PROJECT_ROOT / "var/patches"
     task_history_db: Path = PROJECT_ROOT / "var/history/tasks.sqlite3"
+    memory_db: Path = PROJECT_ROOT / "var/memory/friday.sqlite3"
     worktree_dir: Path = PROJECT_ROOT / "var/worktrees"
     isolation_dir: Path = PROJECT_ROOT / "var/isolation"
     onboarding_registry: Path = PROJECT_ROOT / "var/onboarding/repositories.json"
@@ -214,6 +215,7 @@ class AppConfig:
             task_history_db=_path(
                 values.get("LOCAL_AI_TASK_HISTORY_DB", str(var_dir / "history/tasks.sqlite3"))
             ),
+            memory_db=_path(values.get("LOCAL_AI_MEMORY_DB", str(var_dir / "memory/friday.sqlite3"))),
             worktree_dir=_path(
                 values.get("LOCAL_AI_WORKTREE_ROOT", str(var_dir / "worktrees"))
             ),
