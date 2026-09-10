@@ -176,6 +176,7 @@ def create_presentation_app(
             "target": "ML / AI Engineer",
             "current_mission": asdict(active) if active else None,
             "next_competency": asdict(next_item) if next_item else None,
+            "recommended_mission": asdict(forge.next_mission_brief()) if next_item else None,
             "competencies": [
                 {"competency": asdict(item.competency), "mastery": item.mastery}
                 for item in forge.competencies()
@@ -189,14 +190,16 @@ def create_presentation_app(
         except (ValueError, TypeError) as exc:
             raise HTTPException(status_code=400, detail="malformed JSON request") from exc
         title = body.get("title")
-        if not isinstance(title, str) or not title.strip() or len(title) > max_prompt_chars:
-            raise HTTPException(status_code=400, detail="bounded mission title is required")
         forge = owner_career_forge()
         next_item = forge.next_competency()
         if next_item is None:
             raise HTTPException(status_code=409, detail="no dependency-ready competency")
         if body.get("competency_id", next_item.competency_id) != next_item.competency_id:
             raise HTTPException(status_code=400, detail="mission is not dependency-appropriate")
+        if title is None:
+            title = forge.next_mission_brief().title
+        if not isinstance(title, str) or not title.strip() or len(title) > max_prompt_chars:
+            raise HTTPException(status_code=400, detail="bounded mission title is required")
         try:
             mission = forge.start_mission(next_item.competency_id, title)
         except ValueError as exc:

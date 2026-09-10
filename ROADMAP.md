@@ -184,7 +184,9 @@ and mastery advances only one evidence-backed rung at a time. The tutoring-loop
 checkpoint persists the canonical mission sequence, practical tutor modes, and
 minimum progressive assistance. Friday's local presentation API now exposes the
 read-only journey and dependency-gated mission-start boundary. Mission content,
-project/public-evidence gates, and further presentation controls remain active.
+now begins with deterministic why/verification/mental-model/attempt/teach-back
+briefs and only later uses adaptation after evidence. Project/public-evidence
+gates and further presentation controls remain active.
 
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 

@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .curriculum import COMPETENCY_GRAPH_VERSION, competency_graph
+from .missions import MissionBrief, mission_brief
 from .models import AssistanceLevel, Competency, MasteryLevel, TutorMode
 
 
@@ -100,6 +101,10 @@ class CareerForgeService:
             if all(levels[prerequisite] is not MasteryLevel.UNVERIFIED for prerequisite in item.prerequisites):
                 return item
         return None
+
+    def next_mission_brief(self) -> MissionBrief | None:
+        item = self.next_competency()
+        return mission_brief(item) if item else None
 
     def start_mission(self, competency_id: str, title: str, *, resume_point: dict[str, object] | None = None) -> Mission:
         if competency_id not in self.graph:

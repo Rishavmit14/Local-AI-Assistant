@@ -68,6 +68,11 @@ The local presentation API exposes the journey projection and dependency-gated
 mission start. This remains an owner-directed pace boundary: it never skips a
 prerequisite or accepts a self-reported mastery claim.
 
+The initial mission catalog is deterministic and local. It supplies a specific
+Python verification mission and safe structured fallback briefs for each later
+dependency-ready competency; model-generated adaptation is not required to start
+or resume learning.
+
 ## Mission and tutoring loop
 
 Missions, not passive chapters, follow: why it matters → prerequisite check →

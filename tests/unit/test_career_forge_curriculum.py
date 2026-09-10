@@ -26,6 +26,7 @@ def test_learner_twin_starts_unverified_and_resumes_exact_mission_state(tmp_path
     forge = CareerForgeService(tmp_path / "learner.sqlite3")
     assert all(item.mastery is MasteryLevel.UNVERIFIED for item in forge.competencies())
     assert forge.next_competency().competency_id == "se.python"
+    assert "mutable-default" in forge.next_mission_brief().owner_attempt
     mission = forge.start_mission("se.python", "Verify Python mental model")
     evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained mutable defaults", assistance_level="hint")
     updated = forge.update_resume(

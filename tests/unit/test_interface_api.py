@@ -110,6 +110,7 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     )
     journey = client.get("/api/v1/career-forge/journey").json()
     assert journey["next_competency"]["competency_id"] == "se.python"
+    assert journey["recommended_mission"]["title"] == "Verify Python state and functions"
     rejected = client.post(
         "/api/v1/career-forge/missions",
         json={"competency_id": "dl.pytorch", "title": "Skip ahead"},
@@ -117,7 +118,7 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     assert rejected.status_code == 400
     started = client.post(
         "/api/v1/career-forge/missions",
-        json={"title": "Verify Python foundation"},
+        json={},
     )
     assert started.status_code == 200
     assert started.json()["mission"]["competency_id"] == "se.python"

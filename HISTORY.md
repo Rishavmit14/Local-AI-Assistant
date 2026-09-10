@@ -272,6 +272,13 @@ Career Forge now persists its canonical mission sequence, practical tutor modes,
 and progressive minimum assistance. The deterministic service rejects unjustified
 jumps to stronger help and retains assistance at the exact mission resume point.
 
+## 2026-09-10 — Stage 14 deterministic mission-brief candidate
+
+The Learner Twin now produces a meaningful local first mission instead of asking
+the owner to invent a lesson. The brief includes why, quick verification, mental
+model, owner attempt and teach-back; all later competency briefs retain the same
+structure until evidence justifies adaptive generation.
+
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 
 Accepted a shared nonblocking interaction coordinator across physical voice and
