@@ -272,6 +272,13 @@ Career Forge now persists its canonical mission sequence, practical tutor modes,
 and progressive minimum assistance. The deterministic service rejects unjustified
 jumps to stronger help and retains assistance at the exact mission resume point.
 
+## 2026-09-10 — Stage 14 public-evidence gate candidate
+
+Career Forge has a deterministic gate separating private learning state from
+potential recruiter-visible evidence. It rejects artificial activity and requires
+genuine work, tests, secret/privacy review, documentation and quality before an
+artifact can qualify; the gate has no publication authority.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

@@ -6,6 +6,7 @@ from local_ai_assistant.career_forge import (
     MasteryLevel,
     TutorMode,
     competency_graph,
+    evaluate_publication,
 )
 
 
@@ -49,3 +50,17 @@ def test_mission_loop_and_progressive_assistance_preserve_independence_context(t
         forge.offer_assistance(mission.mission_id, TutorMode.GUIDE, AssistanceLevel.PARTIAL_EXAMPLE, "code")
     forge.offer_assistance(mission.mission_id, TutorMode.HINT, AssistanceLevel.CONCEPTUAL_HINT, "Think mutation")
     assert forge.resume().assistance_level == AssistanceLevel.CONCEPTUAL_HINT
+
+
+def test_public_evidence_gate_rejects_fake_or_unsafe_activity():
+    rejected = evaluate_publication(
+        genuine_work=False, validation_passed=True, secret_scan_passed=False,
+        privacy_review_passed=False, documentation_complete=False, artifact_quality_passed=True,
+    )
+    assert not rejected.approved
+    assert len(rejected.reasons) == 4
+    approved = evaluate_publication(
+        genuine_work=True, validation_passed=True, secret_scan_passed=True,
+        privacy_review_passed=True, documentation_complete=True, artifact_quality_passed=True,
+    )
+    assert approved.approved and not approved.reasons

@@ -186,7 +186,9 @@ minimum progressive assistance. Friday's local presentation API now exposes the
 read-only journey and dependency-gated mission-start boundary. Mission content,
 now begins with deterministic why/verification/mental-model/attempt/teach-back
 briefs and only later uses adaptation after evidence. Project/public-evidence
-gates and further presentation controls remain active.
+gates reject fake, unvalidated, secret-bearing, private/proprietary,
+undocumented, or low-quality artifacts and never publish automatically. Further
+presentation controls remain active.
 
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 

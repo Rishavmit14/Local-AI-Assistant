@@ -109,6 +109,11 @@ publish private tutoring state, credentials, private datasets, employer code, or
 fabricated daily/weekly work. Example commits describe genuine work, such as
 `experiment(ml): compare regularization strategies`.
 
+The initial public-evidence gate is deterministic and has no publication
+authority. It requires genuine work, validation, secret scanning, privacy/
+proprietary review, documentation, and artifact quality before an artifact can
+qualify for a later explicit publication decision.
+
 ## V1 success
 
 An owner can invoke learning, receive correct prerequisite verification and a
