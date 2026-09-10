@@ -223,7 +223,7 @@ local-service restart passed. The live service returned the 16-competency journe
 and the project-link projection while resident voice remained running. Stage 15
 Visual Perception / Screen Awareness is next.
 
-## Stage 15 — Visual Perception / Screen Awareness (**Partial / active**)
+## Stage 15 — Visual Perception / Screen Awareness (**Accepted**)
 
 Add safe read-only screen capture, active-window/application context, vision-model interpretation, OCR where appropriate, UI-state understanding, provenance, and privacy controls. Visual perception initially has no mutation authority.
 
@@ -252,6 +252,12 @@ bounded privacy-permission outcome and does not bypass it. An owner-selected
 native screenshot has qualified OCR, deterministic UI-state, and local visual
 labels through private retention; direct GNOME capture remains subject to desktop
 consent.
+
+Acceptance: focused and complete Python regressions, repository verification,
+frontend lint/tests/production build, and a controlled live-service restart
+passed. The live local endpoint classified the owner-selected retained capture
+with three bounded labels while voice remained running. Stage 16 Safe Desktop
+Control is next and must remain an independent policy-governed mutation boundary.
 
 ## Stage 16 — Safe Desktop Control (**Planned**)
 

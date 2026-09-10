@@ -1093,12 +1093,15 @@ without exposing pixels. The external source was removed after successful copy.
 `local-ai-perception ingest <image>` is the explicit owner ingestion recovery
 path when the headless portal has no GUI parent.
 
-The current Stage 15 candidate adds explicit local visual labels for a retained
+The Stage 15 visual-label capability adds explicit local visual labels for a retained
 capture. `LocalVisionClassifier` uses only a pre-cached CPU ViT snapshot under
 the configured cache directory; it cannot download, upload, persist labels, call
 Qwen, or operate the desktop. The owner-selected retained capture qualified this
-path with bounded metadata-only evidence. Add its deterministic coverage and full
-acceptance documentation before declaring Stage 15 complete.
+path with bounded metadata-only evidence. Stage 15 is accepted after complete
+Python/repository/frontend gates and a controlled restart verified the live
+endpoint while voice stayed running. Direct GNOME capture remains denied by
+desktop policy; do not bypass it. Start Stage 16 Safe Desktop Control on a new
+stage branch with an independent policy-governed mutation boundary.
 
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and

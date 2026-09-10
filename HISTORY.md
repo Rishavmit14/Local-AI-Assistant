@@ -387,6 +387,16 @@ download, upload, label persistence, Qwen call, or desktop action. A private
 owner-selected capture qualified the local inference path without exposing its
 pixels or label text.
 
+## 2026-09-10 — Stage 15 Visual Perception / Screen Awareness accepted
+
+Stage 15 is accepted as Friday's unified, read-only visual-perception boundary:
+explicit private capture/owner ingestion, bounded retention and provenance,
+local OCR and deterministic UI-state, a fail-closed fixed active-window query,
+and explicit offline visual labels. Complete Python and repository verification,
+frontend lint/tests/build, and live endpoint qualification passed with voice
+running. Direct GNOME capture remains correctly subject to desktop consent; safe
+desktop mutation begins only at Stage 16's separate policy boundary.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking
