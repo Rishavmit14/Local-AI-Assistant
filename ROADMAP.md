@@ -259,7 +259,7 @@ passed. The live local endpoint classified the owner-selected retained capture
 with three bounded labels while voice remained running. Stage 16 Safe Desktop
 Control is next and must remain an independent policy-governed mutation boundary.
 
-## Stage 16 — Safe Desktop Control (**Partial / active**)
+## Stage 16 — Safe Desktop Control (**Accepted**)
 
 Add policy-governed application launch/focus, bounded keyboard/mouse/UI actions, browser interaction, local file/application operations, permission classes, audit, and approval for destructive/high-risk actions.
 
