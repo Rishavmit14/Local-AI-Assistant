@@ -397,7 +397,7 @@ frontend lint/tests/build, and live endpoint qualification passed with voice
 running. Direct GNOME capture remains correctly subject to desktop consent; safe
 desktop mutation begins only at Stage 16's separate policy boundary.
 
-## 2026-09-10 — Stage 16 explicit desktop-control foundation
+## 2026-09-10 — Stage 16 explicit desktop-control foundation accepted
 
 Friday now has a separate local desktop-action lifecycle for exact allowlisted
 GNOME app focus and GIO launch: proposal, explicit approval, one-time execution,

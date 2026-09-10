@@ -1112,12 +1112,15 @@ Stage 12M bounds the Piper worker event handoff. Stage 12 now continues with
 Stage 12N exposes resident worker health. Stage 12 now continues with barge-in
 observability and longer-running stability.
 
-Stage 16 is active on `stage-16/safe-desktop-control`. Its first candidate is a
+Stage 16 is active on `stage-16/safe-desktop-control`. Its first accepted
+checkpoint is a
 separate empty-by-default allowlist, SQLite proposal/approval/execution audit,
 and fixed GNOME focus/GIO launch vectors. The UI only projects a pending action
 and permits an explicit approval; it has no action-creation or policy-bypass
-authority. Continue with complete qualification before expanding any desktop
-capability.
+authority. Complete Python/repository/frontend gates and a controlled live
+restart passed; the running service returned an empty audit and rejected an
+unallowlisted action while voice stayed running. Continue with the remaining
+Stage 16 policy classes on this branch.
 
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 

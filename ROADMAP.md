@@ -259,7 +259,7 @@ passed. The live local endpoint classified the owner-selected retained capture
 with three bounded labels while voice remained running. Stage 16 Safe Desktop
 Control is next and must remain an independent policy-governed mutation boundary.
 
-## Stage 16 — Safe Desktop Control (**Planned**)
+## Stage 16 — Safe Desktop Control (**Partial / active**)
 
 Add policy-governed application launch/focus, bounded keyboard/mouse/UI actions, browser interaction, local file/application operations, permission classes, audit, and approval for destructive/high-risk actions.
 
@@ -267,6 +267,12 @@ The active foundation is a separate local action lifecycle: an exact
 empty-by-default app allowlist, SQLite audit records, proposal, explicit
 approval, and one-time fixed-vector GNOME focus/GIO launch execution. It has no
 arbitrary shell, keyboard, mouse, browser, file, or perception authority.
+
+Acceptance checkpoint: complete Python/repository verification and frontend
+lint/tests/build passed. A controlled Friday restart proved the live endpoint
+returns an empty audit and rejects a non-allowlisted action while voice remains
+running. Continue the remaining Stage 16 action classes only through independent
+policy and audit extensions.
 
 ## Stage 17 — Autonomous Assistant Execution (**Planned**)
 
