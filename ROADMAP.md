@@ -234,6 +234,8 @@ Capture metadata is local and bounded; expired pixels and metadata are purged
 together, and the API exposes no image paths or raw pixels.
 An explicit retained-capture OCR route reuses local Tesseract with bounded output
 and no persistence of OCR text in perception state.
+The same retained capture can receive deterministic OCR-derived UI-state hints;
+these are not general vision inference and retain no control authority.
 The existing cinematic UI now projects local perception status and presents an
 explicit capture request; it does not receive pixels, paths, OCR text, or control
 authority.

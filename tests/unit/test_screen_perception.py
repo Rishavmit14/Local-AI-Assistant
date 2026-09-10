@@ -59,3 +59,15 @@ def test_screen_capture_ocr_is_local_bounded_and_requires_a_retained_capture(tmp
     assert service.ocr(capture.capture_id).text == "Friday\nlocal OCR"
     with pytest.raises(ValueError, match="unavailable"):
         service.ocr("screen_missing")
+
+
+def test_screen_ui_state_is_deterministic_and_not_a_model_inference(tmp_path):
+    def runner(command, **_kwargs):
+        Path(command[-1]).write_bytes(b"screen")
+        return SimpleNamespace(returncode=0)
+
+    service = ScreenCaptureService(tmp_path, runner=runner, ocr=lambda _path: "Traceback: failed import")
+    capture = service.capture()
+    state = service.inspect_ui_state(capture.capture_id)
+    assert state.state == "error_like"
+    assert state.evidence == ("traceback", "failed")

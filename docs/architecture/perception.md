@@ -18,6 +18,9 @@ window. OCR, screen interpretation, active-window context, and the cinematic
 projection remain subsequent Stage 15 work. A retained capture can be sent to
 the existing local Tesseract stack only by an explicit request; text is bounded,
 not persisted by the perception boundary, and unavailable after retention purge.
+An explicit UI-state route derives only deterministic OCR hints (`no_readable_text`,
+`text_present`, `code_like`, or `error_like`) with matching keyword evidence. It
+does not make semantic vision claims or invoke a general-purpose model.
 Any later Stage 16 action uses an independent policy-governed desktop-control
 boundary.
 

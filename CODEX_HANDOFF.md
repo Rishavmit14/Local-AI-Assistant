@@ -1079,6 +1079,10 @@ The active cinematic projection candidate exposes capture status and one explici
 capture action in Friday's existing UI. It receives only metadata and has no
 pixel, OCR, path, or desktop-control authority.
 
+The active UI-state candidate derives only deterministic bounded hints from an
+explicit OCR request, with literal matching evidence. It is not semantic vision
+inference and has no control authority.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic

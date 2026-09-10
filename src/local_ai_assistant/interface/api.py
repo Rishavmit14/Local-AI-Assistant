@@ -201,6 +201,13 @@ def create_presentation_app(
         except (RuntimeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.post("/api/v1/perception/screen/captures/{capture_id}/ui-state")
+    def inspect_screen_ui_state(capture_id: str):
+        try:
+            return {"ui_state": asdict(owner_perception().inspect_ui_state(capture_id))}
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.get("/api/v1/career-forge/journey")
     def career_journey():
         forge = owner_career_forge()

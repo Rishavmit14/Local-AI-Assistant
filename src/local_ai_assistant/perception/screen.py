@@ -28,6 +28,15 @@ class ScreenText:
     source: str = "local-tesseract-ocr"
 
 
+@dataclass(frozen=True, slots=True)
+class ScreenUiState:
+    capture_id: str
+    state: str
+    character_count: int
+    evidence: tuple[str, ...]
+    source: str = "deterministic-ocr-ui-state"
+
+
 class ScreenCaptureService:
     """Create a private, explicitly requested screen image under Friday state."""
 
@@ -113,6 +122,20 @@ class ScreenCaptureService:
         text = "\n".join(line.strip() for line in self._ocr(image_path).splitlines() if line.strip())
         text = text[:max_characters]
         return ScreenText(capture_id, text, len(text))
+
+    def inspect_ui_state(self, capture_id: str) -> ScreenUiState:
+        """Bounded deterministic UI-state hints; it is not a vision-model claim."""
+        text = self.ocr(capture_id, max_characters=12_000)
+        normalized = text.text.lower()
+        if not normalized:
+            return ScreenUiState(capture_id, "no_readable_text", 0, ())
+        error_terms = tuple(term for term in ("traceback", "exception", "error", "failed") if term in normalized)
+        if error_terms:
+            return ScreenUiState(capture_id, "error_like", text.character_count, error_terms)
+        code_terms = tuple(term for term in ("def ", "class ", "import ", "function", "{", "</") if term in normalized)
+        if code_terms:
+            return ScreenUiState(capture_id, "code_like", text.character_count, code_terms)
+        return ScreenUiState(capture_id, "text_present", text.character_count, ())
 
     def purge_expired(self, *, now: datetime | None = None) -> int:
         current = now or datetime.now(UTC)
