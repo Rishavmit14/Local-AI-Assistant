@@ -219,6 +219,17 @@ def create_presentation_app(
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.post("/api/v1/objectives/{objective_id}/plan")
+    async def bind_objective_plan(objective_id: str, request: Request):
+        try:
+            body = await request.json()
+            plan_hash = body.get("plan_hash")
+            if not isinstance(plan_hash, str):
+                raise ValueError("validated plan hash is required")
+            return {"objective": asdict(owner_autonomy().bind_plan(objective_id, plan_hash))}
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.post("/api/v1/objectives/{objective_id}/cancel")
     def cancel_objective(objective_id: str):
         try:

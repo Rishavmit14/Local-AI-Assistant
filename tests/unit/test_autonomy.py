@@ -16,3 +16,13 @@ def test_objective_requires_bounded_text(tmp_path):
     service = ObjectiveService(tmp_path / "objectives.sqlite3")
     with pytest.raises(ValueError, match="between"):
         service.create(" ")
+
+
+def test_objective_binds_only_a_validated_plan_hash_without_execution(tmp_path):
+    service = ObjectiveService(tmp_path / "objectives.sqlite3")
+    objective = service.create("Plan only")
+    planned = service.bind_plan(objective.objective_id, "a" * 64)
+    assert planned.state == "planned"
+    assert planned.plan_hash == "a" * 64
+    with pytest.raises(ValueError, match="validated"):
+        service.bind_plan(objective.objective_id, "not-a-plan")

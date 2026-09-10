@@ -131,6 +131,8 @@ def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):
     assert created.status_code == 200
     objective_id = created.json()["objective"]["objective_id"]
     assert client.post(f"/api/v1/objectives/{objective_id}/resume").json()["objective"]["state"] == "planning"
+    planned = client.post(f"/api/v1/objectives/{objective_id}/plan", json={"plan_hash": "a" * 64})
+    assert planned.json()["objective"]["state"] == "planned"
     assert client.post(f"/api/v1/objectives/{objective_id}/cancel").json()["objective"]["state"] == "cancelled"
 
 
@@ -597,6 +599,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/objectives",
         "/api/v1/objectives/{objective_id}",
         "/api/v1/objectives/{objective_id}/resume",
+        "/api/v1/objectives/{objective_id}/plan",
         "/api/v1/objectives/{objective_id}/cancel",
         "/api/v1/desktop/actions",
         "/api/v1/desktop/actions/{action_id}/approve",
