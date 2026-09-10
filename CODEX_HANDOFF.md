@@ -1122,6 +1122,11 @@ restart passed; the running service returned an empty audit and rejected an
 unallowlisted action while voice stayed running. Continue with the remaining
 Stage 16 policy classes on this branch.
 
+Host discovery for the remaining bounded UI-input work found the AT-SPI bus but
+not the `pyatspi` binding or any installed native keyboard/mouse adapter. Do not
+simulate input or enable an unrestricted injection mechanism as a substitute;
+any later adapter must retain the same proposal/approval/audit lifecycle.
+
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 
 ## Stage 12C-A — inline wake command semantics
