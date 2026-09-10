@@ -25,6 +25,9 @@ def build_parser() -> argparse.ArgumentParser:
     recall = commands.add_parser("recall")
     recall.add_argument("subject")
     recall.add_argument("--limit", type=int, default=20)
+    search = commands.add_parser("search")
+    search.add_argument("query")
+    search.add_argument("--limit", type=int, default=20)
     forget = commands.add_parser("forget")
     forget.add_argument("memory_id")
     return parser
@@ -46,6 +49,12 @@ def main(argv: list[str] | None = None) -> int:
         print(
             json.dumps(
                 [asdict(item) for item in memory.recall(args.subject, args.limit)], default=str
+            )
+        )
+    elif args.command == "search":
+        print(
+            json.dumps(
+                [asdict(item) for item in memory.search(args.query, args.limit)], default=str
             )
         )
     else:
