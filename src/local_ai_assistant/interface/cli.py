@@ -14,6 +14,7 @@ from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
+from local_ai_assistant.perception import ScreenCaptureService
 
 from .api import create_presentation_app
 from .conversation import FridayConversationService
@@ -89,6 +90,7 @@ def build_presentation_components(
         ),
         memory=memory,
         career_forge=career_forge,
+        perception=ScreenCaptureService(resolved_config.paths.perception_dir),
     )
 
     return (

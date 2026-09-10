@@ -1055,6 +1055,13 @@ project-link projection while voice remained running. Start Stage 15 on its own
 stage branch; it must extend Friday's existing cinematic interface and remain
 read-only at first.
 
+Stage 15 is active on `stage-15/visual-perception-screen-awareness`. The first
+candidate is an explicit GNOME Shell screenshot route backed by private
+`var/perception` storage and metadata-only API output. It has no OCR, vision,
+desktop, shell, or network authority; continue with provenance/retention,
+active-window context, and local interpretation only after this foundation is
+qualified.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic

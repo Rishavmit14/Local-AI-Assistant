@@ -21,6 +21,7 @@ from local_ai_assistant.career_forge import (
     TutorMode,
 )
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
+from local_ai_assistant.perception import ScreenCaptureService
 
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
@@ -123,6 +124,7 @@ def create_presentation_app(
     presentation_resume: Callable[[], None] | None = None,
     memory: FridayMemoryService | None = None,
     career_forge: CareerForgeService | None = None,
+    perception: ScreenCaptureService | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -171,6 +173,19 @@ def create_presentation_app(
         if career_forge is None:
             raise HTTPException(status_code=404, detail="Career Forge is unavailable")
         return career_forge
+
+    def owner_perception() -> ScreenCaptureService:
+        if perception is None:
+            raise HTTPException(status_code=404, detail="screen perception is unavailable")
+        return perception
+
+    @app.post("/api/v1/perception/screen/capture")
+    def capture_screen():
+        """An explicit local request only; metadata never grants desktop control."""
+        try:
+            return {"capture": asdict(owner_perception().capture())}
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     @app.get("/api/v1/career-forge/journey")
     def career_journey():

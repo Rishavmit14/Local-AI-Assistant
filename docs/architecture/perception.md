@@ -1,0 +1,17 @@
+# Friday visual perception
+
+## Stage 15 foundation
+
+Screen awareness begins as an explicitly owner-initiated, read-only local
+capture. `ScreenCaptureService` invokes the GNOME Shell session screenshot
+interface only when the local presentation endpoint is called. It writes a PNG
+only under the configured `var/perception` directory and returns provenance-safe
+metadata (capture id, time, hash, byte size, and source), never the image path or
+raw pixels through the API.
+
+The capture service has no keyboard, mouse, window-management, shell, upload,
+model, OCR, or desktop-control authority. Capture failure removes incomplete
+files. Images are generated private state and must never be committed. OCR,
+screen interpretation, active-window context, retention policy, and the
+cinematic projection remain subsequent Stage 15 work; any later Stage 16 action
+uses an independent policy-governed desktop-control boundary.

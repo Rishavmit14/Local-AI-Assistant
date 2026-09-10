@@ -223,9 +223,13 @@ local-service restart passed. The live service returned the 16-competency journe
 and the project-link projection while resident voice remained running. Stage 15
 Visual Perception / Screen Awareness is next.
 
-## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
+## Stage 15 — Visual Perception / Screen Awareness (**Partial / active**)
 
 Add safe read-only screen capture, active-window/application context, vision-model interpretation, OCR where appropriate, UI-state understanding, provenance, and privacy controls. Visual perception initially has no mutation authority.
+
+The active foundation is an explicit local GNOME Shell capture endpoint. It
+persists private pixels only under `var/perception` and returns bounded metadata;
+it has no control, OCR, interpretation, network, or shell authority.
 
 ## Stage 16 — Safe Desktop Control (**Planned**)
 

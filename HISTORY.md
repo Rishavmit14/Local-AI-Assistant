@@ -332,6 +332,13 @@ lint/tests/build, and a controlled live Friday restart passed; the service read
 back the 16-competency journey and project-link projection with voice running.
 Stage 15 Visual Perception / Screen Awareness is next.
 
+## 2026-09-10 — Stage 15 read-only screen-capture foundation
+
+Friday now has an explicitly requested, local GNOME Shell capture boundary. It
+stores private images only under generated perception state and exposes only
+provenance metadata. It deliberately has no interpretation or desktop-control
+authority.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

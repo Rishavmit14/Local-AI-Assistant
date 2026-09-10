@@ -124,6 +124,12 @@ dependency-gated mission-start endpoints. It renders unknown progress honestly;
 the frontend has no Learner Twin advancement, publishing, tool, or desktop
 authority.
 
+Stage 15 begins with an owner-initiated GNOME Shell screenshot boundary. It is
+read-only and private: captures remain under configured `var/perception` state
+and the presentation API exposes only metadata. It has no OCR, vision inference,
+desktop-control, shell, network, or mutation authority. See
+`docs/architecture/perception.md`.
+
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as
 UNVERIFIED, and a mission retains exact resume and assistance-bearing evidence.

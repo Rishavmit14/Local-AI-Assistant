@@ -83,6 +83,7 @@ class PathConfig:
     isolation_dir: Path = PROJECT_ROOT / "var/isolation"
     onboarding_registry: Path = PROJECT_ROOT / "var/onboarding/repositories.json"
     career_forge_db: Path = PROJECT_ROOT / "var/career-forge/learner.sqlite3"
+    perception_dir: Path = PROJECT_ROOT / "var/perception"
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,6 +230,7 @@ class AppConfig:
             career_forge_db=_path(
                 values.get("LOCAL_AI_CAREER_FORGE_DB", str(var_dir / "career-forge/learner.sqlite3"))
             ),
+            perception_dir=_path(values.get("LOCAL_AI_PERCEPTION_DIR", str(var_dir / "perception"))),
         )
         document = DocumentRetrievalConfig(
             chunk_size=_integer(values, "LOCAL_AI_RAG_CHUNK_SIZE", 450),
