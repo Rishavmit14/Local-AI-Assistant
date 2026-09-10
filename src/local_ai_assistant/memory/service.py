@@ -133,6 +133,20 @@ class FridayMemoryService:
             ).fetchall()
         return tuple(self.get(row[0]) for row in rows)
 
+    def search(self, query: str, limit: int = 20) -> tuple[MemoryRecord, ...]:
+        """Deterministic local lexical retrieval before optional semantic ranking."""
+        if not query.strip():
+            raise ValueError("memory search query must not be empty")
+        if not 1 <= limit <= 100:
+            raise ValueError("memory search limit must be between 1 and 100")
+        pattern = "%" + query.strip().lower() + "%"
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT memory_id FROM memories WHERE state=? AND (expires_at IS NULL OR expires_at>?) AND (lower(subject) LIKE ? OR lower(content) LIKE ?) ORDER BY confidence DESC, updated_at DESC LIMIT ?",
+                (MemoryState.ACTIVE, _now(), pattern, pattern, limit),
+            ).fetchall()
+        return tuple(self.get(row[0]) for row in rows)
+
     def _state(self, memory_id: str, state: MemoryState) -> None:
         with self._db() as db:
             changed = db.execute(

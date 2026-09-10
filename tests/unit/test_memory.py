@@ -38,3 +38,23 @@ def test_conflict_delete_and_expiry_are_not_recalled(tmp_path):
     m.mark_conflicted(fact.memory_id)
     m.forget(expired.memory_id)
     assert not m.recall("x")
+
+
+def test_memory_lexical_search_is_active_only(tmp_path):
+    memory = FridayMemoryService(tmp_path / "memory.sqlite3")
+    found = memory.remember(
+        kind=MemoryKind.EPISODIC,
+        subject="learning",
+        content="completed PyTorch tensors",
+        provenance="owner",
+        confidence=0.9,
+    )
+    hidden = memory.remember(
+        kind=MemoryKind.FACT,
+        subject="learning",
+        content="obsolete tensors",
+        provenance="owner",
+        confidence=0.8,
+    )
+    memory.forget(hidden.memory_id)
+    assert memory.search("tensors") == (found,)
