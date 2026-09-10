@@ -139,6 +139,11 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
         json={"resume_point": {"phase": "teach_back"}, "assistance_level": "prompt"},
     )
     assert resumed.json()["resume_point"] == {"phase": "teach_back"}
+    advanced = client.post(
+        "/api/v1/career-forge/competencies/se.python/advance",
+        json={"mastery": "recognize", "evidence_id": evidence.json()["evidence_id"]},
+    )
+    assert advanced.json()["mastery"] == "recognize"
 
 
 def test_busy_voice_rejects_http_before_runtime_events():
@@ -552,6 +557,7 @@ def test_presentation_api_has_no_execution_routes():
         "/api/v1/career-forge/missions/{mission_id}/resume",
         "/api/v1/career-forge/missions/{mission_id}/assistance",
         "/api/v1/career-forge/missions/{mission_id}/evidence",
+        "/api/v1/career-forge/competencies/{competency_id}/advance",
         "/api/v1/memory/recall",
         "/api/v1/memory/remember",
         "/api/v1/runtime/events",

@@ -14,7 +14,12 @@ try:
 except ImportError:  # optional dependency; validated when app creation is requested
     FastAPI = HTTPException = Request = StreamingResponse = None
 
-from local_ai_assistant.career_forge import AssistanceLevel, CareerForgeService, TutorMode
+from local_ai_assistant.career_forge import (
+    AssistanceLevel,
+    CareerForgeService,
+    MasteryLevel,
+    TutorMode,
+)
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 from .conversation import FridayConversationService
@@ -246,6 +251,17 @@ def create_presentation_app(
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"evidence_id": evidence_id}
+
+    @app.post("/api/v1/career-forge/competencies/{competency_id}/advance")
+    async def career_advance(competency_id: str, request: Request):
+        try:
+            body = await request.json()
+            competency = owner_career_forge().advance_mastery(
+                competency_id, MasteryLevel(body["mastery"]), evidence_id=body["evidence_id"]
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"competency": asdict(competency.competency), "mastery": competency.mastery}
 
     @app.get("/api/v1/memory/recall")
     def memory_recall(subject: str, limit: int = 20):

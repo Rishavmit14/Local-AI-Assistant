@@ -72,6 +72,10 @@ The core local API also records exact mission resume points, assistance requests
 and owner evidence submissions. These paths update only the Learner Twin; they do
 not grant generic shell, desktop, Git, or publishing authority.
 
+An explicit advancement endpoint accepts only matching mission evidence and the
+next mastery rung. It completes the evidencing mission after the decision; no
+working solution, prompt, or self-report can silently promote a competency.
+
 The initial mission catalog is deterministic and local. It supplies a specific
 Python verification mission and safe structured fallback briefs for each later
 dependency-ready competency; model-generated adaptation is not required to start

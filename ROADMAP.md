@@ -189,7 +189,8 @@ briefs and only later uses adaptation after evidence. Project/public-evidence
 gates reject fake, unvalidated, secret-bearing, private/proprietary,
 undocumented, or low-quality artifacts and never publish automatically. Further
 presentation controls now include local mission resume, assistance and evidence
-submission; fuller project execution integration remains active.
+submission, plus one-rung matching-evidence mastery advancement. Fuller project
+execution integration remains active.
 
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 

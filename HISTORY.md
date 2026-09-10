@@ -285,6 +285,13 @@ The local Career Forge boundary now supports a full bounded mission interaction:
 start, exact resume, progressive assistance, and evidence/teach-back submission.
 It retains the existing no-execution/no-publication boundary.
 
+## 2026-09-10 — Stage 14 evidence-backed advancement candidate
+
+Career Forge's local boundary now permits an explicit single-rung mastery
+advancement only when evidence is attached to a mission for that exact competency.
+Advancement completes that evidencing mission; neither self-report nor a solution
+alone changes mastery.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking
