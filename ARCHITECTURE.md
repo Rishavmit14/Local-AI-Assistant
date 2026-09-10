@@ -115,6 +115,12 @@ voice, and presentation surfaces, while keeping private learning evidence
 separate from review-gated public career artifacts. Its detailed contract is in
 `docs/architecture/career-forge.md`; ADR 0015 freezes its roadmap priority.
 
+Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
+competencies are versioned and dependency ordered, every state is initialized as
+UNVERIFIED, and a mission retains exact resume and assistance-bearing evidence.
+No self-report or a working solution automatically advances mastery; an explicit,
+matching evidence-backed one-rung decision is required.
+
 Stage 13 uses `local_ai_assistant.memory.FridayMemoryService`, a separate local
 SQLite boundary rather than a reinterpretation of task-history audit data. It
 stores typed episodic/preference/fact/working records, provenance/confidence,

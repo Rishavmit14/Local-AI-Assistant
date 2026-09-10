@@ -257,6 +257,15 @@ primary/fallback/Piper workers, zero recovery count, and no recorded error.
 The local editable installation was refreshed so the documented
 `local-ai-memory` command is available. Stage 14 Career Forge Core V1 is next.
 
+## 2026-09-10 — Stage 14 Learner Twin foundation
+
+Opened the dedicated Career Forge branch with the canonical versioned ML/AI
+Engineer competency graph and a local SQLite Learner Twin. All competencies begin
+UNVERIFIED. The foundation enforces dependency-appropriate mission selection,
+exact resume state, assistance-bearing evidence, and explicit one-rung,
+matching-evidence mastery advancement. Tutoring and project/evidence publication
+remain active work.
+
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 
 Accepted a shared nonblocking interaction coordinator across physical voice and

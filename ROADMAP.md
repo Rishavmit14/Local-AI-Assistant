@@ -167,7 +167,7 @@ coverage, 729-test regression, repository verification, and live local service
 qualification prove explicit capture, read-back, and deletion with healthy
 resident voice workers. Stage 14 is now next.
 
-## Stage 14 — Friday Career Forge Core V1 (**Planned**)
+## Stage 14 — Friday Career Forge Core V1 (**Partial / active**)
 
 Build Friday's first flagship specialization: a persistent, local-first ML/AI
 Engineer apprenticeship on top of Stage 13 memory. Its versioned competency
@@ -177,7 +177,12 @@ GitHub-evidence boundary are specified in
 `docs/architecture/career-forge.md`. This is neither a generic quiz/course/JD
 matcher nor a resume/streak generator. The owner controls pace; Friday controls
 dependency-aware pedagogy. No Career Forge implementation begins before Stage 13
-has its accepted foundation.
+has its accepted foundation. The active foundation supplies the versioned
+dependency graph and local Learner Twin persistence: every competency starts
+UNVERIFIED, missions retain exact resume state and assistance-bearing evidence,
+and mastery advances only one evidence-backed rung at a time. Mission generation,
+tutoring interactions, project/public-evidence gates, and presentation controls
+remain active Stage 14 work.
 
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 

@@ -53,6 +53,12 @@ retention, and public-evidence status. The initial ladder is UNVERIFIED →
 RECOGNIZE → EXPLAIN → APPLY WITH HELP → APPLY INDEPENDENTLY → TRANSFER/DEBUG →
 TEACH/DEFEND. Completion alone never proves mastery.
 
+The first implementation is `local_ai_assistant.career_forge.CareerForgeService`.
+It persists a graph-versioned Learner Twin locally: curriculum states, exactly one
+active mission per competency, JSON resume point, assistance-bearing evidence and
+explicit one-rung advancement. Evidence is necessary but does not auto-promote a
+competency; the pedagogical decision remains explicit and auditable.
+
 ## Mission and tutoring loop
 
 Missions, not passive chapters, follow: why it matters → prerequisite check →

@@ -82,6 +82,7 @@ class PathConfig:
     worktree_dir: Path = PROJECT_ROOT / "var/worktrees"
     isolation_dir: Path = PROJECT_ROOT / "var/isolation"
     onboarding_registry: Path = PROJECT_ROOT / "var/onboarding/repositories.json"
+    career_forge_db: Path = PROJECT_ROOT / "var/career-forge/learner.sqlite3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,6 +225,9 @@ class AppConfig:
             ),
             onboarding_registry=_path(
                 values.get("LOCAL_AI_ONBOARDING_REGISTRY", str(var_dir / "onboarding/repositories.json"))
+            ),
+            career_forge_db=_path(
+                values.get("LOCAL_AI_CAREER_FORGE_DB", str(var_dir / "career-forge/learner.sqlite3"))
             ),
         )
         document = DocumentRetrievalConfig(
