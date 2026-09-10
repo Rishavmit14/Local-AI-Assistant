@@ -32,6 +32,21 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
     });
   });
 
+  it("reads only screen-capture metadata and requests capture explicitly", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ captures: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ capture: {
+        capture_id: "screen_1", captured_at: "now", sha256: "a", byte_size: 1,
+        source: "gnome-shell-screenshot",
+      } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+
+    await expect(client.getScreenCaptures()).resolves.toEqual([]);
+    await expect(client.captureScreen()).resolves.toMatchObject({ capture_id: "screen_1" });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/perception/screen/capture", { method: "POST" });
+  });
+
   it("starts only the API-selected dependency-ready mission", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       mission: {

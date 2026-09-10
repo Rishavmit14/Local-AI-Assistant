@@ -131,3 +131,11 @@ export interface CareerForgeJourney {
   }>;
   competencies: CareerForgeCompetency[];
 }
+
+export interface FridayScreenCapture {
+  capture_id: string;
+  captured_at: string;
+  sha256: string;
+  byte_size: number;
+  source: string;
+}

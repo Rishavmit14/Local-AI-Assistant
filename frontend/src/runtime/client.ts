@@ -4,6 +4,7 @@ import type {
   ConversationRequest,
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
+  FridayScreenCapture,
 } from "./types";
 
 export class FridayRuntimeClient {
@@ -88,6 +89,18 @@ export class FridayRuntimeClient {
     if (!response.ok) {
       throw new Error(`Career Forge project link failed: ${response.status}`);
     }
+  }
+
+  async getScreenCaptures(signal?: AbortSignal): Promise<FridayScreenCapture[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures`, { signal });
+    if (!response.ok) throw new Error(`screen metadata request failed: ${response.status}`);
+    return (await response.json() as { captures: FridayScreenCapture[] }).captures;
+  }
+
+  async captureScreen(): Promise<FridayScreenCapture> {
+    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/capture`, { method: "POST" });
+    if (!response.ok) throw new Error(`screen capture request failed: ${response.status}`);
+    return (await response.json() as { capture: FridayScreenCapture }).capture;
   }
 
   subscribe(

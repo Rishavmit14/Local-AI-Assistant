@@ -21,6 +21,10 @@ not persisted by the perception boundary, and unavailable after retention purge.
 Any later Stage 16 action uses an independent policy-governed desktop-control
 boundary.
 
+The existing cinematic Friday UI projects capture status and retained metadata.
+Its capture control is an explicit owner action; it never receives raw image
+data, image paths, OCR text, or any desktop-control capability.
+
 On the current GNOME/Wayland host, direct session-bus capture is denied by the
 desktop privacy policy. Friday returns only a bounded permission-required result;
 it cannot bypass that control. A physical owner approval through the desktop's

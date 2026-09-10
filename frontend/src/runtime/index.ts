@@ -18,6 +18,7 @@ export type {
   FridayEventType,
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
+  FridayScreenCapture,
   FridayRuntimeState,
   FridayVoicePresentationSignal,
 } from "./types";
