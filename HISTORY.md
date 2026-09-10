@@ -279,6 +279,12 @@ potential recruiter-visible evidence. It rejects artificial activity and require
 genuine work, tests, secret/privacy review, documentation and quality before an
 artifact can qualify; the gate has no publication authority.
 
+## 2026-09-10 — Stage 14 core-loop API candidate
+
+The local Career Forge boundary now supports a full bounded mission interaction:
+start, exact resume, progressive assistance, and evidence/teach-back submission.
+It retains the existing no-execution/no-publication boundary.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

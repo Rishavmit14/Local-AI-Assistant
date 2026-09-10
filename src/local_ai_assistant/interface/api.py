@@ -14,7 +14,7 @@ try:
 except ImportError:  # optional dependency; validated when app creation is requested
     FastAPI = HTTPException = Request = StreamingResponse = None
 
-from local_ai_assistant.career_forge import CareerForgeService
+from local_ai_assistant.career_forge import AssistanceLevel, CareerForgeService, TutorMode
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 from .conversation import FridayConversationService
@@ -205,6 +205,47 @@ def create_presentation_app(
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"mission": asdict(mission), "loop": forge.mission_loop(mission.mission_id)}
+
+    @app.post("/api/v1/career-forge/missions/{mission_id}/resume")
+    async def career_update_resume(mission_id: str, request: Request):
+        try:
+            body = await request.json()
+            resume_point = body["resume_point"]
+            assistance = body.get("assistance_level")
+            if assistance is not None:
+                assistance = AssistanceLevel(assistance)
+            mission = owner_career_forge().update_resume(
+                mission_id, resume_point, assistance_level=assistance
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return asdict(mission)
+
+    @app.post("/api/v1/career-forge/missions/{mission_id}/assistance")
+    async def career_assistance(mission_id: str, request: Request):
+        try:
+            body = await request.json()
+            assistance_id = owner_career_forge().offer_assistance(
+                mission_id,
+                TutorMode(body["mode"]),
+                AssistanceLevel(body["level"]),
+                body["content"],
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"assistance_id": assistance_id}
+
+    @app.post("/api/v1/career-forge/missions/{mission_id}/evidence")
+    async def career_evidence(mission_id: str, request: Request):
+        try:
+            body = await request.json()
+            evidence_id = owner_career_forge().record_evidence(
+                mission_id, body["evidence_type"], body["content"],
+                assistance_level=body.get("assistance_level"), artifact_ref=body.get("artifact_ref"),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"evidence_id": evidence_id}
 
     @app.get("/api/v1/memory/recall")
     def memory_recall(subject: str, limit: int = 20):

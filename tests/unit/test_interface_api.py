@@ -123,6 +123,22 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     assert started.status_code == 200
     assert started.json()["mission"]["competency_id"] == "se.python"
     assert "teach_back" in started.json()["loop"]
+    mission_id = started.json()["mission"]["mission_id"]
+    help_response = client.post(
+        f"/api/v1/career-forge/missions/{mission_id}/assistance",
+        json={"mode": "hint", "level": "prompt", "content": "Predict before running."},
+    )
+    assert help_response.status_code == 200
+    evidence = client.post(
+        f"/api/v1/career-forge/missions/{mission_id}/evidence",
+        json={"evidence_type": "teach_back", "content": "I explained the mutation risk."},
+    )
+    assert evidence.status_code == 200
+    resumed = client.post(
+        f"/api/v1/career-forge/missions/{mission_id}/resume",
+        json={"resume_point": {"phase": "teach_back"}, "assistance_level": "prompt"},
+    )
+    assert resumed.json()["resume_point"] == {"phase": "teach_back"}
 
 
 def test_busy_voice_rejects_http_before_runtime_events():
@@ -533,6 +549,9 @@ def test_presentation_api_has_no_execution_routes():
         "/api/v1/interaction/state",
         "/api/v1/career-forge/journey",
         "/api/v1/career-forge/missions",
+        "/api/v1/career-forge/missions/{mission_id}/resume",
+        "/api/v1/career-forge/missions/{mission_id}/assistance",
+        "/api/v1/career-forge/missions/{mission_id}/evidence",
         "/api/v1/memory/recall",
         "/api/v1/memory/remember",
         "/api/v1/runtime/events",
