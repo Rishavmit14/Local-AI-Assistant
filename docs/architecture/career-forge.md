@@ -64,6 +64,10 @@ Assistance must proceed through minimum useful levels (prompt, conceptual hint,
 strong hint, decomposition, partial example, then full demonstration); it is
 attached to the active mission so assistance cannot be claimed as independence.
 
+The local presentation API exposes the journey projection and dependency-gated
+mission start. This remains an owner-directed pace boundary: it never skips a
+prerequisite or accepts a self-reported mastery claim.
+
 ## Mission and tutoring loop
 
 Missions, not passive chapters, follow: why it matters → prerequisite check →

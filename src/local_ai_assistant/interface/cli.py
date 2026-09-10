@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import uvicorn
 
+from local_ai_assistant.career_forge import CareerForgeService
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.llm.client import LocalLLM
@@ -57,6 +58,7 @@ def build_presentation_components(
         embedding_model=resolved_config.embedding.model,
         embedding_device=resolved_config.embedding.device,
     )
+    career_forge = CareerForgeService(resolved_config.paths.career_forge_db)
 
     conversation = FridayConversationService(
         llm=llm,
@@ -86,6 +88,7 @@ def build_presentation_components(
             wake_voice.resume_after_presentation if wake_voice is not None else None
         ),
         memory=memory,
+        career_forge=career_forge,
     )
 
     return (

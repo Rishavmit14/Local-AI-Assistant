@@ -182,8 +182,9 @@ dependency graph and local Learner Twin persistence: every competency starts
 UNVERIFIED, missions retain exact resume state and assistance-bearing evidence,
 and mastery advances only one evidence-backed rung at a time. The tutoring-loop
 checkpoint persists the canonical mission sequence, practical tutor modes, and
-minimum progressive assistance. Mission generation, project/public-evidence
-gates, and presentation controls remain active Stage 14 work.
+minimum progressive assistance. Friday's local presentation API now exposes the
+read-only journey and dependency-gated mission-start boundary. Mission content,
+project/public-evidence gates, and further presentation controls remain active.
 
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 

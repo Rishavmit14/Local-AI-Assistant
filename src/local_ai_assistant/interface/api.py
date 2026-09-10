@@ -14,6 +14,7 @@ try:
 except ImportError:  # optional dependency; validated when app creation is requested
     FastAPI = HTTPException = Request = StreamingResponse = None
 
+from local_ai_assistant.career_forge import CareerForgeService
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 from .conversation import FridayConversationService
@@ -116,6 +117,7 @@ def create_presentation_app(
     presentation_pause: Callable[[], None] | None = None,
     presentation_resume: Callable[[], None] | None = None,
     memory: FridayMemoryService | None = None,
+    career_forge: CareerForgeService | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -159,6 +161,47 @@ def create_presentation_app(
         if memory is None:
             raise HTTPException(status_code=404, detail="persistent memory is unavailable")
         return memory
+
+    def owner_career_forge() -> CareerForgeService:
+        if career_forge is None:
+            raise HTTPException(status_code=404, detail="Career Forge is unavailable")
+        return career_forge
+
+    @app.get("/api/v1/career-forge/journey")
+    def career_journey():
+        forge = owner_career_forge()
+        active = forge.resume()
+        next_item = forge.next_competency()
+        return {
+            "target": "ML / AI Engineer",
+            "current_mission": asdict(active) if active else None,
+            "next_competency": asdict(next_item) if next_item else None,
+            "competencies": [
+                {"competency": asdict(item.competency), "mastery": item.mastery}
+                for item in forge.competencies()
+            ],
+        }
+
+    @app.post("/api/v1/career-forge/missions")
+    async def career_start_mission(request: Request):
+        try:
+            body = await request.json()
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail="malformed JSON request") from exc
+        title = body.get("title")
+        if not isinstance(title, str) or not title.strip() or len(title) > max_prompt_chars:
+            raise HTTPException(status_code=400, detail="bounded mission title is required")
+        forge = owner_career_forge()
+        next_item = forge.next_competency()
+        if next_item is None:
+            raise HTTPException(status_code=409, detail="no dependency-ready competency")
+        if body.get("competency_id", next_item.competency_id) != next_item.competency_id:
+            raise HTTPException(status_code=400, detail="mission is not dependency-appropriate")
+        try:
+            mission = forge.start_mission(next_item.competency_id, title)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"mission": asdict(mission), "loop": forge.mission_loop(mission.mission_id)}
 
     @app.get("/api/v1/memory/recall")
     def memory_recall(subject: str, limit: int = 20):

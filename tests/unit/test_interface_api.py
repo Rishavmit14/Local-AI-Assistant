@@ -4,6 +4,7 @@ import threading
 
 from fastapi.testclient import TestClient
 
+from local_ai_assistant.career_forge import CareerForgeService
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.events import FridayEventType
@@ -95,6 +96,32 @@ def test_memory_capture_requires_an_explicit_complete_owner_record(tmp_path):
     ] == "prefers concise answers"
     unavailable, _ = make_client()
     assert unavailable.get("/api/v1/memory/recall", params={"subject": "owner"}).status_code == 404
+
+
+def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
+    runtime = FridayRuntime("career-api")
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    client = TestClient(
+        create_presentation_app(
+            runtime,
+            FridayConversationService(FakeStreamingLLM(), runtime),
+            career_forge=forge,
+        )
+    )
+    journey = client.get("/api/v1/career-forge/journey").json()
+    assert journey["next_competency"]["competency_id"] == "se.python"
+    rejected = client.post(
+        "/api/v1/career-forge/missions",
+        json={"competency_id": "dl.pytorch", "title": "Skip ahead"},
+    )
+    assert rejected.status_code == 400
+    started = client.post(
+        "/api/v1/career-forge/missions",
+        json={"title": "Verify Python foundation"},
+    )
+    assert started.status_code == 200
+    assert started.json()["mission"]["competency_id"] == "se.python"
+    assert "teach_back" in started.json()["loop"]
 
 
 def test_busy_voice_rejects_http_before_runtime_events():
@@ -503,6 +530,8 @@ def test_presentation_api_has_no_execution_routes():
         "/api/v1/runtime/state",
         "/api/v1/voice/health",
         "/api/v1/interaction/state",
+        "/api/v1/career-forge/journey",
+        "/api/v1/career-forge/missions",
         "/api/v1/memory/recall",
         "/api/v1/memory/remember",
         "/api/v1/runtime/events",
