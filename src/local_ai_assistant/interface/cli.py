@@ -12,6 +12,7 @@ import uvicorn
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.llm.client import LocalLLM
+from local_ai_assistant.memory import FridayMemoryService
 
 from .api import create_presentation_app
 from .conversation import FridayConversationService
@@ -51,10 +52,15 @@ def build_presentation_components(
     )
 
     llm = LocalLLM(config=resolved_config)
+    memory = FridayMemoryService(resolved_config.paths.memory_db)
 
     conversation = FridayConversationService(
         llm=llm,
         runtime=runtime,
+        memory_context=lambda prompt: "\n".join(
+            f"[{item.kind}] {item.subject}: {item.content} (provenance={item.provenance}, confidence={item.confidence:g})"
+            for item in memory.search(prompt, limit=5)
+        ),
     )
 
     interactions = FridayInteractionCoordinator()
@@ -71,9 +77,7 @@ def build_presentation_components(
         conversation=conversation,
         voice_health=wake_voice.health if wake_voice is not None else None,
         interactions=interactions,
-        presentation_pause=(
-            wake_voice.pause_for_presentation if wake_voice is not None else None
-        ),
+        presentation_pause=(wake_voice.pause_for_presentation if wake_voice is not None else None),
         presentation_resume=(
             wake_voice.resume_after_presentation if wake_voice is not None else None
         ),
@@ -90,20 +94,16 @@ def build_presentation_app(
     *,
     session_id: str | None = None,
 ):
-    app, _wake_voice = (
-        build_presentation_components(
-            config,
-            session_id=session_id,
-        )
+    app, _wake_voice = build_presentation_components(
+        config,
+        session_id=session_id,
     )
 
     return app
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Run Friday's local presentation API."
-    )
+    parser = argparse.ArgumentParser(description="Run Friday's local presentation API.")
     parser.add_argument(
         "--port",
         type=int,
@@ -121,9 +121,7 @@ def main() -> int:
     (
         app,
         wake_voice,
-    ) = build_presentation_components(
-        config
-    )
+    ) = build_presentation_components(config)
 
     try:
         if wake_voice is not None:
