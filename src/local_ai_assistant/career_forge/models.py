@@ -16,6 +16,26 @@ class MasteryLevel(StrEnum):
     TEACH_DEFEND = "teach_defend"
 
 
+class AssistanceLevel(StrEnum):
+    PROMPT = "prompt"
+    CONCEPTUAL_HINT = "conceptual_hint"
+    STRONG_HINT = "strong_hint"
+    DECOMPOSITION = "decomposition"
+    PARTIAL_EXAMPLE = "partial_example"
+    FULL_DEMONSTRATION = "full_demonstration"
+
+
+class TutorMode(StrEnum):
+    EXPLAIN = "explain"
+    HINT = "hint"
+    GUIDE = "guide"
+    PAIR = "pair"
+    REVIEW = "review"
+    CHALLENGE = "challenge"
+    TEACH_BACK = "teach_back"
+    INTERVIEW = "interview"
+
+
 @dataclass(frozen=True, slots=True)
 class Competency:
     competency_id: str
@@ -23,4 +43,3 @@ class Competency:
     title: str
     prerequisites: tuple[str, ...] = ()
     project_family: str | None = None
-

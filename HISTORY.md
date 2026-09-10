@@ -266,6 +266,12 @@ exact resume state, assistance-bearing evidence, and explicit one-rung,
 matching-evidence mastery advancement. Tutoring and project/evidence publication
 remain active work.
 
+## 2026-09-10 — Stage 14 tutoring-loop checkpoint
+
+Career Forge now persists its canonical mission sequence, practical tutor modes,
+and progressive minimum assistance. The deterministic service rejects unjustified
+jumps to stronger help and retains assistance at the exact mission resume point.
+
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 
 Accepted a shared nonblocking interaction coordinator across physical voice and

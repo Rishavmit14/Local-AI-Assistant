@@ -180,9 +180,10 @@ dependency-aware pedagogy. No Career Forge implementation begins before Stage 13
 has its accepted foundation. The active foundation supplies the versioned
 dependency graph and local Learner Twin persistence: every competency starts
 UNVERIFIED, missions retain exact resume state and assistance-bearing evidence,
-and mastery advances only one evidence-backed rung at a time. Mission generation,
-tutoring interactions, project/public-evidence gates, and presentation controls
-remain active Stage 14 work.
+and mastery advances only one evidence-backed rung at a time. The tutoring-loop
+checkpoint persists the canonical mission sequence, practical tutor modes, and
+minimum progressive assistance. Mission generation, project/public-evidence
+gates, and presentation controls remain active Stage 14 work.
 
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 

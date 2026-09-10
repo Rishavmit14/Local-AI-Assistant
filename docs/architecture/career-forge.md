@@ -59,6 +59,11 @@ active mission per competency, JSON resume point, assistance-bearing evidence an
 explicit one-rung advancement. Evidence is necessary but does not auto-promote a
 competency; the pedagogical decision remains explicit and auditable.
 
+The service persists the canonical mission loop and practical tutor modes.
+Assistance must proceed through minimum useful levels (prompt, conceptual hint,
+strong hint, decomposition, partial example, then full demonstration); it is
+attached to the active mission so assistance cannot be claimed as independence.
+
 ## Mission and tutoring loop
 
 Missions, not passive chapters, follow: why it matters → prerequisite check →

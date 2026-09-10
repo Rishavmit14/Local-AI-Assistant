@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .curriculum import COMPETENCY_GRAPH_VERSION, competency_graph
-from .models import Competency, MasteryLevel
+from .models import AssistanceLevel, Competency, MasteryLevel, TutorMode
 
 
 def _now() -> str:
@@ -33,6 +33,13 @@ class Mission:
     assistance_level: str | None
     created_at: str
     updated_at: str
+
+
+MISSION_LOOP = (
+    "why_it_matters", "prerequisite_verification", "mental_model", "guided_example",
+    "owner_attempt", "minimum_assistance", "independent_attempt", "run_test_experiment",
+    "debugging", "teach_back", "transfer_challenge", "evidence_update", "project_decision",
+)
 
 
 class CareerForgeService:
@@ -60,6 +67,11 @@ class CareerForgeService:
                     evidence_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
                     evidence_type TEXT NOT NULL, content TEXT NOT NULL,
                     assistance_level TEXT, artifact_ref TEXT, created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS mission_assistance (
+                    assistance_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
+                    mode TEXT NOT NULL, level TEXT NOT NULL, content TEXT NOT NULL,
+                    created_at TEXT NOT NULL
                 );
                 """
             )
@@ -143,6 +155,30 @@ class CareerForgeService:
                 (evidence_id, mission_id, evidence_type.strip(), content.strip(), assistance_level, artifact_ref, _now()),
             )
         return evidence_id
+
+    def mission_loop(self, mission_id: str) -> tuple[str, ...]:
+        self.mission(mission_id)
+        return MISSION_LOOP
+
+    def offer_assistance(self, mission_id: str, mode: TutorMode, level: AssistanceLevel, content: str) -> str:
+        """Record minimum progressive help; substantial help remains visible evidence."""
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("assistance content must not be empty")
+        self.mission(mission_id)
+        with self._db() as db:
+            row = db.execute(
+                "SELECT level FROM mission_assistance WHERE mission_id=? ORDER BY created_at DESC LIMIT 1",
+                (mission_id,),
+            ).fetchone()
+            if row and tuple(AssistanceLevel).index(level) > tuple(AssistanceLevel).index(AssistanceLevel(row[0])) + 1:
+                raise ValueError("assistance must progress by the minimum useful step")
+            assistance_id = "assist_" + uuid.uuid4().hex
+            db.execute(
+                "INSERT INTO mission_assistance VALUES(?,?,?,?,?,?)",
+                (assistance_id, mission_id, mode, level, content.strip(), _now()),
+            )
+        self.update_resume(mission_id, self.mission(mission_id).resume_point, assistance_level=level)
+        return assistance_id
 
     def advance_mastery(self, competency_id: str, level: MasteryLevel, *, evidence_id: str) -> LearnerCompetency:
         """Advance exactly one rung, backed by recorded evidence for that competency."""
