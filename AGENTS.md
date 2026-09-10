@@ -25,10 +25,13 @@ These instructions apply to the entire repository. Read this file and `CODEX_HAN
 - Prefer parsers, Git, tests, linters, and build tools over model inference for deterministic facts.
 - OpenClaw is not part of Friday's target architecture. Do not add OpenClaw dependencies, integrations, adapters, roadmap items, implementation work, or design assumptions unless the project owner explicitly reverses this decision.
 - Never silently remove roadmap capabilities. Update status without deleting scope.
-- Stages 20–22 (market intelligence, cognitive amplification, and creator studio)
-  are durable owner requirements. Keep them planned and dependency-ordered until
-  prior roadmap work is accepted; never silently remove or prematurely implement
-  them.
+- Market Intelligence/Trading Research and Creator Studio/Digital Media
+  Intelligence are deferred specialization ideas outside the active roadmap.
+  Do not implement them unless the owner explicitly restores them. The active
+  post-Stage-12 order is Persistent Memory, Career Forge Core, perception,
+  desktop control, autonomy, events, roles, research, cognitive amplification,
+  and Career Forge advanced integration. Preserve the superseded decision in
+  history; do not silently erase it.
 - Work one roadmap stage at a time. Stage 0 must be reviewed before Stage 1 begins.
 - A capability is not accepted merely because an experiment worked. Acceptance requires the selected implementation, relevant tests, canonical architecture/roadmap/history updates, a clean commit, push to the configured GitHub remote, and remote-HEAD verification.
 - Remove rejected prototypes, obsolete helpers, abandoned configuration, and competing inactive implementations before capability acceptance unless an explicit documented architecture reason requires more than one implementation.

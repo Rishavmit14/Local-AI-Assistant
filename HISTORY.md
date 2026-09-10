@@ -185,6 +185,22 @@ Amplification, and Creator Studio & Digital Media Intelligence stages after thei
 existing prerequisites. The update grants no real-money trading or publishing
 authority and does not mark any of those future capabilities implemented.
 
+## 2026-09-10 — Career Forge roadmap reprioritization
+
+The owner explicitly superseded the prior mandatory Market Intelligence/Trading
+Research and Creator Studio roadmap direction. They remain preserved as deferred
+future specialization ideas outside active implementation. The active post-Stage
+12 sequence is now Persistent Memory (13), Career Forge Core V1 (14), perception
+(15), safe desktop control (16), autonomous execution (17), events (18), role
+orchestration (19), research (20), cognitive amplification (21), and Career
+Forge Advanced Integration (22).
+
+Career Forge is the first flagship specialization and targets ML/AI Engineer
+only. Its frozen contract establishes an evidence-led, local-first Learner Twin,
+all-competencies-UNVERIFIED start, dependency graph, progressive tutoring,
+hardware-aware evolving projects, and private/public career-evidence boundary.
+ADR 0015 and `docs/architecture/career-forge.md` record the durable decision.
+
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 
 Accepted a shared nonblocking interaction coordinator across physical voice and

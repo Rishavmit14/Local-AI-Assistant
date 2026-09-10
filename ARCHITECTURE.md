@@ -92,8 +92,9 @@ local components. It combines chat, private RAG/OCR, deterministic code
 intelligence, role-based planning/coding/review/debug/test/security, controlled
 tools, validation/policy, Git transactions/worktrees, history/metrics, native
 integrations, voice/UI, durable memory, visual perception, desktop control,
-autonomy, proactive events, research/self-learning, market intelligence,
-cognitive amplification, and creator/media intelligence. Git diffs remain
+autonomy, proactive events, research/self-learning, cognitive amplification, and
+Career Forge learning intelligence. Market/trading and creator/media work are
+deferred specializations, not active architecture scope. Git diffs remain
 mutation truth; deterministic inspection precedes inference; risk and confidence
 gates constrain automation.
 
@@ -107,6 +108,13 @@ Piper, wake/VAD, embeddings, OCR, and later vision/image models are specialized
 components. ADR 0014 defines evidence required for any future general-model
 addition or replacement.
 
+Career Forge's durable boundary is a local Learner Twin and versioned ML/AI
+Engineer competency graph above the Stage 13 memory foundation. It reuses
+Friday's code intelligence, controlled tools, validation, Git isolation, history,
+voice, and presentation surfaces, while keeping private learning evidence
+separate from review-gated public career artifacts. Its detailed contract is in
+`docs/architecture/career-forge.md`; ADR 0015 freezes its roadmap priority.
+
 The compounding architecture is:
 
 ```text
@@ -115,7 +123,7 @@ current local LLM
   + skills + tools + planning
   + observation + verification + experience
   + voice + vision + desktop + proactive automation
-  + market and creator specializations
+  + Career Forge specialization
   = Friday
 ```
 

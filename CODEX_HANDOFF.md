@@ -988,12 +988,13 @@ The final assistant should support:
 - local conversational voice and cinematic UI through Friday's non-privileged native API/event boundary
 - persistent personal memory, visual perception, safe desktop control, proactive
   automation, and bounded research/self-learning;
-- provenance-bearing Market Intelligence & Adaptive Trading Research with no
-  implied real-money execution authority;
+- Career Forge ML/AI Engineer apprenticeship built on persistent learner memory,
+  evidence-led missions, local projects, and review-gated public artifacts;
 - measured Cognitive Architecture & Local Intelligence Amplification using the
-  same current general-purpose LLM;
-- an original, provenance-safe Creator Studio & Digital Media Intelligence
-  workflow with review-gated publication.
+  same current general-purpose LLM.
+
+Market/trading and creator/media are deferred specialization ideas outside the
+active roadmap, with no implied transaction or publication authority.
 
 The final product is **Friday — Local Personal Cognitive Operating System**:
 `CURRENT LOCAL LLM + MEMORY + KNOWLEDGE + RETRIEVAL + SKILLS + TOOLS + PLANNING
@@ -1001,7 +1002,7 @@ The final product is **Friday — Local Personal Cognitive Operating System**:
 Its target is the most capable owner-controlled local AI system practical on the
 owner's hardware using free/open technologies. Internet services may provide
 current information; they cannot be mandatory intelligence providers. See ADR
-0014 and detailed planned Stages 20–22 in `ROADMAP.md`.
+0014, ADR 0015, and the active roadmap in `ROADMAP.md`.
 
 Still require explicit human review for high-risk production/security/payment/smart-contract/destructive migration/deployment changes.
 
@@ -1020,6 +1021,13 @@ Do not use chat history as the only project memory. The durable source of truth 
 ## 20. Current implementation snapshot
 
 As of the qualified Stage 12E candidate, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11/12 provide the production conversational/wake platform with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, enabled user-session systemd deployment, production natural-language barge-in, hardened blocked-read cancellation, inline wake commands, fresh bare-wake follow-up capture, exact explicit stop, and supervised capture/worker recovery. The accepted barge-in path uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`, captures `friday_aec_source`, stops active playback, and feeds trusted interruption audio through main Whisper. Exact `stop`, `friday stop`, and `hey friday stop` end in IDLE without LLM or acknowledgement speech; nonexact phrases remain conversational. Stage 12 remains active for concurrency policy, observability, streaming speech latency, and longer-running stability. `ROADMAP.md` extends the product through memory, perception, desktop/autonomy/events, same-model role orchestration, research, market intelligence, cognitive amplification, and creator intelligence under Local Intelligence Sovereignty.
+
+The preceding historical snapshot is superseded for roadmap priority by the
+2026-09-10 owner decision (ADR 0015): the active sequence after Stage 12 is
+Persistent Memory, Career Forge Core, perception, desktop control, autonomous
+execution, events, role orchestration, research, cognitive amplification, and
+Career Forge Advanced Integration. Market/trading and creator/media are deferred
+specialization ideas outside active implementation.
 
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
@@ -1073,23 +1081,18 @@ Repository: `Rishavmit14/Local-AI-Assistant`
 Current active development branch:
 `stage-12/production-voice-lifecycle`
 
-Latest accepted capability recovery checkpoint:
-`2ce0686cf05c379280c6643a3e6aba82ac3a58b0`
-(`Stage 12D: add explicit stop semantics`, accepted and remotely verified).
-Stage 12D is closed; reopen only upon evidence of a genuine regression.
-
 Latest accepted repository recovery checkpoint:
-`7cc288f089057349fd09bcfbce8115d1b0fa036d`
-(`Stage 12F: enforce voice and presentation interaction ownership`). Stage/main,
-fetched tracking refs, and direct remote refs were verified equal with a clean
-accepted tree. The earlier Stage 12E checkpoint canonically accepted Local
-Intelligence Sovereignty, the current single-general-model policy, and detailed
-planned Stages 20–22 as product requirements; it does not claim those future
-stages implemented.
+`057e729859a572ea660a7bec64cbc64a007aba3c`
+(`docs: record Stage 12N accepted recovery`). Stage/main and fetched remote refs
+were verified equal with a clean accepted tree. Stage 12N exposes resident wake
+and Piper worker health; all earlier Stage 12 checkpoints remain closed unless
+real regression evidence reopens them.
 
-Current capability: Stage 12G barge-in observability and longer-running voice
-stability, QUALIFIED and ready for final regression/publication. Stage 12F is
-accepted at `7cc288f` and must not be reopened absent genuine regression.
+Current capability: bounded long-running real-microphone voice-stability and
+observability qualification. No unaccepted implementation is intentionally
+carried from the Stage 12N checkpoint. First complete the 2026-09-10 roadmap
+reprioritization/documentation acceptance, then prepare the physical evidence
+cursor and ask only for any unavoidable spoken action.
 
 Initial 12F finding: production wake and HTTP conversation share one runtime and
 LLM service without an admission boundary. Concurrent HTTP streams can both emit
@@ -1127,10 +1130,10 @@ VOICE_THREAD_COMPLETE and WAKE_RESUMED; voice health then reported running,
 listening, one utterance/wake, and the same service PID. No injected audio or
 stdin-waiting harness was used.
 
-The owner also added durable Local Intelligence Sovereignty, one-current-general-
-model policy, and mandatory planned Stages 20–22. Their canonical scope is in
-`AGENTS.md`, `ARCHITECTURE.md`, `ROADMAP.md`, README, and ADR 0014; none is
-implemented or allowed to jump ahead of active dependency work.
+The following 2026-09-09 wording is historical. ADR 0015 supersedes its
+mandatory-market/creator roadmap priority: active Stages 20–22 are research,
+cognitive amplification, and Career Forge Advanced Integration; market/trading
+and creator/media are deferred unless expressly restored by the owner.
 
 Stage 12F implementation and qualification added one interaction coordinator
 shared by production wake and presentation HTTP. Voice claims before runtime

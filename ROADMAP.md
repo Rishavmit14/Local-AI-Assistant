@@ -144,23 +144,35 @@ to IDLE without a runtime error.
 
 Add local-first semantic long-term memory, episodic memory, bounded working memory, preferences, project/goal/person relationships, provenance/confidence, supersession/conflict resolution, and retention/deletion policy. Deterministic repository/project instructions remain a separate engineering authority.
 
-## Stage 14 — Visual Perception / Screen Awareness (**Planned**)
+## Stage 14 — Friday Career Forge Core V1 (**Planned**)
+
+Build Friday's first flagship specialization: a persistent, local-first ML/AI
+Engineer apprenticeship on top of Stage 13 memory. Its versioned competency
+graph, Learner Twin, evidence/mistake/assistance records, resume point,
+mission/tutoring loop, evolving hardware-aware projects, and private/public
+GitHub-evidence boundary are specified in
+`docs/architecture/career-forge.md`. This is neither a generic quiz/course/JD
+matcher nor a resume/streak generator. The owner controls pace; Friday controls
+dependency-aware pedagogy. No Career Forge implementation begins before Stage 13
+has its accepted foundation.
+
+## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 
 Add safe read-only screen capture, active-window/application context, vision-model interpretation, OCR where appropriate, UI-state understanding, provenance, and privacy controls. Visual perception initially has no mutation authority.
 
-## Stage 15 — Safe Desktop Control (**Planned**)
+## Stage 16 — Safe Desktop Control (**Planned**)
 
 Add policy-governed application launch/focus, bounded keyboard/mouse/UI actions, browser interaction, local file/application operations, permission classes, audit, and approval for destructive/high-risk actions.
 
-## Stage 16 — Autonomous Assistant Execution (**Planned**)
+## Stage 17 — Autonomous Assistant Execution (**Planned**)
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 
-## Stage 17 — Proactive Event and Automation Engine (**Planned**)
+## Stage 18 — Proactive Event and Automation Engine (**Planned**)
 
 Add local service/system/repository/filesystem/task/external event watches, schedules, meaningful notifications, relevance policy, permission policy, and rate limiting.
 
-## Stage 18 — Agent / Role Orchestration (**Planned**)
+## Stage 19 — Agent / Role Orchestration (**Planned**)
 
 Keep one user-facing Friday while internally routing conversational, reasoning,
 coding, vision, retrieval, planner, coder, reviewer, debugger, test, and security
@@ -168,11 +180,16 @@ roles. Roles use sequential invocations of the current sole general-purpose Qwen
 model unless later evidence qualifies another model; specialized components gain
 no implicit extra privileges.
 
-## Stage 19 — Self-Learning / Research Engine (**Planned**)
+## Stage 20 — Self-Learning / Research Engine (**Planned**)
 
 Add trusted-source collection, provenance, domain indexing, knowledge-gap identification, research plans, synthesis, curriculum generation, teaching/evaluation, and refresh/versioning. This does not mean silently modifying model weights.
 
-## Stage 20 — Market Intelligence & Adaptive Trading Research (**Planned — durable owner requirement**)
+## Deferred specialization — Market Intelligence & Adaptive Trading Research
+
+**Outside the active roadmap.** The owner explicitly deferred this former Stage
+20 on 2026-09-10. Retain this detail as a future specialization idea only; do
+not allocate active engineering effort or infer trading authority unless the
+owner explicitly restores it.
 
 Build a research, forecasting, charting, empirical-evaluation, and adaptive
 learning specialization over Stages 13–19. The initial boundary is knowledge,
@@ -275,7 +292,7 @@ evaluation splits, backtest/walk-forward/paper/live-shadow measurement, outcome
 and mistake learning, evidence-gated challengers, domain specialization, useful
 alerts/briefings/explanations, and transparent performance views.
 
-## Stage 21 — Cognitive Architecture & Local Intelligence Amplification (**Planned — durable owner requirement**)
+## Stage 21 — Cognitive Architecture & Local Intelligence Amplification (**Planned**)
 
 Make the same current local general-purpose model materially more effective via
 memory, retrieval, structured knowledge, planning, decomposition, tools, skills,
@@ -328,7 +345,11 @@ market/creator tasks compares `RAW CURRENT MODEL` with `SAME MODEL + FRIDAY` on
 correctness, reliability, latency/resource cost, completion, and verification.
 Only evidence-positive, versioned cognitive changes are promoted.
 
-## Stage 22 — Creator Studio & Digital Media Intelligence (**Planned — durable owner requirement**)
+## Deferred specialization — Creator Studio & Digital Media Intelligence
+
+**Outside the active roadmap.** The owner explicitly deferred this former Stage
+22 on 2026-09-10. Retain its detailed ideas for possible future restoration; do
+not implement or infer publication authority from them.
 
 Build one owner-controlled local creator studio for original, valuable, accurate,
 high-retention, trustworthy content and sustainable monetization across YouTube,
@@ -431,6 +452,17 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
+## Stage 22 — Friday Career Forge Advanced Integration (**Planned**)
+
+Integrate the accepted Stage 15–21 general capabilities into the mature Career
+Forge: screen-aware tutoring, policy-governed desktop assistance, bounded
+mission autonomy, retention/progress automation, sequential Teacher/Coach/Pair
+Programmer/Reviewer/Debugger/Interviewer/Curriculum-Designer roles, trusted
+ML/AI curriculum research, and evidence-positive cognitive improvements. This
+stage extends—not replaces—the bounded Stage 14 core loop and must preserve local
+sovereignty, learner-evidence provenance, owner pace, and review-gated public
+artifacts.
+
 ## Cross-stage product capabilities (**Planned unless noted**)
 
 - Explicit ask/explain, repo overview, architecture trace, review, bug investigation, traceback/log debugging, feature, test generation, refactor, security, docs, migration, and PR-review modes.
@@ -442,20 +474,21 @@ business-value analysis, and versioned creator skills as one Friday capability.
 - Local Intelligence Sovereignty: core cognition stays on owner-controlled
   hardware; external services supply optional information rather than mandatory
   intelligence. Cognitive roles share the current general-purpose local Qwen.
-- First-class market-research, cognitive-amplification, and creator-studio
-  specializations are mandatory planned Stages 20–22 and inherit provenance,
-  memory, evaluation, autonomy, permissions, and local-first boundaries.
+- Career Forge is the active specialization: Stage 14 establishes its core and
+  Stage 22 integrates mature Friday capabilities. Market/trading and creator
+  ideas are explicitly deferred outside the active roadmap.
 
 The product definition of done is **Friday — Local Personal Cognitive Operating
 System**: local chat and voice; cinematic interface; private RAG/OCR; repository/
 code intelligence; planning/tools/validation; safe autonomous execution; Git/
 isolation/recovery; persistent personal memory; vision/screen awareness; safe
 desktop control; proactive automation; role orchestration; research/self-learning;
-market intelligence and adaptive trading research; cognitive amplification; and
-creator/media/business intelligence. The unifying system is `CURRENT LOCAL LLM +
+Career Forge learning intelligence and cognitive amplification. The unifying
+system is `CURRENT LOCAL LLM +
 MEMORY + KNOWLEDGE + RETRIEVAL + SKILLS + TOOLS + PLANNING + OBSERVATION +
 VERIFICATION + EXPERIENCE + SPECIALIZED CAPABILITIES = FRIDAY`. High-risk work
-retains explicit review, and Stage 20 does not authorize real-money execution.
+retains explicit review. Deferred specializations do not imply transaction or
+publication authority.
 
 ## Stage 12C-A — inline wake command semantics
 

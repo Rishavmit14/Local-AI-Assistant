@@ -39,8 +39,9 @@ adding a model now.
 Friday is not a cloud-AI wrapper and must not require OpenAI, ChatGPT/Astra,
 Anthropic, Gemini, paid inference, cloud GPUs, or proprietary intelligence
 services for core cognition. External data adapters retain provenance, freshness,
-permissions, and failure boundaries. Stages 20–22 specialize the same coherent
-Friday platform after their prerequisite stages; they are mandatory planned
-scope, not current implementation. Benchmarks must distinguish raw current-model
+permissions, and failure boundaries. Active Stages 20–22 develop research,
+cognitive amplification, and Career Forge advanced integration. Market/trading
+and creator/media ideas are deferred outside the active roadmap by ADR 0015.
+Benchmarks must distinguish raw current-model
 ability from the same model enhanced by Friday's memory, retrieval, tools,
 verification, skills, and experience.
