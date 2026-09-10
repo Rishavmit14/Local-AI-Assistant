@@ -308,6 +308,13 @@ Stage 14 remains deliberately bounded to the V1 projections and controls that
 exercise its accepted core; perception, desktop workspaces, and richer learning
 analytics remain later extensions of those surfaces.
 
+## 2026-09-10 — Stage 14 cinematic Career Forge V1 projection
+
+The existing Friday frontend now renders LEARN, MAP, PROJECTS, and PROGRESS from
+the local Career Forge journey and can begin only the service-selected
+dependency-ready mission. It retains the one Friday experience: no second
+runtime, model, voice path, or promotion/publication authority was added.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

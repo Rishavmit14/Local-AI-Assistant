@@ -1,4 +1,6 @@
 import type {
+  CareerForgeJourney,
+  CareerForgeMission,
   ConversationRequest,
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
@@ -44,6 +46,38 @@ export class FridayRuntimeClient {
     }
 
     return response.json() as Promise<FridayRuntimeEvent[]>;
+  }
+
+  async getCareerJourney(signal?: AbortSignal): Promise<CareerForgeJourney> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/career-forge/journey`,
+      { signal },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Career Forge journey request failed: ${response.status}`);
+    }
+
+    return response.json() as Promise<CareerForgeJourney>;
+  }
+
+  async startCareerMission(signal?: AbortSignal): Promise<CareerForgeMission> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/career-forge/missions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+        signal,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Career Forge mission request failed: ${response.status}`);
+    }
+
+    const body = await response.json() as { mission: CareerForgeMission };
+    return body.mission;
   }
 
   subscribe(

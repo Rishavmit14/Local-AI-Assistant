@@ -119,6 +119,10 @@ learning product: LEARN, MAP, PROJECTS, and PROGRESS are projections of the
 same local Learner Twin and conversation/voice session. Later perception and
 desktop-control capabilities extend that presentation boundary rather than
 creating a parallel frontend or voice path.
+The first Stage 14 cinematic projection calls only the existing local journey and
+dependency-gated mission-start endpoints. It renders unknown progress honestly;
+the frontend has no Learner Twin advancement, publishing, tool, or desktop
+authority.
 
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as

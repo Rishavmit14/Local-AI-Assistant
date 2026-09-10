@@ -87,3 +87,41 @@ export interface ConversationRequest {
   temperature?: number;
   max_tokens?: number;
 }
+
+export interface CareerForgeCompetency {
+  competency: {
+    competency_id: string;
+    domain: string;
+    title: string;
+    prerequisites: string[];
+    project_family: string | null;
+  };
+  mastery: string;
+}
+
+export interface CareerForgeMission {
+  mission_id: string;
+  competency_id: string;
+  title: string;
+  state: string;
+  resume_point: Record<string, unknown>;
+  assistance_level: string | null;
+}
+
+export interface CareerForgeMissionBrief {
+  competency_id: string;
+  title: string;
+  why_it_matters: string;
+  verification: string;
+  mental_model: string;
+  owner_attempt: string;
+  teach_back: string;
+}
+
+export interface CareerForgeJourney {
+  target: string;
+  current_mission: CareerForgeMission | null;
+  next_competency: CareerForgeCompetency["competency"] | null;
+  recommended_mission: CareerForgeMissionBrief | null;
+  competencies: CareerForgeCompetency[];
+}

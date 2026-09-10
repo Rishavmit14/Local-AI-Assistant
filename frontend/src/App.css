@@ -134,6 +134,40 @@
   color: rgba(180, 214, 224, 0.44);
 }
 
+.career-forge-console {
+  position: absolute;
+  top: 104px;
+  right: 44px;
+  z-index: 30;
+  width: min(310px, calc(100vw - 88px));
+  padding: 16px;
+  border: 1px solid rgba(var(--core-rgb), 0.18);
+  background: rgba(2, 8, 12, 0.72);
+  box-shadow: inset 0 0 28px rgba(var(--core-rgb), 0.025), 0 16px 48px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(16px);
+}
+
+.career-forge-heading,
+.career-forge-section h2 {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: rgba(var(--core-rgb), 0.76);
+}
+
+.career-forge-heading { display: flex; justify-content: space-between; }
+.career-forge-heading small { color: rgba(196, 222, 229, 0.44); font-size: 7px; }
+.career-forge-section { margin-top: 14px; }
+.career-forge-section h2 { margin: 0 0 6px; }
+.career-forge-section strong { display: block; font-size: 12px; color: rgba(235, 248, 251, 0.9); }
+.career-forge-section p, .career-forge-map span, .career-forge-projects span, .career-forge-error { margin: 0; font-size: 10px; line-height: 1.45; color: rgba(194, 220, 227, 0.63); }
+.career-forge-map, .career-forge-projects { display: grid; gap: 4px; }
+.career-forge-projects { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.career-forge-projects span { color: rgba(var(--core-rgb), 0.66); }
+.career-forge-section button { margin-top: 8px; border: 1px solid rgba(var(--core-rgb), 0.34); background: transparent; color: rgba(var(--core-rgb), 0.92); font: inherit; font-size: 8px; font-weight: 700; letter-spacing: 0.16em; padding: 7px 9px; cursor: pointer; }
+.career-forge-section button:disabled { cursor: wait; opacity: 0.5; }
+.career-forge-error { margin-top: 12px; color: rgba(255, 105, 122, 0.9); }
+
 .neural-stage {
   position: absolute;
   inset: 0;

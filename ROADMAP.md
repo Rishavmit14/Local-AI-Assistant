@@ -205,6 +205,11 @@ only bounded projections and controls needed by its core loop; rich workspaces,
 perception, and desktop assistance remain later-stage enhancements to these same
 surfaces.
 
+The active V1 projection reads the local journey and begins only the API-selected
+dependency-ready mission. It shows the four surfaces without fabricating
+independence, retention, or public-evidence status; mastery advancement and all
+other Learner Twin mutation remain in the existing bounded local API.
+
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 
 Add safe read-only screen capture, active-window/application context, vision-model interpretation, OCR where appropriate, UI-state understanding, provenance, and privacy controls. Visual perception initially has no mutation authority.

@@ -3,6 +3,7 @@ import "./App.css";
 import { useFridayRuntime } from "./app";
 import {
   ConversationComposer,
+  CareerForgeConsole,
   NeuralCore,
 } from "./components";
 
@@ -33,6 +34,8 @@ function App() {
         state={state.runtimeState}
         voiceSignal={state.voiceSignal}
       />
+
+      <CareerForgeConsole />
 
       <ConversationComposer
         runtimeState={state.runtimeState}

@@ -1036,6 +1036,12 @@ this durable product boundary; Stage 14 V1 remains limited to evidence-backed
 local projections and mission controls, while perception and desktop-control
 stages extend the same interface.
 
+The first V1 cinematic projection is accepted on the Stage 14 branch: it reads
+the local journey, renders LEARN/MAP/PROJECTS/PROGRESS, and can start only the
+dependency-ready mission selected by the existing service. It makes no claims
+about unrecorded independence, retention, or public evidence and has no mastery,
+publication, tool, or desktop authority.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic

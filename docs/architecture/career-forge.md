@@ -42,6 +42,13 @@ interview readiness, and project execution grow only as later accepted work
 supplies evidence. Stages 15 and 16 enhance these same surfaces with perception
 and policy-governed desktop assistance; they do not introduce another frontend.
 
+The initial cinematic projection reads the local journey, renders the four
+surface headings, and can request only the API-selected dependency-ready mission.
+It deliberately displays unrecorded independence, retention, and public-evidence
+dimensions as awaiting proof rather than inventing progress. Mission authoring,
+mastery promotion, publication, shell access, and desktop control remain outside
+the frontend's authority.
+
 ## Competency and Learner Twin
 
 The canonical, versioned ML/AI Engineer competency graph is dependency ordered:

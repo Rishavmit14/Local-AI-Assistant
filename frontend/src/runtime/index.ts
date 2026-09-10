@@ -7,6 +7,10 @@ export type {
 } from "./store";
 
 export type {
+  CareerForgeCompetency,
+  CareerForgeJourney,
+  CareerForgeMission,
+  CareerForgeMissionBrief,
   ConversationRequest,
   FridayConversationMessage,
   FridayConversationRole,
