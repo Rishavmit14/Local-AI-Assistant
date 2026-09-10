@@ -15,3 +15,8 @@ files. Images are generated private state and must never be committed. OCR,
 screen interpretation, active-window context, retention policy, and the
 cinematic projection remain subsequent Stage 15 work; any later Stage 16 action
 uses an independent policy-governed desktop-control boundary.
+
+On the current GNOME/Wayland host, direct session-bus capture is denied by the
+desktop privacy policy. Friday returns only a bounded permission-required result;
+it cannot bypass that control. A physical owner approval through the desktop's
+capture-consent flow is required for live capture qualification.

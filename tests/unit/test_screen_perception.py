@@ -25,3 +25,11 @@ def test_screen_capture_removes_failed_or_empty_output(tmp_path):
     with pytest.raises(RuntimeError, match="empty"):
         ScreenCaptureService(tmp_path, runner=runner).capture()
     assert not list(tmp_path.glob("*.png"))
+
+
+def test_screen_capture_reports_desktop_permission_without_exposing_error_detail(tmp_path):
+    def runner(_command, **_kwargs):
+        return SimpleNamespace(returncode=1, stderr="GDBus.Error:org.freedesktop.DBus.Error.AccessDenied")
+
+    with pytest.raises(RuntimeError, match="privacy permission"):
+        ScreenCaptureService(tmp_path, runner=runner).capture()

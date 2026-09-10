@@ -1062,6 +1062,12 @@ desktop, shell, or network authority; continue with provenance/retention,
 active-window context, and local interpretation only after this foundation is
 qualified.
 
+Live capture is currently blocked only by GNOME's physical desktop privacy
+consent: direct session-bus capture returns `AccessDenied`, which Friday maps to
+a bounded permission-required result without exposing capture data or bypassing
+desktop policy. Continue Stage 15 provenance/retention/context work; request
+owner physical consent only when the portal-based live capture test is prepared.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic

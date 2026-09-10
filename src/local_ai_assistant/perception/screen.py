@@ -37,8 +37,12 @@ class ScreenCaptureService:
              "false", "false", str(image_path)],
             capture_output=True, text=True, check=False, timeout=20,
         )
-        if result.returncode != 0 or not image_path.is_file():
+        if result.returncode != 0:
             image_path.unlink(missing_ok=True)
+            if "AccessDenied" in (result.stderr or ""):
+                raise RuntimeError("desktop privacy permission is required for screen capture")
+            raise RuntimeError("local screen capture failed")
+        if not image_path.is_file():
             raise RuntimeError("local screen capture failed")
         payload = image_path.read_bytes()
         if not payload:
