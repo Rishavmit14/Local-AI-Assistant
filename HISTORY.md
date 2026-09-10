@@ -214,7 +214,9 @@ After a controlled reload, Friday completed a clean 12-minute listening window
 and two physical inline commands. Each reached LLM/Piper and resumed wake
 capture; health finished with capture/listening and all resident workers alive,
 `recovery_count=0`, and null error type/detail. This closes Stage 12's bounded
-long-running real-microphone stability/observability qualification.
+long-running real-microphone stability/observability qualification. The
+implementation recovery checkpoint is
+`94b0fedb47f7b4f954798d87d36b89d5ce5b57d6`.
 
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 

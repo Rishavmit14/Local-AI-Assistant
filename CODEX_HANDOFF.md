@@ -1088,11 +1088,11 @@ were verified equal with a clean accepted tree. Stage 12N exposes resident wake
 and Piper worker health; all earlier Stage 12 checkpoints remain closed unless
 real regression evidence reopens them.
 
-Latest accepted capability candidate: Stage 12O bounded real-microphone
-stability and actionable observability. Publish its recovery commit after the
-complete documentation and final repository gates. Stage 12 is then closed and
-the next canonical capability is Stage 13 Persistent Friday Memory on a new
-`stage-13/...` branch; do not begin Career Forge before that foundation.
+Latest accepted capability recovery checkpoint:
+`94b0fedb47f7b4f954798d87d36b89d5ce5b57d6`
+(`Stage 12: qualify voice stability observability`). Stage 12 is closed; the
+next canonical capability is Stage 13 Persistent Friday Memory on a new
+`stage-13/...` branch. Do not begin Career Forge before that foundation.
 
 Initial 12F finding: production wake and HTTP conversation share one runtime and
 LLM service without an admission boundary. Concurrent HTTP streams can both emit
