@@ -410,7 +410,7 @@ Friday can now open only explicitly allowlisted HTTPS origins after proposal,
 approval, and audit. The fixed local `gio open` path has no browser automation,
 web-content access, download, credential, or cookie authority.
 
-## 2026-09-10 — Stage 16 root-bound file-open candidate
+## 2026-09-10 — Stage 16 root-bound file-open accepted
 
 Friday can open only an existing regular file beneath an explicit local root
 after proposal, approval, and audit. It has no file read API, enumeration, or
