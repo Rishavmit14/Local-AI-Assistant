@@ -12,6 +12,7 @@ import uvicorn
 from local_ai_assistant.career_forge import CareerForgeService
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
+from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
 from local_ai_assistant.perception import (
@@ -66,6 +67,11 @@ def build_presentation_components(
     career_forge = CareerForgeService(resolved_config.paths.career_forge_db)
     perception = ScreenCaptureService(resolved_config.paths.perception_dir)
     perception.set_vision_classifier(LocalVisionClassifier(resolved_config.paths.vision_cache_dir))
+    desktop_control = DesktopControlService(
+        resolved_config.paths.desktop_control_db,
+        allowed_apps=resolved_config.desktop_control.allowed_apps,
+        approval_seconds=resolved_config.desktop_control.approval_seconds,
+    )
 
     conversation = FridayConversationService(
         llm=llm,
@@ -98,6 +104,7 @@ def build_presentation_components(
         career_forge=career_forge,
         perception=perception,
         active_window=ActiveWindowService(),
+        desktop_control=desktop_control,
     )
 
     return (

@@ -5,6 +5,7 @@ import type {
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
   FridayScreenCapture,
+  FridayDesktopAction,
 } from "./types";
 
 export class FridayRuntimeClient {
@@ -101,6 +102,24 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/capture`, { method: "POST" });
     if (!response.ok) throw new Error(`screen capture request failed: ${response.status}`);
     return (await response.json() as { capture: FridayScreenCapture }).capture;
+  }
+
+  async getDesktopActions(signal?: AbortSignal): Promise<FridayDesktopAction[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/desktop/actions`, { signal });
+    if (!response.ok) throw new Error(`desktop action request failed: ${response.status}`);
+    return (await response.json() as { actions: FridayDesktopAction[] }).actions;
+  }
+
+  async approveDesktopAction(actionId: string): Promise<FridayDesktopAction> {
+    const response = await fetch(`${this.baseUrl}/api/v1/desktop/actions/${encodeURIComponent(actionId)}/approve`, { method: "POST" });
+    if (!response.ok) throw new Error(`desktop approval failed: ${response.status}`);
+    return (await response.json() as { action: FridayDesktopAction }).action;
+  }
+
+  async executeDesktopAction(actionId: string): Promise<FridayDesktopAction> {
+    const response = await fetch(`${this.baseUrl}/api/v1/desktop/actions/${encodeURIComponent(actionId)}/execute`, { method: "POST" });
+    if (!response.ok) throw new Error(`desktop action failed: ${response.status}`);
+    return (await response.json() as { action: FridayDesktopAction }).action;
   }
 
   subscribe(

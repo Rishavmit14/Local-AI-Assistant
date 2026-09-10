@@ -139,3 +139,13 @@ export interface FridayScreenCapture {
   byte_size: number;
   source: string;
 }
+
+export interface FridayDesktopAction {
+  action_id: string;
+  action: "focus_app" | "launch_app";
+  app_id: string;
+  state: string;
+  created_at: string;
+  approved_at: string | null;
+  executed_at: string | null;
+}

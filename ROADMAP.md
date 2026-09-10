@@ -263,6 +263,11 @@ Control is next and must remain an independent policy-governed mutation boundary
 
 Add policy-governed application launch/focus, bounded keyboard/mouse/UI actions, browser interaction, local file/application operations, permission classes, audit, and approval for destructive/high-risk actions.
 
+The active foundation is a separate local action lifecycle: an exact
+empty-by-default app allowlist, SQLite audit records, proposal, explicit
+approval, and one-time fixed-vector GNOME focus/GIO launch execution. It has no
+arbitrary shell, keyboard, mouse, browser, file, or perception authority.
+
 ## Stage 17 — Autonomous Assistant Execution (**Planned**)
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.

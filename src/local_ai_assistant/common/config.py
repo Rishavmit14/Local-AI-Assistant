@@ -85,6 +85,7 @@ class PathConfig:
     career_forge_db: Path = PROJECT_ROOT / "var/career-forge/learner.sqlite3"
     perception_dir: Path = PROJECT_ROOT / "var/perception"
     vision_cache_dir: Path = Path("/AI/cache/huggingface")
+    desktop_control_db: Path = PROJECT_ROOT / "var/desktop-control/actions.sqlite3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -187,6 +188,12 @@ class GatewayConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class DesktopControlConfig:
+    allowed_apps: tuple[str, ...] = ()
+    approval_seconds: int = 60
+
+
+@dataclass(frozen=True, slots=True)
 class AppConfig:
     llama: LlamaConfig = field(default_factory=LlamaConfig)
     paths: PathConfig = field(default_factory=PathConfig)
@@ -201,6 +208,7 @@ class AppConfig:
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     isolation: IsolationConfig = field(default_factory=IsolationConfig)
     gateway: GatewayConfig = field(default_factory=GatewayConfig)
+    desktop_control: DesktopControlConfig = field(default_factory=DesktopControlConfig)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AppConfig:
@@ -233,6 +241,7 @@ class AppConfig:
             ),
             perception_dir=_path(values.get("LOCAL_AI_PERCEPTION_DIR", str(var_dir / "perception"))),
             vision_cache_dir=_path(values.get("LOCAL_AI_VISION_CACHE_DIR", "/AI/cache/huggingface")),
+            desktop_control_db=_path(values.get("LOCAL_AI_DESKTOP_CONTROL_DB", str(var_dir / "desktop-control/actions.sqlite3"))),
         )
         document = DocumentRetrievalConfig(
             chunk_size=_integer(values, "LOCAL_AI_RAG_CHUNK_SIZE", 450),
@@ -249,6 +258,10 @@ class AppConfig:
             bm25_top_k=_integer(values, "LOCAL_AI_CODE_BM25_TOP_K", 12),
             final_top_k=_integer(values, "LOCAL_AI_CODE_FINAL_TOP_K", 6),
             rrf_k=_integer(values, "LOCAL_AI_RRF_K", 60),
+        )
+        desktop_control = DesktopControlConfig(
+            allowed_apps=tuple(item.strip() for item in values.get("LOCAL_AI_DESKTOP_ALLOWED_APPS", "").split(",") if item.strip()),
+            approval_seconds=_integer(values, "LOCAL_AI_DESKTOP_APPROVAL_SECONDS", 60, maximum=600),
         )
         if document.chunk_overlap >= document.chunk_size:
             raise ConfigurationError("LOCAL_AI_RAG_CHUNK_OVERLAP must be smaller than chunk size")
@@ -371,6 +384,7 @@ class AppConfig:
                 github_enabled=_boolean(values, "LOCAL_AI_GITHUB_ENABLED", False),
                 github_api_host=github_api_host,
             ),
+            desktop_control=desktop_control,
         )
 
 

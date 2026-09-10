@@ -20,6 +20,7 @@ from local_ai_assistant.career_forge import (
     MasteryLevel,
     TutorMode,
 )
+from local_ai_assistant.desktop import DesktopAction, DesktopControlService
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
 
@@ -126,6 +127,7 @@ def create_presentation_app(
     career_forge: CareerForgeService | None = None,
     perception: ScreenCaptureService | None = None,
     active_window: ActiveWindowService | None = None,
+    desktop_control: DesktopControlService | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -179,6 +181,44 @@ def create_presentation_app(
         if perception is None:
             raise HTTPException(status_code=404, detail="screen perception is unavailable")
         return perception
+
+    def owner_desktop_control() -> DesktopControlService:
+        if desktop_control is None:
+            raise HTTPException(status_code=404, detail="desktop control is unavailable")
+        return desktop_control
+
+    @app.get("/api/v1/desktop/actions")
+    def recent_desktop_actions(limit: int = 20):
+        try:
+            return {"actions": [asdict(item) for item in owner_desktop_control().recent(limit)]}
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/v1/desktop/actions")
+    async def propose_desktop_action(request: Request):
+        try:
+            body = await request.json()
+            action = DesktopAction(body.get("action"))
+            app_id = body.get("app_id")
+            if not isinstance(app_id, str):
+                raise ValueError("desktop app is not allowed")
+            return {"action": asdict(owner_desktop_control().propose(action, app_id))}
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/v1/desktop/actions/{action_id}/approve")
+    def approve_desktop_action(action_id: str):
+        try:
+            return {"action": asdict(owner_desktop_control().approve(action_id))}
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/desktop/actions/{action_id}/execute")
+    def execute_desktop_action(action_id: str):
+        try:
+            return {"action": asdict(owner_desktop_control().execute(action_id))}
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/api/v1/perception/active-window")
     def active_window_context():

@@ -1112,6 +1112,13 @@ Stage 12M bounds the Piper worker event handoff. Stage 12 now continues with
 Stage 12N exposes resident worker health. Stage 12 now continues with barge-in
 observability and longer-running stability.
 
+Stage 16 is active on `stage-16/safe-desktop-control`. Its first candidate is a
+separate empty-by-default allowlist, SQLite proposal/approval/execution audit,
+and fixed GNOME focus/GIO launch vectors. The UI only projects a pending action
+and permits an explicit approval; it has no action-creation or policy-bypass
+authority. Continue with complete qualification before expanding any desktop
+capability.
+
 Future engineering sessions must compare this prose with the current branch, roadmap, architecture, history, ADRs, tests, and actual runtime. Actual code/runtime evidence wins when historical prose disagrees.
 
 ## Stage 12C-A — inline wake command semantics

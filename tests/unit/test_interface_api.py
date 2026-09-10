@@ -5,6 +5,7 @@ import threading
 from fastapi.testclient import TestClient
 
 from local_ai_assistant.career_forge import CareerForgeService
+from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.events import FridayEventType
@@ -96,6 +97,27 @@ def test_memory_capture_requires_an_explicit_complete_owner_record(tmp_path):
     ] == "prefers concise answers"
     unavailable, _ = make_client()
     assert unavailable.get("/api/v1/memory/recall", params={"subject": "owner"}).status_code == 404
+
+
+def test_desktop_actions_require_explicit_approval_before_execution(tmp_path):
+    calls = []
+    control = DesktopControlService(
+        tmp_path / "desktop.sqlite3", allowed_apps=("org.gnome.Terminal",),
+        runner=lambda command, **_kwargs: calls.append(command) or type("Result", (), {"returncode": 0})(),
+    )
+    runtime = FridayRuntime("desktop-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime), desktop_control=control,
+    ))
+    proposed = client.post("/api/v1/desktop/actions", json={
+        "action": "focus_app", "app_id": "org.gnome.Terminal",
+    })
+    assert proposed.status_code == 200
+    action_id = proposed.json()["action"]["action_id"]
+    assert client.post(f"/api/v1/desktop/actions/{action_id}/execute").status_code == 409
+    assert client.post(f"/api/v1/desktop/actions/{action_id}/approve").status_code == 200
+    assert client.post(f"/api/v1/desktop/actions/{action_id}/execute").json()["action"]["state"] == "executed"
+    assert calls[0][-2:] == ["org.gnome.Shell.FocusApp", "org.gnome.Terminal"]
 
 
 def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
@@ -543,7 +565,7 @@ def test_conversation_rejects_empty_prompt_without_llm_activity():
     assert runtime.events_since() == ()
 
 
-def test_presentation_api_has_no_execution_routes():
+def test_presentation_api_has_no_unbounded_execution_routes():
     client, _ = make_client()
 
     schema = client.get("/openapi.json").json()
@@ -558,6 +580,9 @@ def test_presentation_api_has_no_execution_routes():
         "/api/v1/runtime/state",
         "/api/v1/voice/health",
         "/api/v1/interaction/state",
+        "/api/v1/desktop/actions",
+        "/api/v1/desktop/actions/{action_id}/approve",
+        "/api/v1/desktop/actions/{action_id}/execute",
         "/api/v1/perception/screen/capture",
         "/api/v1/perception/active-window",
         "/api/v1/perception/screen/captures",

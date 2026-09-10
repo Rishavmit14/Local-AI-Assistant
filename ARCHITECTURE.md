@@ -131,6 +131,13 @@ offline cached specialist. The specialist is not a general-purpose model and
 does not download or transmit pixels. Perception has no desktop-control, shell,
 network, or mutation authority. See `docs/architecture/perception.md`.
 
+Stage 16 starts at a separate local desktop-control boundary. It accepts only
+exact app identifiers from an empty-by-default local allowlist and records a
+proposal, explicit approval, and one-time execution in SQLite before invoking a
+fixed GNOME focus or GIO launch vector. It has no arbitrary shell, keyboard,
+mouse, browser, file, or perception shortcut. The cinematic UI can display a
+pending action and requires an explicit approval click; it cannot bypass policy.
+
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as
 UNVERIFIED, and a mission retains exact resume and assistance-bearing evidence.
