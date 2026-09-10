@@ -4,6 +4,7 @@ import threading
 
 from fastapi.testclient import TestClient
 
+from local_ai_assistant.autonomy import ObjectiveService
 from local_ai_assistant.career_forge import CareerForgeService
 from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.interface.api import create_presentation_app
@@ -118,6 +119,19 @@ def test_desktop_actions_require_explicit_approval_before_execution(tmp_path):
     assert client.post(f"/api/v1/desktop/actions/{action_id}/approve").status_code == 200
     assert client.post(f"/api/v1/desktop/actions/{action_id}/execute").json()["action"]["state"] == "executed"
     assert calls[0][-2:] == ["org.gnome.Shell.FocusApp", "org.gnome.Terminal"]
+
+
+def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):
+    runtime = FridayRuntime("objective-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        autonomy=ObjectiveService(tmp_path / "objectives.sqlite3"),
+    ))
+    created = client.post("/api/v1/objectives", json={"text": "Inspect project status"})
+    assert created.status_code == 200
+    objective_id = created.json()["objective"]["objective_id"]
+    assert client.post(f"/api/v1/objectives/{objective_id}/resume").json()["objective"]["state"] == "planning"
+    assert client.post(f"/api/v1/objectives/{objective_id}/cancel").json()["objective"]["state"] == "cancelled"
 
 
 def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
@@ -580,6 +594,10 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/runtime/state",
         "/api/v1/voice/health",
         "/api/v1/interaction/state",
+        "/api/v1/objectives",
+        "/api/v1/objectives/{objective_id}",
+        "/api/v1/objectives/{objective_id}/resume",
+        "/api/v1/objectives/{objective_id}/cancel",
         "/api/v1/desktop/actions",
         "/api/v1/desktop/actions/{action_id}/approve",
         "/api/v1/desktop/actions/{action_id}/execute",

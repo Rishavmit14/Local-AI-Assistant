@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import uvicorn
 
+from local_ai_assistant.autonomy import ObjectiveService
 from local_ai_assistant.career_forge import CareerForgeService
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
@@ -75,6 +76,7 @@ def build_presentation_components(
         allowed_accessibility_targets=resolved_config.desktop_control.allowed_accessibility_targets,
         approval_seconds=resolved_config.desktop_control.approval_seconds,
     )
+    autonomy = ObjectiveService(resolved_config.paths.autonomy_db)
 
     conversation = FridayConversationService(
         llm=llm,
@@ -108,6 +110,7 @@ def build_presentation_components(
         perception=perception,
         active_window=ActiveWindowService(),
         desktop_control=desktop_control,
+        autonomy=autonomy,
     )
 
     return (

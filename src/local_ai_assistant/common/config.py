@@ -86,6 +86,7 @@ class PathConfig:
     perception_dir: Path = PROJECT_ROOT / "var/perception"
     vision_cache_dir: Path = Path("/AI/cache/huggingface")
     desktop_control_db: Path = PROJECT_ROOT / "var/desktop-control/actions.sqlite3"
+    autonomy_db: Path = PROJECT_ROOT / "var/autonomy/objectives.sqlite3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,6 +246,7 @@ class AppConfig:
             perception_dir=_path(values.get("LOCAL_AI_PERCEPTION_DIR", str(var_dir / "perception"))),
             vision_cache_dir=_path(values.get("LOCAL_AI_VISION_CACHE_DIR", "/AI/cache/huggingface")),
             desktop_control_db=_path(values.get("LOCAL_AI_DESKTOP_CONTROL_DB", str(var_dir / "desktop-control/actions.sqlite3"))),
+            autonomy_db=_path(values.get("LOCAL_AI_AUTONOMY_DB", str(var_dir / "autonomy/objectives.sqlite3"))),
         )
         document = DocumentRetrievalConfig(
             chunk_size=_integer(values, "LOCAL_AI_RAG_CHUNK_SIZE", 450),

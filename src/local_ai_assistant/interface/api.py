@@ -14,6 +14,7 @@ try:
 except ImportError:  # optional dependency; validated when app creation is requested
     FastAPI = HTTPException = Request = StreamingResponse = None
 
+from local_ai_assistant.autonomy import ObjectiveService
 from local_ai_assistant.career_forge import (
     AssistanceLevel,
     CareerForgeService,
@@ -128,6 +129,7 @@ def create_presentation_app(
     perception: ScreenCaptureService | None = None,
     active_window: ActiveWindowService | None = None,
     desktop_control: DesktopControlService | None = None,
+    autonomy: ObjectiveService | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -186,6 +188,43 @@ def create_presentation_app(
         if desktop_control is None:
             raise HTTPException(status_code=404, detail="desktop control is unavailable")
         return desktop_control
+
+    def owner_autonomy() -> ObjectiveService:
+        if autonomy is None:
+            raise HTTPException(status_code=404, detail="objective lifecycle is unavailable")
+        return autonomy
+
+    @app.post("/api/v1/objectives")
+    async def create_objective(request: Request):
+        try:
+            body = await request.json()
+            text = body.get("text")
+            if not isinstance(text, str):
+                raise ValueError("objective text must be between 1 and 4000 characters")
+            return {"objective": asdict(owner_autonomy().create(text))}
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/v1/objectives/{objective_id}")
+    def get_objective(objective_id: str):
+        try:
+            return {"objective": asdict(owner_autonomy().get(objective_id))}
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/api/v1/objectives/{objective_id}/resume")
+    def resume_objective(objective_id: str):
+        try:
+            return {"objective": asdict(owner_autonomy().resume(objective_id))}
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/objectives/{objective_id}/cancel")
+    def cancel_objective(objective_id: str):
+        try:
+            return {"objective": asdict(owner_autonomy().cancel(objective_id))}
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/api/v1/desktop/actions")
     def recent_desktop_actions(limit: int = 20):
