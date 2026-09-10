@@ -40,6 +40,22 @@ def test_conflict_delete_and_expiry_are_not_recalled(tmp_path):
     assert not m.recall("x")
 
 
+def test_conflict_requires_explicit_owner_resolution(tmp_path):
+    memory = FridayMemoryService(tmp_path / "m.sqlite3")
+    record = memory.remember(
+        kind=MemoryKind.FACT,
+        subject="owner",
+        content="uses local models",
+        provenance="owner",
+        confidence=1,
+    )
+    memory.mark_conflicted(record.memory_id)
+    assert not memory.recall("owner")
+    assert memory.resolve_conflict(record.memory_id, keep=True).state is MemoryState.ACTIVE
+    memory.mark_conflicted(record.memory_id)
+    assert memory.resolve_conflict(record.memory_id, keep=False).state is MemoryState.DELETED
+
+
 def test_memory_lexical_search_is_active_only(tmp_path):
     memory = FridayMemoryService(tmp_path / "memory.sqlite3")
     found = memory.remember(

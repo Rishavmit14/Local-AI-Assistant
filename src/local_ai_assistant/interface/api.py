@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import threading
 from collections.abc import Callable, Iterator
+from dataclasses import asdict
 from queue import Empty
 
 try:
@@ -12,6 +13,8 @@ try:
     from fastapi.responses import StreamingResponse
 except ImportError:  # optional dependency; validated when app creation is requested
     FastAPI = HTTPException = Request = StreamingResponse = None
+
+from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
@@ -112,6 +115,7 @@ def create_presentation_app(
     interactions: FridayInteractionCoordinator | None = None,
     presentation_pause: Callable[[], None] | None = None,
     presentation_resume: Callable[[], None] | None = None,
+    memory: FridayMemoryService | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -150,6 +154,54 @@ def create_presentation_app(
     @app.get("/api/v1/interaction/state")
     def interaction_state():
         return interaction_coordinator.snapshot().to_dict()
+
+    def owner_memory() -> FridayMemoryService:
+        if memory is None:
+            raise HTTPException(status_code=404, detail="persistent memory is unavailable")
+        return memory
+
+    @app.get("/api/v1/memory/recall")
+    def memory_recall(subject: str, limit: int = 20):
+        try:
+            return [asdict(item) for item in owner_memory().recall(subject, limit)]
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/v1/memory/remember")
+    async def memory_remember(request: Request):
+        """Capture only a direct, explicit owner request; never model output."""
+        try:
+            body = await request.json()
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail="malformed JSON request") from exc
+        required = ("kind", "subject", "content", "provenance", "confidence")
+        if any(name not in body for name in required):
+            raise HTTPException(status_code=400, detail="complete memory record is required")
+        if any(
+            not isinstance(body[name], str) or not body[name].strip()
+            for name in ("kind", "subject", "content", "provenance")
+        ) or len(body["subject"]) > max_prompt_chars or len(body["content"]) > max_prompt_chars:
+            raise HTTPException(status_code=400, detail="bounded memory text is required")
+        if not isinstance(body["confidence"], (int, float)):
+            raise HTTPException(status_code=400, detail="memory confidence must be numeric")
+        if any(
+            name in body and body[name] is not None and not isinstance(body[name], str)
+            for name in ("supersedes", "expires_at")
+        ):
+            raise HTTPException(status_code=400, detail="memory lifecycle values must be strings")
+        try:
+            record = owner_memory().remember(
+                kind=MemoryKind(body["kind"]),
+                subject=body["subject"],
+                content=body["content"],
+                provenance=body["provenance"],
+                confidence=float(body["confidence"]),
+                supersedes=body.get("supersedes"),
+                expires_at=body.get("expires_at"),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return asdict(record)
 
     @app.get("/api/v1/runtime/events")
     def runtime_events(cursor: int = 0, limit: int = 100):

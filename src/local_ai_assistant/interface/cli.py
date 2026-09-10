@@ -85,6 +85,7 @@ def build_presentation_components(
         presentation_resume=(
             wake_voice.resume_after_presentation if wake_voice is not None else None
         ),
+        memory=memory,
     )
 
     return (

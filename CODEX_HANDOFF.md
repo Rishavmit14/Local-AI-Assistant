@@ -1103,6 +1103,12 @@ working-memory retention, typed relationship edges, and lazy local BGE semantic
 ranking over SQLite-cached vectors. Deliberate owner/session capture policy and
 richer conflict-resolution qualification remain unfinished Stage 13 scope.
 
+The current Stage 13 candidate adds an explicit complete-record owner capture
+and read-back boundary to the local presentation API. It also makes conflict
+resolution explicit (`keep` restores an active record; `discard` deletes it).
+No chat/model text is treated as a memory-write command. Qualify and publish
+this boundary before starting the next remaining Stage 13 capability.
+
 Initial 12F finding: production wake and HTTP conversation share one runtime and
 LLM service without an admission boundary. Concurrent HTTP streams can both emit
 user events before one fails an invalid transition; HTTP can win a race while a

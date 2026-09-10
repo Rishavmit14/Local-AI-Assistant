@@ -160,9 +160,11 @@ and explicit forgetting. It now has bounded per-subject working retention,
 provenance-bearing subject relationships, owner CLI controls, and bounded hybrid
 lexical/local-BGE retrieval. Production conversation can consume only labelled
 untrusted read-only memory context. It deliberately does not overload task
-history or grant memory mutation authority to model output. Deliberate
-owner/session capture policy and richer conflict-resolution qualification remain
-active Stage 13 work.
+history or grant memory mutation authority to model output. Owner/session capture
+requires a complete direct owner API/CLI request; conflicted records stay
+excluded until an explicit owner keep/discard resolution. Real owner-workflow
+qualification and richer conflict-resolution qualification remain active Stage 13
+work.
 
 ## Stage 14 — Friday Career Forge Core V1 (**Planned**)
 

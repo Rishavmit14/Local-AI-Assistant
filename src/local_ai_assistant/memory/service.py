@@ -409,6 +409,23 @@ class FridayMemoryService:
     def mark_conflicted(self, memory_id: str) -> None:
         self._state(memory_id, MemoryState.CONFLICTED)
 
+    def resolve_conflict(self, memory_id: str, *, keep: bool) -> MemoryRecord:
+        """Apply an explicit owner decision to a conflicted record.
+
+        A conflict is never silently promoted by retrieval or model output.  The
+        owner may restore the record as active or retire it as deleted; a newer
+        replacement remains an explicit ``remember(..., supersedes=...)`` action.
+        """
+        state = MemoryState.ACTIVE if keep else MemoryState.DELETED
+        with self._db() as db:
+            changed = db.execute(
+                "UPDATE memories SET state=?, updated_at=? WHERE memory_id=? AND state=?",
+                (state, _now(), memory_id, MemoryState.CONFLICTED),
+            ).rowcount
+        if changed != 1:
+            raise ValueError("memory is not conflicted")
+        return self.get(memory_id)
+
     def forget(self, memory_id: str) -> None:
         with self._db() as db:
             changed = db.execute(

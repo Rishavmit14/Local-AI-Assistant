@@ -10,6 +10,7 @@ from local_ai_assistant.interface.events import FridayEventType
 from local_ai_assistant.interface.interaction import FridayInteractionCoordinator
 from local_ai_assistant.interface.runtime import FridayRuntime
 from local_ai_assistant.interface.states import FridayRuntimeState
+from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 
 class FakeStreamingLLM:
@@ -64,6 +65,36 @@ def test_voice_health_is_separate_from_http_liveness():
     assert disabled.get("/api/v1/voice/health").json() == {
         "enabled": False, "status": "disabled",
     }
+
+
+def test_memory_capture_requires_an_explicit_complete_owner_record(tmp_path):
+    runtime = FridayRuntime("memory-api")
+    memory = FridayMemoryService(tmp_path / "memory.sqlite3")
+    client = TestClient(
+        create_presentation_app(
+            runtime,
+            FridayConversationService(FakeStreamingLLM(), runtime),
+            memory=memory,
+        )
+    )
+    rejected = client.post("/api/v1/memory/remember", json={"kind": "fact"})
+    assert rejected.status_code == 400
+    response = client.post(
+        "/api/v1/memory/remember",
+        json={
+            "kind": MemoryKind.PREFERENCE,
+            "subject": "owner",
+            "content": "prefers concise answers",
+            "provenance": "direct owner request",
+            "confidence": 1,
+        },
+    )
+    assert response.status_code == 200
+    assert client.get("/api/v1/memory/recall", params={"subject": "owner"}).json()[0][
+        "content"
+    ] == "prefers concise answers"
+    unavailable, _ = make_client()
+    assert unavailable.get("/api/v1/memory/recall", params={"subject": "owner"}).status_code == 404
 
 
 def test_busy_voice_rejects_http_before_runtime_events():
@@ -472,6 +503,8 @@ def test_presentation_api_has_no_execution_routes():
         "/api/v1/runtime/state",
         "/api/v1/voice/health",
         "/api/v1/interaction/state",
+        "/api/v1/memory/recall",
+        "/api/v1/memory/remember",
         "/api/v1/runtime/events",
         "/api/v1/runtime/events/stream",
         "/api/v1/conversation/stream",

@@ -14,7 +14,10 @@ an explicit lifecycle: `active`, `superseded`, `conflicted`, `expired`, or
 the per-subject working-memory cap (50 by default) are enforced deterministically;
 they change state rather than silently destroying auditability. Owner-facing
 `local-ai-memory` commands support remember/recall/search/forget, retention,
-and relationship operations. The model has no direct mutation authority.
+relationship operations, and conflict resolution. The model has no direct
+mutation authority. Conflicted records remain excluded until the owner explicitly
+restores or discards them; a replacement is a separately provenance-bearing
+supersession.
 
 ## Retrieval and relationships
 
@@ -38,6 +41,9 @@ The production presentation composition constructs this memory service using the
 existing local embedding configuration. `FridayConversationService` receives only
 a bounded, formatted retrieval callback. It labels retrieved text as untrusted
 reference material and keeps it in the system context; it does not let prompts or
-model output write memory. Future Stage 13 work must add deliberate owner/session
-capture policy and richer conflict resolution before memory is considered fully
-accepted.
+model output write memory. Stage 13 still requires richer conflict-resolution
+qualification before memory is considered fully accepted. Direct owner capture is
+available through the local presentation
+API's complete-record `POST /api/v1/memory/remember` endpoint and read-back
+route; incomplete or malformed capture is rejected. This is an explicit input
+path, not natural-language intent inference.

@@ -32,6 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--limit", type=int, default=20)
     forget = commands.add_parser("forget")
     forget.add_argument("memory_id")
+    resolve = commands.add_parser("resolve-conflict")
+    resolve.add_argument("memory_id")
+    resolution = resolve.add_mutually_exclusive_group(required=True)
+    resolution.add_argument("--keep", action="store_true")
+    resolution.add_argument("--discard", action="store_true")
     relate = commands.add_parser("relate")
     relate.add_argument("source_subject")
     relate.add_argument("relationship")
@@ -75,6 +80,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     elif args.command == "forget":
         memory.forget(args.memory_id)
+    elif args.command == "resolve-conflict":
+        print(json.dumps(asdict(memory.resolve_conflict(args.memory_id, keep=args.keep))))
     elif args.command == "relate":
         print(
             json.dumps(

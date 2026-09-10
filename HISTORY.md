@@ -238,6 +238,15 @@ The qualified recovery checkpoint is
 `b65f99926bb4ff4be475c5965d4fd0f4fec34426`. Stage 13 remains active: capture
 policy and conflict-resolution qualification still require evidence.
 
+## 2026-09-10 — Stage 13 explicit capture and conflict candidate
+
+The active candidate gives the localhost Friday presentation boundary an explicit
+complete-record owner capture endpoint and read-back route. It does not infer
+memory mutations from chat/model text. Conflicted records remain unavailable to
+retrieval until an explicit owner keep/discard decision. Owner CLI operations
+mirror the resolution policy. This candidate requires full qualification and
+publication before it becomes a recovery checkpoint.
+
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 
 Accepted a shared nonblocking interaction coordinator across physical voice and
