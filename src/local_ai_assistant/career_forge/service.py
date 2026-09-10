@@ -36,6 +36,14 @@ class Mission:
     updated_at: str
 
 
+@dataclass(frozen=True, slots=True)
+class ProjectLink:
+    project_name: str
+    mission_id: str
+    competency_id: str
+    created_at: str
+
+
 MISSION_LOOP = (
     "why_it_matters", "prerequisite_verification", "mental_model", "guided_example",
     "owner_attempt", "minimum_assistance", "independent_attempt", "run_test_experiment",
@@ -73,6 +81,10 @@ class CareerForgeService:
                     assistance_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
                     mode TEXT NOT NULL, level TEXT NOT NULL, content TEXT NOT NULL,
                     created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS mission_projects (
+                    mission_id TEXT PRIMARY KEY, project_name TEXT NOT NULL,
+                    competency_id TEXT NOT NULL, created_at TEXT NOT NULL
                 );
                 """
             )
@@ -164,6 +176,40 @@ class CareerForgeService:
     def mission_loop(self, mission_id: str) -> tuple[str, ...]:
         self.mission(mission_id)
         return MISSION_LOOP
+
+    def link_project(self, mission_id: str) -> ProjectLink:
+        """Attach a mission only to its canonical evolving project family."""
+        mission = self.mission(mission_id)
+        project_name = self.graph[mission.competency_id].project_family
+        if project_name is None:
+            raise ValueError("mission has no canonical project family")
+        with self._db() as db:
+            try:
+                db.execute(
+                    "INSERT INTO mission_projects VALUES(?,?,?,?)",
+                    (mission_id, project_name, mission.competency_id, _now()),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("mission is already linked to a project") from exc
+        return self.project_link(mission_id)
+
+    def project_link(self, mission_id: str) -> ProjectLink:
+        with self._db() as db:
+            row = db.execute(
+                "SELECT project_name, mission_id, competency_id, created_at "
+                "FROM mission_projects WHERE mission_id=?", (mission_id,)
+            ).fetchone()
+        if row is None:
+            raise KeyError(mission_id)
+        return ProjectLink(*row)
+
+    def project_links(self) -> tuple[ProjectLink, ...]:
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT project_name, mission_id, competency_id, created_at "
+                "FROM mission_projects ORDER BY created_at DESC"
+            ).fetchall()
+        return tuple(ProjectLink(*row) for row in rows)
 
     def offer_assistance(self, mission_id: str, mode: TutorMode, level: AssistanceLevel, content: str) -> str:
         """Record minimum progressive help; substantial help remains visible evidence."""

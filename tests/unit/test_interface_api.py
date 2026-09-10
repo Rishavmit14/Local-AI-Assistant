@@ -149,6 +149,7 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
         json={"mastery": "recognize", "evidence_id": evidence.json()["evidence_id"]},
     )
     assert advanced.json()["mastery"] == "recognize"
+    assert client.post(f"/api/v1/career-forge/missions/{mission_id}/project").status_code == 409
 
 
 def test_busy_voice_rejects_http_before_runtime_events():
@@ -559,6 +560,7 @@ def test_presentation_api_has_no_execution_routes():
         "/api/v1/interaction/state",
         "/api/v1/career-forge/journey",
         "/api/v1/career-forge/missions",
+        "/api/v1/career-forge/missions/{mission_id}/project",
         "/api/v1/career-forge/missions/{mission_id}/resume",
         "/api/v1/career-forge/missions/{mission_id}/assistance",
         "/api/v1/career-forge/missions/{mission_id}/evidence",

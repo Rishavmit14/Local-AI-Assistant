@@ -19,6 +19,7 @@ export function CareerForgeConsole() {
   const [journey, setJourney] = useState<CareerForgeJourney | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [linking, setLinking] = useState(false);
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -55,6 +56,27 @@ export function CareerForgeConsole() {
   const verified = journey?.competencies.filter(
     (item) => item.mastery !== "unverified",
   ).length ?? 0;
+  const activeProject = journey?.current_mission
+    ? journey.competencies.find(
+      (item) => item.competency.competency_id === journey.current_mission?.competency_id,
+    )?.competency.project_family
+    : null;
+  const activeMissionLinked = journey?.current_mission
+    ? journey.project_links.some((item) => item.mission_id === journey.current_mission?.mission_id)
+    : false;
+
+  const linkProject = async () => {
+    if (!journey?.current_mission) return;
+    setLinking(true);
+    try {
+      await client.linkCareerMissionProject(journey.current_mission.mission_id);
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not connect this mission");
+    } finally {
+      setLinking(false);
+    }
+  };
 
   return (
     <aside className="career-forge-console" aria-label="Career Forge">
@@ -69,6 +91,9 @@ export function CareerForgeConsole() {
           <>
             <strong>{journey.current_mission.title}</strong>
             <p>Resume point is preserved in your local Learner Twin.</p>
+            {activeProject && !activeMissionLinked ? <button type="button" onClick={() => void linkProject()} disabled={linking}>
+              {linking ? "LINKING" : `CONNECT ${activeProject.toUpperCase()}`}
+            </button> : null}
           </>
         ) : journey?.recommended_mission ? (
           <>
@@ -96,7 +121,7 @@ export function CareerForgeConsole() {
       <section className="career-forge-section" aria-label="Projects">
         <h2>PROJECTS</h2>
         <div className="career-forge-projects">
-          {projects.map((project) => <span key={project}>{project}</span>)}
+          {projects.map((project) => <span key={project}>{project} · {journey?.project_links.filter((item) => item.project_name === project).length ?? 0} linked</span>)}
         </div>
       </section>
 

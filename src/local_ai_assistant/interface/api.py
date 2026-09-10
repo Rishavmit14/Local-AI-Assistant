@@ -182,6 +182,7 @@ def create_presentation_app(
             "current_mission": asdict(active) if active else None,
             "next_competency": asdict(next_item) if next_item else None,
             "recommended_mission": asdict(forge.next_mission_brief()) if next_item else None,
+            "project_links": [asdict(item) for item in forge.project_links()],
             "competencies": [
                 {"competency": asdict(item.competency), "mastery": item.mastery}
                 for item in forge.competencies()
@@ -210,6 +211,13 @@ def create_presentation_app(
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"mission": asdict(mission), "loop": forge.mission_loop(mission.mission_id)}
+
+    @app.post("/api/v1/career-forge/missions/{mission_id}/project")
+    def career_link_project(mission_id: str):
+        try:
+            return {"project_link": asdict(owner_career_forge().link_project(mission_id))}
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/v1/career-forge/missions/{mission_id}/resume")
     async def career_update_resume(mission_id: str, request: Request):

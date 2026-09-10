@@ -123,5 +123,11 @@ export interface CareerForgeJourney {
   current_mission: CareerForgeMission | null;
   next_competency: CareerForgeCompetency["competency"] | null;
   recommended_mission: CareerForgeMissionBrief | null;
+  project_links: Array<{
+    project_name: string;
+    mission_id: string;
+    competency_id: string;
+    created_at: string;
+  }>;
   competencies: CareerForgeCompetency[];
 }

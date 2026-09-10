@@ -64,3 +64,31 @@ def test_public_evidence_gate_rejects_fake_or_unsafe_activity():
         privacy_review_passed=True, documentation_complete=True, artifact_quality_passed=True,
     )
     assert approved.approved and not approved.reasons
+
+
+def test_project_link_is_local_and_limited_to_the_missions_canonical_family(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    python = forge.start_mission("se.python", "Verify Python")
+    with pytest.raises(ValueError, match="no canonical project family"):
+        forge.link_project(python.mission_id)
+
+    evidence = forge.record_evidence(python.mission_id, "explanation", "Explained state")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    engineering = forge.start_mission("se.engineering", "Verify engineering")
+    evidence = forge.record_evidence(engineering.mission_id, "explanation", "Explained typing")
+    forge.advance_mastery("se.engineering", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    delivery = forge.start_mission("se.delivery", "Verify delivery")
+    evidence = forge.record_evidence(delivery.mission_id, "explanation", "Explained tests")
+    forge.advance_mastery("se.delivery", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    data = forge.start_mission("math.data", "Verify data")
+    evidence = forge.record_evidence(data.mission_id, "explanation", "Explained arrays")
+    forge.advance_mastery("math.data", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    maths = forge.start_mission("math.ml", "Verify math")
+    evidence = forge.record_evidence(maths.mission_id, "explanation", "Explained gradients")
+    forge.advance_mastery("math.ml", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    fraud = forge.start_mission("ml.classical", "Build FraudShield baseline")
+    linked = forge.link_project(fraud.mission_id)
+    assert linked.project_name == "FraudShield"
+    assert forge.project_links() == (linked,)
+    with pytest.raises(ValueError, match="already linked"):
+        forge.link_project(fraud.mission_id)

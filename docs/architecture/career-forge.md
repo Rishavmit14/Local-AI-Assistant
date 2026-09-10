@@ -162,6 +162,13 @@ authority. It requires genuine work, validation, secret scanning, privacy/
 proprietary review, documentation, and artifact quality before an artifact can
 qualify for a later explicit publication decision.
 
+V1 can explicitly connect an active mission only to the canonical project family
+declared by its competency. The local Learner Twin records that link and the
+cinematic PROJECTS projection displays it. A project link is learning context,
+not proof of mastery, a Git operation, an execution request, or publication
+authority; mission families without a canonical project cannot be attached
+arbitrarily.
+
 ## V1 success
 
 An owner can invoke learning, receive correct prerequisite verification and a

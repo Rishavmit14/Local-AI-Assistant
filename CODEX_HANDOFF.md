@@ -1042,6 +1042,11 @@ dependency-ready mission selected by the existing service. It makes no claims
 about unrecorded independence, retention, or public evidence and has no mastery,
 publication, tool, or desktop authority.
 
+The active Stage 14 project-link candidate persists an active mission's
+competency-defined project-family link locally and projects it in PROJECTS. It
+cannot attach arbitrary projects and is not mastery evidence or execution/Git/
+publication authority.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic

@@ -315,6 +315,13 @@ the local Career Forge journey and can begin only the service-selected
 dependency-ready mission. It retains the one Friday experience: no second
 runtime, model, voice path, or promotion/publication authority was added.
 
+## 2026-09-10 — Stage 14 local project-link candidate
+
+An active mission can now be connected only to the canonical project family
+declared by its competency, with the local Learner Twin persisting and the
+cinematic PROJECTS surface displaying that relationship. The link is not mastery
+evidence and grants no execution, Git, or publication authority.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

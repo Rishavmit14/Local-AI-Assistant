@@ -80,6 +80,16 @@ export class FridayRuntimeClient {
     return body.mission;
   }
 
+  async linkCareerMissionProject(missionId: string): Promise<void> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/project`,
+      { method: "POST" },
+    );
+    if (!response.ok) {
+      throw new Error(`Career Forge project link failed: ${response.status}`);
+    }
+  }
+
   subscribe(
     cursor: number,
     onEvent: (event: FridayRuntimeEvent) => void,

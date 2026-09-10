@@ -11,6 +11,7 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       current_mission: null,
       next_competency: null,
       recommended_mission: null,
+      project_links: [],
       competencies: [],
     }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -19,6 +20,16 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       target: "ML / AI Engineer",
     });
     expect(fetchMock).toHaveBeenCalledWith("/friday/api/v1/career-forge/journey", {});
+  });
+
+  it("connects a mission through the bounded local project endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new FridayRuntimeClient().linkCareerMissionProject("mission 1")).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/career-forge/missions/mission%201/project", {
+      method: "POST",
+    });
   });
 
   it("starts only the API-selected dependency-ready mission", async () => {

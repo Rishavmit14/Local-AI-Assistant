@@ -210,6 +210,11 @@ dependency-ready mission. It shows the four surfaces without fabricating
 independence, retention, or public-evidence status; mastery advancement and all
 other Learner Twin mutation remain in the existing bounded local API.
 
+The core loop now also persists a mission's link to its canonical evolving
+project family and projects those links in the cinematic UI. This is local
+learning context only: it neither proves mastery nor grants project execution,
+Git, or publication authority.
+
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 
 Add safe read-only screen capture, active-window/application context, vision-model interpretation, OCR where appropriate, UI-state understanding, provenance, and privacy controls. Visual perception initially has no mutation authority.
