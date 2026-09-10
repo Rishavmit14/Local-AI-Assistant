@@ -1087,6 +1087,12 @@ The active-window candidate is a single fixed GNOME read query. This host
 disables its evaluation API, so it returns unavailable without any enumeration,
 focus, or control fallback.
 
+Live Stage 15 qualification now has one owner-selected native screenshot ingested
+into private retention: metadata, local OCR, and deterministic UI-state succeeded
+without exposing pixels. The external source was removed after successful copy.
+`local-ai-perception ingest <image>` is the explicit owner ingestion recovery
+path when the headless portal has no GUI parent.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic

@@ -369,6 +369,15 @@ Friday now offers a fixed, read-only GNOME focus-context query that fails closed
 as unavailable when the desktop disables evaluation. The adapter accepts no
 arbitrary expressions and has no focus, enumeration, or desktop-control path.
 
+## 2026-09-10 — Stage 15 owner-selected capture qualification candidate
+
+When GNOME's portal could not associate a consent sheet with Friday's headless
+service, the owner used GNOME's native screenshot UI and explicitly selected the
+saved image for local ingestion. Friday copied it into bounded private retention,
+qualified metadata/OCR/deterministic UI state without exposing pixels, and
+removed the external source copy. A local owner CLI now supports the same
+explicit provenance-preserving ingestion flow.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

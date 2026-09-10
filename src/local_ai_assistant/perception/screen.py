@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import shutil
 import sqlite3
 import subprocess
 from dataclasses import dataclass
@@ -64,9 +65,26 @@ class ScreenCaptureService:
         db = sqlite3.connect(self.capture_dir / "captures.sqlite3")
         db.execute(
             "CREATE TABLE IF NOT EXISTS captures (capture_id TEXT PRIMARY KEY, captured_at TEXT NOT NULL, "
-            "sha256 TEXT NOT NULL, byte_size INTEGER NOT NULL)"
+            "sha256 TEXT NOT NULL, byte_size INTEGER NOT NULL, source TEXT NOT NULL "
+            "DEFAULT 'gnome-shell-screenshot')"
         )
+        columns = {row[1] for row in db.execute("PRAGMA table_info(captures)")}
+        if "source" not in columns:
+            db.execute("ALTER TABLE captures ADD COLUMN source TEXT NOT NULL DEFAULT 'gnome-shell-screenshot'")
         return db
+
+    def _record(self, capture_id: str, image_path: Path, *, source: str) -> ScreenCapture:
+        payload = image_path.read_bytes()
+        if not payload:
+            image_path.unlink(missing_ok=True)
+            raise RuntimeError("local screen capture was empty")
+        capture = ScreenCapture(capture_id, datetime.now(UTC).isoformat(),
+                                hashlib.sha256(payload).hexdigest(), len(payload), source)
+        with self._db() as db:
+            db.execute("INSERT INTO captures VALUES(?,?,?,?,?)", (
+                capture.capture_id, capture.captured_at, capture.sha256, capture.byte_size, capture.source,
+            ))
+        return capture
 
     def capture(self) -> ScreenCapture:
         self.capture_dir.mkdir(parents=True, exist_ok=True)
@@ -87,24 +105,26 @@ class ScreenCaptureService:
             raise RuntimeError("local screen capture failed")
         if not image_path.is_file():
             raise RuntimeError("local screen capture failed")
-        payload = image_path.read_bytes()
-        if not payload:
-            image_path.unlink(missing_ok=True)
-            raise RuntimeError("local screen capture was empty")
-        capture = ScreenCapture(capture_id, datetime.now(UTC).isoformat(),
-                                hashlib.sha256(payload).hexdigest(), len(payload))
-        with self._db() as db:
-            db.execute("INSERT INTO captures VALUES(?,?,?,?)", (
-                capture.capture_id, capture.captured_at, capture.sha256, capture.byte_size,
-            ))
-        return capture
+        return self._record(capture_id, image_path, source="gnome-shell-screenshot")
+
+    def ingest_owner_file(self, source_path: Path) -> ScreenCapture:
+        """Copy an owner-selected local image into private retention-controlled state."""
+        source_path = source_path.expanduser().resolve()
+        if source_path.suffix.lower() not in {".png", ".jpg", ".jpeg"} or not source_path.is_file():
+            raise ValueError("owner-selected screenshot image is unavailable")
+        self.capture_dir.mkdir(parents=True, exist_ok=True)
+        self.purge_expired()
+        capture_id = f"screen_{uuid4().hex}"
+        image_path = self.capture_dir / f"{capture_id}.png"
+        shutil.copyfile(source_path, image_path)
+        return self._record(capture_id, image_path, source="owner-selected-local-file")
 
     def recent(self, limit: int = 20) -> tuple[ScreenCapture, ...]:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
         with self._db() as db:
             rows = db.execute(
-                "SELECT capture_id, captured_at, sha256, byte_size FROM captures "
+                "SELECT capture_id, captured_at, sha256, byte_size, source FROM captures "
                 "ORDER BY captured_at DESC LIMIT ?", (limit,)
             ).fetchall()
         return tuple(ScreenCapture(*row) for row in rows)

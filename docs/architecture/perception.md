@@ -31,6 +31,12 @@ The existing cinematic Friday UI projects capture status and retained metadata.
 Its capture control is an explicit owner action; it never receives raw image
 data, image paths, OCR text, or any desktop-control capability.
 
+When the desktop requires its native screenshot UI, the owner may explicitly
+save an image and use `local-ai-perception ingest <image>`. The command copies
+only that selected local PNG/JPEG into private retention-controlled storage and
+records source provenance as `owner-selected-local-file`; it does not retain a
+link to the external source.
+
 On the current GNOME/Wayland host, direct session-bus capture is denied by the
 desktop privacy policy. Friday returns only a bounded permission-required result;
 it cannot bypass that control. A physical owner approval through the desktop's

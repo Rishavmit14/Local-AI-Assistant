@@ -238,6 +238,9 @@ The same retained capture can receive deterministic OCR-derived UI-state hints;
 these are not general vision inference and retain no control authority.
 The active-window projection is a fixed read-only query and fails closed as
 unavailable on desktops that disable it; it has no focus or enumeration fallback.
+Owner-selected screenshots from the native desktop UI can be explicitly copied
+into private perception retention with source provenance, allowing consent-safe
+local OCR and UI-state qualification where portal parenting is unavailable.
 The existing cinematic UI now projects local perception status and presents an
 explicit capture request; it does not receive pixels, paths, OCR text, or control
 authority.

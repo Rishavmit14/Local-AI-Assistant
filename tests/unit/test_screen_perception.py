@@ -71,3 +71,11 @@ def test_screen_ui_state_is_deterministic_and_not_a_model_inference(tmp_path):
     state = service.inspect_ui_state(capture.capture_id)
     assert state.state == "error_like"
     assert state.evidence == ("traceback", "failed")
+
+
+def test_owner_selected_image_is_copied_into_private_retention_state(tmp_path):
+    source = tmp_path / "owner.png"
+    source.write_bytes(b"owner-screen")
+    capture = ScreenCaptureService(tmp_path / "private").ingest_owner_file(source)
+    assert capture.source == "owner-selected-local-file"
+    assert (tmp_path / "private" / f"{capture.capture_id}.png").is_file()
