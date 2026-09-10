@@ -14,6 +14,34 @@ ordering, depth, mission selection, difficulty, remediation, and advancement:
 13 Persistent Memory and reuses Friday's code intelligence, planning, tools,
 validation, Git isolation/history, voice, and presentation boundary.
 
+## Unified Friday experience
+
+Career Forge lives inside Friday's existing cinematic presentation, never as a
+separate learning application or a second conversational agent. Friday remains
+the single natural text and voice interface; the same interaction ownership and
+Learner Twin state apply whether an owner enters through conversation or a
+Career Forge surface. Stage 14 V1 therefore adds only local presentation
+projections and bounded mission controls over the existing Career Forge API. It
+does not create a second runtime, voice pipeline, model client, session model,
+or desktop frontend.
+
+The durable product information architecture has four Career Forge surfaces:
+
+1. **LEARN**: the current mission, concepts, diagrams, code, notebook/data
+   experiments, terminal work, and system-design/whiteboard work when relevant.
+2. **MAP**: the complete ML/AI Engineer competency graph, prerequisites, and
+   evidence-backed mastery state.
+3. **PROJECTS**: the evolving FraudShield, Neural Systems Lab, Local Knowledge
+   Assistant, and Production AI Platform project families.
+4. **PROGRESS**: mastery, independence, retention, learning history, interview
+   readiness, and qualifying GitHub evidence.
+
+V1 may show only the bounded data and controls it has actually implemented.
+Retention analytics, rich diagrams/notebooks/terminal/whiteboard integrations,
+interview readiness, and project execution grow only as later accepted work
+supplies evidence. Stages 15 and 16 enhance these same surfaces with perception
+and policy-governed desktop assistance; they do not introduce another frontend.
+
 ## Competency and Learner Twin
 
 The canonical, versioned ML/AI Engineer competency graph is dependency ordered:

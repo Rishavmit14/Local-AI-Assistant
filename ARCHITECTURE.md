@@ -114,6 +114,11 @@ Friday's code intelligence, controlled tools, validation, Git isolation, history
 voice, and presentation surfaces, while keeping private learning evidence
 separate from review-gated public career artifacts. Its detailed contract is in
 `docs/architecture/career-forge.md`; ADR 0015 freezes its roadmap priority.
+Career Forge is a mode of the existing cinematic Friday UI, not a separate
+learning product: LEARN, MAP, PROJECTS, and PROGRESS are projections of the
+same local Learner Twin and conversation/voice session. Later perception and
+desktop-control capabilities extend that presentation boundary rather than
+creating a parallel frontend or voice path.
 
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as

@@ -197,6 +197,14 @@ boundary with mission-specific context. It records generated assistance only whe
 the caller deliberately selects an assistance level; it never lets model output
 mutate mastery or bypass the learning/publication boundaries.
 
+Career Forge is canonically part of Friday's existing cinematic UI and its one
+natural text/voice interface. Its enduring surface model is LEARN (mission and
+work), MAP (competencies/prerequisites/mastery), PROJECTS (the four evolving
+engineering projects), and PROGRESS (evidence-backed growth). Stage 14 V1 adds
+only bounded projections and controls needed by its core loop; rich workspaces,
+perception, and desktop assistance remain later-stage enhancements to these same
+surfaces.
+
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 
 Add safe read-only screen capture, active-window/application context, vision-model interpretation, OCR where appropriate, UI-state understanding, provenance, and privacy controls. Visual perception initially has no mutation authority.

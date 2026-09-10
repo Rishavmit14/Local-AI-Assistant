@@ -299,6 +299,15 @@ mission with its verification, attempt and teach-back context. Generated help is
 recorded only under an explicit assistance level; model output cannot promote
 mastery or write other Learner Twin state.
 
+## 2026-09-10 — Career Forge unified cinematic experience direction
+
+Career Forge was durably placed inside Friday's existing cinematic UI and single
+text/voice interface, rather than as a disconnected learning app. Its enduring
+surface model is LEARN, MAP, PROJECTS, and PROGRESS over the same Learner Twin.
+Stage 14 remains deliberately bounded to the V1 projections and controls that
+exercise its accepted core; perception, desktop workspaces, and richer learning
+analytics remain later extensions of those surfaces.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

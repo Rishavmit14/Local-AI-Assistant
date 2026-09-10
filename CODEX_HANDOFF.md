@@ -1029,6 +1029,13 @@ execution, events, role orchestration, research, cognitive amplification, and
 Career Forge Advanced Integration. Market/trading and creator/media are deferred
 specialization ideas outside active implementation.
 
+Career Forge is canonically a mode of Friday's existing cinematic UI, never a
+separate learning application. Its shared Learner Twin and one text/voice
+interface project through LEARN, MAP, PROJECTS, and PROGRESS. ADR 0016 records
+this durable product boundary; Stage 14 V1 remains limited to evidence-backed
+local projections and mission controls, while perception and desktop-control
+stages extend the same interface.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic
