@@ -252,6 +252,47 @@ def create_presentation_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"evidence_id": evidence_id}
 
+    @app.post("/api/v1/career-forge/missions/{mission_id}/tutor")
+    async def career_tutor(mission_id: str, request: Request):
+        """Use Friday's existing local model without granting it Learner Twin writes."""
+        try:
+            body = await request.json()
+            message = body["message"]
+            mode = TutorMode(body.get("mode", TutorMode.EXPLAIN))
+            level = body.get("assistance_level")
+            level = AssistanceLevel(level) if level is not None else None
+            mission = owner_career_forge().mission(mission_id)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not isinstance(message, str) or not message.strip() or len(message) > max_prompt_chars:
+            raise HTTPException(status_code=400, detail="bounded tutor message is required")
+        brief = owner_career_forge().next_mission_brief()
+        if brief is None or brief.competency_id != mission.competency_id:
+            raise HTTPException(status_code=409, detail="mission is not currently teachable")
+        lease = interaction_coordinator.try_acquire("presentation")
+        if lease is None:
+            raise HTTPException(status_code=409, detail="interaction busy")
+        try:
+            if presentation_pause is not None:
+                presentation_pause()
+            system_prompt = (
+                "You are Friday Career Forge, an ML/AI engineering tutor. Use minimum useful "
+                f"assistance in {mode.value} mode. Do not claim mastery or write learner state. "
+                f"Mission: {brief.title}\nWhy: {brief.why_it_matters}\n"
+                f"Verification: {brief.verification}\nAttempt: {brief.owner_attempt}\n"
+                f"Teach-back: {brief.teach_back}"
+            )
+            response = "".join(conversation.stream_response(message, system_prompt=system_prompt))
+            if level is not None:
+                owner_career_forge().offer_assistance(mission_id, mode, level, response)
+            return {"response": response, "recorded_assistance": level is not None}
+        finally:
+            try:
+                if presentation_resume is not None:
+                    presentation_resume()
+            finally:
+                lease.release()
+
     @app.post("/api/v1/career-forge/competencies/{competency_id}/advance")
     async def career_advance(competency_id: str, request: Request):
         try:

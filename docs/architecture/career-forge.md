@@ -76,6 +76,11 @@ An explicit advancement endpoint accepts only matching mission evidence and the
 next mastery rung. It completes the evidencing mission after the decision; no
 working solution, prompt, or self-report can silently promote a competency.
 
+The tutor endpoint reuses Friday's existing local conversation service and its
+interaction ownership. It supplies the active mission brief as bounded context
+and can persist the response as assistance only after an explicit level choice.
+The model receives no direct Learner Twin mutation capability.
+
 The initial mission catalog is deterministic and local. It supplies a specific
 Python verification mission and safe structured fallback briefs for each later
 dependency-ready competency; model-generated adaptation is not required to start

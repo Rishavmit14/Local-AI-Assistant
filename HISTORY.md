@@ -292,6 +292,13 @@ advancement only when evidence is attached to a mission for that exact competenc
 Advancement completes that evidencing mission; neither self-report nor a solution
 alone changes mastery.
 
+## 2026-09-10 — Stage 14 local Career Forge tutor candidate
+
+Friday now uses the existing local Qwen conversation boundary to tutor an active
+mission with its verification, attempt and teach-back context. Generated help is
+recorded only under an explicit assistance level; model output cannot promote
+mastery or write other Learner Twin state.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

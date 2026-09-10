@@ -74,7 +74,7 @@ def test_memory_capture_requires_an_explicit_complete_owner_record(tmp_path):
     client = TestClient(
         create_presentation_app(
             runtime,
-            FridayConversationService(FakeStreamingLLM(), runtime),
+            FridayConversationService(FakeStreamingLLM(["Try a prediction first."]), runtime),
             memory=memory,
         )
     )
@@ -104,7 +104,7 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     client = TestClient(
         create_presentation_app(
             runtime,
-            FridayConversationService(FakeStreamingLLM(), runtime),
+            FridayConversationService(FakeStreamingLLM(["Try a prediction first."]), runtime),
             career_forge=forge,
         )
     )
@@ -139,6 +139,11 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
         json={"resume_point": {"phase": "teach_back"}, "assistance_level": "prompt"},
     )
     assert resumed.json()["resume_point"] == {"phase": "teach_back"}
+    tutor = client.post(
+        f"/api/v1/career-forge/missions/{mission_id}/tutor",
+        json={"mode": "hint", "assistance_level": "prompt", "message": "I am stuck."},
+    )
+    assert tutor.json() == {"response": "Try a prediction first.", "recorded_assistance": True}
     advanced = client.post(
         "/api/v1/career-forge/competencies/se.python/advance",
         json={"mastery": "recognize", "evidence_id": evidence.json()["evidence_id"]},
@@ -557,6 +562,7 @@ def test_presentation_api_has_no_execution_routes():
         "/api/v1/career-forge/missions/{mission_id}/resume",
         "/api/v1/career-forge/missions/{mission_id}/assistance",
         "/api/v1/career-forge/missions/{mission_id}/evidence",
+        "/api/v1/career-forge/missions/{mission_id}/tutor",
         "/api/v1/career-forge/competencies/{competency_id}/advance",
         "/api/v1/memory/recall",
         "/api/v1/memory/remember",

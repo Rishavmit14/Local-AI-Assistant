@@ -192,6 +192,11 @@ presentation controls now include local mission resume, assistance and evidence
 submission, plus one-rung matching-evidence mastery advancement. Fuller project
 execution integration remains active.
 
+The current tutor checkpoint uses Friday's existing local Qwen conversation
+boundary with mission-specific context. It records generated assistance only when
+the caller deliberately selects an assistance level; it never lets model output
+mutate mastery or bypass the learning/publication boundaries.
+
 ## Stage 15 — Visual Perception / Screen Awareness (**Planned**)
 
 Add safe read-only screen capture, active-window/application context, vision-model interpretation, OCR where appropriate, UI-state understanding, provenance, and privacy controls. Visual perception initially has no mutation authority.
