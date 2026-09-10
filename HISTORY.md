@@ -404,7 +404,7 @@ GNOME app focus and GIO launch: proposal, explicit approval, one-time execution,
 and SQLite audit. The allowlist defaults empty and no generic shell, keyboard,
 mouse, browser, file, or perception-derived control is present.
 
-## 2026-09-10 — Stage 16 approved browser URI candidate
+## 2026-09-10 — Stage 16 approved browser URI dispatch accepted
 
 Friday can now open only explicitly allowlisted HTTPS origins after proposal,
 approval, and audit. The fixed local `gio open` path has no browser automation,
