@@ -1089,7 +1089,7 @@ and Piper worker health; all earlier Stage 12 checkpoints remain closed unless
 real regression evidence reopens them.
 
 Latest accepted capability recovery checkpoint:
-`94b0fedb47f7b4f954798d87d36b89d5ce5b57d6`
+`94b0fedb3393e6e2a110670c750b123dde2c7a31`
 (`Stage 12: qualify voice stability observability`). Stage 12 is closed; the
 next canonical capability is Stage 13 Persistent Friday Memory on a new
 `stage-13/...` branch. Do not begin Career Forge before that foundation.
