@@ -34,6 +34,21 @@ class FakeStreamingLLM:
         yield from self.chunks
 
 
+def test_memory_context_is_read_only_prompt_context():
+    runtime = FridayRuntime("memory-context")
+    llm = FakeStreamingLLM(["ok"])
+    service = FridayConversationService(
+        llm,
+        runtime,
+        memory_context=lambda prompt: "owner preference: concise",
+    )
+
+    assert "".join(service.stream_response("hello")) == "ok"
+    assert llm.calls[0]["prompt"] == "hello"
+    assert "owner preference: concise" in llm.calls[0]["system_prompt"]
+    assert "untrusted reference" in llm.calls[0]["system_prompt"]
+
+
 def test_stream_response_emits_real_conversation_runtime_events():
     runtime = FridayRuntime("session-chat")
     llm = FakeStreamingLLM(["Hello", " ", "there"])
@@ -88,8 +103,7 @@ def test_stream_response_accepts_consecutive_conversations():
     second_user_index = next(
         index
         for index, event in enumerate(events)
-        if event.event_type is FridayEventType.CONVERSATION_USER_TEXT
-        and event.text == "Second"
+        if event.event_type is FridayEventType.CONVERSATION_USER_TEXT and event.text == "Second"
     )
 
     ready_event = events[second_user_index - 1]
@@ -162,11 +176,7 @@ def test_stream_failure_emits_error_and_transitions_runtime():
 
     events = runtime.events_since()
 
-    error_events = [
-        event
-        for event in events
-        if event.event_type is FridayEventType.RUNTIME_ERROR
-    ]
+    error_events = [event for event in events if event.event_type is FridayEventType.RUNTIME_ERROR]
 
     assert len(error_events) == 1
     assert error_events[0].text == "conversation generation failed"
