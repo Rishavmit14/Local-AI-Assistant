@@ -11,10 +11,12 @@ raw pixels through the API.
 
 The capture service has no keyboard, mouse, window-management, shell, upload,
 model, OCR, or desktop-control authority. Capture failure removes incomplete
-files. Images are generated private state and must never be committed. OCR,
-screen interpretation, active-window context, retention policy, and the
-cinematic projection remain subsequent Stage 15 work; any later Stage 16 action
-uses an independent policy-governed desktop-control boundary.
+files. Images are generated private state and must never be committed. A local
+SQLite metadata index retains only capture id, timestamp, hash, size, and source;
+the capture service purges both pixels and metadata after its bounded retention
+window. OCR, screen interpretation, active-window context, and the cinematic
+projection remain subsequent Stage 15 work; any later Stage 16 action uses an
+independent policy-governed desktop-control boundary.
 
 On the current GNOME/Wayland host, direct session-bus capture is denied by the
 desktop privacy policy. Friday returns only a bounded permission-required result;

@@ -187,6 +187,13 @@ def create_presentation_app(
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    @app.get("/api/v1/perception/screen/captures")
+    def recent_screen_captures(limit: int = 20):
+        try:
+            return {"captures": [asdict(item) for item in owner_perception().recent(limit)]}
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.get("/api/v1/career-forge/journey")
     def career_journey():
         forge = owner_career_forge()

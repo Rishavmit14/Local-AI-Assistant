@@ -559,6 +559,7 @@ def test_presentation_api_has_no_execution_routes():
         "/api/v1/voice/health",
         "/api/v1/interaction/state",
         "/api/v1/perception/screen/capture",
+        "/api/v1/perception/screen/captures",
         "/api/v1/career-forge/journey",
         "/api/v1/career-forge/missions",
         "/api/v1/career-forge/missions/{mission_id}/project",

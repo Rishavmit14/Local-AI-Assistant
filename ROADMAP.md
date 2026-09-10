@@ -230,6 +230,8 @@ Add safe read-only screen capture, active-window/application context, vision-mod
 The active foundation is an explicit local GNOME Shell capture endpoint. It
 persists private pixels only under `var/perception` and returns bounded metadata;
 it has no control, OCR, interpretation, network, or shell authority.
+Capture metadata is local and bounded; expired pixels and metadata are purged
+together, and the API exposes no image paths or raw pixels.
 The current GNOME desktop denies direct session capture; Friday exposes this as a
 bounded privacy-permission outcome and does not bypass it. Live screenshot
 qualification awaits the desktop's physical owner-consent flow.

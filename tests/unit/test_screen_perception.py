@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -33,3 +34,16 @@ def test_screen_capture_reports_desktop_permission_without_exposing_error_detail
 
     with pytest.raises(RuntimeError, match="privacy permission"):
         ScreenCaptureService(tmp_path, runner=runner).capture()
+
+
+def test_screen_capture_keeps_metadata_private_and_purges_expired_pixels(tmp_path):
+    def runner(command, **_kwargs):
+        Path(command[-1]).write_bytes(b"old-private-screen")
+        return SimpleNamespace(returncode=0)
+
+    service = ScreenCaptureService(tmp_path, retention_seconds=1, runner=runner)
+    capture = service.capture()
+    assert service.recent() == (capture,)
+    assert service.purge_expired(now=datetime.now(UTC) + timedelta(seconds=2)) == 1
+    assert service.recent() == ()
+    assert not (tmp_path / f"{capture.capture_id}.png").exists()

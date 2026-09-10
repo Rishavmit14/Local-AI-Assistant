@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import sqlite3
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -22,12 +23,25 @@ class ScreenCapture:
 class ScreenCaptureService:
     """Create a private, explicitly requested screen image under Friday state."""
 
-    def __init__(self, capture_dir: Path, *, runner=subprocess.run) -> None:
+    def __init__(self, capture_dir: Path, *, retention_seconds: int = 900, runner=subprocess.run) -> None:
         self.capture_dir = capture_dir.resolve()
+        if retention_seconds < 1:
+            raise ValueError("retention_seconds must be positive")
+        self.retention_seconds = retention_seconds
         self._runner = runner
+
+    def _db(self) -> sqlite3.Connection:
+        self.capture_dir.mkdir(parents=True, exist_ok=True)
+        db = sqlite3.connect(self.capture_dir / "captures.sqlite3")
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS captures (capture_id TEXT PRIMARY KEY, captured_at TEXT NOT NULL, "
+            "sha256 TEXT NOT NULL, byte_size INTEGER NOT NULL)"
+        )
+        return db
 
     def capture(self) -> ScreenCapture:
         self.capture_dir.mkdir(parents=True, exist_ok=True)
+        self.purge_expired()
         capture_id = f"screen_{uuid4().hex}"
         image_path = self.capture_dir / f"{capture_id}.png"
         result = self._runner(
@@ -48,5 +62,32 @@ class ScreenCaptureService:
         if not payload:
             image_path.unlink(missing_ok=True)
             raise RuntimeError("local screen capture was empty")
-        return ScreenCapture(capture_id, datetime.now(UTC).isoformat(),
-                             hashlib.sha256(payload).hexdigest(), len(payload))
+        capture = ScreenCapture(capture_id, datetime.now(UTC).isoformat(),
+                                hashlib.sha256(payload).hexdigest(), len(payload))
+        with self._db() as db:
+            db.execute("INSERT INTO captures VALUES(?,?,?,?)", (
+                capture.capture_id, capture.captured_at, capture.sha256, capture.byte_size,
+            ))
+        return capture
+
+    def recent(self, limit: int = 20) -> tuple[ScreenCapture, ...]:
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT capture_id, captured_at, sha256, byte_size FROM captures "
+                "ORDER BY captured_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return tuple(ScreenCapture(*row) for row in rows)
+
+    def purge_expired(self, *, now: datetime | None = None) -> int:
+        current = now or datetime.now(UTC)
+        cutoff = current.timestamp() - self.retention_seconds
+        with self._db() as db:
+            rows = db.execute("SELECT capture_id, captured_at FROM captures").fetchall()
+            expired = [capture_id for capture_id, captured_at in rows
+                       if datetime.fromisoformat(captured_at).timestamp() < cutoff]
+            for capture_id in expired:
+                (self.capture_dir / f"{capture_id}.png").unlink(missing_ok=True)
+                db.execute("DELETE FROM captures WHERE capture_id=?", (capture_id,))
+        return len(expired)
