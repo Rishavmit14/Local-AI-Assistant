@@ -36,13 +36,15 @@ Blocked wake reads are now hardened. The loop keeps a stream-local handle for th
 
 Pause semantics are deliberately quiescent rather than terminating: the wake loop stays alive while paused, releases microphone ownership, and resume reacquires a fresh stream. Stop releases the blocked stream and terminates the loop. Deterministic tests cover pause EOF, pause-induced capture error, stop EOF, stop-induced capture error, pause->immediate-resume fresh-stream reacquisition, and genuine unexpected failure. Production qualification completed two controlled restarts with no systemd stop timeout and a live wake/pause/voice/resume turn on the patched runtime.
 
-## Remaining Stage 12 qualification
+## Stage 12O — bounded stability and actionable observability
 
-The next active requirement is bounded long-running real-microphone voice
-stability and observability qualification. Incremental speech latency, bounded
-telemetry, bounded Piper handoff, and resident-worker health are accepted; this
-qualification must exercise the actual wake/capture/workers without inventing a
-new voice feature.
+The final Stage 12 qualification exercises actual wake/capture/workers rather
+than adding a new voice path. Voice health projects a bounded `last_error_detail`
+beside the existing error type; it is operational backend detail, never a voice
+transcript. A real primary-worker failure demonstrated in-process recovery and
+replacement. A controlled reload then completed a 12-minute clean listening
+window and two full physical inline turns with no recovery/error state and stable
+resident workers. Stage 12 is accepted; Stage 13 memory is next.
 
 ## Stage 12C-A — inline wake command semantics
 

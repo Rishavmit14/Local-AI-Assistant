@@ -779,6 +779,7 @@ def test_transient_capture_failure_recovers_without_reloading_models():
         assert primary.started == fallback.started == piper.started == 1
         assert "WAKE_CAPTURE_RETRY attempt=1 delay_seconds=0.01" in telemetry.stages()
         assert service.capture_thread_error is not None  # Retain last failure.
+        assert service.health()["last_error_detail"] == "device disappeared"
     finally:
         service.close()
 
@@ -828,6 +829,7 @@ def test_worker_failure_discards_failed_turn_and_recovers_loop():
         assert capture.started.wait(2)
         assert capture.calls == 2
         assert turns == []
+        assert service.health()["last_error_detail"] == "worker response timed out"
     finally:
         service.close()
 

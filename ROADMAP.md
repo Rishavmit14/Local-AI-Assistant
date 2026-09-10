@@ -81,7 +81,7 @@ streaming speech/initial-response latency; and longer-running voice stability
 qualification. Capture/worker health recovery is accepted in Stage 12E and
 wake/HTTP interaction ownership in Stage 12F.
 
-## Stage 12 — Production Voice Lifecycle (**Active**)
+## Stage 12 — Production Voice Lifecycle (**Accepted**)
 
 Production AEC-backed natural interruption, blocked wake-read pause/stop
 hardening, Stage 12D exact explicit-stop semantics, and Stage 12E supervised
@@ -97,6 +97,15 @@ physical qualification passed inline stop, active-speech stop, and stop-loss
 negative control on the clean runtime without diagnostic readers. Clipped host
 audio was corrected and the rejected ASR alias was removed. Continue barge-in
 observability, streaming speech latency, and long-running voice stability.
+
+Stage 12O closes the remaining bounded real-microphone stability/observability
+qualification. It records bounded last-error detail alongside type, allowing an
+operator to distinguish worker/capture recovery causes without exposing voice
+content. A primary wake-worker failure recovered in-process during qualification;
+the old PID was replaced, and four later physical inline turns completed. After a
+controlled reload, a clean 12-minute listening interval plus two physical turns
+completed with zero recovery count, null error type/detail, stable worker PIDs,
+and each full wake → LLM → Piper → resume lifecycle. Stage 13 is now next.
 
 ## Stage 12E — capture/worker health recovery (**Accepted**)
 

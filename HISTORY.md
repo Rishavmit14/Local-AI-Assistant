@@ -201,6 +201,21 @@ all-competencies-UNVERIFIED start, dependency graph, progressive tutoring,
 hardware-aware evolving projects, and private/public career-evidence boundary.
 ADR 0015 and `docs/architecture/career-forge.md` record the durable decision.
 
+## 2026-09-10 — Stage 12O bounded voice stability and observability
+
+During the physical qualification, a primary wake-worker runtime failure was
+contained by the accepted in-process recovery loop; the service PID stayed the
+same, a fresh primary worker completed later turns, and the affected utterance
+was discarded. The previous type-only health projection could not distinguish
+the cause, so voice health now exposes bounded non-transcript last-error detail.
+Deterministic coverage protects that contract.
+
+After a controlled reload, Friday completed a clean 12-minute listening window
+and two physical inline commands. Each reached LLM/Piper and resumed wake
+capture; health finished with capture/listening and all resident workers alive,
+`recovery_count=0`, and null error type/detail. This closes Stage 12's bounded
+long-running real-microphone stability/observability qualification.
+
 ## 2026-09-09 — Stage 12F voice/presentation interaction ownership
 
 Accepted a shared nonblocking interaction coordinator across physical voice and

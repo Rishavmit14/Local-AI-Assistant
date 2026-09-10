@@ -970,6 +970,7 @@ class FridayManagedWakeVoice:
     def health(self) -> dict[str, object]:
         with self._lock:
             capture = getattr(self.wake_capture, "health", lambda: {})()
+            last_error = self._capture_error
             return {
                 "enabled": True,
                 "status": self._capture_status,
@@ -977,7 +978,13 @@ class FridayManagedWakeVoice:
                 "voice_turn_running": self.voice_turn_running,
                 "recovery_count": self._recovery_count,
                 "last_error_type": (
-                    type(self._capture_error).__name__ if self._capture_error else None
+                    type(last_error).__name__ if last_error else None
+                ),
+                # Errors are operational diagnostics, not voice content.  Keep
+                # the localhost projection bounded so a pathological backend
+                # exception cannot become an unbounded health payload.
+                "last_error_detail": (
+                    str(last_error)[:240] if last_error else None
                 ),
                 "capture": capture,
                 "workers": {
