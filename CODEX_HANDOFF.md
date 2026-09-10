@@ -1095,13 +1095,13 @@ next canonical capability is Stage 13 Persistent Friday Memory on a new
 `stage-13/...` branch. Do not begin Career Forge before that foundation.
 
 Stage 13 is active on `stage-13/persistent-friday-memory`, accepted through
-`c5284a5`. It has a separate local SQLite memory boundary, provenance/confidence
-and lifecycle records, deterministic recall/search, explicit owner CLI operations,
-and read-only production conversation context. The current candidate extends it
-with bounded working-memory retention, typed relationship edges, and lazy local
-BGE semantic ranking over SQLite-cached vectors; it is not accepted until the
-full Stage 13 qualification/publishing gate. Deliberate owner/session capture
-policy and richer conflict-resolution qualification remain unfinished scope.
+`b65f99926bb4ff4be475c5965d4fd0f4fec34426`. It has a separate local SQLite
+memory boundary, provenance/confidence and lifecycle records, deterministic
+recall/search, explicit owner CLI operations, and read-only production
+conversation context. The accepted semantic-memory checkpoint adds bounded
+working-memory retention, typed relationship edges, and lazy local BGE semantic
+ranking over SQLite-cached vectors. Deliberate owner/session capture policy and
+richer conflict-resolution qualification remain unfinished Stage 13 scope.
 
 Initial 12F finding: production wake and HTTP conversation share one runtime and
 LLM service without an admission boundary. Concurrent HTTP streams can both emit
