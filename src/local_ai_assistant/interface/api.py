@@ -21,7 +21,7 @@ from local_ai_assistant.career_forge import (
     TutorMode,
 )
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
-from local_ai_assistant.perception import ScreenCaptureService
+from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
 
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
@@ -125,6 +125,7 @@ def create_presentation_app(
     memory: FridayMemoryService | None = None,
     career_forge: CareerForgeService | None = None,
     perception: ScreenCaptureService | None = None,
+    active_window: ActiveWindowService | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -178,6 +179,12 @@ def create_presentation_app(
         if perception is None:
             raise HTTPException(status_code=404, detail="screen perception is unavailable")
         return perception
+
+    @app.get("/api/v1/perception/active-window")
+    def active_window_context():
+        if active_window is None:
+            return {"context": {"status": "unavailable"}}
+        return {"context": asdict(active_window.current())}
 
     @app.post("/api/v1/perception/screen/capture")
     def capture_screen():

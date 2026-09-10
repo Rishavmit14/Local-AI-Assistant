@@ -363,6 +363,12 @@ Friday now derives bounded `no_readable_text`, `text_present`, `code_like`, or
 `error_like` hints from explicit local OCR, including literal evidence terms. It
 does not claim semantic vision understanding or call a general-purpose model.
 
+## 2026-09-10 — Stage 15 fixed active-window context candidate
+
+Friday now offers a fixed, read-only GNOME focus-context query that fails closed
+as unavailable when the desktop disables evaluation. The adapter accepts no
+arbitrary expressions and has no focus, enumeration, or desktop-control path.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

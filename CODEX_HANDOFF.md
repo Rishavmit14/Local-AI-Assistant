@@ -1083,6 +1083,10 @@ The active UI-state candidate derives only deterministic bounded hints from an
 explicit OCR request, with literal matching evidence. It is not semantic vision
 inference and has no control authority.
 
+The active-window candidate is a single fixed GNOME read query. This host
+disables its evaluation API, so it returns unavailable without any enumeration,
+focus, or control fallback.
+
 Stage 12F subsequently accepted the wake/HTTP concurrency policy. Stages 12I and
 12J subsequently accepted incremental sentence-gated Piper speech and
 presentation-only Markdown-to-TTS normalization; Stage 12K accepts cinematic

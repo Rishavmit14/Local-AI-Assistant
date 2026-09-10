@@ -236,6 +236,8 @@ An explicit retained-capture OCR route reuses local Tesseract with bounded outpu
 and no persistence of OCR text in perception state.
 The same retained capture can receive deterministic OCR-derived UI-state hints;
 these are not general vision inference and retain no control authority.
+The active-window projection is a fixed read-only query and fails closed as
+unavailable on desktops that disable it; it has no focus or enumeration fallback.
 The existing cinematic UI now projects local perception status and presents an
 explicit capture request; it does not receive pixels, paths, OCR text, or control
 authority.

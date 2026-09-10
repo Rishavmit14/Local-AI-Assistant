@@ -21,6 +21,9 @@ not persisted by the perception boundary, and unavailable after retention purge.
 An explicit UI-state route derives only deterministic OCR hints (`no_readable_text`,
 `text_present`, `code_like`, or `error_like`) with matching keyword evidence. It
 does not make semantic vision claims or invoke a general-purpose model.
+Active-window context uses a single hard-coded GNOME Shell focus query and never
+accepts a caller-supplied expression. On hosts that disable the query it reports
+`unavailable`; it does not attempt focus, enumeration, or any control fallback.
 Any later Stage 16 action uses an independent policy-governed desktop-control
 boundary.
 
