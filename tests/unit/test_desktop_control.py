@@ -50,3 +50,21 @@ def test_browser_uri_requires_exact_https_origin_and_explicit_approval(tmp_path)
     service.approve(record.action_id)
     service.execute(record.action_id)
     assert commands == [["gio", "open", "https://docs.python.org/3/"]]
+
+
+def test_file_open_requires_existing_file_beneath_allowlisted_root(tmp_path):
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    document = allowed / "note.txt"
+    document.write_text("private")
+    commands = []
+    service = DesktopControlService(
+        tmp_path / "audit.sqlite3", allowed_file_roots=(allowed,),
+        runner=lambda command, **_kwargs: commands.append(command) or SimpleNamespace(returncode=0),
+    )
+    with pytest.raises(ValueError, match="file"):
+        service.propose(DesktopAction.OPEN_FILE, str(tmp_path / "missing.txt"))
+    record = service.propose(DesktopAction.OPEN_FILE, str(document))
+    service.approve(record.action_id)
+    service.execute(record.action_id)
+    assert commands == [["gio", "open", str(document.resolve())]]

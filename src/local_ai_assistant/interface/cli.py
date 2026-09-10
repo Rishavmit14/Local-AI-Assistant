@@ -71,6 +71,7 @@ def build_presentation_components(
         resolved_config.paths.desktop_control_db,
         allowed_apps=resolved_config.desktop_control.allowed_apps,
         allowed_origins=resolved_config.desktop_control.allowed_origins,
+        allowed_file_roots=resolved_config.desktop_control.allowed_file_roots,
         approval_seconds=resolved_config.desktop_control.approval_seconds,
     )
 

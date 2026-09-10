@@ -410,6 +410,12 @@ Friday can now open only explicitly allowlisted HTTPS origins after proposal,
 approval, and audit. The fixed local `gio open` path has no browser automation,
 web-content access, download, credential, or cookie authority.
 
+## 2026-09-10 — Stage 16 root-bound file-open candidate
+
+Friday can open only an existing regular file beneath an explicit local root
+after proposal, approval, and audit. It has no file read API, enumeration, or
+mutation authority.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

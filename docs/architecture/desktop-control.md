@@ -18,6 +18,12 @@ HTTPS URI whose exact origin appears in the empty-by-default
 only after approval. It is URI dispatch, not browser automation: no page read,
 form fill, download, cookie, credential, or DevTools authority is granted.
 
+An explicit `open_file` action accepts only an existing regular file beneath an
+exact root in the empty-by-default `LOCAL_AI_DESKTOP_ALLOWED_FILE_ROOTS` list.
+It resolves the path before audit and approval, then uses fixed `gio open`
+arguments. It cannot enumerate, read through the API, create, overwrite, move,
+rename, or delete files.
+
 The Friday cinematic UI is a projection of this same local action audit. It
 shows a pending action and offers a deliberate approval action. It cannot create
 an action, expand the allowlist, or bypass the lifecycle.

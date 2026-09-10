@@ -17,6 +17,7 @@ class DesktopAction(StrEnum):
     FOCUS_APP = "focus_app"
     LAUNCH_APP = "launch_app"
     OPEN_URI = "open_uri"
+    OPEN_FILE = "open_file"
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +38,7 @@ class DesktopControlService:
 
     def __init__(self, database: Path, *, allowed_apps: tuple[str, ...] = (),
                  allowed_origins: tuple[str, ...] = (),
+                 allowed_file_roots: tuple[Path, ...] = (),
                  approval_seconds: int = 60, runner=subprocess.run) -> None:
         if approval_seconds < 1:
             raise ValueError("approval_seconds must be positive")
@@ -45,6 +47,7 @@ class DesktopControlService:
         self.database = database.resolve()
         self.allowed_apps = frozenset(allowed_apps)
         self.allowed_origins = frozenset(allowed_origins)
+        self.allowed_file_roots = tuple(root.resolve() for root in allowed_file_roots)
         self.approval_seconds = approval_seconds
         self._runner = runner
 
@@ -66,7 +69,14 @@ class DesktopControlService:
             parsed.scheme != "https" or not parsed.netloc or origin not in self.allowed_origins
         ):
             raise ValueError("desktop URI origin is not allowed")
-        if action is not DesktopAction.OPEN_URI and (
+        if action is DesktopAction.OPEN_FILE:
+            candidate = Path(app_id).expanduser().resolve()
+            if not candidate.is_file() or not any(
+                candidate.is_relative_to(root) for root in self.allowed_file_roots
+            ):
+                raise ValueError("desktop file is not allowed")
+            app_id = str(candidate)
+        if action not in {DesktopAction.OPEN_URI, DesktopAction.OPEN_FILE} and (
             not self._APP_ID.fullmatch(app_id) or app_id not in self.allowed_apps
         ):
             raise ValueError("desktop app is not allowed")
@@ -133,5 +143,7 @@ class DesktopControlService:
             return ["gdbus", "call", "--session", "--dest", "org.gnome.Shell", "--object-path",
                     "/org/gnome/Shell", "--method", "org.gnome.Shell.FocusApp", record.app_id]
         if record.action is DesktopAction.OPEN_URI:
+            return ["gio", "open", record.app_id]
+        if record.action is DesktopAction.OPEN_FILE:
             return ["gio", "open", record.app_id]
         return ["gio", "launch", record.app_id]

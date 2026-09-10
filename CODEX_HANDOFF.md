@@ -1129,6 +1129,11 @@ automation; complete gates and a controlled restart verified default-deny URI
 rejection with voice still running. Continue the remaining desktop capability
 work on the Stage 16 branch.
 
+The current root-bound file-open candidate uses the empty-by-default
+`LOCAL_AI_DESKTOP_ALLOWED_FILE_ROOTS` list and fixed `gio open` only after
+proposal/approval/audit. It has no file-management or mutation authority;
+qualify it before any high-risk local-file operation is considered.
+
 Host discovery for the remaining bounded UI-input work found the AT-SPI bus but
 not the `pyatspi` binding or any installed native keyboard/mouse adapter. Do not
 simulate input or enable an unrestricted injection mechanism as a substitute;

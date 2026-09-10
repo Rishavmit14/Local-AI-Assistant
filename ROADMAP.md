@@ -270,6 +270,9 @@ arbitrary shell, keyboard, mouse, browser, file, or perception authority.
 The browser foundation is an approval-gated `gio open` request for an exact
 HTTPS origin from an empty-by-default local allowlist; it is not generic browser
 automation or web-content access.
+The local-file foundation is approval-gated opening of an existing regular file
+below an exact empty-by-default root allowlist. It is not file management or
+mutation authority.
 
 Acceptance checkpoint: complete Python/repository verification and frontend
 lint/tests/build passed. A controlled Friday restart proved the live endpoint

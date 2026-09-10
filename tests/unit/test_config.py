@@ -28,6 +28,7 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
             "LOCAL_AI_DESKTOP_CONTROL_DB": str(tmp_path / "desktop.sqlite3"),
             "LOCAL_AI_DESKTOP_ALLOWED_APPS": "org.gnome.Terminal",
             "LOCAL_AI_DESKTOP_ALLOWED_ORIGINS": "https://docs.python.org",
+            "LOCAL_AI_DESKTOP_ALLOWED_FILE_ROOTS": str(tmp_path / "shared"),
             "LOCAL_AI_OCR_ENABLED": "false",
             "LOCAL_AI_RAG_FINAL_TOP_K": "7",
             "LOCAL_AI_CODE_CHUNK_LINES": "80",
@@ -55,6 +56,7 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
     assert config.paths.desktop_control_db == (tmp_path / "desktop.sqlite3").resolve()
     assert config.desktop_control.allowed_apps == ("org.gnome.Terminal",)
     assert config.desktop_control.allowed_origins == ("https://docs.python.org",)
+    assert config.desktop_control.allowed_file_roots == ((tmp_path / "shared").resolve(),)
     assert config.isolation.backend == "native"
     assert config.isolation.network_policy == "allowed"
     assert config.isolation.require_strong_isolation is False

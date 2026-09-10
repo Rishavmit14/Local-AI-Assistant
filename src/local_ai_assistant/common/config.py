@@ -191,6 +191,7 @@ class GatewayConfig:
 class DesktopControlConfig:
     allowed_apps: tuple[str, ...] = ()
     allowed_origins: tuple[str, ...] = ()
+    allowed_file_roots: tuple[Path, ...] = ()
     approval_seconds: int = 60
 
 
@@ -263,6 +264,7 @@ class AppConfig:
         desktop_control = DesktopControlConfig(
             allowed_apps=tuple(item.strip() for item in values.get("LOCAL_AI_DESKTOP_ALLOWED_APPS", "").split(",") if item.strip()),
             allowed_origins=tuple(item.strip().rstrip("/") for item in values.get("LOCAL_AI_DESKTOP_ALLOWED_ORIGINS", "").split(",") if item.strip()),
+            allowed_file_roots=tuple(_path(item.strip()) for item in values.get("LOCAL_AI_DESKTOP_ALLOWED_FILE_ROOTS", "").split(",") if item.strip()),
             approval_seconds=_integer(values, "LOCAL_AI_DESKTOP_APPROVAL_SECONDS", 60, maximum=600),
         )
         if document.chunk_overlap >= document.chunk_size:
