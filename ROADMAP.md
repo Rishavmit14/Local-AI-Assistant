@@ -320,7 +320,10 @@ reports cancelled queued handles without status exceptions.
 The cinematic console now keeps the newest terminal canonical task state visible
 as outcome evidence while treating it as non-active; polling remains read-only.
 Terminal evidence can include the bounded canonical outcome/failure/decision;
-nonterminal execution detail remains absent.
+nonterminal execution detail remains absent. Schema v6 adds durable cross-process
+planning admission: only one local gateway can generate a task plan at a time;
+normal failure releases the claim and an interrupted holder recovers after its
+one-hour lease.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

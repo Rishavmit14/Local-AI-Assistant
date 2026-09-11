@@ -6,6 +6,7 @@ import io
 import json
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -114,6 +115,40 @@ def test_objective_task_reservation_is_idempotent_across_gateway_restart(tmp_pat
             second_gateway.close()
     finally:
         gateway.close()
+
+
+def test_planning_claim_prevents_second_gateway_from_generating_same_task(tmp_path):
+    gateway, path = service(tmp_path)
+    entered, release = Event(), Event()
+    generated = []
+    task = gateway.create_task("r1", "Plan once")
+
+    class Planner:
+        plan_dir = tmp_path
+        def generate(self, request):
+            generated.append(request)
+            entered.set()
+            assert release.wait(3)
+            raise RuntimeError("stop after admission test")
+
+    gateway.planner_factory = lambda _repository: Planner()
+    second = IntegrationGatewayService(gateway.history, gateway.mappings, planner_factory=gateway.planner_factory)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        worker = pool.submit(gateway.request_plan, task.task_id)
+        try:
+            assert entered.wait(3)
+            with pytest.raises(ValueError, match="already active"):
+                second.request_plan(task.task_id)
+        finally:
+            release.set()
+        with pytest.raises(RuntimeError, match="stop"):
+            worker.result(timeout=3)
+    assert generated == ["Plan once"]
+    retry_claim = gateway.history.claim_planning(task.task_id)
+    assert retry_claim is not None
+    gateway.history.release_planning_claim(task.task_id, retry_claim)
+    second.close()
+    gateway.close()
 
 
 def test_issue_idempotency_is_persisted(tmp_path):

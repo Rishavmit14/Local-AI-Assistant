@@ -1,6 +1,6 @@
 """Ordered SQLite migrations for the local task-history store."""
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 MIGRATIONS: dict[int, tuple[str, ...]] = {
     1: (
@@ -131,5 +131,12 @@ MIGRATIONS: dict[int, tuple[str, ...]] = {
         "ALTER TABLE metrics_summary ADD COLUMN repeated_failures INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE metrics_summary ADD COLUMN review_blocking_findings INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE metrics_summary ADD COLUMN commit_success INTEGER",
+    ),
+    6: (
+        """CREATE TABLE task_planning_claims (
+            task_id TEXT PRIMARY KEY REFERENCES tasks(task_id) ON DELETE CASCADE,
+            claim_id TEXT NOT NULL, claimed_at INTEGER NOT NULL, expires_at INTEGER NOT NULL
+        )""",
+        "CREATE INDEX idx_task_planning_claim_expiry ON task_planning_claims(expires_at)",
     ),
 }

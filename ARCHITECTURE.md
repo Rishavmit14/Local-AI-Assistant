@@ -181,6 +181,10 @@ projection without copying or changing task lifecycle state; cancellation never
 claims a different canonical task outcome.
 Terminal evidence may include a bounded canonical outcome/failure/final-decision
 string, while nonterminal details stay absent.
+Task-history schema v6 makes planning admission durable across gateway processes:
+one task has one model-generation claim, released on normal completion/failure
+or recoverable after a one-hour interruption lease. It does not add planning or
+execution authority.
 Executor admission serializes duplicate submissions and shutdown per process,
 reusing in-flight handles and reporting queued cancellation explicitly. This
 does not replace isolation's cross-process worktree ownership controls.

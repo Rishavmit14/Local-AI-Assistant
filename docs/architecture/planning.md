@@ -35,4 +35,11 @@ Root-to-leaf `AGENTS.md` files are loaded for affected paths. `AGENTS.override.m
 
 Planning artifacts use schema-versioned JSON and include the request, evidence, plan, validation, risk/approval results, instruction-source paths, context-truncation state, repository, starting commit, and timestamp. Schema 1 artifacts migrate on read; unknown schemas fail explicitly. Validation rejects reuse against another repository or Git HEAD. Persistence uses a temporary file, `fsync`, and atomic replacement so an interrupted write does not masquerade as a valid plan.
 
+Before local inference, the gateway obtains one durable per-task planning claim
+from task history. Concurrent gateway processes cannot generate competing
+artifacts for that task. The claim releases on normal generation failure or
+completion; after an interruption it expires after one hour for recovery. This
+is planner admission only and does not replace exact-plan approval or permit
+scope changes.
+
 Explicit high/critical approval is bound to a hash of the complete validated plan. A bare boolean cannot approve a newly generated or changed plan. Scope-guard mutation allowances contain only files proposed for modification—not inspect-only context—and protected/generated paths remain deny rules.

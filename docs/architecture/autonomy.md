@@ -88,6 +88,14 @@ work, and cancelled queued futures report `cancelled` without raising a status
 exception. This lock is process-local; durable cross-process execution ownership
 still belongs to the existing isolation/worktree layer.
 
+Task history schema v6 adds a durable task-planning claim. Gateway planning must
+claim one task before model inference; another process receives a conflict rather
+than generating a competing artifact. The holder releases on ordinary success or
+failure. An interrupted holder is recoverable after the fixed one-hour lease,
+which is deliberately longer than normal local planning and is recorded as a
+recovery delay rather than a second concurrent planner. This claim authorizes no
+plan content, approval, execution, or scope expansion.
+
 No credentials/scopes are provisioned automatically. The cinematic panel still
 provides planning/review and cancellation only. Authenticated owner interaction,
 live execution qualification, and bounded observe/validate/repair orchestration

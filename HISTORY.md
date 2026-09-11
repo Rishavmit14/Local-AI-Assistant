@@ -479,6 +479,20 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 durable planning admission candidate
+
+Task-history schema v6 adds a durable per-task planning claim. Gateway processes
+must claim before local inference, preventing competing plan artifacts; ordinary
+success/failure releases the claim and an interrupted holder recovers after a
+one-hour lease. This is admission only, not plan, approval, execution, or scope
+authority. Qualification and live migration are pending.
+Qualification passed 796 tests in both full regression and repository verification,
+plus frontend lint, 26 tests, and production build. A consistent pre-migration
+history backup passed integrity checking; controlled restart migrated the live
+database to v6 while preserving every pre-existing task identity/lifecycle/outcome
+field exactly, with no outstanding claims. API/voice health confirmed listening
+capture, all speech workers alive, and zero recoveries.
+
 ## 2026-09-11 — Stage 17 cinematic outcome observation qualification
 
 The cinematic objective console now separates a current nonterminal objective

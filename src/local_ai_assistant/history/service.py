@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from uuid import uuid4
 from pathlib import Path
 
 from local_ai_assistant.code_index.languages import build_language_registry
@@ -68,6 +69,13 @@ class TaskHistoryService:
             metadata=metadata or {},
         )
         return self.store.create_external_task(task, source=source, event_id=event_id)
+
+    def claim_planning(self, task_id: str, *, lease_seconds: int = 3600) -> str | None:
+        claim_id = uuid4().hex
+        return claim_id if self.store.claim_planning(task_id, claim_id, lease_seconds=lease_seconds) else None
+
+    def release_planning_claim(self, task_id: str, claim_id: str) -> None:
+        self.store.release_planning_claim(task_id, claim_id)
 
     def transition(self, task_id: str, status: TaskStatus, reason: str, *, subsystem="history"):
         return self.store.transition(task_id, status, reason, subsystem=subsystem)

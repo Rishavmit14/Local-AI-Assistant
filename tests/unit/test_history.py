@@ -88,6 +88,19 @@ def test_task_creation_has_stable_persisted_identity(history, tmp_path):
     assert history.timeline(task.task_id)[0].event_type == "task_created"
 
 
+def test_planning_claim_is_atomic_releasable_and_recovers_after_expiry(history, tmp_path, monkeypatch):
+    task = create(history, tmp_path)
+    assert history.store.claim_planning(task.task_id, "first", lease_seconds=60)
+    assert not history.store.claim_planning(task.task_id, "second", lease_seconds=60)
+    history.store.release_planning_claim(task.task_id, "wrong-holder")
+    assert not history.store.claim_planning(task.task_id, "second", lease_seconds=60)
+    history.store.release_planning_claim(task.task_id, "first")
+    assert history.store.claim_planning(task.task_id, "second", lease_seconds=60)
+    import local_ai_assistant.history.store as store_module
+    monkeypatch.setattr(store_module.time, "time", lambda: 9_999_999_999)
+    assert history.store.claim_planning(task.task_id, "recovered", lease_seconds=60)
+
+
 @pytest.mark.parametrize("failure", [None, "token", "tamper", "cancel"])
 def test_load_approved_plan_requires_exact_canonical_bytes_and_state(history, tmp_path, failure):
     task = create(history, tmp_path)

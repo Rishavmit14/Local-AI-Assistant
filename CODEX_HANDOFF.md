@@ -1144,6 +1144,19 @@ and terminal records, and cancellation/state distinction. Full acceptance
 passed: full pytest and repository verification each passed 794 tests, with
 frontend lint/26 tests/build also passing. No execution or credentials are
 enabled by this UI-only work; Friday remains running/listening without restart.
+
+Current planning-claim candidate adds task-history schema v6 with a durable
+one-hour per-task planning lease. Gateway model generation acquires the claim
+before inference; a competing process receives a conflict, and normal failure
+releases it for retry. Focused tests cover concurrent gateway rejection, release
+after failure, holder-only release, and expiry recovery. Qualification passed
+796 tests in both full regression and repository verification, plus frontend
+lint/26 tests/build. The pre-migration backup is ignored at
+`var/history/planning-claim-recovery-DrlRUK/tasks.sqlite3`; controlled restart
+migrated the live history to v6 and every existing task identity/lifecycle/outcome
+field matched that backup exactly. No claims remained. Friday is running/listening
+with all speech workers alive and zero recoveries. This claim adds no plan
+approval, execution, or scope authority.
 The current session's actual `select_backend()` probe selects Bubblewrap with
 supported process/filesystem/network/user-namespace isolation, unlike the old
 host limitation note; cgroups remain partial. This is a capability probe, not

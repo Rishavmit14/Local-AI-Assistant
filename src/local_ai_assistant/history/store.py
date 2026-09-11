@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -66,6 +67,7 @@ class TaskHistoryStore:
                     "affected_symbols", "metrics_summary", "artifact_imports",
                     "external_idempotency",
                     "external_publications", "external_ci_checks",
+                    "task_planning_claims",
                 }
                 actual_tables = {
                     row[0]
@@ -115,6 +117,35 @@ class TaskHistoryStore:
                     raise
         except sqlite3.DatabaseError as exc:
             raise HistoryDatabaseError(f"History transaction failed: {exc}") from exc
+
+    def claim_planning(self, task_id: str, claim_id: str, *, lease_seconds: int = 3600) -> bool:
+        """Atomically admit one bounded planner; a crash recovers after its lease."""
+        if not task_id or not claim_id or not 1 <= lease_seconds <= 86_400:
+            raise HistoryDatabaseError("Invalid planning claim")
+        now = int(time.time())
+        with self.transaction() as connection:
+            if connection.execute("SELECT 1 FROM tasks WHERE task_id=?", (task_id,)).fetchone() is None:
+                raise HistoryDatabaseError(f"Task not found: {task_id}")
+            connection.execute(
+                "DELETE FROM task_planning_claims WHERE task_id=? AND expires_at <= ?",
+                (task_id, now),
+            )
+            try:
+                connection.execute(
+                    "INSERT INTO task_planning_claims(task_id, claim_id, claimed_at, expires_at) VALUES(?,?,?,?)",
+                    (task_id, claim_id, now, now + lease_seconds),
+                )
+            except sqlite3.IntegrityError:
+                return False
+        return True
+
+    def release_planning_claim(self, task_id: str, claim_id: str) -> None:
+        """Only the holder may release its task-local planner admission."""
+        with self.transaction() as connection:
+            connection.execute(
+                "DELETE FROM task_planning_claims WHERE task_id=? AND claim_id=?",
+                (task_id, claim_id),
+            )
 
     def create_task(self, task: TaskRecord) -> TaskRecord:
         with self.transaction() as connection:

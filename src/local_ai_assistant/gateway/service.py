@@ -89,25 +89,31 @@ class IntegrationGatewayService:
     def request_plan(self, task_id: str):
         if self.planner_factory is None:
             raise RuntimeError("planner service is not configured for this gateway process")
-        task = self.get_task(task_id)
-        if task is None:
-            raise KeyError(task_id)
-        if task.status.value not in {"created", "planning", "reapproval_required"}:
-            raise ValueError("task is not in a planable state")
-        if task.status is TaskStatus.CREATED:
-            self.history.transition(task_id, TaskStatus.PLANNING, "Plan request accepted", subsystem="planning")
-        planner = self.planner_factory(Path(task.repository))
-        artifact = planner.generate(task.original_request)
-        from dataclasses import replace
-        artifact = replace(artifact, plan=replace(artifact.plan, task_id=task_id))
-        path = planner.persist(artifact, planner.plan_dir / f"{task_id}.json")
-        self.history.attach_plan(task_id, artifact, path)
-        refreshed = self.history.get(task_id)
-        if refreshed and refreshed.status.value == "planning":
-            target = TaskStatus.APPROVED if artifact.plan.approval.status.value == "automatic" else TaskStatus.AWAITING_APPROVAL
-            self.history.transition(task_id, target, "Plan generated", subsystem="planning")
-        self._emit(task_id, "PLAN_READY", "Plan generated")
-        return artifact
+        claim_id = self.history.claim_planning(task_id)
+        if claim_id is None:
+            raise ValueError("task planning is already active")
+        try:
+            task = self.get_task(task_id)
+            if task is None:
+                raise KeyError(task_id)
+            if task.status.value not in {"created", "planning", "reapproval_required"}:
+                raise ValueError("task is not in a planable state")
+            if task.status is TaskStatus.CREATED:
+                self.history.transition(task_id, TaskStatus.PLANNING, "Plan request accepted", subsystem="planning")
+            planner = self.planner_factory(Path(task.repository))
+            artifact = planner.generate(task.original_request)
+            from dataclasses import replace
+            artifact = replace(artifact, plan=replace(artifact.plan, task_id=task_id))
+            path = planner.persist(artifact, planner.plan_dir / f"{task_id}.json")
+            self.history.attach_plan(task_id, artifact, path)
+            refreshed = self.history.get(task_id)
+            if refreshed and refreshed.status.value == "planning":
+                target = TaskStatus.APPROVED if artifact.plan.approval.status.value == "automatic" else TaskStatus.AWAITING_APPROVAL
+                self.history.transition(task_id, target, "Plan generated", subsystem="planning")
+            self._emit(task_id, "PLAN_READY", "Plan generated")
+            return artifact
+        finally:
+            self.history.release_planning_claim(task_id, claim_id)
 
     def _emit(self, task_id: str, event_type: str, summary: str, *, critical: bool = False) -> None:
         persisted = self.history.store.add_event(task_id, "gateway", event_type.lower(), summary, status=event_type)
