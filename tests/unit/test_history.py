@@ -88,6 +88,34 @@ def test_task_creation_has_stable_persisted_identity(history, tmp_path):
     assert history.timeline(task.task_id)[0].event_type == "task_created"
 
 
+@pytest.mark.parametrize("failure", [None, "token", "tamper", "cancel"])
+def test_load_approved_plan_requires_exact_canonical_bytes_and_state(history, tmp_path, failure):
+    task = create(history, tmp_path)
+    artifact = planning_artifact(task, Path(task.repository))
+    plan_path = tmp_path / "approved.json"
+    plan_path.write_text(json.dumps(artifact.to_dict()), encoding="utf-8")
+    history.transition(task.task_id, TaskStatus.PLANNING, "planning")
+    history.attach_plan(task.task_id, artifact, plan_path)
+    history.transition(task.task_id, TaskStatus.AWAITING_APPROVAL, "review")
+    token = history.get(task.task_id).plan_hash
+    history.attach_approval(task.task_id, token, "explicitly_approved")
+    history.transition(task.task_id, TaskStatus.APPROVED, "approved")
+    if failure == "token":
+        token = "wrong"
+    elif failure == "tamper":
+        plan_path.write_text(plan_path.read_text() + " ", encoding="utf-8")
+    elif failure == "cancel":
+        history.request_cancel(task.task_id, Path(task.repository), "cancel")
+    if failure:
+        with pytest.raises(ValueError, match="approved plan"):
+            history.load_approved_plan(task.task_id, token)
+    else:
+        loaded, path = history.load_approved_plan(task.task_id, token)
+        assert loaded == artifact
+        assert path == plan_path
+        assert history.get(task.task_id).status is TaskStatus.APPROVED
+
+
 def test_status_lifecycle_and_invalid_transition(history, tmp_path):
     task = create(history, tmp_path)
     history.transition(task.task_id, TaskStatus.PLANNING, "planning")

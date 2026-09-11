@@ -45,7 +45,8 @@ def fake_artifact(*, approval=ApprovalStatus.AUTOMATIC, errors=False):
     return SimpleNamespace(plan=plan, validation_issues=(issue,) if errors else ())
 
 
-def test_fresh_index_precedes_every_patch_proposal(monkeypatch, tmp_path):
+@pytest.mark.parametrize("reuse_approved", [False, True])
+def test_fresh_index_precedes_every_patch_proposal(monkeypatch, tmp_path, reuse_approved):
     repo_root = tmp_path / "repos"
     init_repo(repo_root / "demo")
     defaults = AppConfig.from_env({})
@@ -80,23 +81,38 @@ def test_fresh_index_precedes_every_patch_proposal(monkeypatch, tmp_path):
             pass
 
         def generate(self, request):
+            assert not reuse_approved, "approved execution must never regenerate the plan"
             events.append("plan")
             return fake_artifact()
 
         def persist(self, artifact, destination):
+            assert not reuse_approved, "approved artifact must not be overwritten"
             return tmp_path / "plan.json"
+
+        def identity_issues(self, artifact):
+            return ()
+
+    def load_approved(task_id, token):
+        assert (task_id, token) == ("task-1", "reviewed-token")
+        events.append("load")
+        artifact = fake_artifact()
+        artifact.plan.original_request = "change something"
+        return artifact, tmp_path / "plan.json"
 
     monkeypatch.setattr(code_agent, "get_config", lambda: config)
     monkeypatch.setattr(code_agent, "CodeRAG", FakeRAG)
     monkeypatch.setattr(code_agent, "propose_patch", fake_proposal)
     monkeypatch.setattr(code_agent, "PlannerService", FakePlanner)
     monkeypatch.setattr(code_agent, "plan_approval_token", lambda plan: "reviewed-token")
+    if reuse_approved:
+        monkeypatch.setattr(code_agent, "_history_service", lambda _config: SimpleNamespace(load_approved_plan=load_approved))
 
     with pytest.raises(SystemExit) as exit_info:
-        code_agent.main(["demo", "change something"])
+        extra = ["--approved-plan", "--task-id", "task-1", "--approve-risk", "reviewed-token"] if reuse_approved else []
+        code_agent.main(["demo", "change something", *extra])
 
     assert exit_info.value.code == 1
-    assert events == ["reindex", "plan", "propose"]
+    assert events == ["reindex", "load" if reuse_approved else "plan", "propose"]
 
 
 @pytest.mark.parametrize(

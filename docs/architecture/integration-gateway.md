@@ -9,3 +9,8 @@ The gateway never accepts a filesystem path, shell command, environment, worktre
 Friday exposes an MCP server over local stdio only (no MCP client). Stdio inherits the authority of its launching local user; it is not a remotely authenticated transport and must not be exposed as a network service.
 
 Typed gateway services and adapters do not duplicate planning, approval, execution, or Git transaction logic. GitHub issue text is untrusted task data and cannot override system, owner, or repository instructions. The event bus is bounded and Stage 7 history remains the durable audit source.
+
+The execution adapter requests reuse of the exact canonical approved plan via
+code-agent `--approved-plan`, never model regeneration under the old token.
+History validates approved state, artifact bytes, and task/plan/repository/commit
+identity; code-agent checks current HEAD before its existing guarded loop.

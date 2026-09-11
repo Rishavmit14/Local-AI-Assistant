@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 from local_ai_assistant.code_index.languages import build_language_registry
@@ -165,6 +166,29 @@ class TaskHistoryService:
                 risk_or_severity=artifact.plan.risk.level.value,
             )
         return attached
+
+    def load_approved_plan(self, task_id: str, plan_hash: str) -> tuple[PlanningArtifact, Path]:
+        """Load the canonical approved bytes, never regenerate an approved plan."""
+        task = self.get(task_id)
+        if task is None or task.status is not TaskStatus.APPROVED or task.plan_hash != plan_hash:
+            raise ValueError("exact canonical approved plan is required")
+        records = [row for row in self.artifacts(task_id)["plans"] if row["plan_hash"] == plan_hash]
+        if len(records) != 1:
+            raise ValueError("unique canonical approved plan artifact is required")
+        record = records[0]
+        path = self.validate_artifact_path(Path(record["artifact_path"]))
+        payload = path.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != record["artifact_hash"]:
+            raise ValueError("canonical approved plan artifact changed")
+        artifact = PlanningArtifact.from_dict(json.loads(payload))
+        if (
+            artifact.plan.task_id != task_id
+            or plan_approval_token(artifact.plan) != plan_hash
+            or Path(artifact.repository).resolve() != Path(task.repository).resolve()
+            or artifact.starting_commit != task.starting_commit
+        ):
+            raise ValueError("canonical approved plan identity changed")
+        return artifact, path
 
     def attach_approval(self, task_id: str, plan_hash: str, state: str, *, actor="human", reason="") -> str:
         if state not in {"explicitly_approved", "historical_execution_evidence"}:

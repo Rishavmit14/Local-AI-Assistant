@@ -308,6 +308,10 @@ and ready-plan binding recover the same identity after interruption. Distributed
 inference admission and the remaining guarded execution loop are still pending.
 Lifecycle and binding updates now reject stale observed state/task/token values
 at the database write, preserving cancellation and competing canonical bindings.
+Discovery of execution integration found the gateway adapter regenerated a plan
+under an existing approval token. It now loads the exact canonical approved
+artifact with state/digest/identity checks instead. Native objective execution
+wiring and the bounded observe/validate/repair loop remain pending.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

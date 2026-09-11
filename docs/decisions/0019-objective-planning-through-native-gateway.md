@@ -35,6 +35,12 @@ Retry and cancellation recover that exact reservation, including after a crash
 between journal writes. A ready persisted plan is rebound without regeneration.
 Single-inference admission remains process-local, not a distributed lease.
 
+Execution adapters must reuse the exact approved persisted artifact rather than
+generate a fresh plan under its token. The canonical history loader verifies
+approval state, stored artifact digest, and task/token/repository/commit identity;
+code-agent additionally checks current HEAD and request identity. This reuses the
+existing isolated execution path and introduces no approval shortcut.
+
 ## Consequences
 
 The cinematic UI gains a bounded plan-request control but no approval or

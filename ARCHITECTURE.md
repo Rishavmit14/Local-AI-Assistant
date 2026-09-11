@@ -167,6 +167,10 @@ the gateway reuses history's transactional idempotency claims to materialize the
 same plan-only task after interruption. Retry/cancel recover the reservation,
 and a ready canonical plan can bind without regenerating it. This does not add
 cross-process inference scheduling or execution authority.
+The existing gateway execution adapter now selects exact approved-plan reuse:
+history validates canonical state and artifact bytes/identity, and code-agent
+checks repository HEAD before entering its unchanged isolated execution stack.
+It does not regenerate a new plan under an earlier approval token.
 
 Task-history SQLite schema v5 keeps plan-attachment metrics additive and checks
 their physical columns at initialization. A stale schema therefore fails before

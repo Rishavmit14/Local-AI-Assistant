@@ -1050,7 +1050,7 @@ publication authority.
 Stage 17 is active on `stage-17/autonomous-assistant-execution`.
 
 Current engineering continuation: recovery base is
-`a1da6f544051614c4541ee2c8005bcc8be528e96` (stage branch/main and both fetched
+`f194e4cae8be817967b879cbbb2b8614ce3d6755` (stage branch/main and both fetched
 remote refs verified exactly aligned). The responsive-planning checkpoint
 moves synchronous objective planning off the HTTP event loop and serializes plan
 admission per presentation process. A deterministic concurrent request test
@@ -1092,6 +1092,21 @@ preserved every pre-existing field/record exactly against that backup and passed
 integrity checking. Friday is running/listening after controlled restart, with
 all speech workers alive and zero recoveries. No diagnostic task was approved,
 executed, or replaced during this qualification.
+
+Execution integration discovery found that the existing gateway adapter called
+code-agent's fresh planner before testing the previously approved token. The
+exact-plan-reuse checkpoint adds `--approved-plan`: canonical history
+checks approved state, unique artifact digest, and task/token/repository/commit
+identity; code-agent checks current HEAD/request and skips regeneration and
+reattachment. Focused tests prove the reuse path and reject tampering, token
+mismatch, and cancellation. Native objective execution is still not wired, so
+this candidate does not claim live autonomous task execution.
+Qualification passed 784 tests in both full regression and repository verification,
+plus frontend lint/18 tests/build. No runtime restart or live execution was needed
+for this adapter checkpoint; API and voice health remained healthy/listening.
+Next discovery: connect bounded objective execution to the corrected canonical
+adapter, preserving exact approval and strong isolation and handling terminal
+task observations without inventing a parallel task lifecycle.
 
 The objective journal is locally durable and non-executing. It can now bind one plan-ready
 canonical task-history record by task ID, retaining that task ID and exact plan

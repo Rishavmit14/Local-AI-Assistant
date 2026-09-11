@@ -15,6 +15,15 @@ validated plan + exact approval
 
 Tools declare name, description, typed input fields, permission class, mutation state, timeout, and approval requirement. Permission classes are `READ_ONLY`, `SAFE_MUTATION`, `VALIDATION`, `HIGH_RISK`, and `BLOCKED`. Model output contains only a concise rationale, expected outcome, plan-step reference, mutation intent, tool name, and arguments.
 
+Gateway execution selects code-agent `--approved-plan` with the canonical task
+ID and exact token. Task history must still report that plan approved, and its
+unique artifact must match the recorded byte digest, task/token, repository,
+and starting commit. Code-agent loads those bytes without regenerating,
+persisting, or reattaching a new plan, then checks current repository/HEAD and
+request identity before existing execution gates. Ordinary fresh planning is
+unchanged. This repairs the former adapter path that regenerated an approved
+plan before testing the old token.
+
 The loop is bounded by tool steps, mutations, repairs, replans, context characters, and command timeouts. Failed validation permits only bounded further actions. Scope expansion returns `reapproval_required`; the existing plan is never widened in place.
 
 Patch analysis classifies modified, created, deleted, and renamed files; changed ranges; existing-symbol modifications; syntactic symbol additions/deletions; file-level unknown effects; and multi-file totals. Unknown effects remain visible rather than being claimed as resolved. Inspect-only files are never mutation allowances.

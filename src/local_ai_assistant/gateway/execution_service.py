@@ -55,7 +55,7 @@ class CodeAgentExecutionService:
             "--repository-id", profile.repository_id,
             "--expected-starting-commit", task.starting_commit,
             "--apply", "--branch", "--test", "--validate", "--rollback-on-fail",
-            "--tool-loop", "--approve-risk", task.plan_hash,
+            "--tool-loop", "--approved-plan", "--approve-risk", task.plan_hash,
         ]
         self._runs[run_id] = self._pool.submit(code_agent.main, argv)
         return ExecutionHandle(task.task_id, run_id)

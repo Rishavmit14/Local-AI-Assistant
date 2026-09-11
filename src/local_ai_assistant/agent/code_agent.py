@@ -1648,6 +1648,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Require the generated test to fail meaningfully before implementation.",
     )
     parser.add_argument("--task-id", help="Reuse an existing Friday task identity.")
+    parser.add_argument("--approved-plan", action="store_true", help="Load the exact approved task-history plan without replanning.")
     parser.add_argument(
         "--repository-id",
         help="Registered repository identity (defaults to the configured directory name).",
@@ -1662,6 +1663,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def validate_cli_options(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     """Reject option combinations that bypass the proven Git transaction."""
+    if args.approved_plan and not (args.task_id and args.approve_risk):
+        parser.error("--approved-plan requires --task-id and the exact --approve-risk token")
     if args.human_review:
         args.auto_commit = False
         args.auto_merge = False
@@ -1787,12 +1790,19 @@ def main(argv: list[str] | None = None):
         config.paths.code_index_dir / "plans" / args.repo,
         getattr(rag, "retrieve", None),
     )
-    artifact = planner.generate(args.request)
-    if args.task_id:
-        artifact = replace(artifact, plan=replace(artifact.plan, task_id=args.task_id))
-    plan_path = planner.persist(artifact, args.plan_output)
-    current_branch = run_command(["git", "branch", "--show-current"], repo).stdout.strip()
-    _record_plan(config, artifact, plan_path, repo, current_branch)
+    if args.approved_plan:
+        artifact, plan_path = _history_service(config).load_approved_plan(args.task_id, args.approve_risk)
+        if planner.identity_issues(artifact):
+            raise ValueError("approved plan no longer matches repository/HEAD")
+        if artifact.plan.original_request != args.request:
+            raise ValueError("approved plan request does not match execution request")
+    else:
+        artifact = planner.generate(args.request)
+        if args.task_id:
+            artifact = replace(artifact, plan=replace(artifact.plan, task_id=args.task_id))
+        plan_path = planner.persist(artifact, args.plan_output)
+        current_branch = run_command(["git", "branch", "--show-current"], repo).stdout.strip()
+        _record_plan(config, artifact, plan_path, repo, current_branch)
     print()
     print("=" * 70)
     print("IMPLEMENTATION PLAN")

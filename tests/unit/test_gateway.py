@@ -228,6 +228,7 @@ def test_execution_service_uses_existing_code_agent_boundary(tmp_path, monkeypat
     handle = execution.execute_task(gateway.history.get(task.task_id))
     execution._runs[handle.run_id].result(timeout=2)
     assert "--tool-loop" in calls[0] and "--task-id" in calls[0]
+    assert "--approved-plan" in calls[0]
     expected_index = calls[0].index("--expected-starting-commit")
     assert calls[0][expected_index + 1] == task.starting_commit
     assert onboarding.calls

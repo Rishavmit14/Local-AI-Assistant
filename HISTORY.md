@@ -479,6 +479,22 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 exact approved-plan execution qualification
+
+Execution integration discovery found the gateway's code-agent adapter generated
+a new plan before testing its existing approved token. The adapter now requests
+canonical approved-plan reuse. History verifies approved state, artifact digest,
+and task/token/repository/commit identity; code-agent verifies current HEAD and
+request without regenerating or overwriting that plan. Fresh planning and the
+existing isolation/validation/rollback gates are unchanged. Native objective
+execution wiring remains pending.
+
+Qualification passed 784 tests in both full regression and repository verification,
+plus frontend lint, 18 tests, and production build. Deterministic coverage proves
+the no-regeneration code-agent path and rejects token mismatch, byte tampering,
+and cancelled canonical state. No runtime restart or live task execution occurred;
+API/voice health confirmed Friday remained running/listening.
+
 ## 2026-09-11 — Stage 17 durable task reservation qualification
 
 Objective planning now persists task ID and repository before materialization.
