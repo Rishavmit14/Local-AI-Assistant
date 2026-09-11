@@ -452,6 +452,9 @@ task state; it has no plan, approval, or execution controls.
 The projection excludes terminal cancelled objectives from its current-objective
 slot while retaining them in local history.
 
+It also excludes an otherwise-planned objective when its linked canonical task
+has reached a terminal state, without copying that state into the objective DB.
+
 ## 2026-09-11 — Stage 17 cinematic objective-lifecycle candidate
 
 The same cinematic panel now invokes only Friday’s existing bounded local

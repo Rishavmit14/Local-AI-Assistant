@@ -18,7 +18,10 @@ export function ObjectiveConsole() {
     const timer = window.setTimeout(() => void refresh(controller.signal), 0);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [refresh]);
-  const current = objectives.find((objective) => objective.state !== "cancelled");
+  const current = objectives.find(
+    (objective) => objective.state !== "cancelled"
+      && !["succeeded", "failed", "blocked", "rolled_back", "cancelled"].includes(objective.task_state ?? ""),
+  );
   const create = async () => {
     if (!text.trim()) return;
     setBusy(true);
