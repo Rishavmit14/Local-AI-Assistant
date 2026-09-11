@@ -1050,13 +1050,14 @@ publication authority.
 Stage 17 is active on `stage-17/autonomous-assistant-execution`.
 
 Current engineering continuation: recovery base is
-`6b7262e03eca962760464438e9916c71390ba09b` (stage branch/main and both fetched
+`b178c613ab2873433b1c95b772fd27c5759e0a77` (stage branch/main and both fetched
 remote refs verified exactly aligned). The responsive-planning checkpoint
 moves synchronous objective planning off the HTTP event loop and serializes plan
 admission per presentation process. A deterministic concurrent request test
 proved the old blockage and now proves health/cancellation response during
-planning and rejection of overlapping plan requests. Distributed inference
-admission remains pending. The report-only diagnostic task `task_8793980850f51d5b46c9`
+planning and rejection of overlapping plan requests. Durable cross-process task
+planning admission is now also accepted; cross-process execution admission
+remains pending. The report-only diagnostic task `task_8793980850f51d5b46c9`
 is preserved pending review; it is not a prerequisite for authorized engineering
 work. Earlier repeated engineering approval pauses were erroneous.
 
@@ -1145,7 +1146,7 @@ passed: full pytest and repository verification each passed 794 tests, with
 frontend lint/26 tests/build also passing. No execution or credentials are
 enabled by this UI-only work; Friday remains running/listening without restart.
 
-Current planning-claim candidate adds task-history schema v6 with a durable
+The planning-claim checkpoint adds task-history schema v6 with a durable
 one-hour per-task planning lease. Gateway model generation acquires the claim
 before inference; a competing process receives a conflict, and normal failure
 releases it for retry. Focused tests cover concurrent gateway rejection, release
@@ -1157,6 +1158,9 @@ migrated the live history to v6 and every existing task identity/lifecycle/outco
 field matched that backup exactly. No claims remained. Friday is running/listening
 with all speech workers alive and zero recoveries. This claim adds no plan
 approval, execution, or scope authority.
+The next dependency is durable cross-process execution admission before live
+credential-enabled dispatch; existing isolation worktree locks protect mutation
+but do not provide gateway-level dispatch ownership.
 The current session's actual `select_backend()` probe selects Bubblewrap with
 supported process/filesystem/network/user-namespace isolation, unlike the old
 host limitation note; cgroups remain partial. This is a capability probe, not
