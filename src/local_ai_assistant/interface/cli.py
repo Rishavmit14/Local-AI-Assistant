@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
+from pathlib import Path
 from types import FrameType
 from uuid import uuid4
 
@@ -96,9 +97,20 @@ def build_presentation_components(
             return None
         return task.plan_hash
 
+    def cancel_task(task_id: str) -> None:
+        task = history.get(task_id)
+        if task is None:
+            raise ValueError("canonical task is unavailable")
+        history.request_cancel(
+            task_id,
+            Path(task.repository),
+            "Cancelled from linked Friday objective",
+        )
+
     autonomy = ObjectiveService(
         resolved_config.paths.autonomy_db,
         plan_hash_for_task=plan_hash_for_task,
+        cancel_task=cancel_task,
     )
 
     conversation = FridayConversationService(

@@ -14,6 +14,11 @@ only the task ID; it cannot inject a free-form hash. This provenance is still
 not authority: Friday does not load, invoke, mutate, or trust a plan merely
 because it is attached to an objective.
 
+Cancelling a bound objective first delegates cancellation to that same canonical
+task-history record. If the task cannot be cancelled, the objective remains
+nonterminal; Friday never reports a cancelled objective while leaving its linked
+task runnable.
+
 Later Stage 17 work may connect an objective only to Friday's existing validated
 planner, isolated execution loop, approval, cancellation, validation, rollback,
 and task-history boundaries. It must not create a parallel execution path.

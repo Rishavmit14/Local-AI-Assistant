@@ -46,3 +46,37 @@ def test_objective_refuses_unready_or_replaced_canonical_plan(tmp_path):
     service.bind_plan(objective.objective_id, task_id)
     with pytest.raises(ValueError, match="different canonical plan"):
         service.bind_plan(objective.objective_id, other_task_id)
+
+
+def test_cancelling_a_bound_objective_cancels_its_canonical_task_first(tmp_path):
+    task_id = "task_" + "a" * 20
+    cancelled = []
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
+        cancel_task=cancelled.append,
+    )
+    objective = service.create("Plan only")
+    service.bind_plan(objective.objective_id, task_id)
+
+    assert service.cancel(objective.objective_id).state == "cancelled"
+    assert cancelled == [task_id]
+
+
+def test_failed_canonical_task_cancellation_keeps_objective_nonterminal(tmp_path):
+    task_id = "task_" + "a" * 20
+
+    def fail_cancel(_task_id: str) -> None:
+        raise ValueError("task cannot cancel")
+
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
+        cancel_task=fail_cancel,
+    )
+    objective = service.create("Plan only")
+    service.bind_plan(objective.objective_id, task_id)
+
+    with pytest.raises(ValueError, match="cannot cancel"):
+        service.cancel(objective.objective_id)
+    assert service.get(objective.objective_id).state == "planned"

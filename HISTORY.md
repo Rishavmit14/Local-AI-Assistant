@@ -430,6 +430,13 @@ presentation API no longer accepts a user-supplied plan hash. This remains a
 non-executing provenance record pending the remainder of Stage 17's guarded
 objective loop.
 
+## 2026-09-11 — Stage 17 linked-objective cancellation candidate
+
+Cancelling a bound objective now delegates first to its canonical task-history
+cancellation boundary. A failed task cancellation leaves the objective planned,
+so Friday cannot claim a cancelled objective while the linked task remains
+eligible for guarded execution.
+
 ## 2026-09-10 — Stage 16 semantic accessibility-action candidate
 
 Friday can invoke only exact preconfigured AT-SPI semantic actions under the

@@ -129,6 +129,7 @@ def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):
         autonomy=ObjectiveService(
             tmp_path / "objectives.sqlite3",
             plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
+            cancel_task=lambda _value: None,
         ),
     ))
     created = client.post("/api/v1/objectives", json={"text": "Inspect project status"})

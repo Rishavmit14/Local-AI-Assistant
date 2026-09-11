@@ -30,9 +30,11 @@ class ObjectiveService:
         database: Path,
         *,
         plan_hash_for_task: Callable[[str], str | None] | None = None,
+        cancel_task: Callable[[str], None] | None = None,
     ) -> None:
         self.database = database.resolve()
         self.plan_hash_for_task = plan_hash_for_task
+        self.cancel_task = cancel_task
 
     def _db(self) -> sqlite3.Connection:
         self.database.parent.mkdir(parents=True, exist_ok=True)
@@ -65,6 +67,10 @@ class ObjectiveService:
         item = self.get(objective_id)
         if item.state == "completed":
             raise ValueError("completed objective cannot cancel")
+        if item.task_id is not None:
+            if self.cancel_task is None:
+                raise ValueError("canonical task cancellation is unavailable")
+            self.cancel_task(item.task_id)
         return self._transition(objective_id, "cancelled")
 
     def bind_plan(self, objective_id: str, task_id: str) -> Objective:

@@ -290,7 +290,8 @@ create/resume/cancel lifecycle state. An objective can bind only to an existing
 canonical task-history record that is awaiting approval or approved; the native
 API supplies its task ID, not an arbitrary plan hash. It does not itself plan,
 execute tools, or grant any authority outside Friday's existing guarded
-execution stack.
+execution stack. Cancelling a bound objective asks that canonical task to cancel
+first and leaves the objective nonterminal if task cancellation fails.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 
