@@ -136,7 +136,8 @@ exact app identifiers from an empty-by-default local allowlist and records a
 proposal, explicit approval, and one-time execution in SQLite before invoking a
 fixed GNOME focus or GIO launch vector. It has no arbitrary shell, keyboard,
 mouse, browser, file, or perception shortcut. The cinematic UI can display a
-pending action and requires an explicit approval click; it cannot bypass policy.
+pending action and requires a local confirmation dialog before the explicit
+approval/execution click; it cannot bypass policy.
 
 Stage 17 begins with a durable local objective lifecycle. It records bounded
 create/resume/cancel state and may bind exactly one already plan-ready canonical

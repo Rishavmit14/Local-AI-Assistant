@@ -31,5 +31,7 @@ action after approval. It never accepts a selector, coordinate, key sequence, or
 screen-derived target and emits no accessibility-tree text through Friday.
 
 The Friday cinematic UI is a projection of this same local action audit. It
-shows a pending action and offers a deliberate approval action. It cannot create
-an action, expand the allowlist, or bypass the lifecycle.
+shows a pending action and opens a local confirmation dialog before the separate
+approval and execution requests. The dialog names the exact allowlisted target,
+offers cancellation, and makes the one-time consequence explicit. It cannot
+create an action, expand the allowlist, or bypass the lifecycle.

@@ -449,6 +449,13 @@ Friday can invoke only exact preconfigured AT-SPI semantic actions under the
 existing proposal, approval, and audit lifecycle. There is no selector, screen
 text, coordinate, keyboard, or mouse injection authority.
 
+## 2026-09-11 — Desktop consent-dialog candidate
+
+The cinematic desktop projection now opens a clear local confirmation dialog
+before its existing separate approval and one-time execution requests. It names
+the proposed allowlisted target and permits cancellation; no new desktop action
+or policy authority was added.
+
 ## 2026-09-10 — Stage 14 deterministic mission-brief candidate
 
 The Learner Twin now produces a meaningful local first mission instead of asking

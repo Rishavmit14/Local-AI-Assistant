@@ -1128,7 +1128,8 @@ checkpoint is a
 separate empty-by-default allowlist, SQLite proposal/approval/execution audit,
 and fixed GNOME focus/GIO launch vectors. The UI only projects a pending action
 and permits an explicit approval; it has no action-creation or policy-bypass
-authority. Complete Python/repository/frontend gates and a controlled live
+authority. Its cinematic projection now presents a local confirmation dialog
+before approval and one-time execution. Complete Python/repository/frontend gates and a controlled live
 restart passed; the running service returned an empty audit and rejected an
 unallowlisted action while voice stayed running. Continue with the remaining
 Stage 16 policy classes on this branch.
