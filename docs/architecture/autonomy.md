@@ -25,8 +25,9 @@ objective database or changing either record. Task history remains the lifecycle
 authority for execution and completion.
 
 The cinematic UI receives at most the newest 100 local objectives through a
-read-only collection projection. It shows the latest objective and its linked
-canonical task state; it cannot create, plan, approve, or execute work.
+read-only collection projection. It shows the newest nonterminal objective and
+its linked canonical task state; it cannot create, plan, approve, or execute
+work.
 
 Later Stage 17 work may connect an objective only to Friday's existing validated
 planner, isolated execution loop, approval, cancellation, validation, rollback,

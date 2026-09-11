@@ -16,7 +16,7 @@ export function ObjectiveConsole() {
     const timer = window.setTimeout(() => void refresh(controller.signal), 0);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [refresh]);
-  const current = objectives[0];
+  const current = objectives.find((objective) => objective.state !== "cancelled");
   return <aside className="objective-console" aria-label="Autonomous objectives">
     <div className="career-forge-heading"><span>OBJECTIVE</span><small>LOCAL · GUARDED</small></div>
     {current ? <>
