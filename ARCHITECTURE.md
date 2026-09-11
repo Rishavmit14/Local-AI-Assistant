@@ -144,7 +144,8 @@ create/resume/cancel state and may bind exactly one already plan-ready canonical
 task-history record by task ID and exact plan token. It delegates no authority
 itself; cancellation of a bound objective delegates to that task's existing
 history cancellation boundary. Objective reads project the current task-history
-state without becoming a second lifecycle authority. Any future objective
+state, and the cinematic UI receives only a bounded read-only objective
+projection, without becoming a second lifecycle authority. Any future objective
 execution must pass through the existing plan, approval, isolation, validation,
 rollback, and audit chain.
 

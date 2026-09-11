@@ -1055,8 +1055,10 @@ not invoke a planner or bypass approval, isolation, validation, rollback, Git,
 or task history. Cancelling a bound objective first requests cancellation from
 that canonical task; a task-cancellation failure leaves the objective
 nonterminal. Objective reads also project the linked task's current canonical
-state without duplicating its execution lifecycle. Complete and publish its
-acceptance gate before the next Stage 17 capability.
+state without duplicating its execution lifecycle. The cinematic UI now has a
+bounded read-only current-objective projection, with no planning, approval, or
+execution control. Complete and publish its acceptance gate before the next
+Stage 17 capability.
 
 Stage 14 Career Forge Core V1 is accepted through implementation checkpoint
 `82e74eb83694516d2a4453b9168744f75bcbd682`: full deterministic Python and

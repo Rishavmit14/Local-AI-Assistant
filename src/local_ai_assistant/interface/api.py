@@ -212,6 +212,13 @@ def create_presentation_app(
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    @app.get("/api/v1/objectives")
+    def recent_objectives(limit: int = 20):
+        try:
+            return {"objectives": [asdict(item) for item in owner_autonomy().recent(limit)]}
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.post("/api/v1/objectives/{objective_id}/resume")
     def resume_objective(objective_id: str):
         try:

@@ -7,6 +7,7 @@ import {
   NeuralCore,
   PerceptionConsole,
   DesktopControlConsole,
+  ObjectiveConsole,
 } from "./components";
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
       <CareerForgeConsole />
       <PerceptionConsole />
       <DesktopControlConsole />
+      <ObjectiveConsole />
 
       <ConversationComposer
         runtimeState={state.runtimeState}

@@ -149,3 +149,14 @@ export interface FridayDesktopAction {
   approved_at: string | null;
   executed_at: string | null;
 }
+
+export interface FridayObjective {
+  objective_id: string;
+  text: string;
+  state: string;
+  created_at: string;
+  updated_at: string;
+  plan_hash: string | null;
+  task_id: string | null;
+  task_state: string | null;
+}

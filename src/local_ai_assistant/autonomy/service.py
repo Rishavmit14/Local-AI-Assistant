@@ -99,7 +99,20 @@ class ObjectiveService:
             row = db.execute("SELECT objective_id, text, state, created_at, updated_at, plan_hash, task_id FROM objectives WHERE objective_id=?", (objective_id,)).fetchone()
         if row is None:
             raise ValueError("objective is unavailable")
-        item = Objective(*row)
+        return self._project(Objective(*row))
+
+    def recent(self, limit: int = 20) -> tuple[Objective, ...]:
+        if not 1 <= limit <= 100:
+            raise ValueError("objective limit must be between 1 and 100")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT objective_id, text, state, created_at, updated_at, plan_hash, task_id "
+                "FROM objectives ORDER BY updated_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return tuple(self._project(Objective(*row)) for row in rows)
+
+    def _project(self, item: Objective) -> Objective:
         task_state = (
             self.task_state_for_task(item.task_id)
             if item.task_id is not None and self.task_state_for_task is not None

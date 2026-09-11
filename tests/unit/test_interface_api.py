@@ -136,6 +136,7 @@ def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):
     created = client.post("/api/v1/objectives", json={"text": "Inspect project status"})
     assert created.status_code == 200
     objective_id = created.json()["objective"]["objective_id"]
+    assert client.get("/api/v1/objectives").json()["objectives"][0]["objective_id"] == objective_id
     assert client.post(f"/api/v1/objectives/{objective_id}/resume").json()["objective"]["state"] == "planning"
     planned = client.post(f"/api/v1/objectives/{objective_id}/plan", json={"task_id": task_id})
     assert planned.json()["objective"]["state"] == "planned"

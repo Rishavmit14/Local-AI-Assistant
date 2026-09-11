@@ -18,6 +18,16 @@ def test_objective_requires_bounded_text(tmp_path):
         service.create(" ")
 
 
+def test_objective_recent_is_bounded_and_newest_first(tmp_path):
+    service = ObjectiveService(tmp_path / "objectives.sqlite3")
+    first = service.create("First")
+    second = service.create("Second")
+    assert [item.objective_id for item in service.recent()] == [second.objective_id, first.objective_id]
+    assert service.recent(1) == (second,)
+    with pytest.raises(ValueError, match="limit"):
+        service.recent(0)
+
+
 def test_objective_binds_only_a_canonical_task_plan_without_execution(tmp_path):
     task_id = "task_" + "a" * 20
     service = ObjectiveService(

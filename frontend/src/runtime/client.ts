@@ -6,6 +6,7 @@ import type {
   FridayRuntimeSnapshot,
   FridayScreenCapture,
   FridayDesktopAction,
+  FridayObjective,
 } from "./types";
 
 export class FridayRuntimeClient {
@@ -108,6 +109,12 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/desktop/actions`, { signal });
     if (!response.ok) throw new Error(`desktop action request failed: ${response.status}`);
     return (await response.json() as { actions: FridayDesktopAction[] }).actions;
+  }
+
+  async getObjectives(signal?: AbortSignal): Promise<FridayObjective[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives`, { signal });
+    if (!response.ok) throw new Error(`objective request failed: ${response.status}`);
+    return (await response.json() as { objectives: FridayObjective[] }).objectives;
   }
 
   async approveDesktopAction(actionId: string): Promise<FridayDesktopAction> {
