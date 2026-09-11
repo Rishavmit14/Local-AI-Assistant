@@ -1656,8 +1656,9 @@ Git before relying on this historical checkpoint.
 
 ## Stage 17 — cold-boot recovery (active, 2026-09-12)
 
-Recovery base remains `f5b9c3966038e4066302f0605d069d2996cf4cab`; do not reset
-the local Stage 17 repair work. The protected localhost gateway configuration
+The accepted recovery repair is `8067dd0fd105eb55e02159c07fa922ceb96a926f`
+on Stage 17 and `main`; do not reset subsequent local Stage 17 work. The prior
+remote recovery base was `f5b9c3966038e4066302f0605d069d2996cf4cab`. The protected localhost gateway configuration
 survived cold boot (plaintext remains outside Git), and the managed Friday
 service restarted healthy/listening with all three voice workers.
 
