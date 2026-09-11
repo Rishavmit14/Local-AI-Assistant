@@ -487,6 +487,10 @@ processes from starting duplicate code-agent runs; a 24-hour lease recovers
 interrupted dispatch. Exact approval and isolation worktree ownership remain
 authoritative. Qualification passed 798 tests in full regression and repository
 verification, plus frontend lint, 26 tests, and production build.
+Controlled restart migrated the live history database to v7; every pre-existing
+task identity/lifecycle/outcome field matched the consistent backup exactly, no
+execution claims remained, and integrity was clean. Voice health was running
+with all speech workers alive and zero recoveries.
 
 ## 2026-09-11 — Stage 17 durable planning admission accepted
 

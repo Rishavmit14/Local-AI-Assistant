@@ -1168,6 +1168,12 @@ second gateway from submitting another code-agent run. Qualification passed 798
 tests in both full Python gates plus frontend lint/26 tests/build. Live migration
 and runtime restart remain pending; no credentials, approvals, or execution were
 changed.
+
+Execution-admission runtime qualification completed: the ignored pre-migration
+backup is `var/history/execution-claim-recovery-WmVXjI/tasks.sqlite3`. Controlled
+restart migrated live history to v7 with all prior task identity/lifecycle/outcome
+fields preserved exactly, no execution claims, and clean integrity. Friday is
+running/listening with all speech workers alive and zero recoveries.
 The current session's actual `select_backend()` probe selects Bubblewrap with
 supported process/filesystem/network/user-namespace isolation, unlike the old
 host limitation note; cgroups remain partial. This is a capability probe, not
