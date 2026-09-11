@@ -27,6 +27,7 @@ from .common.repository_files import (
     read_repo_bytes_bounded,
     read_repo_file_bounded,
 )
+from .code_index.repository import CODE_EXTENSIONS
 
 
 class ReadinessStatus(StrEnum):
@@ -534,13 +535,19 @@ class RepositoryOnboardingService:
                         truncated = True
                 if name in _GENERATED_DIRS or any(part in _GENERATED_DIRS for part in path.relative_to(root).parts):
                     generated.append(relative)
-                extension_language = _EXTENSIONS.get(path.suffix.lower())
+                suffix = path.suffix.lower()
+                extension_language = _EXTENSIONS.get(suffix)
                 if extension_language:
                     languages.add(extension_language)
-                    source_paths.append(relative)
                     component = component_for(relative_path)
                     if component is not None:
                         component["languages"].add(extension_language)
+                # Readiness must attest to exactly the files CodeRAG indexes.
+                # Otherwise an execution-owned refresh can never satisfy the
+                # subsequent fail-closed index check for supported non-language
+                # formats such as Markdown, JSON, or TOML.
+                if suffix in CODE_EXTENSIONS:
+                    source_paths.append(relative)
                 if name in _MANIFESTS or name in {"package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb", "Cargo.lock", "tox.ini", "pytest.ini", ".eslintrc", "tsconfig.json", "ruff.toml", ".ruff.toml", "mypy.ini", "Dockerfile", ".gitignore", ".gitattributes"} or relative.startswith(".github/workflows/"):
                     manifest_recorded = False
                     if len(manifests) < self.limits.max_manifests:

@@ -1653,3 +1653,28 @@ coverage, full regression, and repository verification passed. The Stage 12N
 implementation acceptance checkpoint is
 `fbec1a22e9c0c9097e8700b84f99ff6d1bbf21cf`; verify current branch heads from
 Git before relying on this historical checkpoint.
+
+## Stage 17 — cold-boot recovery (active, 2026-09-12)
+
+Recovery base remains `f5b9c3966038e4066302f0605d069d2996cf4cab`; do not reset
+the local Stage 17 repair work. The protected localhost gateway configuration
+survived cold boot (plaintext remains outside Git), and the managed Friday
+service restarted healthy/listening with all three voice workers.
+
+The controlled exact task `task_8793980850f51d5b46c9` / objective
+`fe51326c7f3b4bbf906fb75f56a4e075` must not be recreated or redispatched. Its
+verified plan hash was `dd7aecc35ee812310dcc8ca4ce176b5f5350cb93d6b0d77ce4204de5421ebc89`;
+the matching baseline checkpoint and cleaned isolated-worktree metadata prove a
+pre-shutdown rollback, not success. The local Qwen loop rejected a malformed
+quoted/non-integer `plan_step`, rolled back, and cleaned the worktree, while the
+older executor failed to finalize history. Recovery reconciled the same task to
+`rolled_back`, attached its execution audit, and the objective projection shows
+the same terminal task state/outcome. A repeat authenticated execute request
+returns 409, preserving exact-plan/terminal-task authority.
+
+This Stage 17 recovery candidate covers repository-index inventory alignment, isolated
+branch persistence, verified exact-checkpoint reuse, terminal-history recording,
+isolated-artifact identity binding, and unambiguous quoted-decimal `plan_step`
+normalization. Stage 17 remains active: do not begin Stage 18 until these changes
+pass the full gates, are documented, committed, pushed, and a new successful
+controlled qualification is authorized without replacing the terminal task.

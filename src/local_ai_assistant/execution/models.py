@@ -60,7 +60,13 @@ class ToolRequest:
             value["expected_outcome"], str
         ):
             raise ValueError("rationale and expected_outcome must be strings")
-        if isinstance(value["plan_step"], bool) or not isinstance(value["plan_step"], int):
+        plan_step = value["plan_step"]
+        # Local model JSON occasionally represents this audit-only ordinal as a
+        # quoted decimal. Normalize only the unambiguous canonical form; booleans,
+        # signs, whitespace, floats, and arbitrary strings stay fail-closed.
+        if isinstance(plan_step, str) and plan_step.isdecimal():
+            plan_step = int(plan_step)
+        if isinstance(plan_step, bool) or not isinstance(plan_step, int):
             raise ValueError("plan_step must be an integer")
         if not isinstance(value["mutation_intended"], bool):
             raise ValueError("mutation_intended must be a boolean")
@@ -69,7 +75,7 @@ class ToolRequest:
             value["arguments"],
             value["rationale"],
             value["expected_outcome"],
-            value["plan_step"],
+            plan_step,
             value["mutation_intended"],
         )
 

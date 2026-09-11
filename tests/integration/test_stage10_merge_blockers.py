@@ -9,12 +9,13 @@ from types import SimpleNamespace
 
 import pytest
 
+from local_ai_assistant.agent import code_agent
+from local_ai_assistant.code_index.repository import CODE_EXTENSIONS
 from local_ai_assistant.common.config import AppConfig
 from local_ai_assistant.common.repository_files import (
     read_repo_bytes_bounded,
     read_repo_file_bounded,
 )
-from local_ai_assistant.agent import code_agent
 from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
 from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
@@ -289,6 +290,7 @@ def test_fresh_authority_detects_revision_change(tmp_path: Path):
 def test_repository_scoped_index_identity_and_freshness(tmp_path: Path):
     config, _, _ = configured(tmp_path)
     root = make_repo(tmp_path / "external")
+    (root / "README.md").write_text("# indexed documentation\n")
     service = RepositoryOnboardingService(config, allowed_roots=(tmp_path / "external",))
     profile = service.register("project", root)
     assert profile.index_state is IndexState.ABSENT
@@ -297,7 +299,11 @@ def test_repository_scoped_index_identity_and_freshness(tmp_path: Path):
     repository_index = service.repository_index_dir(profile.fingerprint)
     repository_index.mkdir(parents=True)
     manifest = {}
-    for relative in ("app.py",):
+    for relative in sorted(
+        item.relative_to(root).as_posix()
+        for item in root.rglob("*")
+        if item.is_file() and item.suffix.lower() in CODE_EXTENSIONS
+    ):
         payload = (root / relative).read_bytes()
         manifest[relative] = {
             "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload)
@@ -467,7 +473,11 @@ def test_controlled_onboarding_authority_reaches_stage8_worktree_only(
     repository_index = onboarding.repository_index_dir(profile.fingerprint)
     repository_index.mkdir(parents=True)
     manifest = {}
-    for relative in ("app.py", "test_app.py"):
+    for relative in sorted(
+        item.relative_to(root).as_posix()
+        for item in root.rglob("*")
+        if item.is_file() and item.suffix.lower() in CODE_EXTENSIONS
+    ):
         payload = (root / relative).read_bytes()
         manifest[relative] = {
             "sha256": hashlib.sha256(payload).hexdigest(), "size": len(payload),

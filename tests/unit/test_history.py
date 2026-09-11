@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from local_ai_assistant.agent.code_agent import _finalize_execution_history
 from local_ai_assistant.common.config import AppConfig, PathConfig
 from local_ai_assistant.history.cli import _orphan_temporaries
 from local_ai_assistant.history.cli import main as history_main
@@ -166,6 +167,52 @@ def test_status_lifecycle_and_invalid_transition(history, tmp_path):
             final_commit="c" * 40, outcome="rewritten",
         )
     assert history.get(task.task_id) == unchanged
+
+
+def test_task_branch_can_record_isolated_execution_branch(history, tmp_path):
+    task = create(history, tmp_path)
+    updated = history.store.update_task(
+        task.task_id, task.repository, branch="friday/task/isolation-bound"
+    )
+    assert updated.branch == "friday/task/isolation-bound"
+
+
+@pytest.mark.parametrize(
+    ("from_status", "final_status"),
+    ((TaskStatus.EXECUTING, TaskStatus.ROLLED_BACK), (TaskStatus.VALIDATING, TaskStatus.SUCCEEDED)),
+)
+def test_executor_finalization_records_one_canonical_terminal_outcome(
+    tmp_path, from_status, final_status
+):
+    config = AppConfig.from_env({"LOCAL_AI_VAR_DIR": str(tmp_path / "runtime")})
+    service = TaskHistoryService(TaskHistoryStore(config.paths.task_history_db))
+    task = create(service, tmp_path)
+    service.store.update_task(task.task_id, task.repository, plan_hash="exact-plan")
+    service.transition(task.task_id, TaskStatus.PLANNING, "planning")
+    service.transition(task.task_id, TaskStatus.AWAITING_APPROVAL, "awaiting approval")
+    service.attach_approval(task.task_id, "exact-plan", "explicitly_approved")
+    service.transition(task.task_id, TaskStatus.APPROVED, "approved")
+    service.transition(task.task_id, TaskStatus.EXECUTING, "executing")
+    if from_status is TaskStatus.VALIDATING:
+        service.transition(task.task_id, TaskStatus.VALIDATING, "validating")
+
+    _finalize_execution_history(
+        config,
+        task.task_id,
+        final_status,
+        outcome="terminal executor evidence",
+        failure_reason="bounded failure" if final_status is TaskStatus.ROLLED_BACK else None,
+    )
+    terminal = service.get(task.task_id)
+    assert terminal.status is final_status
+    assert terminal.outcome == "terminal executor evidence"
+    if final_status is TaskStatus.SUCCEEDED:
+        assert any(event.status == "reviewing" for event in service.timeline(task.task_id))
+
+    _finalize_execution_history(
+        config, task.task_id, final_status, outcome="late callback must not rewrite"
+    )
+    assert service.get(task.task_id).outcome == "terminal executor evidence"
 
 
 def test_awaiting_approval_requires_exact_evidence_and_terminal_states_never_resume(history, tmp_path):
@@ -355,6 +402,30 @@ def test_execution_artifact_import_is_idempotent_and_redacted(history, tmp_path)
     assert tool_count == 1
     with pytest.raises(ArtifactImportError, match="repository identity"):
         importer.import_path(artifact, repository=tmp_path / "different-repo")
+
+
+def test_execution_artifact_from_bound_isolated_worktree_keeps_canonical_identity(
+    history, tmp_path
+):
+    canonical = tmp_path / "canonical"
+    worktree = tmp_path / "worktree"
+    canonical.mkdir()
+    worktree.mkdir()
+    task = history.create_task("report only", canonical, "a" * 40, "friday/task/task-bound", task_id="task-bound")
+    history.store.update_task(task.task_id, task.repository, plan_hash="exact-plan")
+    artifact = tmp_path / "bound-execution.json"
+    artifact.write_text(json.dumps({
+        "schema_version": 1, "task_id": task.task_id, "plan_hash": "exact-plan",
+        "repository": str(worktree), "starting_commit": "a" * 40,
+        "status": "rolled_back", "plan_versions": ["exact-plan"], "events": [],
+    }))
+
+    imported = ArtifactImporter(history).import_path(artifact, repository=canonical)
+
+    assert imported["imported"] is True
+    stored = history.get(task.task_id)
+    assert stored.repository == str(canonical)
+    assert stored.status is TaskStatus.ROLLED_BACK
 
 
 def test_artifact_import_rejects_symlink_escape_and_preview_detects_changed_content(tmp_path):

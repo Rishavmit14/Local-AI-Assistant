@@ -246,6 +246,27 @@ def test_unknown_tool_and_strict_tool_request_schema():
         }
     )
     assert request.tool == "read_file"
+    assert ToolRequest.from_dict(
+        {
+            "tool": "read_file",
+            "arguments": {"path": "a.py"},
+            "rationale": "Inspect exact code",
+            "expected_outcome": "source",
+            "plan_step": "1",
+            "mutation_intended": False,
+        }
+    ).plan_step == 1
+    for malformed_step in (" 1", "+1", "1.0", True):
+        invalid_step = {
+            "tool": "read_file",
+            "arguments": {"path": "a.py"},
+            "rationale": "inspect",
+            "expected_outcome": "source",
+            "plan_step": malformed_step,
+            "mutation_intended": False,
+        }
+        with pytest.raises(ValueError, match="plan_step"):
+            ToolRequest.from_dict(invalid_step)
     with pytest.raises(ValueError):
         ToolRequest.from_dict({"tool": "read_file"})
     invalid = {

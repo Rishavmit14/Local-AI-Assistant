@@ -727,3 +727,18 @@ tests passed.
 Accepted read-only liveness/PID health projections for persistent primary wake,
 fallback wake, and Piper workers. A live service restart confirmed all three
 workers and wake capture healthy; deterministic projection coverage passed.
+
+## 2026-09-12 — Stage 17 cold-boot execution recovery repair
+
+After an intentional host shutdown, the controlled report-only Stage 17 task
+was recovered from durable evidence rather than recreated. Its authenticated
+dispatch, exact approval, checkpoint, isolated worktree, and local tool work
+had occurred before shutdown; journal and artifact evidence proved it had
+already rolled back after a malformed local-model tool ordinal. The worktree was
+cleaned and no claim remained, but history had incorrectly stayed `executing`.
+The repair records executor terminal state before cleanup, imports matching
+isolated execution artifacts without replacing canonical repository identity,
+and normalizes only an unambiguous quoted decimal tool ordinal. The original
+task was reconciled to canonical `rolled_back`; no promotion or canonical
+checkout mutation occurred. Stage 17 remains active pending a fresh successful
+controlled qualification.

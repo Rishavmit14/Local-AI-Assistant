@@ -333,6 +333,16 @@ Schema v7 adds durable cross-process execution dispatch admission held through
 executor completion, with 24-hour interrupted-dispatch recovery. Isolation and
 exact approval remain authoritative.
 
+Cold-boot recovery of the controlled report-only qualification found a completed
+rollback artifact and cleaned, identity-matching worktree but an `executing`
+canonical task row. The repair finalizes every code-agent terminal path before
+cleanup and accepts isolated execution evidence only when it matches the
+existing task's exact plan hash and starting commit. The same task was
+reconciled as `rolled_back`; no replacement plan, task, worktree, promotion, or
+canonical-checkout mutation was created. The local model's quoted numeric tool
+ordinal is normalized only in its unambiguous decimal form. A new successful
+controlled execution remains required before Stage 17 can be accepted.
+
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 
 ## Stage 18 — Proactive Event and Automation Engine (**Planned**)

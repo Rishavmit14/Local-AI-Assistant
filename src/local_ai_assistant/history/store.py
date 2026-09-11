@@ -417,7 +417,7 @@ class TaskHistoryStore:
         allowed = {
             "final_commit", "classification", "risk", "confidence", "approval_state",
             "plan_hash", "final_decision", "outcome", "failure_reason",
-            "human_review_state", "duration_seconds", "summary", "metadata",
+            "human_review_state", "duration_seconds", "summary", "metadata", "branch",
         }
         if not changes or set(changes) - allowed:
             raise HistoryDatabaseError("Invalid task update fields")

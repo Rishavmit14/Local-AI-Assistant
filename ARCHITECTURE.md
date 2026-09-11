@@ -152,6 +152,14 @@ cancel controls, without becoming a second lifecycle authority. Any objective
 execution must pass through the existing plan, approval, isolation, validation,
 rollback, and audit chain.
 
+Executor terminal handling is also task-history authority: after a result is
+persisted, code-agent records `rolled_back`, `cancelled`, or successful
+review/finalization before a failed isolated worktree can be cleaned. Execution
+artifacts may name their bound isolated worktree, while the canonical task stays
+bound to its canonical checkout; import accepts this only when task ID, exact
+plan hash, and starting commit match the existing task. A cleaned worktree or
+artifact alone never implies completion.
+
 For a task awaiting approval, the projection includes a bounded, task-token-
 verified review summary. It is strictly read-only and does not expose artifact
 paths, write APIs, approval, or execution.

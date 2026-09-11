@@ -28,7 +28,7 @@ from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.isolation.checkpoints import CheckpointManager
-from local_ai_assistant.isolation.errors import IsolationError
+from local_ai_assistant.isolation.errors import CheckpointError, IsolationError
 from local_ai_assistant.isolation.models import (
     CapabilityState,
     NetworkPolicy,
@@ -37,6 +37,7 @@ from local_ai_assistant.isolation.models import (
 )
 from local_ai_assistant.isolation.sandbox import select_backend
 from local_ai_assistant.isolation.worktrees import WorktreeManager
+from local_ai_assistant.onboarding import RepositoryNotOnboarded, RepositoryOnboardingService
 from local_ai_assistant.planning import PlannerService
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import (
@@ -50,7 +51,6 @@ from local_ai_assistant.planning.patch_scope import (
     validate_patch_scope,
     worktree_diff,
 )
-from local_ai_assistant.onboarding import RepositoryNotOnboarded, RepositoryOnboardingService
 from local_ai_assistant.validation.decision import decide_final
 from local_ai_assistant.validation.errors import TestGenerationError, ValidationIntelligenceError
 from local_ai_assistant.validation.models import DecisionStatus, ValidationReport
@@ -223,6 +223,56 @@ def _mark_validation_started(config: AppConfig, task_id: str) -> None:
         logger.error(
             "task_history_validation_start_failed",
             extra={"event": "history.validation.start_failed", "error": str(exc)},
+        )
+
+
+def _finalize_execution_history(
+    config: AppConfig,
+    task_id: str,
+    status: TaskStatus,
+    *,
+    outcome: str,
+    failure_reason: str | None = None,
+    final_commit: str | None = None,
+) -> None:
+    """Record the executor's terminal result before an isolated worktree is cleaned.
+
+    Execution artifacts and isolation cleanup are evidence, not lifecycle authority.
+    Without this handoff, a failed worker could remove its worktree while leaving the
+    canonical task runnable forever.  Terminal records remain idempotent: a terminal
+    task is never rewritten by a late executor callback.
+    """
+    try:
+        service = _history_service(config)
+        task = service.get(task_id)
+        if task is None or task.status in {
+            TaskStatus.SUCCEEDED,
+            TaskStatus.FAILED,
+            TaskStatus.BLOCKED,
+            TaskStatus.ROLLED_BACK,
+            TaskStatus.CANCELLED,
+        }:
+            return
+        if status is TaskStatus.SUCCEEDED and task.status is TaskStatus.VALIDATING:
+            service.transition(
+                task_id,
+                TaskStatus.REVIEWING,
+                "Validation evidence ready for final review",
+                subsystem="review",
+            )
+        service.finalize(
+            task_id,
+            Path(task.repository),
+            status,
+            final_commit=final_commit,
+            decision=status.value,
+            outcome=outcome,
+            failure_reason=failure_reason,
+        )
+    except Exception as exc:
+        logger.error(
+            "task_history_execution_finalize_failed",
+            extra={"event": "history.execution.finalize_failed", "error": str(exc)},
         )
 
 
@@ -1911,9 +1961,22 @@ def main(argv: list[str] | None = None):
             isolation_identity = isolation_manager.transition(
                 isolation_identity, WorktreeState.EXECUTING
             )
-            baseline = CheckpointManager(
-                config.paths.isolation_dir / "checkpoints"
-            ).create(repo, artifact.plan.task_id, approval_token, "baseline")
+            checkpoints = CheckpointManager(config.paths.isolation_dir / "checkpoints")
+            try:
+                baseline = checkpoints.create(
+                    repo, artifact.plan.task_id, approval_token, "baseline"
+                )
+            except CheckpointError as exc:
+                # A pre-execution setup failure may already have created this
+                # exact baseline. Reuse only a verified record bound to the
+                # same task, plan, and starting commit; never overwrite it.
+                if str(exc) != "Checkpoint already exists":
+                    raise
+                baseline = checkpoints.load(
+                    artifact.plan.task_id, "baseline", approval_token
+                )
+                if baseline.head != starting_commit:
+                    raise IsolationError("Existing baseline checkpoint does not match task HEAD")
             _bind_history_worktree(
                 config, artifact.plan.task_id, canonical_repo, isolation_identity.branch
             )
@@ -2007,6 +2070,14 @@ def main(argv: list[str] | None = None):
                     / "executions"
                     / f"{artifact.plan.task_id}.json",
                 )
+                _finalize_execution_history(
+                    config,
+                    artifact.plan.task_id,
+                    TaskStatus.ROLLED_BACK,
+                    outcome="Generated-test preparation failed; isolated execution was rolled back.",
+                    failure_reason="Generated-test preparation did not complete.",
+                    final_commit=transaction.resulting_commit,
+                )
                 if not args.keep_failed_branch:
                     isolation_manager.cleanup(
                         isolation_identity, delete_branch=True, allow_active=True
@@ -2059,6 +2130,14 @@ def main(argv: list[str] | None = None):
                 config.paths.code_index_dir
                 / "executions"
                 / f"{artifact.plan.task_id}.json",
+            )
+            _finalize_execution_history(
+                config,
+                artifact.plan.task_id,
+                TaskStatus.ROLLED_BACK,
+                outcome="Tool execution failed; isolated execution was rolled back.",
+                failure_reason=str(exc),
+                final_commit=transaction.resulting_commit,
             )
             print(f"Tool execution failed: {exc}")
             if not args.keep_failed_branch:
@@ -2144,6 +2223,18 @@ def main(argv: list[str] | None = None):
         )
         if not success:
             print(validation_output)
+            _finalize_execution_history(
+                config,
+                artifact.plan.task_id,
+                TaskStatus.CANCELLED if cancelled else TaskStatus.ROLLED_BACK,
+                outcome=(
+                    "Execution was cancelled and isolated changes were rolled back."
+                    if cancelled
+                    else "Validation did not pass; isolated execution was rolled back."
+                ),
+                failure_reason=("Execution cancellation was requested." if cancelled else "Validation did not pass."),
+                final_commit=transaction.resulting_commit,
+            )
             if not args.keep_failed_branch:
                 isolation_manager.cleanup(
                     isolation_identity, delete_branch=True, allow_active=True
@@ -2152,6 +2243,13 @@ def main(argv: list[str] | None = None):
                     config, artifact.plan.task_id, "cleaned", "Failed task worktree cleaned"
                 )
             sys.exit(1)
+        _finalize_execution_history(
+            config,
+            artifact.plan.task_id,
+            TaskStatus.SUCCEEDED,
+            outcome="Validation and review completed; isolated task branch awaits explicit promotion.",
+            final_commit=transaction.resulting_commit,
+        )
         isolation_manager.transition(isolation_identity, WorktreeState.PROMOTION_READY)
         _record_isolation(
             config,

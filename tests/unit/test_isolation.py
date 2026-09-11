@@ -188,6 +188,15 @@ def test_checkpoint_hash_tamper_and_plan_mismatch(repository, tmp_path):
         checkpoints.load("task-1", "base", "other")
 
 
+def test_checkpoint_retry_can_verify_same_exact_baseline(repository, tmp_path):
+    _, identity = create_worktree(repository, tmp_path)
+    checkpoints = CheckpointManager(tmp_path / "checkpoints")
+    created = checkpoints.create(Path(identity.worktree), "task-1", identity.plan_hash, "base")
+    reused = checkpoints.load("task-1", "base", identity.plan_hash)
+    assert reused.checkpoint_id == created.checkpoint_id
+    assert reused.head == identity.starting_commit
+
+
 def test_environment_is_allowlisted_and_task_scoped(tmp_path):
     parent = {
         "LANG": "C.UTF-8",

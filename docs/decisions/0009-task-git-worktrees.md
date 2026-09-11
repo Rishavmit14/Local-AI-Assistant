@@ -12,3 +12,9 @@ Worktree creation rejects dirty canonical repositories, stale commits, branch/pa
 ## Consequences
 
 Worktrees share Git objects without copying complete repositories. Multiple tasks may use independent worktrees, but each remains bound to its original base. Canonical drift, branch divergence, or changed promotion evidence fails explicitly and is never silently rebased or conflict-resolved.
+
+Execution reports identify the isolated worktree for auditability, while task
+history retains the canonical repository identity. Such evidence is accepted
+only when its task, exact plan hash, and starting commit match the existing
+canonical task. Failed/cancelled executor paths finalize canonical task history
+before cleanup; a cleaned worktree is recovery evidence, not a terminal result.

@@ -24,6 +24,14 @@ local-ai-history vacuum
 
 Import never changes or deletes source artifacts. Duplicate content hashes are ignored. Corrupt, unsupported, cross-repository, and identity-conflicting artifacts fail explicitly.
 
+For an isolated execution, the report repository is the task worktree and does
+not replace the task's canonical repository binding. Import accepts it only for
+an existing task with the same task ID, exact plan hash, and starting commit.
+During interruption recovery, inspect the task row, claim, checkpoint, worktree
+metadata, and execution artifact first; reconcile a verified terminal artifact
+through `TaskHistoryService.finalize`, never by editing SQLite or inferring
+success from a worktree directory.
+
 Before migration or maintenance, stop active writers and copy the database plus its `-wal` and `-shm` companions, or use SQLite's online backup API. Migrations are transactional; downgrade is not supported. `vacuum` is explicit and never deletes tasks. Automatic retention is intentionally absent. Orphan inspection is read-only; pruning requires `--confirm`, only considers old hidden `*.tmp` regular files inside the configured runtime root, and rejects symlinks. Canonical JSON evidence and database rows are never pruning candidates.
 
 The synthetic benchmark is:

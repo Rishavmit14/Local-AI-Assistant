@@ -76,9 +76,27 @@ class ArtifactImporter:
             elif artifact_type == "execution":
                 report = load_report(path)
                 task_id = report["task_id"]
-                repo = Path(report["repository"]).resolve()
-                self._verify_requested_repository(repo, repository)
-                self._ensure_task(task_id, value.get("request", "Imported execution"), repo, report["starting_commit"], value.get("branch", "unknown"), value.get("timestamp", utc_now()))
+                report_repo = Path(report["repository"]).resolve()
+                existing = self.service.get(task_id)
+                if existing:
+                    # Isolated executors correctly report their task worktree,
+                    # while task history remains bound to the canonical checkout.
+                    # Accept that representation only for the exact existing task
+                    # and its exact approved plan/starting commit; never let an
+                    # execution artifact replace canonical repository identity.
+                    canonical_repo = Path(existing.repository).resolve()
+                    self._verify_requested_repository(canonical_repo, repository)
+                    if (
+                        existing.starting_commit != report["starting_commit"]
+                        or not existing.plan_hash
+                        or existing.plan_hash != report.get("plan_hash")
+                    ):
+                        raise ArtifactImportError(
+                            "Execution artifact is not bound to the existing task plan and commit"
+                        )
+                else:
+                    self._verify_requested_repository(report_repo, repository)
+                    self._ensure_task(task_id, value.get("request", "Imported execution"), report_repo, report["starting_commit"], value.get("branch", "unknown"), value.get("timestamp", utc_now()))
                 self._execution(task_id, path, digest, report)
                 schema = int(report["schema_version"])
             else:

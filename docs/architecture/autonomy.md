@@ -125,3 +125,12 @@ For a terminal task only, the projection may include up to 1,000 characters of
 its already-redacted canonical outcome, failure reason, or final decision, in
 that order. Nonterminal task detail remains absent rather than speculative.
 See [ADR 0019](../decisions/0019-objective-planning-through-native-gateway.md).
+
+An executor must finalize canonical task history before cleaning a failed
+worktree. A persisted execution artifact is audit evidence and may use the
+isolated worktree path, but it can attach to an existing canonical task only
+when its task ID, exact plan hash, and starting commit all match. Recovery
+validates the checkpoint and worktree identity as well as that artifact; a
+cleaned worktree never becomes a success inference. The local tool schema
+normalizes only a quoted unsigned decimal `plan_step` to its audit ordinal;
+other malformed values remain rejected.
