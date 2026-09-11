@@ -1056,11 +1056,10 @@ or task history. Cancelling a bound objective first requests cancellation from
 that canonical task; a task-cancellation failure leaves the objective
 nonterminal. Objective reads also project the linked task's current canonical
 state without duplicating its execution lifecycle. The cinematic UI now has a
-bounded read-only current-objective projection, with no planning, approval, or
-execution control. Its panel can invoke the existing bounded local objective
-create/resume/cancel lifecycle, but has no planner, plan-binding, approval, or
-execution control. Complete and publish its acceptance gate before the next
-Stage 17 capability.
+bounded current-objective projection and may create/resume/cancel a bounded
+objective. It may also request planning for an explicit configured repository
+ID, which first reserves one plan-only canonical task and delegates only to the
+existing native gateway/planner; it has no approval or execution control.
 
 Stage 17 planning exposed and repairs task-history schema drift: schema v5
 additively migrates required plan/patch/review/commit metric fields and verifies
@@ -1069,7 +1068,8 @@ Friday clone and offline BGE index under ignored `var/` support guarded plan
 qualification; its current objective is attached to a canonical plan awaiting
 human review and has not executed.
 
-The active Stage 17 candidate lets an explicitly resumed objective reserve one
+The accepted Stage 17 native objective-planning checkpoint is
+`ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`. It lets an explicitly resumed objective reserve one
 plan-only canonical task for a configured repository ID, then delegates the
 plan request to the existing native gateway/planner. It persists the task link
 before planning so a local planner failure retries that task rather than creating
