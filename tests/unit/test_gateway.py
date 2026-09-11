@@ -91,6 +91,31 @@ def test_auth_rejects_malformed_hash_and_distinguishes_401_403_errors():
         GatewayAuth(hashlib.sha256(b"x").hexdigest()).require("x", GatewayScope.CREATE_TASK)
 
 
+def test_objective_task_reservation_is_idempotent_across_gateway_restart(tmp_path):
+    gateway, _ = service(tmp_path)
+    reservation = "task_" + "a" * 20
+    try:
+        first = gateway.reserve_objective_task("r1", "Plan only", reservation)
+        second_gateway = IntegrationGatewayService(gateway.history, gateway.mappings)
+        try:
+            second = second_gateway.reserve_objective_task("r1", "Plan only", reservation)
+            assert first.task_id == second.task_id == reservation
+            assert first.metadata["plan_only"] is True
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                tasks = list(pool.map(
+                    lambda _: second_gateway.reserve_objective_task("r1", "Plan only", reservation),
+                    range(4),
+                ))
+            assert {task.task_id for task in tasks} == {reservation}
+            assert len(gateway.history.list()) == 1
+            with pytest.raises(ValueError, match="identity changed"):
+                second_gateway.reserve_objective_task("r1", "Changed request", reservation)
+        finally:
+            second_gateway.close()
+    finally:
+        gateway.close()
+
+
 def test_issue_idempotency_is_persisted(tmp_path):
     gateway, _ = service(tmp_path)
     provenance = ExternalProvenance.from_payload("github", "delivery-1", "r1", "body")

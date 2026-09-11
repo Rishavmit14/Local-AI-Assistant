@@ -479,6 +479,22 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 durable task reservation qualification
+
+Objective planning now persists task ID and repository before materialization.
+Gateway history idempotency recovers that exact plan-only task after interruption;
+cancellation can recover and cancel an unmaterialized reservation, and ready
+canonical plans bind on retry without repeated inference. Legacy objective rows
+survive the additive repository-ID migration. No execution or approval authority
+is added, and process-local admission is not a distributed inference lease.
+
+Qualification: 779 tests passed in both full regression and repository
+verification; frontend lint, 18 tests, and production build passed. Before the
+controlled restart, a consistent local SQLite backup passed integrity checking.
+The live objective endpoint migrated successfully; every pre-existing field and
+record matched the backup exactly. API/voice health confirmed listening capture,
+all speech workers alive, and zero recoveries.
+
 ## 2026-09-11 — Stage 17 stale lifecycle write qualification
 
 Three deterministic interleavings reproduced late resume/bind overwriting

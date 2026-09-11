@@ -302,8 +302,10 @@ read-only task-token-verified plan-review summary only.
 
 Planning uses a worker thread with process-local admission so its synchronous
 model call does not block health/status/cancellation requests. Concurrent plan
-requests are rejected while that worker is active. Cross-process reservation
-and the remaining guarded execution loop are still pending.
+requests are rejected while that worker is active. Task identity/repository
+reservation is durable across processes; gateway materialization, cancellation,
+and ready-plan binding recover the same identity after interruption. Distributed
+inference admission and the remaining guarded execution loop are still pending.
 Lifecycle and binding updates now reject stale observed state/task/token values
 at the database write, preserving cancellation and competing canonical bindings.
 

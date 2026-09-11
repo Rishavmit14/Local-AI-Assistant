@@ -12,9 +12,10 @@ planner, accepting a filesystem path, or duplicating task-history authority.
 
 ## Decision
 
-After an owner explicitly resumes an objective, Friday creates one plan-only
-canonical task for an already configured repository ID and records that task ID
-on the objective before asking `IntegrationGatewayService` to plan it. The
+After an owner explicitly resumes an objective, Friday reserves one task ID and
+configured repository ID atomically on the objective. The native gateway
+materializes that plan-only task through the existing history idempotency
+transaction before asking `IntegrationGatewayService` to plan it. The
 gateway continues to own repository mapping, task creation, and delegation to
 the validated local planner. Task history remains the source of plan tokens,
 approval, execution, validation, rollback, and audit state.
@@ -28,8 +29,11 @@ it never accepts a path or a plan hash.
 Lifecycle and binding writes compare the observed state, task ID, and token in
 the database update itself. Stale writers fail closed; an earlier read check
 alone must not allow a late resume/bind to overwrite cancellation or another
-binding. This does not provide atomic task creation across the objective and
-canonical task journals; that separate reservation/recovery work remains open.
+binding. The two journals do not share a transaction: a persisted reservation
+is materialized idempotently under source `friday-objective` and its task ID.
+Retry and cancellation recover that exact reservation, including after a crash
+between journal writes. A ready persisted plan is rebound without regeneration.
+Single-inference admission remains process-local, not a distributed lease.
 
 ## Consequences
 

@@ -25,7 +25,8 @@ objective database or changing either record. Task history remains the lifecycle
 authority for execution and completion.
 
 After an explicit resume, the cinematic panel may request a plan for a configured
-repository ID. Friday creates and records one canonical plan-only task first,
+repository ID. Friday durably reserves one task ID and repository before
+materializing that canonical plan-only task through gateway idempotency,
 then delegates plan generation to the existing native gateway/planner. A local
 planner failure leaves that exact task linked to the `planning` objective, so a
 retry cannot create a second task. Only the existing task-history plan token can
@@ -38,14 +39,21 @@ plan operation is admitted per presentation process; overlapping requests return
 409. The worker owns that admission until completion, including after client
 disconnect. Cancellation remains cooperative through canonical task history;
 it does not forcibly terminate a model call. This is process-local admission,
-not a distributed scheduler or cross-process task reservation.
+not a distributed scheduler or cross-process inference lease.
 
 Resume, cancellation, and plan binding condition their database writes on the
 state, task ID, and plan token actually read. A concurrent lifecycle or binding
 change rejects the stale write instead of reviving cancellation or replacing
 another canonical plan. This comparison is enforced by SQLite across service
-instances; task creation/reservation across the separate journals still needs
-its own recovery protocol.
+instances. Task reservation uses an atomic conditional objective write, then the
+existing task-history idempotency transaction keyed by `friday-objective` and
+the reserved task ID. Restart/retry uses the stored repository and ID, never a
+replacement selected by a later request. Cancellation recovers an unmaterialized
+reservation before asking canonical history to cancel it; unavailable recovery
+fails without claiming cancellation. A ready canonical plan is bound on retry
+without invoking inference again. Legacy linked objectives retain their IDs and
+need no reservation backfill. The objective schema adds nullable repository ID
+without dropping records. No transaction spans model inference or both journals.
 
 The cinematic UI receives at most the newest 100 local objectives through a
 bounded collection projection. It shows the newest nonterminal objective whose

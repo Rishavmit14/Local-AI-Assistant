@@ -65,9 +65,9 @@ def test_objective_planning_keeps_health_and_cancellation_responsive(tmp_path):
 
     autonomy = ObjectiveService(
         tmp_path / "objectives.sqlite3",
-        create_task_for_objective=lambda _text, _repo: task_id,
+        create_task_for_objective=lambda _text, _repo, reserved_id: reserved_id,
         request_plan_for_task=plan,
-        plan_hash_for_task=lambda _task: None if cancelled.is_set() else "b" * 64,
+        plan_hash_for_task=lambda _task: "b" * 64 if entered.is_set() and not cancelled.is_set() else None,
         cancel_task=lambda _task: cancelled.set(),
     )
     objective = autonomy.resume(autonomy.create("Inspect only").objective_id)
@@ -202,12 +202,17 @@ def test_objective_api_requests_only_the_configured_canonical_planner(tmp_path):
     task_id = "task_" + "a" * 20
     created: list[tuple[str, str]] = []
     requested: list[str] = []
+    def create_task(text, repository_id, reserved_id):
+        nonlocal task_id
+        task_id = reserved_id
+        created.append((text, repository_id))
+        return reserved_id
     client = TestClient(create_presentation_app(
         runtime, FridayConversationService(FakeStreamingLLM(), runtime),
         autonomy=ObjectiveService(
             tmp_path / "objectives.sqlite3",
-            plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
-            create_task_for_objective=lambda text, repository_id: created.append((text, repository_id)) or task_id,
+            plan_hash_for_task=lambda value: "b" * 64 if value == task_id and requested else None,
+            create_task_for_objective=create_task,
             request_plan_for_task=requested.append,
         ),
     ))

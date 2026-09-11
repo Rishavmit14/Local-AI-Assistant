@@ -143,8 +143,8 @@ def build_presentation_components(
         task = history.get(task_id)
         return task.status.value if task is not None else None
 
-    def create_task_for_objective(text: str, repository_id: str) -> str:
-        return gateway.create_task(repository_id, text, plan_only=True).task_id
+    def create_task_for_objective(text: str, repository_id: str, task_id: str) -> str:
+        return gateway.reserve_objective_task(repository_id, text, task_id).task_id
 
     def request_plan_for_task(task_id: str) -> None:
         gateway.request_plan(task_id)
@@ -185,6 +185,7 @@ def build_presentation_components(
         plan_hash_for_task=plan_hash_for_task,
         plan_review_for_task=plan_review_for_task,
         create_task_for_objective=create_task_for_objective,
+        validate_repository=gateway.validate_repository,
         request_plan_for_task=request_plan_for_task,
         cancel_task=cancel_task,
         task_state_for_task=task_state_for_task,

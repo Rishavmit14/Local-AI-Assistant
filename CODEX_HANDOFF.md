@@ -1050,13 +1050,13 @@ publication authority.
 Stage 17 is active on `stage-17/autonomous-assistant-execution`.
 
 Current engineering continuation: recovery base is
-`3c7b62bf7456b53ead9253ba87ecb2ee17d5f7b1` (stage branch/main and both fetched
+`a1da6f544051614c4541ee2c8005bcc8be528e96` (stage branch/main and both fetched
 remote refs verified exactly aligned). The responsive-planning checkpoint
 moves synchronous objective planning off the HTTP event loop and serializes plan
 admission per presentation process. A deterministic concurrent request test
 proved the old blockage and now proves health/cancellation response during
-planning and rejection of overlapping plan requests. Cross-process reservation
-remains pending. The report-only diagnostic task `task_8793980850f51d5b46c9`
+planning and rejection of overlapping plan requests. Distributed inference
+admission remains pending. The report-only diagnostic task `task_8793980850f51d5b46c9`
 is preserved pending review; it is not a prerequisite for authorized engineering
 work. Earlier repeated engineering approval pauses were erroneous.
 
@@ -1069,12 +1069,29 @@ extending the guarded execution loop; pending diagnostic approval is not a gate.
 The lifecycle-race checkpoint rejects stale resume/cancel/bind writes using
 SQLite comparisons of observed state, task ID, and plan token. Three deterministic
 interleavings reproduced cancellation revival and competing-binding replacement
-before the fix. Cross-journal task reservation/recovery remains unimplemented;
-this candidate does not claim to solve orphan task creation or grant execution.
+before the fix. It grants no execution authority.
 Qualification passed 772 full tests, repository verification, frontend lint/18
 tests/build, and controlled restart API/voice health. Next: design idempotent
 canonical task reservation and cancellation recovery across the two journals,
 then qualify it before extending objective execution.
+
+The reservation checkpoint persists task ID and configured repository before
+canonical task creation, then materializes that same task with history's existing
+idempotency transaction. Retry cannot select a replacement repository or task;
+cancellation recovers an interrupted reservation before canonical cancellation.
+An already-ready canonical plan binds without another model call. Legacy journals
+gain nullable repository ID without replacing records. Deterministic coverage
+includes concurrent service reservations, gateway restart/concurrency, creation
+interruption followed by plan or cancel, ready-plan recovery, rejected repository
+selection, and legacy migration. Next is guarded execution wiring and bounded
+observe/validate/repair behavior; multi-process inference leasing remains open.
+Qualification passed 779 tests in both full regression and repository verification,
+plus frontend lint/18 tests/build. The pre-migration SQLite backup is ignored at
+`var/autonomy/reservation-recovery-F2DjVD/objectives.sqlite3`. Live API migration
+preserved every pre-existing field/record exactly against that backup and passed
+integrity checking. Friday is running/listening after controlled restart, with
+all speech workers alive and zero recoveries. No diagnostic task was approved,
+executed, or replaced during this qualification.
 
 The objective journal is locally durable and non-executing. It can now bind one plan-ready
 canonical task-history record by task ID, retaining that task ID and exact plan

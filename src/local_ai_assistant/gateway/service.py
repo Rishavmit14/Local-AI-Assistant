@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import subprocess
+import re
 from dataclasses import asdict
 from pathlib import Path
 from threading import Event, Thread
 
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
+from local_ai_assistant.execution.history import redact
 from local_ai_assistant.isolation.gitops import git_argv, safe_git_environment
 
 from .events import BoundedEventBus
@@ -55,6 +57,25 @@ class IntegrationGatewayService:
                 metadata={"plan_only": plan_only, "external_provenance": None},
             )
         self._emit(task.task_id, "TASK_CREATED", "Task created from gateway request")
+        return task
+
+    def validate_repository(self, repository_id: str) -> None:
+        self._repo(repository_id)
+
+    def reserve_objective_task(self, repository_id: str, request: str, task_id: str):
+        """Materialize a durable local objective reservation without planning."""
+        if not re.fullmatch(r"task_[a-f0-9]{20}", task_id):
+            raise ValueError("canonical objective reservation ID is required")
+        if not request.strip() or len(request) > 4000:
+            raise ValueError("bounded objective request is required")
+        repository = self._repo(repository_id)
+        task = self.history.create_external_task(
+            request, repository, _git_head(repository), "main",
+            source="friday-objective", event_id=task_id, task_id=task_id,
+            metadata={"plan_only": True, "objective_reservation": task_id},
+        )
+        if task.task_id != task_id or task.original_request != redact(request):
+            raise ValueError("objective reservation identity changed")
         return task
 
     def intake_issue(self, owner: str, repo: str, number: int, issue: dict, provenance: ExternalProvenance):

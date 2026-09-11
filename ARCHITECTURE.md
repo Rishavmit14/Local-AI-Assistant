@@ -162,6 +162,11 @@ responsive during inference; competing plan requests receive 409.
 Objective lifecycle and plan-binding writes compare the observed state/task/token
 atomically in SQLite, rejecting stale transitions instead of reviving
 cancellation or replacing another binding.
+Objective task IDs and repositories are reserved before canonical task creation;
+the gateway reuses history's transactional idempotency claims to materialize the
+same plan-only task after interruption. Retry/cancel recover the reservation,
+and a ready canonical plan can bind without regenerating it. This does not add
+cross-process inference scheduling or execution authority.
 
 Task-history SQLite schema v5 keeps plan-attachment metrics additive and checks
 their physical columns at initialization. A stale schema therefore fails before

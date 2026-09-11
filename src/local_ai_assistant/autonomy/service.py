@@ -21,6 +21,7 @@ class Objective:
     plan_hash: str | None = None
     task_id: str | None = None
     task_state: str | None = None
+    repository_id: str | None = None
 
 
 class ObjectiveService:
@@ -32,9 +33,10 @@ class ObjectiveService:
         *,
         plan_hash_for_task: Callable[[str], str | None] | None = None,
         plan_review_for_task: Callable[[str, str], dict[str, object] | None] | None = None,
-        create_task_for_objective: Callable[[str, str], str] | None = None,
+        create_task_for_objective: Callable[[str, str, str], str] | None = None,
         request_plan_for_task: Callable[[str], None] | None = None,
         cancel_task: Callable[[str], None] | None = None,
+        validate_repository: Callable[[str], object] | None = None,
         task_state_for_task: Callable[[str], str | None] | None = None,
     ) -> None:
         self.database = database.resolve()
@@ -43,6 +45,7 @@ class ObjectiveService:
         self.create_task_for_objective = create_task_for_objective
         self.request_plan_for_task = request_plan_for_task
         self.cancel_task = cancel_task
+        self.validate_repository = validate_repository
         self.task_state_for_task = task_state_for_task
 
     def _db(self) -> sqlite3.Connection:
@@ -54,6 +57,8 @@ class ObjectiveService:
             db.execute("ALTER TABLE objectives ADD COLUMN plan_hash TEXT")
         if "task_id" not in columns:
             db.execute("ALTER TABLE objectives ADD COLUMN task_id TEXT")
+        if "repository_id" not in columns:
+            db.execute("ALTER TABLE objectives ADD COLUMN repository_id TEXT")
         return db
 
     def create(self, text: str) -> Objective:
@@ -63,7 +68,7 @@ class ObjectiveService:
         now = datetime.now(UTC).isoformat()
         item = Objective(uuid4().hex, text, "created", now, now)
         with self._db() as db:
-            db.execute("INSERT INTO objectives VALUES(?,?,?,?,?,?,?)", (item.objective_id, item.text, item.state, item.created_at, item.updated_at, item.plan_hash, item.task_id))
+            db.execute("INSERT INTO objectives (objective_id, text, state, created_at, updated_at, plan_hash, task_id) VALUES(?,?,?,?,?,?,?)", (item.objective_id, item.text, item.state, item.created_at, item.updated_at, item.plan_hash, item.task_id))
         return item
 
     def resume(self, objective_id: str) -> Objective:
@@ -79,6 +84,12 @@ class ObjectiveService:
         if item.task_id is not None:
             if self.cancel_task is None:
                 raise ValueError("canonical task cancellation is unavailable")
+            if item.repository_id is not None and item.task_state is None:
+                if self.create_task_for_objective is None:
+                    raise ValueError("canonical task reservation recovery is unavailable")
+                recovered = self.create_task_for_objective(item.text, item.repository_id, item.task_id)
+                if recovered != item.task_id:
+                    raise ValueError("canonical planner changed the reserved task ID")
             self.cancel_task(item.task_id)
         return self._transition(item, "cancelled")
 
@@ -117,18 +128,31 @@ class ObjectiveService:
             raise RuntimeError("canonical planner is unavailable")
         task_id = item.task_id
         if task_id is None:
-            task_id = self.create_task_for_objective(item.text, repository_id)
-            if not re.fullmatch(r"task_[a-f0-9]{20}", task_id):
-                raise ValueError("canonical planner returned an invalid task ID")
+            if not isinstance(repository_id, str) or not repository_id.strip():
+                raise ValueError("configured repository ID is required")
+            if self.validate_repository is not None:
+                self.validate_repository(repository_id)
+            task_id = "task_" + uuid4().hex[:20]
             now = datetime.now(UTC).isoformat()
             with self._db() as db:
                 db.execute(
-                    "UPDATE objectives SET task_id=?, updated_at=? WHERE objective_id=? AND task_id IS NULL",
-                    (task_id, now, objective_id),
+                    "UPDATE objectives SET task_id=?, repository_id=?, updated_at=? "
+                    "WHERE objective_id=? AND state='planning' AND task_id IS NULL",
+                    (task_id, repository_id, now, objective_id),
                 )
             item = self.get(objective_id)
-            if item.task_id != task_id:
-                raise ValueError("objective planning task changed concurrently")
+            task_id = item.task_id
+        if item.state != "planning" or task_id is None:
+            raise ValueError("objective changed concurrently or was cancelled")
+        if item.repository_id is not None:
+            created_id = self.create_task_for_objective(item.text, item.repository_id, task_id)
+            if created_id != task_id:
+                raise ValueError("canonical planner changed the reserved task ID")
+        item = self.get(objective_id)
+        if item.state != "planning" or item.task_id != task_id:
+            raise ValueError("objective changed concurrently or was cancelled")
+        if self.plan_hash_for_task is not None and self.plan_hash_for_task(task_id) is not None:
+            return self.bind_plan(objective_id, task_id)
         self.request_plan_for_task(task_id)
         return self.bind_plan(objective_id, task_id)
 
@@ -146,7 +170,7 @@ class ObjectiveService:
 
     def get(self, objective_id: str) -> Objective:
         with self._db() as db:
-            row = db.execute("SELECT objective_id, text, state, created_at, updated_at, plan_hash, task_id FROM objectives WHERE objective_id=?", (objective_id,)).fetchone()
+            row = db.execute("SELECT objective_id, text, state, created_at, updated_at, plan_hash, task_id, NULL, repository_id FROM objectives WHERE objective_id=?", (objective_id,)).fetchone()
         if row is None:
             raise ValueError("objective is unavailable")
         return self._project(Objective(*row))
@@ -156,7 +180,7 @@ class ObjectiveService:
             raise ValueError("objective limit must be between 1 and 100")
         with self._db() as db:
             rows = db.execute(
-                "SELECT objective_id, text, state, created_at, updated_at, plan_hash, task_id "
+                "SELECT objective_id, text, state, created_at, updated_at, plan_hash, task_id, NULL, repository_id "
                 "FROM objectives ORDER BY updated_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
@@ -177,6 +201,7 @@ class ObjectiveService:
             item.plan_hash,
             item.task_id,
             task_state,
+            item.repository_id,
         )
 
     def _transition(self, item: Objective, state: str) -> Objective:

@@ -27,3 +27,9 @@ Stage 4 redaction is reused before database persistence and report export. Raw e
 The legacy Stage 7 Streamlit presentation layer was removed at the start of Stage 11. Future UI and voice clients must communicate through Friday's native interface/API/event boundary. Cancellation remains cooperative and active subprocess handling remains owned by Stage 4 timeouts/process control; presentation code never kills processes directly or bypasses planning, approval, execution, validation, isolation, or Git policy. The eventual terminal execution artifact records rollback or cancellation outcome.
 
 Metrics represent observed fields only. Missing model tokens, planning duration, or index timing remains `null`; no value is inferred.
+
+Stage 17 local objective reservations reuse the existing idempotency table under
+source `friday-objective`, with the pre-reserved task ID as delivery identity.
+History atomically materializes that exact task and claim. This is local
+provenance, not an external intelligence dependency; no new history schema or
+approval/execution path is introduced.
