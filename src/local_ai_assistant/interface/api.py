@@ -223,10 +223,10 @@ def create_presentation_app(
     async def bind_objective_plan(objective_id: str, request: Request):
         try:
             body = await request.json()
-            plan_hash = body.get("plan_hash")
-            if not isinstance(plan_hash, str):
-                raise ValueError("validated plan hash is required")
-            return {"objective": asdict(owner_autonomy().bind_plan(objective_id, plan_hash))}
+            task_id = body.get("task_id")
+            if not isinstance(task_id, str):
+                raise ValueError("canonical planned task ID is required")
+            return {"objective": asdict(owner_autonomy().bind_plan(objective_id, task_id))}
         except (ValueError, TypeError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

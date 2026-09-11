@@ -422,6 +422,14 @@ Friday now has a bounded local objective journal with explicit create, resume,
 and cancel state. It deliberately does not create a second planning or execution
 authority.
 
+## 2026-09-11 — Stage 17 canonical plan provenance candidate
+
+Objective plan provenance now binds only a plan-ready task from the existing
+local task-history boundary, retaining its task ID and exact plan token. The
+presentation API no longer accepts a user-supplied plan hash. This remains a
+non-executing provenance record pending the remainder of Stage 17's guarded
+objective loop.
+
 ## 2026-09-10 — Stage 16 semantic accessibility-action candidate
 
 Friday can invoke only exact preconfigured AT-SPI semantic actions under the

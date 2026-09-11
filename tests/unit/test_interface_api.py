@@ -123,16 +123,21 @@ def test_desktop_actions_require_explicit_approval_before_execution(tmp_path):
 
 def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):
     runtime = FridayRuntime("objective-api")
+    task_id = "task_" + "a" * 20
     client = TestClient(create_presentation_app(
         runtime, FridayConversationService(FakeStreamingLLM(), runtime),
-        autonomy=ObjectiveService(tmp_path / "objectives.sqlite3"),
+        autonomy=ObjectiveService(
+            tmp_path / "objectives.sqlite3",
+            plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
+        ),
     ))
     created = client.post("/api/v1/objectives", json={"text": "Inspect project status"})
     assert created.status_code == 200
     objective_id = created.json()["objective"]["objective_id"]
     assert client.post(f"/api/v1/objectives/{objective_id}/resume").json()["objective"]["state"] == "planning"
-    planned = client.post(f"/api/v1/objectives/{objective_id}/plan", json={"plan_hash": "a" * 64})
+    planned = client.post(f"/api/v1/objectives/{objective_id}/plan", json={"task_id": task_id})
     assert planned.json()["objective"]["state"] == "planned"
+    assert planned.json()["objective"]["task_id"] == task_id
     assert client.post(f"/api/v1/objectives/{objective_id}/cancel").json()["objective"]["state"] == "cancelled"
 
 

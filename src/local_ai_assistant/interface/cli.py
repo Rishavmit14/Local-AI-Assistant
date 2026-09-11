@@ -14,6 +14,9 @@ from local_ai_assistant.career_forge import CareerForgeService
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.desktop import DesktopControlService
+from local_ai_assistant.history.models import TaskStatus
+from local_ai_assistant.history.service import TaskHistoryService
+from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
 from local_ai_assistant.perception import (
@@ -76,7 +79,27 @@ def build_presentation_components(
         allowed_accessibility_targets=resolved_config.desktop_control.allowed_accessibility_targets,
         approval_seconds=resolved_config.desktop_control.approval_seconds,
     )
-    autonomy = ObjectiveService(resolved_config.paths.autonomy_db)
+    history = TaskHistoryService(
+        TaskHistoryStore(resolved_config.paths.task_history_db),
+        artifact_roots=(
+            resolved_config.paths.code_index_dir,
+            resolved_config.paths.task_history_db.parent,
+        ),
+    )
+
+    def plan_hash_for_task(task_id: str) -> str | None:
+        task = history.get(task_id)
+        if task is None or task.status not in {
+            TaskStatus.AWAITING_APPROVAL,
+            TaskStatus.APPROVED,
+        }:
+            return None
+        return task.plan_hash
+
+    autonomy = ObjectiveService(
+        resolved_config.paths.autonomy_db,
+        plan_hash_for_task=plan_hash_for_task,
+    )
 
     conversation = FridayConversationService(
         llm=llm,

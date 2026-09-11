@@ -18,11 +18,31 @@ def test_objective_requires_bounded_text(tmp_path):
         service.create(" ")
 
 
-def test_objective_binds_only_a_validated_plan_hash_without_execution(tmp_path):
-    service = ObjectiveService(tmp_path / "objectives.sqlite3")
+def test_objective_binds_only_a_canonical_task_plan_without_execution(tmp_path):
+    task_id = "task_" + "a" * 20
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
+    )
     objective = service.create("Plan only")
-    planned = service.bind_plan(objective.objective_id, "a" * 64)
+    planned = service.bind_plan(objective.objective_id, task_id)
     assert planned.state == "planned"
-    assert planned.plan_hash == "a" * 64
-    with pytest.raises(ValueError, match="validated"):
-        service.bind_plan(objective.objective_id, "not-a-plan")
+    assert planned.plan_hash == "b" * 64
+    assert planned.task_id == task_id
+    with pytest.raises(ValueError, match="canonical planned"):
+        service.bind_plan(objective.objective_id, "not-a-task")
+
+
+def test_objective_refuses_unready_or_replaced_canonical_plan(tmp_path):
+    task_id = "task_" + "a" * 20
+    other_task_id = "task_" + "b" * 20
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda value: {task_id: "c" * 64, other_task_id: "d" * 64}.get(value),
+    )
+    objective = service.create("Plan only")
+    with pytest.raises(ValueError, match="no canonical plan"):
+        service.bind_plan(objective.objective_id, "task_" + "e" * 20)
+    service.bind_plan(objective.objective_id, task_id)
+    with pytest.raises(ValueError, match="different canonical plan"):
+        service.bind_plan(objective.objective_id, other_task_id)

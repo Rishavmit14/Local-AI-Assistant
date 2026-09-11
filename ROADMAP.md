@@ -286,8 +286,11 @@ policy and audit extensions.
 ## Stage 17 — Autonomous Assistant Execution (**Partial / active**)
 
 The active foundation persists bounded local objectives with explicit
-create/resume/cancel lifecycle state. It does not itself plan, execute tools, or
-grant any authority outside Friday's existing guarded execution stack.
+create/resume/cancel lifecycle state. An objective can bind only to an existing
+canonical task-history record that is awaiting approval or approved; the native
+API supplies its task ID, not an arbitrary plan hash. It does not itself plan,
+execute tools, or grant any authority outside Friday's existing guarded
+execution stack.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

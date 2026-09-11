@@ -1047,6 +1047,14 @@ competency-defined project-family link locally and projects it in PROJECTS. It
 cannot attach arbitrary projects and is not mastery evidence or execution/Git/
 publication authority.
 
+Stage 17 is active on `stage-17/autonomous-assistant-execution`. Its objective
+journal is locally durable and non-executing. It can now bind one plan-ready
+canonical task-history record by task ID, retaining that task ID and exact plan
+token; the native API cannot inject a free-form plan hash. This provenance does
+not invoke a planner or bypass approval, isolation, validation, rollback, Git,
+or task history. Complete and publish its acceptance gate before the next Stage
+17 capability.
+
 Stage 14 Career Forge Core V1 is accepted through implementation checkpoint
 `82e74eb83694516d2a4453b9168744f75bcbd682`: full deterministic Python and
 repository verification, frontend lint/tests/build, and a controlled live Friday

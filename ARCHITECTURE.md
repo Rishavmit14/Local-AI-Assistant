@@ -138,10 +138,11 @@ fixed GNOME focus or GIO launch vector. It has no arbitrary shell, keyboard,
 mouse, browser, file, or perception shortcut. The cinematic UI can display a
 pending action and requires an explicit approval click; it cannot bypass policy.
 
-Stage 17 begins with a durable local objective lifecycle. It records only
-bounded create/resume/cancel state and delegates no authority itself; any future
-objective execution must pass through the existing plan, approval, isolation,
-validation, rollback, and audit chain.
+Stage 17 begins with a durable local objective lifecycle. It records bounded
+create/resume/cancel state and may bind exactly one already plan-ready canonical
+task-history record by task ID and exact plan token. It delegates no authority
+itself; any future objective execution must pass through the existing plan,
+approval, isolation, validation, rollback, and audit chain.
 
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as
