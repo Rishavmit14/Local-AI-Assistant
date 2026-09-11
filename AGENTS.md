@@ -46,7 +46,7 @@ These instructions apply to the entire repository. Read this file and `CODEX_HAN
 5. Review `git diff --check`, tracked files, and Git status for prohibited or unrelated content.
 6. Before completing a capability, update the canonical documentation that changed: roadmap status, current architecture, project history, relevant operations docs, and an ADR when a durable design decision was made.
 7. Remove rejected experimental implementations before the final acceptance commit.
-8. Require explicit human review for high-risk auth, payment, smart-contract, security, destructive migration, or deployment changes.
+8. Require explicit human review for high-risk auth, payment, smart-contract, security, destructive migration, or deployment changes. The durable local-runtime credential policy below is a narrow exception for provisioning Friday's own local-only credentials, scopes, and service configuration needed for the current roadmap; it never authorizes an authentication bypass, public exposure, or a security-architecture change.
 9. After an accepted capability is committed, push it and verify the configured remote branch resolves to the exact accepted commit before beginning the next major capability.
 
 Do not perform destructive cleanup of external working directories. Render and
@@ -119,6 +119,17 @@ future sessions through this mandatory bootstrap, not just the originating chat.
   ordinary engineering/service/Git work; retain human review for genuinely
   high-risk actions beyond that scope. Friday's own runtime permission and
   isolation controls are not relaxed by Codex's engineering authorization.
+- Local Friday runtime credentials, authentication material, least-privilege
+  scopes, and local service configuration required to implement, qualify, test,
+  operate, or advance the canonical roadmap are ordinary authorized engineering
+  work. Generate them securely; keep plaintext only in protected local state;
+  never commit, publish, print, or log them; and grant only the capability
+  currently required. Retain a documented local revoke/disable path. This
+  authorization does not weaken bearer authentication, authorization checks,
+  exact-plan approval/binding, isolation/worktree ownership, validation,
+  rollback, audit/task history, Git authority, or fail-closed defaults. It does
+  not cover unavailable external credentials/accounts, paid services, public
+  exposure, destructive security changes, or other genuinely high-risk actions.
 - Preserve practical rollback points before risky changes. Do not casually
   reset, clean, or stash unaccepted work, force-push accepted history, or carry
   unaccepted implementation into the next capability. If capacity interrupts

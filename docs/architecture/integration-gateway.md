@@ -19,6 +19,14 @@ The native objective execution route reuses bearer authentication and
 `request_execution` scope. It is disabled unless gateway enablement and a digest
 are configured, has bounded request rate, and passes the objective's stored plan
 token as an execution precondition. It cannot approve tasks or widen scope.
+
+For local roadmap qualification, protected local service configuration may hold
+a securely generated bearer credential and its digest, with only the scope
+needed by the current capability. The plaintext is never repository state,
+logged output, or a presentation value. Removing that protected configuration
+or disabling the gateway is the immediate revoke path; this operational setup
+does not bypass authentication, exact-plan approval, isolation, validation,
+rollback, history, or Git authority.
 Schema v7 adds durable per-task execution dispatch claims. The claim remains
 until the configured local executor future completes; concurrent gateway
 processes receive conflict rather than duplicate code-agent admission. Recovery

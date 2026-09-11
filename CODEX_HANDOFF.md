@@ -1049,6 +1049,16 @@ publication authority.
 
 Stage 17 is active on `stage-17/autonomous-assistant-execution`.
 
+The owner has durably authorized Codex to provision Friday's local-only runtime
+credentials, least-privilege scopes, and local service configuration required by
+the canonical roadmap. This is ordinary engineering configuration, not a
+runtime security bypass: secrets remain protected and untracked/unlogged, the
+gateway stays localhost-bound and fail-closed, and bearer auth, exact-plan
+approval, isolation, validation, rollback, audit, and Git controls remain in
+force. Removing protected local configuration or disabling gateway enablement
+is the revoke path. External credentials, public exposure, and destructive
+security changes still require their applicable authority.
+
 Current engineering continuation: recovery base is
 `b178c613ab2873433b1c95b772fd27c5759e0a77` (stage branch/main and both fetched
 remote refs verified exactly aligned). The responsive-planning checkpoint

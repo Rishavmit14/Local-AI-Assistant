@@ -314,9 +314,12 @@ Discovery of execution integration found the gateway adapter regenerated a plan
 under an existing approval token. It now loads the exact canonical approved
 artifact with state/digest/identity checks instead. Native objective dispatch
 delegates that exact approved binding through existing gateway authentication,
-scope/rate policy, and executor. No credentials are provisioned and no unguarded
-presentation dispatch is allowed. Authenticated owner UI/voice interaction, live
-execution qualification, and bounded observe/validate/repair remain pending.
+scope/rate policy, and executor. Earlier checkpoints provisioned no credentials;
+the durable owner policy now permits Codex to securely configure protected
+local-only, least-privilege runtime credentials for this qualification. No
+unguarded presentation dispatch is allowed. Authenticated owner interaction,
+live execution qualification, and bounded observe/validate/repair remain
+pending.
 Executor-local admission now serializes duplicate submissions with shutdown and
 reports cancelled queued handles without status exceptions.
 The cinematic console now keeps the newest terminal canonical task state visible

@@ -104,9 +104,15 @@ after the bounded 24-hour lease; isolation worktree locks remain the separate
 last-line mutation owner. The claim does not bypass exact approval, onboarding,
 or isolated validation/rollback.
 
-No credentials/scopes are provisioned automatically. The cinematic panel still
-provides planning/review and cancellation only. Authenticated owner interaction,
-live execution qualification, and bounded observe/validate/repair orchestration
+The cinematic panel provides planning/review and cancellation only; it does not
+manage credentials or issue an execution shortcut. For canonical roadmap work,
+Codex may securely provision protected local-only service credentials and only
+the scope required for a controlled qualification. Plaintext is neither logged
+nor committed; disabling gateway configuration or removing the protected secret
+revokes access. This operational authorization preserves the authenticated
+canonical dispatch path, exact-plan binding, isolation, validation, rollback,
+audit, and task-history authority. Authenticated owner interaction, live
+execution qualification, and bounded observe/validate/repair orchestration
 remain Stage 17 work. No second frontend or parallel executor is introduced.
 
 The cinematic objective console polls its bounded local projection while open.

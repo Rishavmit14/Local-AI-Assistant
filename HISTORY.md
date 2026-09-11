@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-11 — Local runtime credential governance clarified
+
+The owner durably authorized Codex to provision Friday's protected local-only
+runtime credentials, least-privilege scopes, and service configuration when
+needed for canonical roadmap work. This removes an erroneous engineering
+approval pause without weakening Friday's runtime boundary: credentials remain
+untracked and unlogged; the gateway remains localhost-bound and fail-closed;
+and bearer authentication, exact-plan approval, isolation, validation,
+rollback, audit, and Git authority remain mandatory. ADR 0020 records the
+decision and its revoke path. No credential or execution was provisioned by this
+governance documentation checkpoint.
+
 This chronology records the working system that existed before this repository was bootstrapped.
 
 Stage 11 began by retiring the legacy Streamlit product UI and extracting reusable behavior into `FridayInterfaceService`. It then delivered the native presentation/API/event foundation, React/Vite frontend state, Whisper conversational STT, Piper TTS, PipeWire playback, voice lifecycle telemetry, Silero/VAD primitives, AEC/barge-in primitives, and conversational barge-in tests.

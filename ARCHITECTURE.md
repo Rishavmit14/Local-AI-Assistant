@@ -175,6 +175,13 @@ The native objective dispatch route delegates only an exact approved binding to
 that adapter, guarded by gateway enablement/bearer digest, execution scope, and
 rate policy. Absent configuration fails closed; the cinematic panel does not yet
 expose execution or credential management. Task history owns execution/outcomes.
+For roadmap implementation and controlled local qualification, Codex may
+provision a securely generated local-only bearer credential and the least scope
+needed in protected non-repository service state. That operational authority is
+not a runtime shortcut: the credential is never logged or committed, is
+revocable by disabling gateway configuration/removing the local secret, and
+still traverses bearer checks, exact-plan approval, isolation, validation,
+rollback, audit, and Git controls.
 The cinematic objective surface separately shows the newest active objective and
 the newest terminal canonical task result. Polling refreshes this bounded
 projection without copying or changing task lifecycle state; cancellation never
