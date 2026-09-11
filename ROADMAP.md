@@ -304,8 +304,10 @@ Planning uses a worker thread with process-local admission so its synchronous
 model call does not block health/status/cancellation requests. Concurrent plan
 requests are rejected while that worker is active. Task identity/repository
 reservation is durable across processes; gateway materialization, cancellation,
-and ready-plan binding recover the same identity after interruption. Distributed
-inference admission and the remaining guarded execution loop are still pending.
+and ready-plan binding recover the same identity after interruption. Durable
+cross-process planning and execution admission now protect local model and
+code-agent dispatch; authenticated owner interaction, live execution
+qualification, and the remaining guarded observe/validate/repair loop are pending.
 Lifecycle and binding updates now reject stale observed state/task/token values
 at the database write, preserving cancellation and competing canonical bindings.
 Discovery of execution integration found the gateway adapter regenerated a plan
