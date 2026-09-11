@@ -1076,7 +1076,8 @@ before planning so a local planner failure retries that task rather than creatin
 another. The cinematic panel supplies neither a path nor a plan hash and retains
 no approval or execution authority.
 
-The active Stage 17 candidate adds a bounded read-only plan-review projection to
+The accepted Stage 17 plan-review checkpoint is
+`0250a681ecad95ca2b390072025e936ff158b86c`. It adds a bounded read-only plan-review projection to
 the cinematic objective panel. It verifies a linked task's exact plan token and
 artifact before returning summary/risk/approval reasons/scope/steps/validation/
 questions. It does not expose artifact paths or add approval/execution authority.

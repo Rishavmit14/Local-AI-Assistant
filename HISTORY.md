@@ -479,12 +479,14 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
-## 2026-09-11 — Stage 17 canonical plan-review candidate
+## 2026-09-11 — Stage 17 canonical plan-review accepted
 
 The cinematic objective panel now reads a bounded summary of an exact linked
 awaiting-approval plan after Friday verifies the task token against task history
 and its persisted artifact. It exposes no artifact path, approval, or execution
 control.
+
+Accepted recovery commit: `0250a681ecad95ca2b390072025e936ff158b86c`.
 
 ## 2026-09-10 — Stage 16 semantic accessibility-action candidate
 
