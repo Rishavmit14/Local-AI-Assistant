@@ -40,6 +40,13 @@ disconnect. Cancellation remains cooperative through canonical task history;
 it does not forcibly terminate a model call. This is process-local admission,
 not a distributed scheduler or cross-process task reservation.
 
+Resume, cancellation, and plan binding condition their database writes on the
+state, task ID, and plan token actually read. A concurrent lifecycle or binding
+change rejects the stale write instead of reviving cancellation or replacing
+another canonical plan. This comparison is enforced by SQLite across service
+instances; task creation/reservation across the separate journals still needs
+its own recovery protocol.
+
 The cinematic UI receives at most the newest 100 local objectives through a
 bounded collection projection. It shows the newest nonterminal objective whose
 linked canonical task is also nonterminal, and its task state; it may create,

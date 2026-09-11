@@ -70,7 +70,7 @@ class ObjectiveService:
         item = self.get(objective_id)
         if item.state == "cancelled":
             raise ValueError("cancelled objective cannot resume")
-        return self._transition(objective_id, "planning")
+        return self._transition(item, "planning")
 
     def cancel(self, objective_id: str) -> Objective:
         item = self.get(objective_id)
@@ -80,7 +80,7 @@ class ObjectiveService:
             if self.cancel_task is None:
                 raise ValueError("canonical task cancellation is unavailable")
             self.cancel_task(item.task_id)
-        return self._transition(objective_id, "cancelled")
+        return self._transition(item, "cancelled")
 
     def bind_plan(self, objective_id: str, task_id: str) -> Objective:
         if not re.fullmatch(r"task_[a-f0-9]{20}", task_id):
@@ -99,7 +99,13 @@ class ObjectiveService:
             raise ValueError("objective is already bound to a different canonical plan")
         now = datetime.now(UTC).isoformat()
         with self._db() as db:
-            db.execute("UPDATE objectives SET state='planned', plan_hash=?, task_id=?, updated_at=? WHERE objective_id=?", (plan_hash, task_id, now, objective_id))
+            changed = db.execute(
+                "UPDATE objectives SET state='planned', plan_hash=?, task_id=?, updated_at=? "
+                "WHERE objective_id=? AND state=? AND task_id IS ? AND plan_hash IS ?",
+                (plan_hash, task_id, now, objective_id, item.state, item.task_id, item.plan_hash),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("objective changed concurrently or was cancelled")
         return self.get(objective_id)
 
     def request_plan(self, objective_id: str, repository_id: str) -> Objective:
@@ -173,8 +179,14 @@ class ObjectiveService:
             task_state,
         )
 
-    def _transition(self, objective_id: str, state: str) -> Objective:
+    def _transition(self, item: Objective, state: str) -> Objective:
         now = datetime.now(UTC).isoformat()
         with self._db() as db:
-            db.execute("UPDATE objectives SET state=?, updated_at=? WHERE objective_id=?", (state, now, objective_id))
-        return self.get(objective_id)
+            changed = db.execute(
+                "UPDATE objectives SET state=?, updated_at=? "
+                "WHERE objective_id=? AND state=? AND task_id IS ? AND plan_hash IS ?",
+                (state, now, item.objective_id, item.state, item.task_id, item.plan_hash),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("objective changed concurrently or was cancelled")
+        return self.get(item.objective_id)

@@ -159,6 +159,9 @@ paths, write APIs, approval, or execution.
 Objective planning runs outside the presentation event loop with one active
 operation per process. Health, status, and cooperative task cancellation remain
 responsive during inference; competing plan requests receive 409.
+Objective lifecycle and plan-binding writes compare the observed state/task/token
+atomically in SQLite, rejecting stale transitions instead of reviving
+cancellation or replacing another binding.
 
 Task-history SQLite schema v5 keeps plan-attachment metrics additive and checks
 their physical columns at initialization. A stale schema therefore fails before

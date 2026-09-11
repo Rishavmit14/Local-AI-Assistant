@@ -150,3 +150,48 @@ def test_failed_canonical_task_cancellation_keeps_objective_nonterminal(tmp_path
     with pytest.raises(ValueError, match="cannot cancel"):
         service.cancel(objective.objective_id)
     assert service.get(objective.objective_id).state == "planned"
+
+
+@pytest.mark.parametrize("operation", ["resume", "bind_plan"])
+def test_late_objective_transition_cannot_revive_cancellation(tmp_path, monkeypatch, operation):
+    database = tmp_path / "objectives.sqlite3"
+    service = ObjectiveService(database, plan_hash_for_task=lambda _task: "b" * 64)
+    competitor = ObjectiveService(database)
+    objective = service.create("Cancel before the late write")
+    original_get = service.get
+
+    def stale_read(objective_id):
+        item = original_get(objective_id)
+        monkeypatch.setattr(service, "get", original_get)
+        competitor.cancel(objective_id)
+        return item
+
+    monkeypatch.setattr(service, "get", stale_read)
+    with pytest.raises(ValueError, match="cancelled"):
+        if operation == "resume":
+            service.resume(objective.objective_id)
+        else:
+            service.bind_plan(objective.objective_id, "task_" + "a" * 20)
+    assert competitor.get(objective.objective_id).state == "cancelled"
+    assert competitor.get(objective.objective_id).task_id is None
+
+
+def test_late_binding_cannot_replace_a_concurrently_bound_plan(tmp_path, monkeypatch):
+    database = tmp_path / "objectives.sqlite3"
+    service = ObjectiveService(database, plan_hash_for_task=lambda _task: "b" * 64)
+    competitor = ObjectiveService(database, plan_hash_for_task=lambda _task: "c" * 64)
+    objective = service.create("Bind only one canonical plan")
+    original_get = service.get
+    winning_task = "task_" + "d" * 20
+
+    def stale_read(objective_id):
+        item = original_get(objective_id)
+        monkeypatch.setattr(service, "get", original_get)
+        competitor.bind_plan(objective_id, winning_task)
+        return item
+
+    monkeypatch.setattr(service, "get", stale_read)
+    with pytest.raises(ValueError, match="changed concurrently"):
+        service.bind_plan(objective.objective_id, "task_" + "a" * 20)
+    assert competitor.get(objective.objective_id).task_id == winning_task
+    assert competitor.get(objective.objective_id).plan_hash == "c" * 64

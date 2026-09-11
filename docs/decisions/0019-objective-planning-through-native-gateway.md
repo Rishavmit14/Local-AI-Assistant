@@ -25,6 +25,12 @@ a replacement task. The presentation API accepts either a pre-existing canonical
 task ID for compatibility or a configured repository ID for this guarded flow;
 it never accepts a path or a plan hash.
 
+Lifecycle and binding writes compare the observed state, task ID, and token in
+the database update itself. Stale writers fail closed; an earlier read check
+alone must not allow a late resume/bind to overwrite cancellation or another
+binding. This does not provide atomic task creation across the objective and
+canonical task journals; that separate reservation/recovery work remains open.
+
 ## Consequences
 
 The cinematic UI gains a bounded plan-request control but no approval or

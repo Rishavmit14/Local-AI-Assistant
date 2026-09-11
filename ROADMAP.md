@@ -304,6 +304,8 @@ Planning uses a worker thread with process-local admission so its synchronous
 model call does not block health/status/cancellation requests. Concurrent plan
 requests are rejected while that worker is active. Cross-process reservation
 and the remaining guarded execution loop are still pending.
+Lifecycle and binding updates now reject stale observed state/task/token values
+at the database write, preserving cancellation and competing canonical bindings.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

@@ -479,6 +479,18 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 stale lifecycle write qualification
+
+Three deterministic interleavings reproduced late resume/bind overwriting
+cancellation and late bind replacing a concurrently bound canonical plan.
+Lifecycle and binding updates now compare observed state/task/token in the SQLite
+write and reject stale changes. This preserves task-history authority without
+adding execution; cross-journal reservation/recovery remains pending.
+
+Qualification: 772 tests passed in both full pytest and repository verification;
+frontend lint, 18 tests, and production build passed. Controlled restart health
+confirmed the API ready and voice listening with all speech workers alive.
+
 ## 2026-09-11 — Stage 17 responsive planning qualification
 
 A concurrent HTTP test reproduced synchronous objective planning blocking health

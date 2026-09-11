@@ -1050,7 +1050,8 @@ publication authority.
 Stage 17 is active on `stage-17/autonomous-assistant-execution`.
 
 Current engineering continuation: recovery base is
-`1d985ff904c7ece141648c0c4eb511013c4f4253`. The responsive-planning checkpoint
+`3c7b62bf7456b53ead9253ba87ecb2ee17d5f7b1` (stage branch/main and both fetched
+remote refs verified exactly aligned). The responsive-planning checkpoint
 moves synchronous objective planning off the HTTP event loop and serializes plan
 admission per presentation process. A deterministic concurrent request test
 proved the old blockage and now proves health/cancellation response during
@@ -1064,6 +1065,16 @@ frontend lint/18 tests/build, and controlled restart API/voice health. Friday
 is running/listening with primary, fallback, and Piper workers alive and zero
 recoveries. Next discovery is cancellation-safe objective reservation before
 extending the guarded execution loop; pending diagnostic approval is not a gate.
+
+The lifecycle-race checkpoint rejects stale resume/cancel/bind writes using
+SQLite comparisons of observed state, task ID, and plan token. Three deterministic
+interleavings reproduced cancellation revival and competing-binding replacement
+before the fix. Cross-journal task reservation/recovery remains unimplemented;
+this candidate does not claim to solve orphan task creation or grant execution.
+Qualification passed 772 full tests, repository verification, frontend lint/18
+tests/build, and controlled restart API/voice health. Next: design idempotent
+canonical task reservation and cancellation recovery across the two journals,
+then qualify it before extending objective execution.
 
 The objective journal is locally durable and non-executing. It can now bind one plan-ready
 canonical task-history record by task ID, retaining that task ID and exact plan
