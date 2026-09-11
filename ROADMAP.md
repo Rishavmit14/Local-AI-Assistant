@@ -317,6 +317,8 @@ presentation dispatch is allowed. Authenticated owner UI/voice interaction, live
 execution qualification, and bounded observe/validate/repair remain pending.
 Executor-local admission now serializes duplicate submissions with shutdown and
 reports cancelled queued handles without status exceptions.
+The cinematic console now keeps the newest terminal canonical task state visible
+as outcome evidence while treating it as non-active; polling remains read-only.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

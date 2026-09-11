@@ -1050,7 +1050,7 @@ publication authority.
 Stage 17 is active on `stage-17/autonomous-assistant-execution`.
 
 Current engineering continuation: recovery base is
-`33cdf9edaefb91d023aeeff16f19a84e2c48c2fd` (stage branch/main and both fetched
+`6b7262e03eca962760464438e9916c71390ba09b` (stage branch/main and both fetched
 remote refs verified exactly aligned). The responsive-planning checkpoint
 moves synchronous objective planning off the HTTP event loop and serializes plan
 admission per presentation process. A deterministic concurrent request test
@@ -1133,6 +1133,16 @@ plus frontend lint/18 tests/build. Friday remained running/listening without a
 restart; reload this adapter on the next controlled restart before enabling live
 dispatch. Next continue terminal task observation and the authenticated owner
 interaction path, then qualify actual execution without bypassing approval.
+
+Current cinematic-outcome candidate separates the newest active objective from
+the newest terminal canonical task result. The console polls bounded local
+objective projections while open and cannot infer/overwrite outcome state;
+especially, a cancelled objective continues to show an executing linked task as
+executing. Frontend coverage exercises each terminal state, simultaneous active
+and terminal records, and cancellation/state distinction. Full acceptance is
+passed: full pytest and repository verification each passed 793 tests, with
+frontend lint/25 tests/build also passing. No execution or credentials are
+enabled by this UI-only work; Friday remains running/listening without restart.
 The current session's actual `select_backend()` probe selects Bubblewrap with
 supported process/filesystem/network/user-namespace isolation, unlike the old
 host limitation note; cgroups remain partial. This is a capability probe, not

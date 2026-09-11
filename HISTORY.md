@@ -479,6 +479,18 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 cinematic outcome observation qualification
+
+The cinematic objective console now separates a current nonterminal objective
+from the newest terminal canonical task result and refreshes its bounded local
+projection while open. A terminal task state remains visible as evidence instead
+of disappearing with the active view. Cancelling an objective never rewrites the
+linked canonical task's state. This is read-only observation; it neither reports
+completion speculatively nor adds repair/execution authority.
+Qualification: full pytest and repository verification each passed 793 tests;
+frontend lint, 25 tests, and production build passed. No runtime restart, task
+approval, credential configuration, or live execution occurred.
+
 ## 2026-09-11 — Stage 17 executor admission qualification
 
 A controlled concurrent-submit test reproduced duplicate worker submission for

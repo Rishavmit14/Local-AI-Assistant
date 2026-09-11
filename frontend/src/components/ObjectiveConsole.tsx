@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { FridayRuntimeClient } from "../runtime";
 import type { FridayObjective, FridayPlanReview } from "../runtime";
+import { selectObjectiveDisplay } from "../runtime/objectives";
+import { ObjectiveOutcome } from "./ObjectiveOutcome";
 
 export function ObjectiveConsole() {
   const client = useMemo(() => new FridayRuntimeClient(), []);
@@ -11,25 +13,32 @@ export function ObjectiveConsole() {
   const [repositoryId, setRepositoryId] = useState("");
   const [review, setReview] = useState<FridayPlanReview | null>(null);
   const [busy, setBusy] = useState(false);
+  const refreshSequence = useRef(0);
   const refresh = useCallback(async (signal?: AbortSignal) => {
+    const sequence = ++refreshSequence.current;
     try {
       const next = await client.getObjectives(signal);
+      const { current } = selectObjectiveDisplay(next);
+      const nextReview = current?.state === "planned" && current.task_state === "awaiting_approval"
+        ? await client.getObjectivePlanReview(current.objective_id, signal) : null;
+      if (signal?.aborted || sequence !== refreshSequence.current) return;
       setObjectives(next);
-      const planned = next.find((objective) => objective.state === "planned" && objective.task_state === "awaiting_approval");
-      setReview(planned ? await client.getObjectivePlanReview(planned.objective_id, signal) : null);
+      setReview(nextReview);
       setError(null);
     }
-    catch (reason) { if (!signal?.aborted) setError(reason instanceof Error ? reason.message : "Objectives unavailable"); }
+    catch (reason) { if (!signal?.aborted && sequence === refreshSequence.current) setError(reason instanceof Error ? reason.message : "Objectives unavailable"); }
   }, [client]);
   useEffect(() => {
     const controller = new AbortController();
-    const timer = window.setTimeout(() => void refresh(controller.signal), 0);
+    let timer: number;
+    const poll = async () => {
+      await refresh(controller.signal);
+      if (!controller.signal.aborted) timer = window.setTimeout(() => void poll(), 5000);
+    };
+    timer = window.setTimeout(() => void poll(), 0);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [refresh]);
-  const current = objectives.find(
-    (objective) => objective.state !== "cancelled"
-      && !["succeeded", "failed", "blocked", "rolled_back", "cancelled"].includes(objective.task_state ?? ""),
-  );
+  const { current, recentResult } = selectObjectiveDisplay(objectives);
   const create = async () => {
     if (!text.trim()) return;
     setBusy(true);
@@ -78,6 +87,7 @@ export function ObjectiveConsole() {
       </section> : null}
       <button type="button" onClick={() => void cancel()} disabled={busy}>CANCEL OBJECTIVE</button>
     </> : <p>No objective is active. Friday will not create work without an explicit local objective.</p>}
+    {recentResult ? <ObjectiveOutcome objective={recentResult} /> : null}
     <label className="objective-create-label" htmlFor="objective-text">NEW LOCAL OBJECTIVE</label>
     <textarea id="objective-text" value={text} maxLength={4000} onChange={(event) => setText(event.target.value)} placeholder="Describe the bounded outcome Friday should pursue" />
     <button type="button" onClick={() => void create()} disabled={busy || !text.trim()}>{busy ? "SAVING" : "SAVE OBJECTIVE"}</button>

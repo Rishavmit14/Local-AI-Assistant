@@ -92,4 +92,11 @@ No credentials/scopes are provisioned automatically. The cinematic panel still
 provides planning/review and cancellation only. Authenticated owner interaction,
 live execution qualification, and bounded observe/validate/repair orchestration
 remain Stage 17 work. No second frontend or parallel executor is introduced.
+
+The cinematic objective console polls its bounded local projection while open.
+It presents the newest nonterminal objective separately from the newest terminal
+canonical task result. A terminal task cannot disappear merely because it is no
+longer active, and objective cancellation never overwrites or re-labels the
+linked task's canonical state. This is observation only: the display does not
+advance objective/task state, infer a validation outcome, or add a repair loop.
 See [ADR 0019](../decisions/0019-objective-planning-through-native-gateway.md).

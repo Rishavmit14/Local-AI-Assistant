@@ -175,6 +175,10 @@ The native objective dispatch route delegates only an exact approved binding to
 that adapter, guarded by gateway enablement/bearer digest, execution scope, and
 rate policy. Absent configuration fails closed; the cinematic panel does not yet
 expose execution or credential management. Task history owns execution/outcomes.
+The cinematic objective surface separately shows the newest active objective and
+the newest terminal canonical task result. Polling refreshes this bounded
+projection without copying or changing task lifecycle state; cancellation never
+claims a different canonical task outcome.
 Executor admission serializes duplicate submissions and shutdown per process,
 reusing in-flight handles and reporting queued cancellation explicitly. This
 does not replace isolation's cross-process worktree ownership controls.
