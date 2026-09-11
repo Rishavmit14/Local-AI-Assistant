@@ -1050,7 +1050,7 @@ publication authority.
 Stage 17 is active on `stage-17/autonomous-assistant-execution`.
 
 Current engineering continuation: recovery base is
-`96cfbcdc208747d6aa6fc51d9b094c66ce218c71` (stage branch/main and both fetched
+`33cdf9edaefb91d023aeeff16f19a84e2c48c2fd` (stage branch/main and both fetched
 remote refs verified exactly aligned). The responsive-planning checkpoint
 moves synchronous objective planning off the HTTP event loop and serializes plan
 admission per presentation process. A deterministic concurrent request test
@@ -1119,9 +1119,20 @@ frontend lint/18 tests/build passed. Negative HTTP tests cover disabled auth,
 missing credentials, read-only scope, unapproved binding, and rate limits, and
 gateway coverage rejects a stale expected token before executor submission.
 Next: authenticated owner UI/voice interaction, live execution qualification,
-terminal observation, and bounded repair orchestration. Also audit duplicate
-executor submission/admission and shutdown status for cancelled queued futures
-before depending on these under concurrent live dispatch.
+terminal observation, and bounded repair orchestration.
+
+The executor-admission checkpoint fixes demonstrated duplicate submissions and
+cancelled-future status exceptions. Submission and shutdown share one local
+lock; in-flight duplicates reuse a handle, closed admission rejects dispatch,
+and cancelled queued work reports cancellation. A real ThreadPoolExecutor test
+also checks that shutdown cancels queued work while retaining the running
+handle until cooperative completion. Cross-process worktree ownership remains
+in the existing isolation layer. No credentials or task authority were changed.
+Qualification passed 793 tests in both full regression and repository verification,
+plus frontend lint/18 tests/build. Friday remained running/listening without a
+restart; reload this adapter on the next controlled restart before enabling live
+dispatch. Next continue terminal task observation and the authenticated owner
+interaction path, then qualify actual execution without bypassing approval.
 The current session's actual `select_backend()` probe selects Bubblewrap with
 supported process/filesystem/network/user-namespace isolation, unlike the old
 host limitation note; cgroups remain partial. This is a capability probe, not

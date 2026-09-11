@@ -4,6 +4,7 @@ from __future__ import annotations
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 
 from local_ai_assistant.agent import code_agent
 from local_ai_assistant.history.models import TaskStatus
@@ -25,6 +26,8 @@ class CodeAgentExecutionService:
         self.onboarding = onboarding
         self._pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="friday-execution")
         self._runs: dict[str, Future] = {}
+        self._admission = Lock()
+        self._closed = False
 
     def execute_task(self, task) -> ExecutionHandle:
         if task.status is not TaskStatus.APPROVED or not task.plan_hash:
@@ -48,8 +51,6 @@ class CodeAgentExecutionService:
             require_index=False,
         )
         run_id = f"run_{task.task_id}"
-        if run_id in self._runs and not self._runs[run_id].done():
-            return ExecutionHandle(task.task_id, run_id)
         argv = [
             profile.repository_id, task.original_request, "--task-id", task.task_id,
             "--repository-id", profile.repository_id,
@@ -57,18 +58,28 @@ class CodeAgentExecutionService:
             "--apply", "--branch", "--test", "--validate", "--rollback-on-fail",
             "--tool-loop", "--approved-plan", "--approve-risk", task.plan_hash,
         ]
-        self._runs[run_id] = self._pool.submit(code_agent.main, argv)
+        with self._admission:
+            if self._closed:
+                raise RuntimeError("execution service is closed")
+            if run_id in self._runs and not self._runs[run_id].done():
+                return ExecutionHandle(task.task_id, run_id)
+            self._runs[run_id] = self._pool.submit(code_agent.main, argv)
         return ExecutionHandle(task.task_id, run_id)
 
     def close(self) -> None:
         """Stop accepting work; running work retains canonical cancellation checks."""
-        self._pool.shutdown(wait=False, cancel_futures=True)
+        with self._admission:
+            self._closed = True
+            self._pool.shutdown(wait=False, cancel_futures=True)
 
     def get_status(self, task_id: str) -> dict:
-        future = self._runs.get(f"run_{task_id}")
+        with self._admission:
+            future = self._runs.get(f"run_{task_id}")
         if future is None:
             return {"task_id": task_id, "status": "not_started"}
         if not future.done():
             return {"task_id": task_id, "run_id": f"run_{task_id}", "status": "running"}
+        if future.cancelled():
+            return {"task_id": task_id, "run_id": f"run_{task_id}", "status": "cancelled"}
         error = future.exception()
         return {"task_id": task_id, "run_id": f"run_{task_id}", "status": "failed" if error else "completed", "error": "execution failed" if error else None}

@@ -19,3 +19,7 @@ The native objective execution route reuses bearer authentication and
 `request_execution` scope. It is disabled unless gateway enablement and a digest
 are configured, has bounded request rate, and passes the objective's stored plan
 token as an execution precondition. It cannot approve tasks or widen scope.
+Executor submission and shutdown share a process-local admission lock. Duplicate
+in-flight task requests return the same handle, while closed admission rejects
+new submissions. Cancelled queued futures have an explicit cancellation status;
+running work is not forcibly terminated by adapter shutdown.

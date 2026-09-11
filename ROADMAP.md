@@ -315,6 +315,8 @@ delegates that exact approved binding through existing gateway authentication,
 scope/rate policy, and executor. No credentials are provisioned and no unguarded
 presentation dispatch is allowed. Authenticated owner UI/voice interaction, live
 execution qualification, and bounded observe/validate/repair remain pending.
+Executor-local admission now serializes duplicate submissions with shutdown and
+reports cancelled queued handles without status exceptions.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

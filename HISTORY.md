@@ -479,6 +479,19 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 executor admission qualification
+
+A controlled concurrent-submit test reproduced duplicate worker submission for
+one task; another reproduced status polling raising on a cancelled future.
+Submission and shutdown now share process-local admission, in-flight duplicate
+requests reuse a handle, and cancelled queued futures report cancellation.
+Shutdown does not forcibly stop running work or replace canonical cancellation
+and isolation ownership. No credentials or execution authority changed.
+Qualification passed 793 tests in both full regression and repository verification,
+plus frontend lint/18 tests/build. No runtime restart or live dispatch occurred;
+voice health remained running/listening. The next runtime restart loads the new
+adapter admission logic before any future credential-enabled dispatch.
+
 ## 2026-09-11 — Stage 17 authenticated objective dispatch qualification
 
 Native objective dispatch now checks the exact approved binding and delegates

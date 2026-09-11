@@ -175,6 +175,9 @@ The native objective dispatch route delegates only an exact approved binding to
 that adapter, guarded by gateway enablement/bearer digest, execution scope, and
 rate policy. Absent configuration fails closed; the cinematic panel does not yet
 expose execution or credential management. Task history owns execution/outcomes.
+Executor admission serializes duplicate submissions and shutdown per process,
+reusing in-flight handles and reporting queued cancellation explicitly. This
+does not replace isolation's cross-process worktree ownership controls.
 
 Task-history SQLite schema v5 keeps plan-attachment metrics additive and checks
 their physical columns at initialization. A stale schema therefore fails before

@@ -82,6 +82,11 @@ binding/readiness 409, and rate exhaustion 429. Dispatch acceptance is 202, not
 completion. No request body can supply an approval, replacement task, command,
 path, or isolation override. Shutdown closes executor admission and cancels
 queued futures; running work retains canonical cooperative cancellation checks.
+Executor-local admission serializes duplicate-task submission with shutdown.
+Concurrent callers reuse one in-flight handle; closed admission rejects new
+work, and cancelled queued futures report `cancelled` without raising a status
+exception. This lock is process-local; durable cross-process execution ownership
+still belongs to the existing isolation/worktree layer.
 
 No credentials/scopes are provisioned automatically. The cinematic panel still
 provides planning/review and cancellation only. Authenticated owner interaction,
