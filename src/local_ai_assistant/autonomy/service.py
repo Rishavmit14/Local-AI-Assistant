@@ -22,6 +22,7 @@ class Objective:
     task_id: str | None = None
     task_state: str | None = None
     repository_id: str | None = None
+    task_outcome: str | None = None
 
 
 class ObjectiveService:
@@ -38,6 +39,7 @@ class ObjectiveService:
         cancel_task: Callable[[str], None] | None = None,
         validate_repository: Callable[[str], object] | None = None,
         task_state_for_task: Callable[[str], str | None] | None = None,
+        task_outcome_for_task: Callable[[str], str | None] | None = None,
         execute_task: Callable[[str, str], object] | None = None,
     ) -> None:
         self.database = database.resolve()
@@ -48,6 +50,7 @@ class ObjectiveService:
         self.cancel_task = cancel_task
         self.validate_repository = validate_repository
         self.task_state_for_task = task_state_for_task
+        self.task_outcome_for_task = task_outcome_for_task
         self.execute_task = execute_task
 
     def _db(self) -> sqlite3.Connection:
@@ -209,6 +212,12 @@ class ObjectiveService:
             if item.task_id is not None and self.task_state_for_task is not None
             else None
         )
+        task_outcome = (
+            self.task_outcome_for_task(item.task_id)
+            if task_state in {"succeeded", "failed", "blocked", "rolled_back", "cancelled"}
+            and item.task_id is not None and self.task_outcome_for_task is not None
+            else None
+        )
         return Objective(
             item.objective_id,
             item.text,
@@ -219,6 +228,7 @@ class ObjectiveService:
             item.task_id,
             task_state,
             item.repository_id,
+            task_outcome,
         )
 
     def _transition(self, item: Objective, state: str) -> Objective:

@@ -179,6 +179,8 @@ The cinematic objective surface separately shows the newest active objective and
 the newest terminal canonical task result. Polling refreshes this bounded
 projection without copying or changing task lifecycle state; cancellation never
 claims a different canonical task outcome.
+Terminal evidence may include a bounded canonical outcome/failure/final-decision
+string, while nonterminal details stay absent.
 Executor admission serializes duplicate submissions and shutdown per process,
 reusing in-flight handles and reporting queued cancellation explicitly. This
 does not replace isolation's cross-process worktree ownership controls.

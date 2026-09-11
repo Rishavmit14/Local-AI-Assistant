@@ -152,6 +152,16 @@ def build_presentation_components(
         task = history.get(task_id)
         return task.status.value if task is not None else None
 
+    def task_outcome_for_task(task_id: str) -> str | None:
+        task = history.get(task_id)
+        if task is None or task.status not in {
+            TaskStatus.SUCCEEDED, TaskStatus.FAILED, TaskStatus.BLOCKED,
+            TaskStatus.ROLLED_BACK, TaskStatus.CANCELLED,
+        }:
+            return None
+        value = task.outcome or task.failure_reason or task.final_decision
+        return value[:1000] if isinstance(value, str) else None
+
     def create_task_for_objective(text: str, repository_id: str, task_id: str) -> str:
         return gateway.reserve_objective_task(repository_id, text, task_id).task_id
 
@@ -199,6 +209,7 @@ def build_presentation_components(
         request_plan_for_task=request_plan_for_task,
         cancel_task=cancel_task,
         task_state_for_task=task_state_for_task,
+        task_outcome_for_task=task_outcome_for_task,
     )
 
     conversation = FridayConversationService(

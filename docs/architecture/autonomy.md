@@ -99,4 +99,7 @@ canonical task result. A terminal task cannot disappear merely because it is no
 longer active, and objective cancellation never overwrites or re-labels the
 linked task's canonical state. This is observation only: the display does not
 advance objective/task state, infer a validation outcome, or add a repair loop.
+For a terminal task only, the projection may include up to 1,000 characters of
+its already-redacted canonical outcome, failure reason, or final decision, in
+that order. Nonterminal task detail remains absent rather than speculative.
 See [ADR 0019](../decisions/0019-objective-planning-through-native-gateway.md).

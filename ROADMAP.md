@@ -319,6 +319,8 @@ Executor-local admission now serializes duplicate submissions with shutdown and
 reports cancelled queued handles without status exceptions.
 The cinematic console now keeps the newest terminal canonical task state visible
 as outcome evidence while treating it as non-active; polling remains read-only.
+Terminal evidence can include the bounded canonical outcome/failure/decision;
+nonterminal execution detail remains absent.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

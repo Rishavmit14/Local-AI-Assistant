@@ -5,6 +5,7 @@ export function ObjectiveOutcome({ objective }: { objective: FridayObjective }) 
     <small>RECENT OBJECTIVE OUTCOME</small>
     <p>{objective.text}</p>
     <p>{objective.task_id ? `Canonical task: ${objective.task_state ?? "state unavailable"}` : `Objective: ${objective.state}`}</p>
+    {objective.task_outcome ? <p>{objective.task_outcome}</p> : null}
     {objective.state === "cancelled" && objective.task_state !== "cancelled" && objective.task_id
       ? <p>Objective cancelled; the task state above remains authoritative.</p> : null}
   </section>;

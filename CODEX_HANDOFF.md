@@ -1134,14 +1134,15 @@ restart; reload this adapter on the next controlled restart before enabling live
 dispatch. Next continue terminal task observation and the authenticated owner
 interaction path, then qualify actual execution without bypassing approval.
 
-Current cinematic-outcome candidate separates the newest active objective from
+The cinematic-outcome checkpoint separates the newest active objective from
 the newest terminal canonical task result. The console polls bounded local
 objective projections while open and cannot infer/overwrite outcome state;
 especially, a cancelled objective continues to show an executing linked task as
-executing. Frontend coverage exercises each terminal state, simultaneous active
-and terminal records, and cancellation/state distinction. Full acceptance is
-passed: full pytest and repository verification each passed 793 tests, with
-frontend lint/25 tests/build also passing. No execution or credentials are
+executing. Terminal output is only the bounded canonical outcome/failure/final
+decision and remains absent before a terminal state. Frontend coverage exercises each terminal state, simultaneous active
+and terminal records, and cancellation/state distinction. Full acceptance
+passed: full pytest and repository verification each passed 794 tests, with
+frontend lint/26 tests/build also passing. No execution or credentials are
 enabled by this UI-only work; Friday remains running/listening without restart.
 The current session's actual `select_backend()` probe selects Bubblewrap with
 supported process/filesystem/network/user-namespace isolation, unlike the old

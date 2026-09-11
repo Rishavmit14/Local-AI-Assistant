@@ -487,8 +487,10 @@ projection while open. A terminal task state remains visible as evidence instead
 of disappearing with the active view. Cancelling an objective never rewrites the
 linked canonical task's state. This is read-only observation; it neither reports
 completion speculatively nor adds repair/execution authority.
-Qualification: full pytest and repository verification each passed 793 tests;
-frontend lint, 25 tests, and production build passed. No runtime restart, task
+Terminal evidence may include a bounded pre-existing canonical outcome, failure
+reason, or final decision; nonterminal detail is intentionally not projected.
+Qualification: full pytest and repository verification each passed 794 tests;
+frontend lint, 26 tests, and production build passed. No runtime restart, task
 approval, credential configuration, or live execution occurred.
 
 ## 2026-09-11 — Stage 17 executor admission qualification

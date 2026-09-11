@@ -6,7 +6,8 @@ import type { FridayObjective } from "./types";
 
 function objective(state: string, taskState: string | null): FridayObjective {
   return { objective_id: "o1", text: "Bounded objective", state, task_state: taskState,
-    task_id: taskState ? "task_example" : null, plan_hash: null, created_at: "", updated_at: "" };
+    task_id: taskState ? "task_example" : null, task_outcome: taskState === "failed" ? "Canonical failure detail" : null,
+    plan_hash: null, created_at: "", updated_at: "" };
 }
 
 describe("objective outcome projection", () => {
@@ -26,5 +27,9 @@ describe("objective outcome projection", () => {
     expect(markup).toContain("Canonical task: executing");
     expect(markup).toContain("task state above remains authoritative");
     expect(selectObjectiveDisplay([cancelled]).current).toBeUndefined();
+  });
+  it("renders only canonical terminal outcome detail", () => {
+    expect(renderToStaticMarkup(<ObjectiveOutcome objective={objective("planned", "failed")} />)).toContain("Canonical failure detail");
+    expect(renderToStaticMarkup(<ObjectiveOutcome objective={objective("planned", "validating")} />)).not.toContain("Canonical failure detail");
   });
 });

@@ -49,6 +49,21 @@ def test_objective_execution_delegates_only_its_exact_approved_binding(tmp_path,
         assert calls == []
 
 
+def test_objective_projects_only_bounded_terminal_canonical_outcome(tmp_path):
+    task_id = "task_" + "a" * 20
+    state = {task_id: "validating"}
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda _task: "b" * 64,
+        task_state_for_task=state.get,
+        task_outcome_for_task=lambda _task: "canonical result" * 200,
+    )
+    objective = service.bind_plan(service.create("Observe outcome").objective_id, task_id)
+    assert service.get(objective.objective_id).task_outcome is None
+    state[task_id] = "failed"
+    assert service.get(objective.objective_id).task_outcome == "canonical result" * 200
+
+
 def test_legacy_objective_journal_migrates_without_losing_bindings(tmp_path):
     database = tmp_path / "objectives.sqlite3"
     task_id = "task_" + "a" * 20
