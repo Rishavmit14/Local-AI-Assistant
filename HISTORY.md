@@ -452,6 +452,12 @@ task state; it has no plan, approval, or execution controls.
 The projection excludes terminal cancelled objectives from its current-objective
 slot while retaining them in local history.
 
+## 2026-09-11 — Stage 17 cinematic objective-lifecycle candidate
+
+The same cinematic panel now invokes only Friday’s existing bounded local
+objective create, resume, and cancellation API. It adds no planner, plan binding,
+approval, tool, or execution authority.
+
 ## 2026-09-10 — Stage 16 semantic accessibility-action candidate
 
 Friday can invoke only exact preconfigured AT-SPI semantic actions under the

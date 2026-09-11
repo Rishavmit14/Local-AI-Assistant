@@ -1057,6 +1057,8 @@ that canonical task; a task-cancellation failure leaves the objective
 nonterminal. Objective reads also project the linked task's current canonical
 state without duplicating its execution lifecycle. The cinematic UI now has a
 bounded read-only current-objective projection, with no planning, approval, or
+execution control. Its panel can invoke the existing bounded local objective
+create/resume/cancel lifecycle, but has no planner, plan-binding, approval, or
 execution control. Complete and publish its acceptance gate before the next
 Stage 17 capability.
 

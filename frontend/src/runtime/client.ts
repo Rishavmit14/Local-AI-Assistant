@@ -117,6 +117,28 @@ export class FridayRuntimeClient {
     return (await response.json() as { objectives: FridayObjective[] }).objectives;
   }
 
+  async createObjective(text: string): Promise<FridayObjective> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!response.ok) throw new Error(`objective creation failed: ${response.status}`);
+    return (await response.json() as { objective: FridayObjective }).objective;
+  }
+
+  async resumeObjective(objectiveId: string): Promise<FridayObjective> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/resume`, { method: "POST" });
+    if (!response.ok) throw new Error(`objective resume failed: ${response.status}`);
+    return (await response.json() as { objective: FridayObjective }).objective;
+  }
+
+  async cancelObjective(objectiveId: string): Promise<FridayObjective> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/cancel`, { method: "POST" });
+    if (!response.ok) throw new Error(`objective cancellation failed: ${response.status}`);
+    return (await response.json() as { objective: FridayObjective }).objective;
+  }
+
   async approveDesktopAction(actionId: string): Promise<FridayDesktopAction> {
     const response = await fetch(`${this.baseUrl}/api/v1/desktop/actions/${encodeURIComponent(actionId)}/approve`, { method: "POST" });
     if (!response.ok) throw new Error(`desktop approval failed: ${response.status}`);
