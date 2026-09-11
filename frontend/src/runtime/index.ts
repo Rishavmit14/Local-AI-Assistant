@@ -21,6 +21,7 @@ export type {
   FridayScreenCapture,
   FridayDesktopAction,
   FridayObjective,
+  FridayPlanReview,
   FridayRuntimeState,
   FridayVoicePresentationSignal,
 } from "./types";

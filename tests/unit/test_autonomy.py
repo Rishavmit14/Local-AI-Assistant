@@ -92,6 +92,17 @@ def test_objective_projects_linked_task_state_without_mutating_it(tmp_path):
     assert service.get(objective.objective_id).task_state == "validating"
 
 
+def test_objective_review_requires_the_exact_bound_canonical_plan(tmp_path):
+    task_id = "task_" + "a" * 20
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
+        plan_review_for_task=lambda value, token: {"task_id": value, "plan_hash": token},
+    )
+    objective = service.bind_plan(service.create("Plan only").objective_id, task_id)
+    assert service.plan_review(objective.objective_id) == {"task_id": task_id, "plan_hash": "b" * 64}
+
+
 def test_objective_refuses_unready_or_replaced_canonical_plan(tmp_path):
     task_id = "task_" + "a" * 20
     other_task_id = "task_" + "b" * 20

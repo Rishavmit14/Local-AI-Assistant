@@ -160,3 +160,15 @@ export interface FridayObjective {
   task_id: string | null;
   task_state: string | null;
 }
+
+export interface FridayPlanReview {
+  task_id: string;
+  plan_hash: string;
+  summary: string;
+  risk: { level: string; reasons: string[] };
+  approval: { status: string; reasons: string[] };
+  files: { inspect: string[]; modify: string[]; create: string[]; delete_or_rename: string[] };
+  steps: string[];
+  validation_commands: string[];
+  unresolved_questions: string[];
+}

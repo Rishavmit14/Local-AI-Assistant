@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FridayRuntimeClient } from "../runtime";
-import type { FridayObjective } from "../runtime";
+import type { FridayObjective, FridayPlanReview } from "../runtime";
 
 export function ObjectiveConsole() {
   const client = useMemo(() => new FridayRuntimeClient(), []);
@@ -9,9 +9,16 @@ export function ObjectiveConsole() {
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [repositoryId, setRepositoryId] = useState("");
+  const [review, setReview] = useState<FridayPlanReview | null>(null);
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(async (signal?: AbortSignal) => {
-    try { setObjectives(await client.getObjectives(signal)); setError(null); }
+    try {
+      const next = await client.getObjectives(signal);
+      setObjectives(next);
+      const planned = next.find((objective) => objective.state === "planned" && objective.task_state === "awaiting_approval");
+      setReview(planned ? await client.getObjectivePlanReview(planned.objective_id, signal) : null);
+      setError(null);
+    }
     catch (reason) { if (!signal?.aborted) setError(reason instanceof Error ? reason.message : "Objectives unavailable"); }
   }, [client]);
   useEffect(() => {
@@ -62,6 +69,13 @@ export function ObjectiveConsole() {
         <input id="objective-repository" value={repositoryId} maxLength={200} onChange={(event) => setRepositoryId(event.target.value)} placeholder="For example: friday" />
         <button type="button" onClick={() => void plan()} disabled={busy || !repositoryId.trim()}>REQUEST CANONICAL PLAN</button>
       </> : null}
+      {review && current.task_id === review.task_id ? <section className="objective-plan-review" aria-label="Canonical plan review">
+        <small>CANONICAL PLAN · {review.approval.status}</small>
+        <p>{review.summary}</p>
+        <p>Risk: {review.risk.level}. {review.risk.reasons.join(" ")}</p>
+        {review.steps.length ? <ol>{review.steps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ol> : null}
+        {review.unresolved_questions.length ? <p>Review questions: {review.unresolved_questions.join(" ")}</p> : null}
+      </section> : null}
       <button type="button" onClick={() => void cancel()} disabled={busy}>CANCEL OBJECTIVE</button>
     </> : <p>No objective is active. Friday will not create work without an explicit local objective.</p>}
     <label className="objective-create-label" htmlFor="objective-text">NEW LOCAL OBJECTIVE</label>

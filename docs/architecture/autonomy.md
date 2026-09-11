@@ -39,6 +39,13 @@ resume, request that guarded canonical plan, or cancel a bounded local objective
 through the native lifecycle API. Exact-plan approval and execution remain in
 the existing task-history authority.
 
+When an objective is linked to an awaiting-approval task, the same panel reads a
+bounded projection of that exact persisted plan: summary, risk and approval
+reasons, scoped files, steps, validation commands, and unresolved questions.
+Friday validates the task ID and exact plan token against task history and the
+artifact before projecting it. The UI cannot alter the artifact, approve it, or
+invoke execution.
+
 Later Stage 17 work may connect an objective only to Friday's existing validated
 planner, isolated execution loop, approval, cancellation, validation, rollback,
 and task-history boundaries. It must not create a parallel execution path.

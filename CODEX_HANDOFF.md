@@ -1076,6 +1076,11 @@ before planning so a local planner failure retries that task rather than creatin
 another. The cinematic panel supplies neither a path nor a plan hash and retains
 no approval or execution authority.
 
+The active Stage 17 candidate adds a bounded read-only plan-review projection to
+the cinematic objective panel. It verifies a linked task's exact plan token and
+artifact before returning summary/risk/approval reasons/scope/steps/validation/
+questions. It does not expose artifact paths or add approval/execution authority.
+
 Stage 14 Career Forge Core V1 is accepted through implementation checkpoint
 `82e74eb83694516d2a4453b9168744f75bcbd682`: full deterministic Python and
 repository verification, frontend lint/tests/build, and a controlled live Friday

@@ -152,6 +152,10 @@ cancel controls, without becoming a second lifecycle authority. Any objective
 execution must pass through the existing plan, approval, isolation, validation,
 rollback, and audit chain.
 
+For a task awaiting approval, the projection includes a bounded, task-token-
+verified review summary. It is strictly read-only and does not expose artifact
+paths, write APIs, approval, or execution.
+
 Task-history SQLite schema v5 keeps plan-attachment metrics additive and checks
 their physical columns at initialization. A stale schema therefore fails before
 planning rather than after a local model has generated an artifact.

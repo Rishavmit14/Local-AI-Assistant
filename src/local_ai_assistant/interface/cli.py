@@ -24,6 +24,7 @@ from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
 from local_ai_assistant.planning.service import PlannerService
+from local_ai_assistant.planning.models import plan_approval_token
 from local_ai_assistant.perception import (
     ActiveWindowService,
     LocalVisionClassifier,
@@ -148,9 +149,41 @@ def build_presentation_components(
     def request_plan_for_task(task_id: str) -> None:
         gateway.request_plan(task_id)
 
+    def plan_review_for_task(task_id: str, plan_hash: str) -> dict[str, object] | None:
+        task = history.get(task_id)
+        if task is None or task.plan_hash != plan_hash:
+            return None
+        records = [item for item in history.artifacts(task_id)["plans"] if item.get("plan_hash") == plan_hash]
+        if len(records) != 1:
+            return None
+        try:
+            artifact = PlannerService.load(history.validate_artifact_path(Path(records[0]["artifact_path"])))
+        except (OSError, ValueError):
+            return None
+        if artifact.plan.task_id != task_id or plan_approval_token(artifact.plan) != plan_hash:
+            return None
+        plan = artifact.plan
+        return {
+            "task_id": task_id,
+            "plan_hash": plan_hash,
+            "summary": plan.summary[:4000],
+            "risk": {"level": plan.risk.level.value, "reasons": list(plan.risk.reasons[:20])},
+            "approval": {"status": plan.approval.status.value, "reasons": list(plan.approval.reasons[:20])},
+            "files": {
+                "inspect": list(plan.files_to_inspect[:100]),
+                "modify": list(plan.files_to_modify[:100]),
+                "create": list(plan.files_to_create[:100]),
+                "delete_or_rename": list(plan.files_to_delete_or_rename[:100]),
+            },
+            "steps": [step.description[:1000] for step in plan.steps[:50]],
+            "validation_commands": list(plan.validation_commands[:20]),
+            "unresolved_questions": list(plan.unresolved_questions[:20]),
+        }
+
     autonomy = ObjectiveService(
         resolved_config.paths.autonomy_db,
         plan_hash_for_task=plan_hash_for_task,
+        plan_review_for_task=plan_review_for_task,
         create_task_for_objective=create_task_for_objective,
         request_plan_for_task=request_plan_for_task,
         cancel_task=cancel_task,

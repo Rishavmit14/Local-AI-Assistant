@@ -297,7 +297,8 @@ guarded execution stack. Cancelling a bound objective asks that canonical task t
 cancel first and leaves the objective nonterminal if task cancellation fails.
 Objective reads project the linked task's canonical current state without copying
 it into a parallel lifecycle. The existing cinematic UI receives a bounded
-objective projection with create/resume/guarded-plan/cancel controls only.
+objective projection with create/resume/guarded-plan/cancel controls and a
+read-only task-token-verified plan-review summary only.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

@@ -247,6 +247,13 @@ def create_presentation_app(
         except (ValueError, TypeError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.get("/api/v1/objectives/{objective_id}/plan")
+    def objective_plan_review(objective_id: str):
+        try:
+            return {"plan": owner_autonomy().plan_review(objective_id)}
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
     @app.post("/api/v1/objectives/{objective_id}/cancel")
     def cancel_objective(objective_id: str):
         try:

@@ -479,6 +479,13 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 canonical plan-review candidate
+
+The cinematic objective panel now reads a bounded summary of an exact linked
+awaiting-approval plan after Friday verifies the task token against task history
+and its persisted artifact. It exposes no artifact path, approval, or execution
+control.
+
 ## 2026-09-10 — Stage 16 semantic accessibility-action candidate
 
 Friday can invoke only exact preconfigured AT-SPI semantic actions under the

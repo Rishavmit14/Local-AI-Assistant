@@ -7,6 +7,7 @@ import type {
   FridayScreenCapture,
   FridayDesktopAction,
   FridayObjective,
+  FridayPlanReview,
 } from "./types";
 
 export class FridayRuntimeClient {
@@ -141,6 +142,12 @@ export class FridayRuntimeClient {
     });
     if (!response.ok) throw new Error(`objective planning failed: ${response.status}`);
     return (await response.json() as { objective: FridayObjective }).objective;
+  }
+
+  async getObjectivePlanReview(objectiveId: string, signal?: AbortSignal): Promise<FridayPlanReview> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/plan`, { signal });
+    if (!response.ok) throw new Error(`objective plan review failed: ${response.status}`);
+    return (await response.json() as { plan: FridayPlanReview }).plan;
   }
 
   async cancelObjective(objectiveId: string): Promise<FridayObjective> {

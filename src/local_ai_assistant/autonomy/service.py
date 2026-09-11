@@ -31,6 +31,7 @@ class ObjectiveService:
         database: Path,
         *,
         plan_hash_for_task: Callable[[str], str | None] | None = None,
+        plan_review_for_task: Callable[[str, str], dict[str, object] | None] | None = None,
         create_task_for_objective: Callable[[str, str], str] | None = None,
         request_plan_for_task: Callable[[str], None] | None = None,
         cancel_task: Callable[[str], None] | None = None,
@@ -38,6 +39,7 @@ class ObjectiveService:
     ) -> None:
         self.database = database.resolve()
         self.plan_hash_for_task = plan_hash_for_task
+        self.plan_review_for_task = plan_review_for_task
         self.create_task_for_objective = create_task_for_objective
         self.request_plan_for_task = request_plan_for_task
         self.cancel_task = cancel_task
@@ -123,6 +125,18 @@ class ObjectiveService:
                 raise ValueError("objective planning task changed concurrently")
         self.request_plan_for_task(task_id)
         return self.bind_plan(objective_id, task_id)
+
+    def plan_review(self, objective_id: str) -> dict[str, object]:
+        """Return the configured, bounded review projection for an exact plan."""
+        item = self.get(objective_id)
+        if item.task_id is None or item.plan_hash is None:
+            raise ValueError("objective has no canonical plan ready for review")
+        if self.plan_review_for_task is None:
+            raise ValueError("canonical plan review is unavailable")
+        review = self.plan_review_for_task(item.task_id, item.plan_hash)
+        if not isinstance(review, dict):
+            raise ValueError("canonical plan review is unavailable")
+        return review
 
     def get(self, objective_id: str) -> Objective:
         with self._db() as db:
