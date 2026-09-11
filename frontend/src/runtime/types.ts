@@ -159,6 +159,7 @@ export interface FridayObjective {
   plan_hash: string | null;
   task_id: string | null;
   task_state: string | null;
+  task_outcome: string | null;
 }
 
 export interface FridayPlanReview {
