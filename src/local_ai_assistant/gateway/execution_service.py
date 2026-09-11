@@ -72,6 +72,14 @@ class CodeAgentExecutionService:
             self._closed = True
             self._pool.shutdown(wait=False, cancel_futures=True)
 
+    def on_completion(self, task_id: str, callback) -> bool:
+        with self._admission:
+            future = self._runs.get(f"run_{task_id}")
+        if future is None:
+            return False
+        future.add_done_callback(lambda _future: callback())
+        return True
+
     def get_status(self, task_id: str) -> dict:
         with self._admission:
             future = self._runs.get(f"run_{task_id}")

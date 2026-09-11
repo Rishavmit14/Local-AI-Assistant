@@ -324,6 +324,9 @@ nonterminal execution detail remains absent. Schema v6 adds durable cross-proces
 planning admission: only one local gateway can generate a task plan at a time;
 normal failure releases the claim and an interrupted holder recovers after its
 one-hour lease.
+Schema v7 adds durable cross-process execution dispatch admission held through
+executor completion, with 24-hour interrupted-dispatch recovery. Isolation and
+exact approval remain authoritative.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

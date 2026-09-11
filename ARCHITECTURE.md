@@ -185,6 +185,9 @@ Task-history schema v6 makes planning admission durable across gateway processes
 one task has one model-generation claim, released on normal completion/failure
 or recoverable after a one-hour interruption lease. It does not add planning or
 execution authority.
+Task-history schema v7 also makes execution dispatch admission durable across
+gateway processes. The claim follows the executor future until completion;
+isolation remains the final mutation owner and exact approval is unchanged.
 Executor admission serializes duplicate submissions and shutdown per process,
 reusing in-flight handles and reporting queued cancellation explicitly. This
 does not replace isolation's cross-process worktree ownership controls.

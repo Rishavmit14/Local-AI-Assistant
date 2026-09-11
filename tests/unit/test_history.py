@@ -101,6 +101,17 @@ def test_planning_claim_is_atomic_releasable_and_recovers_after_expiry(history, 
     assert history.store.claim_planning(task.task_id, "recovered", lease_seconds=60)
 
 
+def test_execution_claim_is_atomic_releasable_and_recovers_after_expiry(history, tmp_path, monkeypatch):
+    task = create(history, tmp_path)
+    assert history.store.claim_execution(task.task_id, "first", lease_seconds=60)
+    assert not history.store.claim_execution(task.task_id, "second", lease_seconds=60)
+    history.store.release_execution_claim(task.task_id, "first")
+    assert history.store.claim_execution(task.task_id, "second", lease_seconds=60)
+    import local_ai_assistant.history.store as store_module
+    monkeypatch.setattr(store_module.time, "time", lambda: 9_999_999_999)
+    assert history.store.claim_execution(task.task_id, "recovered", lease_seconds=60)
+
+
 @pytest.mark.parametrize("failure", [None, "token", "tamper", "cancel"])
 def test_load_approved_plan_requires_exact_canonical_bytes_and_state(history, tmp_path, failure):
     task = create(history, tmp_path)

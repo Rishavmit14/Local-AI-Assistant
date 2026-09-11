@@ -143,7 +143,19 @@ class IntegrationGatewayService:
             raise ValueError("exact approved plan is required before execution")
         if expected_plan_hash is not None and task.plan_hash != expected_plan_hash:
             raise ValueError("execution request does not match the exact approved plan")
-        return self.executor(task)
+        claim_id = self.history.claim_execution(task_id)
+        if claim_id is None:
+            raise ValueError("task execution is already active")
+        try:
+            result = self.executor.execute_task(task) if hasattr(self.executor, "execute_task") else self.executor(task)
+            completion = getattr(self.executor, "on_completion", None)
+            if completion is not None and completion(task_id, lambda: self.history.release_execution_claim(task_id, claim_id)):
+                return result
+        except Exception:
+            self.history.release_execution_claim(task_id, claim_id)
+            raise
+        self.history.release_execution_claim(task_id, claim_id)
+        return result
 
     def get_task(self, task_id: str): return self.history.get(task_id)
     def list_tasks(self, filters: TaskFilter | None = None): return self.history.list(filters)

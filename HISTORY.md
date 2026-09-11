@@ -479,6 +479,15 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 durable execution admission accepted
+
+Task-history schema v7 adds one durable execution-dispatch claim per task. The
+gateway holds it through local executor completion, preventing competing gateway
+processes from starting duplicate code-agent runs; a 24-hour lease recovers
+interrupted dispatch. Exact approval and isolation worktree ownership remain
+authoritative. Qualification passed 798 tests in full regression and repository
+verification, plus frontend lint, 26 tests, and production build.
+
 ## 2026-09-11 — Stage 17 durable planning admission accepted
 
 Task-history schema v6 adds a durable per-task planning claim. Gateway processes

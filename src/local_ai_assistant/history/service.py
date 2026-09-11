@@ -77,6 +77,13 @@ class TaskHistoryService:
     def release_planning_claim(self, task_id: str, claim_id: str) -> None:
         self.store.release_planning_claim(task_id, claim_id)
 
+    def claim_execution(self, task_id: str, *, lease_seconds: int = 86_400) -> str | None:
+        claim_id = uuid4().hex
+        return claim_id if self.store.claim_execution(task_id, claim_id, lease_seconds=lease_seconds) else None
+
+    def release_execution_claim(self, task_id: str, claim_id: str) -> None:
+        self.store.release_execution_claim(task_id, claim_id)
+
     def transition(self, task_id: str, status: TaskStatus, reason: str, *, subsystem="history"):
         return self.store.transition(task_id, status, reason, subsystem=subsystem)
 

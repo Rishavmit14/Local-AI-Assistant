@@ -38,6 +38,7 @@ from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.gateway.evidence import review_summary, validation_summary
 from local_ai_assistant.gateway.publication import GitHubPublicationService
 from local_ai_assistant.history.service import TaskHistoryService
+from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.store import TaskHistoryStore
 
 
@@ -271,6 +272,33 @@ def test_execution_service_uses_existing_code_agent_boundary(tmp_path, monkeypat
     expected_index = calls[0].index("--expected-starting-commit")
     assert calls[0][expected_index + 1] == task.starting_commit
     assert onboarding.calls
+
+
+def test_execution_claim_blocks_second_gateway_until_executor_completion(tmp_path):
+    gateway, path = service(tmp_path)
+    task = gateway.create_task("r1", "safe fixture")
+    gateway.history.store.update_task(task.task_id, task.repository, plan_hash="p", approval_state="explicitly_approved")
+    for status in (TaskStatus.PLANNING, TaskStatus.AWAITING_APPROVAL):
+        gateway.history.store.transition(task.task_id, status, "test")
+    gateway.history.attach_approval(task.task_id, "p", "explicitly_approved")
+    gateway.history.store.transition(task.task_id, TaskStatus.APPROVED, "test")
+
+    class Executor:
+        def __init__(self): self.callbacks, self.calls = [], []
+        def execute_task(self, item): self.calls.append(item.task_id); return {"task_id": item.task_id}
+        def on_completion(self, _task_id, callback): self.callbacks.append(callback); return True
+
+    executor = Executor()
+    gateway.executor = executor
+    second = IntegrationGatewayService(gateway.history, gateway.mappings, executor=executor)
+    assert gateway.request_execution(task.task_id) == {"task_id": task.task_id}
+    with pytest.raises(ValueError, match="already active"):
+        second.request_execution(task.task_id)
+    executor.callbacks.pop()()
+    assert second.request_execution(task.task_id) == {"task_id": task.task_id}
+    assert executor.calls == [task.task_id, task.task_id]
+    second.close()
+    gateway.close()
 
 
 def test_publication_claim_converges_concurrent_callers_and_rejects_wrong_remote_sha(tmp_path):

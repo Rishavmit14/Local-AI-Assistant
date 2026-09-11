@@ -68,6 +68,7 @@ class TaskHistoryStore:
                     "external_idempotency",
                     "external_publications", "external_ci_checks",
                     "task_planning_claims",
+                    "task_execution_claims",
                 }
                 actual_tables = {
                     row[0]
@@ -146,6 +147,24 @@ class TaskHistoryStore:
                 "DELETE FROM task_planning_claims WHERE task_id=? AND claim_id=?",
                 (task_id, claim_id),
             )
+
+    def claim_execution(self, task_id: str, claim_id: str, *, lease_seconds: int = 86_400) -> bool:
+        if not task_id or not claim_id or not 1 <= lease_seconds <= 86_400:
+            raise HistoryDatabaseError("Invalid execution claim")
+        now = int(time.time())
+        with self.transaction() as connection:
+            if connection.execute("SELECT 1 FROM tasks WHERE task_id=?", (task_id,)).fetchone() is None:
+                raise HistoryDatabaseError(f"Task not found: {task_id}")
+            connection.execute("DELETE FROM task_execution_claims WHERE task_id=? AND expires_at <= ?", (task_id, now))
+            try:
+                connection.execute("INSERT INTO task_execution_claims(task_id, claim_id, claimed_at, expires_at) VALUES(?,?,?,?)", (task_id, claim_id, now, now + lease_seconds))
+            except sqlite3.IntegrityError:
+                return False
+        return True
+
+    def release_execution_claim(self, task_id: str, claim_id: str) -> None:
+        with self.transaction() as connection:
+            connection.execute("DELETE FROM task_execution_claims WHERE task_id=? AND claim_id=?", (task_id, claim_id))
 
     def create_task(self, task: TaskRecord) -> TaskRecord:
         with self.transaction() as connection:

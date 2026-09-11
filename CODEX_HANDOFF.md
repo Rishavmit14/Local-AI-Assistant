@@ -1161,6 +1161,13 @@ approval, execution, or scope authority.
 The next dependency is durable cross-process execution admission before live
 credential-enabled dispatch; existing isolation worktree locks protect mutation
 but do not provide gateway-level dispatch ownership.
+
+The execution-admission checkpoint is qualified: schema v7 holds a durable
+per-task dispatch claim until the executor future completes and prevents a
+second gateway from submitting another code-agent run. Qualification passed 798
+tests in both full Python gates plus frontend lint/26 tests/build. Live migration
+and runtime restart remain pending; no credentials, approvals, or execution were
+changed.
 The current session's actual `select_backend()` probe selects Bubblewrap with
 supported process/filesystem/network/user-namespace isolation, unlike the old
 host limitation note; cgroups remain partial. This is a capability probe, not

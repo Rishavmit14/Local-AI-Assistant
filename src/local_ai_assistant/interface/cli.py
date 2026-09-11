@@ -126,7 +126,7 @@ def build_presentation_components(
         history,
         mappings,
         planner_factory=planner_factory,
-        executor=execution.execute_task,
+        executor=execution,
     )
 
     def plan_hash_for_task(task_id: str) -> str | None:

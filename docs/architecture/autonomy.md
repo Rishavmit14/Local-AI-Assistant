@@ -96,6 +96,14 @@ which is deliberately longer than normal local planning and is recorded as a
 recovery delay rather than a second concurrent planner. This claim authorizes no
 plan content, approval, execution, or scope expansion.
 
+Task history schema v7 applies the same durable admission to execution dispatch.
+The gateway holds the task claim until the local executor future completes, then
+releases it through a completion callback. A second gateway receives a conflict
+instead of starting another code-agent process. Interrupted dispatch recovers
+after the bounded 24-hour lease; isolation worktree locks remain the separate
+last-line mutation owner. The claim does not bypass exact approval, onboarding,
+or isolated validation/rollback.
+
 No credentials/scopes are provisioned automatically. The cinematic panel still
 provides planning/review and cancellation only. Authenticated owner interaction,
 live execution qualification, and bounded observe/validate/repair orchestration

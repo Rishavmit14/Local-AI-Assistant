@@ -19,6 +19,11 @@ The native objective execution route reuses bearer authentication and
 `request_execution` scope. It is disabled unless gateway enablement and a digest
 are configured, has bounded request rate, and passes the objective's stored plan
 token as an execution precondition. It cannot approve tasks or widen scope.
+Schema v7 adds durable per-task execution dispatch claims. The claim remains
+until the configured local executor future completes; concurrent gateway
+processes receive conflict rather than duplicate code-agent admission. Recovery
+after interruption uses a 24-hour lease, while existing isolation worktree locks
+continue to own actual mutation exclusion.
 Executor submission and shutdown share a process-local admission lock. Duplicate
 in-flight task requests return the same handle, while closed admission rejects
 new submissions. Cancelled queued futures have an explicit cancellation status;
