@@ -437,6 +437,12 @@ cancellation boundary. A failed task cancellation leaves the objective planned,
 so Friday cannot claim a cancelled objective while the linked task remains
 eligible for guarded execution.
 
+## 2026-09-11 — Stage 17 objective task-state projection candidate
+
+The local objective API now read-projects its linked canonical task's current
+lifecycle state. It does not duplicate or mutate task history, which remains the
+sole authority for approval, execution, validation, and completion.
+
 ## 2026-09-10 — Stage 16 semantic accessibility-action candidate
 
 Friday can invoke only exact preconfigured AT-SPI semantic actions under the

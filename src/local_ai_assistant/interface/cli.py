@@ -107,10 +107,15 @@ def build_presentation_components(
             "Cancelled from linked Friday objective",
         )
 
+    def task_state_for_task(task_id: str) -> str | None:
+        task = history.get(task_id)
+        return task.status.value if task is not None else None
+
     autonomy = ObjectiveService(
         resolved_config.paths.autonomy_db,
         plan_hash_for_task=plan_hash_for_task,
         cancel_task=cancel_task,
+        task_state_for_task=task_state_for_task,
     )
 
     conversation = FridayConversationService(

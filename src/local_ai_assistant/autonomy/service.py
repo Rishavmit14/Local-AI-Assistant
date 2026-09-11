@@ -20,6 +20,7 @@ class Objective:
     updated_at: str
     plan_hash: str | None = None
     task_id: str | None = None
+    task_state: str | None = None
 
 
 class ObjectiveService:
@@ -31,10 +32,12 @@ class ObjectiveService:
         *,
         plan_hash_for_task: Callable[[str], str | None] | None = None,
         cancel_task: Callable[[str], None] | None = None,
+        task_state_for_task: Callable[[str], str | None] | None = None,
     ) -> None:
         self.database = database.resolve()
         self.plan_hash_for_task = plan_hash_for_task
         self.cancel_task = cancel_task
+        self.task_state_for_task = task_state_for_task
 
     def _db(self) -> sqlite3.Connection:
         self.database.parent.mkdir(parents=True, exist_ok=True)
@@ -96,7 +99,22 @@ class ObjectiveService:
             row = db.execute("SELECT objective_id, text, state, created_at, updated_at, plan_hash, task_id FROM objectives WHERE objective_id=?", (objective_id,)).fetchone()
         if row is None:
             raise ValueError("objective is unavailable")
-        return Objective(*row)
+        item = Objective(*row)
+        task_state = (
+            self.task_state_for_task(item.task_id)
+            if item.task_id is not None and self.task_state_for_task is not None
+            else None
+        )
+        return Objective(
+            item.objective_id,
+            item.text,
+            item.state,
+            item.created_at,
+            item.updated_at,
+            item.plan_hash,
+            item.task_id,
+            task_state,
+        )
 
     def _transition(self, objective_id: str, state: str) -> Objective:
         now = datetime.now(UTC).isoformat()

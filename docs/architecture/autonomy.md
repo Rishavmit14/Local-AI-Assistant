@@ -19,6 +19,11 @@ task-history record. If the task cannot be cancelled, the objective remains
 nonterminal; Friday never reports a cancelled objective while leaving its linked
 task runnable.
 
+Objective reads also project the linked task's current canonical state (for
+example, `awaiting_approval` or `validating`) without copying it into the
+objective database or changing either record. Task history remains the lifecycle
+authority for execution and completion.
+
 Later Stage 17 work may connect an objective only to Friday's existing validated
 planner, isolated execution loop, approval, cancellation, validation, rollback,
 and task-history boundaries. It must not create a parallel execution path.

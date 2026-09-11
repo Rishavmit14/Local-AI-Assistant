@@ -142,8 +142,10 @@ Stage 17 begins with a durable local objective lifecycle. It records bounded
 create/resume/cancel state and may bind exactly one already plan-ready canonical
 task-history record by task ID and exact plan token. It delegates no authority
 itself; cancellation of a bound objective delegates to that task's existing
-history cancellation boundary. Any future objective execution must pass through
-the existing plan, approval, isolation, validation, rollback, and audit chain.
+history cancellation boundary. Objective reads project the current task-history
+state without becoming a second lifecycle authority. Any future objective
+execution must pass through the existing plan, approval, isolation, validation,
+rollback, and audit chain.
 
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as

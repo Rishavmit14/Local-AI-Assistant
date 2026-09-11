@@ -291,7 +291,9 @@ canonical task-history record that is awaiting approval or approved; the native
 API supplies its task ID, not an arbitrary plan hash. It does not itself plan,
 execute tools, or grant any authority outside Friday's existing guarded
 execution stack. Cancelling a bound objective asks that canonical task to cancel
-first and leaves the objective nonterminal if task cancellation fails.
+first and leaves the objective nonterminal if task cancellation fails. Objective
+reads project the linked task's canonical current state without copying it into
+a parallel lifecycle.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

@@ -33,6 +33,22 @@ def test_objective_binds_only_a_canonical_task_plan_without_execution(tmp_path):
         service.bind_plan(objective.objective_id, "not-a-task")
 
 
+def test_objective_projects_linked_task_state_without_mutating_it(tmp_path):
+    task_id = "task_" + "a" * 20
+    states = {task_id: "awaiting_approval"}
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
+        task_state_for_task=states.get,
+    )
+    objective = service.create("Plan only")
+    service.bind_plan(objective.objective_id, task_id)
+
+    assert service.get(objective.objective_id).task_state == "awaiting_approval"
+    states[task_id] = "validating"
+    assert service.get(objective.objective_id).task_state == "validating"
+
+
 def test_objective_refuses_unready_or_replaced_canonical_plan(tmp_path):
     task_id = "task_" + "a" * 20
     other_task_id = "task_" + "b" * 20

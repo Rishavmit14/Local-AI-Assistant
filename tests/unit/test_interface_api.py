@@ -130,6 +130,7 @@ def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):
             tmp_path / "objectives.sqlite3",
             plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
             cancel_task=lambda _value: None,
+            task_state_for_task=lambda value: "awaiting_approval" if value == task_id else None,
         ),
     ))
     created = client.post("/api/v1/objectives", json={"text": "Inspect project status"})
@@ -139,6 +140,7 @@ def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):
     planned = client.post(f"/api/v1/objectives/{objective_id}/plan", json={"task_id": task_id})
     assert planned.json()["objective"]["state"] == "planned"
     assert planned.json()["objective"]["task_id"] == task_id
+    assert planned.json()["objective"]["task_state"] == "awaiting_approval"
     assert client.post(f"/api/v1/objectives/{objective_id}/cancel").json()["objective"]["state"] == "cancelled"
 
 
