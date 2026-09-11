@@ -300,6 +300,11 @@ it into a parallel lifecycle. The existing cinematic UI receives a bounded
 objective projection with create/resume/guarded-plan/cancel controls and a
 read-only task-token-verified plan-review summary only.
 
+Planning uses a worker thread with process-local admission so its synchronous
+model call does not block health/status/cancellation requests. Concurrent plan
+requests are rejected while that worker is active. Cross-process reservation
+and the remaining guarded execution loop are still pending.
+
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 
 ## Stage 18 — Proactive Event and Automation Engine (**Planned**)

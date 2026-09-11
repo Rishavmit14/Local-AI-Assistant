@@ -1047,8 +1047,25 @@ competency-defined project-family link locally and projects it in PROJECTS. It
 cannot attach arbitrary projects and is not mastery evidence or execution/Git/
 publication authority.
 
-Stage 17 is active on `stage-17/autonomous-assistant-execution`. Its objective
-journal is locally durable and non-executing. It can now bind one plan-ready
+Stage 17 is active on `stage-17/autonomous-assistant-execution`.
+
+Current engineering continuation: recovery base is
+`1d985ff904c7ece141648c0c4eb511013c4f4253`. The responsive-planning checkpoint
+moves synchronous objective planning off the HTTP event loop and serializes plan
+admission per presentation process. A deterministic concurrent request test
+proved the old blockage and now proves health/cancellation response during
+planning and rejection of overlapping plan requests. Cross-process reservation
+remains pending. The report-only diagnostic task `task_8793980850f51d5b46c9`
+is preserved pending review; it is not a prerequisite for authorized engineering
+work. Earlier repeated engineering approval pauses were erroneous.
+
+Qualification passed: 769 full regression tests, repository verification,
+frontend lint/18 tests/build, and controlled restart API/voice health. Friday
+is running/listening with primary, fallback, and Piper workers alive and zero
+recoveries. Next discovery is cancellation-safe objective reservation before
+extending the guarded execution loop; pending diagnostic approval is not a gate.
+
+The objective journal is locally durable and non-executing. It can now bind one plan-ready
 canonical task-history record by task ID, retaining that task ID and exact plan
 token; the native API cannot inject a free-form plan hash. This provenance does
 not invoke a planner or bypass approval, isolation, validation, rollback, Git,

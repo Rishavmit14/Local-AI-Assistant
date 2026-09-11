@@ -479,6 +479,20 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 responsive planning qualification
+
+A concurrent HTTP test reproduced synchronous objective planning blocking health
+and cancellation on the presentation event loop. Planning now runs in a worker
+thread with process-local admission held by that worker until completion.
+Concurrent plan requests return 409; cancellation reaches canonical history
+during inference. This does not add execution or approval authority.
+
+Qualification: full pytest and repository verification each passed 769 tests;
+frontend lint, 18 tests, and production build passed. The controlled service
+restart completed speech-worker initialization and returned healthy API and
+listening voice capture with all three workers alive and zero recoveries. The
+initial health polling expired during startup, not a runtime failure.
+
 ## 2026-09-11 — Stage 17 canonical plan-review accepted
 
 The cinematic objective panel now reads a bounded summary of an exact linked

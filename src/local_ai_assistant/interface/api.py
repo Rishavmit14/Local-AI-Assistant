@@ -11,6 +11,7 @@ from queue import Empty
 try:
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import StreamingResponse
+    from starlette.concurrency import run_in_threadpool
 except ImportError:  # optional dependency; validated when app creation is requested
     FastAPI = HTTPException = Request = StreamingResponse = None
 
@@ -148,6 +149,17 @@ def create_presentation_app(
     if on_shutdown is not None:
         app.router.on_shutdown.append(on_shutdown)
     interaction_coordinator = interactions or FridayInteractionCoordinator()
+    objective_plan_lock = threading.Lock()
+
+    def run_objective_plan(operation: Callable[[], object]):
+        # Retain admission until the synchronous worker finishes, even if its
+        # HTTP client leaves. Competing requests must not duplicate task creation.
+        if not objective_plan_lock.acquire(blocking=False):
+            raise ValueError("objective planning is already active")
+        try:
+            return operation()
+        finally:
+            objective_plan_lock.release()
 
     @app.get("/health")
     def health():
@@ -235,12 +247,18 @@ def create_presentation_app(
             body = await request.json()
             task_id = body.get("task_id")
             if isinstance(task_id, str):
-                objective = owner_autonomy().bind_plan(objective_id, task_id)
+                objective = await run_in_threadpool(
+                    run_objective_plan,
+                    lambda: owner_autonomy().bind_plan(objective_id, task_id),
+                )
             else:
                 repository_id = body.get("repository_id")
                 if not isinstance(repository_id, str) or not repository_id.strip():
                     raise ValueError("canonical planned task ID or configured repository ID is required")
-                objective = owner_autonomy().request_plan(objective_id, repository_id)
+                objective = await run_in_threadpool(
+                    run_objective_plan,
+                    lambda: owner_autonomy().request_plan(objective_id, repository_id),
+                )
             return {"objective": asdict(objective)}
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc

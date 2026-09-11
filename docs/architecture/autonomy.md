@@ -32,6 +32,14 @@ retry cannot create a second task. Only the existing task-history plan token can
 then bind the objective. The panel cannot select a path, supply a plan hash,
 approve a plan, or execute work.
 
+The presentation API runs synchronous planning in a worker thread so health,
+status, and cancellation remain serviceable during local inference. One active
+plan operation is admitted per presentation process; overlapping requests return
+409. The worker owns that admission until completion, including after client
+disconnect. Cancellation remains cooperative through canonical task history;
+it does not forcibly terminate a model call. This is process-local admission,
+not a distributed scheduler or cross-process task reservation.
+
 The cinematic UI receives at most the newest 100 local objectives through a
 bounded collection projection. It shows the newest nonterminal objective whose
 linked canonical task is also nonterminal, and its task state; it may create,

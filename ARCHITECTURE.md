@@ -156,6 +156,10 @@ For a task awaiting approval, the projection includes a bounded, task-token-
 verified review summary. It is strictly read-only and does not expose artifact
 paths, write APIs, approval, or execution.
 
+Objective planning runs outside the presentation event loop with one active
+operation per process. Health, status, and cooperative task cancellation remain
+responsive during inference; competing plan requests receive 409.
+
 Task-history SQLite schema v5 keeps plan-attachment metrics additive and checks
 their physical columns at initialization. A stale schema therefore fails before
 planning rather than after a local model has generated an artifact.

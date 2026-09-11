@@ -53,6 +53,56 @@ def test_health_identifies_presentation_service():
     }
 
 
+def test_objective_planning_keeps_health_and_cancellation_responsive(tmp_path):
+    entered = threading.Event()
+    cancelled = threading.Event()
+    observed_cancellation = []
+    task_id = "task_" + "a" * 20
+
+    def plan(_task_id):
+        entered.set()
+        observed_cancellation.append(cancelled.wait(3))
+
+    autonomy = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        create_task_for_objective=lambda _text, _repo: task_id,
+        request_plan_for_task=plan,
+        plan_hash_for_task=lambda _task: None if cancelled.is_set() else "b" * 64,
+        cancel_task=lambda _task: cancelled.set(),
+    )
+    objective = autonomy.resume(autonomy.create("Inspect only").objective_id)
+    runtime = FridayRuntime("planning-responsiveness")
+    responses = []
+    with TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime), autonomy=autonomy,
+    )) as client:
+        worker = threading.Thread(target=lambda: responses.append(client.post(
+            f"/api/v1/objectives/{objective.objective_id}/plan", json={"repository_id": "friday"},
+        )))
+        worker.start()
+        try:
+            assert entered.wait(3)
+            assert client.get("/health").status_code == 200
+            busy = client.post(
+                f"/api/v1/objectives/{objective.objective_id}/plan", json={"repository_id": "friday"},
+            )
+            assert busy.status_code == 409
+            assert busy.json()["detail"] == "objective planning is already active"
+            assert client.post(f"/api/v1/objectives/{objective.objective_id}/cancel").status_code == 200
+        finally:
+            cancelled.set()
+            worker.join(5)
+        retry = client.post(
+            f"/api/v1/objectives/{objective.objective_id}/plan", json={"repository_id": "friday"},
+        )
+        assert retry.status_code == 409
+        assert "must be planning" in retry.json()["detail"]
+    assert not worker.is_alive()
+    assert observed_cancellation == [True]
+    assert responses[0].status_code == 409
+    assert autonomy.get(objective.objective_id).state == "cancelled"
+
+
 def test_voice_health_is_separate_from_http_liveness():
     runtime = FridayRuntime("voice-health")
     observed = {"enabled": True, "status": "recovering", "recovery_count": 1}
