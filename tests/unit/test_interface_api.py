@@ -145,6 +145,41 @@ def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):
     assert client.post(f"/api/v1/objectives/{objective_id}/cancel").json()["objective"]["state"] == "cancelled"
 
 
+def test_objective_api_requests_only_the_configured_canonical_planner(tmp_path):
+    runtime = FridayRuntime("objective-plan-api")
+    task_id = "task_" + "a" * 20
+    created: list[tuple[str, str]] = []
+    requested: list[str] = []
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        autonomy=ObjectiveService(
+            tmp_path / "objectives.sqlite3",
+            plan_hash_for_task=lambda value: "b" * 64 if value == task_id else None,
+            create_task_for_objective=lambda text, repository_id: created.append((text, repository_id)) or task_id,
+            request_plan_for_task=requested.append,
+        ),
+    ))
+    objective_id = client.post("/api/v1/objectives", json={"text": "Inspect project status"}).json()["objective"]["objective_id"]
+    assert client.post(f"/api/v1/objectives/{objective_id}/resume").status_code == 200
+    planned = client.post(f"/api/v1/objectives/{objective_id}/plan", json={"repository_id": "r1"})
+    assert planned.status_code == 200
+    assert planned.json()["objective"]["task_id"] == task_id
+    assert created == [("Inspect project status", "r1")]
+    assert requested == [task_id]
+
+
+def test_presentation_shutdown_runs_configured_local_cleanup():
+    runtime = FridayRuntime("shutdown-cleanup")
+    closed: list[bool] = []
+    with TestClient(create_presentation_app(
+        runtime,
+        FridayConversationService(FakeStreamingLLM(), runtime),
+        on_shutdown=lambda: closed.append(True),
+    )):
+        pass
+    assert closed == [True]
+
+
 def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     runtime = FridayRuntime("career-api")
     forge = CareerForgeService(tmp_path / "learner.sqlite3")

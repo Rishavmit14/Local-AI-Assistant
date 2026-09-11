@@ -1069,6 +1069,13 @@ Friday clone and offline BGE index under ignored `var/` support guarded plan
 qualification; its current objective is attached to a canonical plan awaiting
 human review and has not executed.
 
+The active Stage 17 candidate lets an explicitly resumed objective reserve one
+plan-only canonical task for a configured repository ID, then delegates the
+plan request to the existing native gateway/planner. It persists the task link
+before planning so a local planner failure retries that task rather than creating
+another. The cinematic panel supplies neither a path nor a plan hash and retains
+no approval or execution authority.
+
 Stage 14 Career Forge Core V1 is accepted through implementation checkpoint
 `82e74eb83694516d2a4453b9168744f75bcbd682`: full deterministic Python and
 repository verification, frontend lint/tests/build, and a controlled live Friday

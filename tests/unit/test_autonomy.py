@@ -43,6 +43,39 @@ def test_objective_binds_only_a_canonical_task_plan_without_execution(tmp_path):
         service.bind_plan(objective.objective_id, "not-a-task")
 
 
+def test_objective_requests_and_retries_only_one_canonical_planning_task(tmp_path):
+    task_id = "task_" + "a" * 20
+    created: list[tuple[str, str]] = []
+    requested: list[str] = []
+    ready = False
+
+    def create_task(text: str, repository_id: str) -> str:
+        created.append((text, repository_id))
+        return task_id
+
+    def request_plan(value: str) -> None:
+        nonlocal ready
+        requested.append(value)
+        if len(requested) == 1:
+            raise RuntimeError("local planner unavailable")
+        ready = True
+
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda value: "b" * 64 if ready and value == task_id else None,
+        create_task_for_objective=create_task,
+        request_plan_for_task=request_plan,
+    )
+    objective = service.resume(service.create("Plan only").objective_id)
+    with pytest.raises(RuntimeError, match="unavailable"):
+        service.request_plan(objective.objective_id, "r1")
+    assert service.get(objective.objective_id).task_id == task_id
+    planned = service.request_plan(objective.objective_id, "ignored-on-retry")
+    assert planned.state == "planned"
+    assert created == [("Plan only", "r1")]
+    assert requested == [task_id, task_id]
+
+
 def test_objective_projects_linked_task_state_without_mutating_it(tmp_path):
     task_id = "task_" + "a" * 20
     states = {task_id: "awaiting_approval"}

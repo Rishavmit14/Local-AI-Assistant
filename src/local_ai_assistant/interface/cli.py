@@ -12,14 +12,18 @@ import uvicorn
 
 from local_ai_assistant.autonomy import ObjectiveService
 from local_ai_assistant.career_forge import CareerForgeService
+from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.desktop import DesktopControlService
+from local_ai_assistant.gateway.models import RepositoryMapping
+from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
+from local_ai_assistant.planning.service import PlannerService
 from local_ai_assistant.perception import (
     ActiveWindowService,
     LocalVisionClassifier,
@@ -87,6 +91,33 @@ def build_presentation_components(
             resolved_config.paths.task_history_db.parent,
         ),
     )
+    mappings = (
+        tuple(
+            RepositoryMapping(path.name, str(path), "", "")
+            for path in resolved_config.paths.code_repo_dir.iterdir()
+            if path.is_dir() and (path / ".git").is_dir()
+        )
+        if resolved_config.paths.code_repo_dir.is_dir()
+        else ()
+    )
+
+    def planner_factory(repository: Path) -> PlannerService:
+        rag = CodeRAG(config=resolved_config)
+        if not rag.load():
+            raise RuntimeError("code index is unavailable")
+        return PlannerService(
+            repository,
+            rag.symbol_index,
+            rag.llm,
+            resolved_config.paths.code_index_dir / "plans",
+            rag.retrieve,
+        )
+
+    gateway = IntegrationGatewayService(
+        history,
+        mappings,
+        planner_factory=planner_factory,
+    )
 
     def plan_hash_for_task(task_id: str) -> str | None:
         task = history.get(task_id)
@@ -111,9 +142,17 @@ def build_presentation_components(
         task = history.get(task_id)
         return task.status.value if task is not None else None
 
+    def create_task_for_objective(text: str, repository_id: str) -> str:
+        return gateway.create_task(repository_id, text, plan_only=True).task_id
+
+    def request_plan_for_task(task_id: str) -> None:
+        gateway.request_plan(task_id)
+
     autonomy = ObjectiveService(
         resolved_config.paths.autonomy_db,
         plan_hash_for_task=plan_hash_for_task,
+        create_task_for_objective=create_task_for_objective,
+        request_plan_for_task=request_plan_for_task,
         cancel_task=cancel_task,
         task_state_for_task=task_state_for_task,
     )
@@ -151,6 +190,7 @@ def build_presentation_components(
         active_window=ActiveWindowService(),
         desktop_control=desktop_control,
         autonomy=autonomy,
+        on_shutdown=gateway.close,
     )
 
     return (

@@ -468,6 +468,15 @@ whose `metrics_summary` table lacked fields previously added only to the initial
 schema text. Version 5 adds those metrics through an ordered migration and
 validates them at initialization, preventing a late plan-attachment failure.
 
+## 2026-09-11 — Stage 17 native objective planning candidate
+
+An explicitly resumed local objective can now reserve one plan-only canonical
+task for a configured repository ID and delegate generation to Friday's existing
+native gateway/planner. The task is persisted before local planning begins, so a
+planner failure can retry the same task rather than duplicating work. The
+cinematic UI cannot submit paths or hashes and still has no approval or execution
+control.
+
 ## 2026-09-10 — Stage 16 semantic accessibility-action candidate
 
 Friday can invoke only exact preconfigured AT-SPI semantic actions under the

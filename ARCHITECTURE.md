@@ -140,13 +140,15 @@ pending action and requires a local confirmation dialog before the explicit
 approval/execution click; it cannot bypass policy.
 
 Stage 17 begins with a durable local objective lifecycle. It records bounded
-create/resume/cancel state and may bind exactly one already plan-ready canonical
-task-history record by task ID and exact plan token. It delegates no authority
-itself; cancellation of a bound objective delegates to that task's existing
-history cancellation boundary. Objective reads project the current task-history
-state, and the cinematic UI receives only a bounded read-only objective
-projection plus its existing bounded create/resume/cancel controls, without
-becoming a second lifecycle authority. Any future objective
+create/resume/cancel state and may bind exactly one canonical task-history record
+by task ID and exact plan token. After explicit resume, it may reserve one
+plan-only task for a configured repository ID and delegate plan generation to the
+existing native gateway/planner; planner failure preserves that task linkage for
+retry. It delegates no execution authority itself; cancellation of a bound
+objective delegates to that task's existing history cancellation boundary.
+Objective reads project the current task-history state, and the cinematic UI
+receives only a bounded objective projection with create/resume/guarded-plan/
+cancel controls, without becoming a second lifecycle authority. Any objective
 execution must pass through the existing plan, approval, isolation, validation,
 rollback, and audit chain.
 

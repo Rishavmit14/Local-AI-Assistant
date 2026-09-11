@@ -5,6 +5,17 @@ import { FridayRuntimeClient } from "./client";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("FridayRuntimeClient Career Forge boundary", () => {
+  it("requests an objective plan only for a configured repository ID", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ objective: { objective_id: "o1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new FridayRuntimeClient().requestObjectivePlan("o 1", "friday")).resolves.toMatchObject({ objective_id: "o1" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/objectives/o%201/plan", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ repository_id: "friday" }),
+    }));
+  });
+
   it("reads the local Learner Twin journey", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       target: "ML / AI Engineer",

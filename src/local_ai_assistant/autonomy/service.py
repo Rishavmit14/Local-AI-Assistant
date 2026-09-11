@@ -31,11 +31,15 @@ class ObjectiveService:
         database: Path,
         *,
         plan_hash_for_task: Callable[[str], str | None] | None = None,
+        create_task_for_objective: Callable[[str, str], str] | None = None,
+        request_plan_for_task: Callable[[str], None] | None = None,
         cancel_task: Callable[[str], None] | None = None,
         task_state_for_task: Callable[[str], str | None] | None = None,
     ) -> None:
         self.database = database.resolve()
         self.plan_hash_for_task = plan_hash_for_task
+        self.create_task_for_objective = create_task_for_objective
+        self.request_plan_for_task = request_plan_for_task
         self.cancel_task = cancel_task
         self.task_state_for_task = task_state_for_task
 
@@ -87,12 +91,38 @@ class ObjectiveService:
         item = self.get(objective_id)
         if item.state == "cancelled":
             raise ValueError("cancelled objective cannot bind a plan")
-        if item.plan_hash is not None and (item.plan_hash != plan_hash or item.task_id != task_id):
+        if item.task_id is not None and item.task_id != task_id:
+            raise ValueError("objective is already bound to a different canonical plan")
+        if item.plan_hash is not None and item.plan_hash != plan_hash:
             raise ValueError("objective is already bound to a different canonical plan")
         now = datetime.now(UTC).isoformat()
         with self._db() as db:
             db.execute("UPDATE objectives SET state='planned', plan_hash=?, task_id=?, updated_at=? WHERE objective_id=?", (plan_hash, task_id, now, objective_id))
         return self.get(objective_id)
+
+    def request_plan(self, objective_id: str, repository_id: str) -> Objective:
+        """Request a plan through the configured canonical task boundary only."""
+        item = self.get(objective_id)
+        if item.state != "planning":
+            raise ValueError("objective must be planning before it can request a plan")
+        if self.create_task_for_objective is None or self.request_plan_for_task is None:
+            raise RuntimeError("canonical planner is unavailable")
+        task_id = item.task_id
+        if task_id is None:
+            task_id = self.create_task_for_objective(item.text, repository_id)
+            if not re.fullmatch(r"task_[a-f0-9]{20}", task_id):
+                raise ValueError("canonical planner returned an invalid task ID")
+            now = datetime.now(UTC).isoformat()
+            with self._db() as db:
+                db.execute(
+                    "UPDATE objectives SET task_id=?, updated_at=? WHERE objective_id=? AND task_id IS NULL",
+                    (task_id, now, objective_id),
+                )
+            item = self.get(objective_id)
+            if item.task_id != task_id:
+                raise ValueError("objective planning task changed concurrently")
+        self.request_plan_for_task(task_id)
+        return self.bind_plan(objective_id, task_id)
 
     def get(self, objective_id: str) -> Objective:
         with self._db() as db:

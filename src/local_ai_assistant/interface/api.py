@@ -124,6 +124,7 @@ def create_presentation_app(
     interactions: FridayInteractionCoordinator | None = None,
     presentation_pause: Callable[[], None] | None = None,
     presentation_resume: Callable[[], None] | None = None,
+    on_shutdown: Callable[[], None] | None = None,
     memory: FridayMemoryService | None = None,
     career_forge: CareerForgeService | None = None,
     perception: ScreenCaptureService | None = None,
@@ -144,6 +145,8 @@ def create_presentation_app(
         version="1.0",
         docs_url="/docs",
     )
+    if on_shutdown is not None:
+        app.router.on_shutdown.append(on_shutdown)
     interaction_coordinator = interactions or FridayInteractionCoordinator()
 
     @app.get("/health")
@@ -231,9 +234,16 @@ def create_presentation_app(
         try:
             body = await request.json()
             task_id = body.get("task_id")
-            if not isinstance(task_id, str):
-                raise ValueError("canonical planned task ID is required")
-            return {"objective": asdict(owner_autonomy().bind_plan(objective_id, task_id))}
+            if isinstance(task_id, str):
+                objective = owner_autonomy().bind_plan(objective_id, task_id)
+            else:
+                repository_id = body.get("repository_id")
+                if not isinstance(repository_id, str) or not repository_id.strip():
+                    raise ValueError("canonical planned task ID or configured repository ID is required")
+                objective = owner_autonomy().request_plan(objective_id, repository_id)
+            return {"objective": asdict(objective)}
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except (ValueError, TypeError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

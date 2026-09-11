@@ -286,15 +286,18 @@ policy and audit extensions.
 ## Stage 17 — Autonomous Assistant Execution (**Partial / active**)
 
 The active foundation persists bounded local objectives with explicit
-create/resume/cancel lifecycle state. An objective can bind only to an existing
-canonical task-history record that is awaiting approval or approved; the native
-API supplies its task ID, not an arbitrary plan hash. It does not itself plan,
-execute tools, or grant any authority outside Friday's existing guarded
-execution stack. Cancelling a bound objective asks that canonical task to cancel
-first and leaves the objective nonterminal if task cancellation fails. Objective
-reads project the linked task's canonical current state without copying it into
-a parallel lifecycle. The existing cinematic UI receives a bounded read-only
-objective projection and the same bounded create/resume/cancel controls only.
+create/resume/cancel lifecycle state. After an explicit resume, an objective may
+reserve exactly one plan-only canonical task for a configured repository ID and
+ask Friday's existing native gateway/planner to generate its plan. A planner
+failure preserves the same linked task for retry. An objective can bind only to
+that plan-ready canonical task-history record (or another existing canonical
+record) by task ID and exact token; the native API never supplies an arbitrary
+plan hash. It does not execute tools or grant authority outside Friday's existing
+guarded execution stack. Cancelling a bound objective asks that canonical task to
+cancel first and leaves the objective nonterminal if task cancellation fails.
+Objective reads project the linked task's canonical current state without copying
+it into a parallel lifecycle. The existing cinematic UI receives a bounded
+objective projection with create/resume/guarded-plan/cancel controls only.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

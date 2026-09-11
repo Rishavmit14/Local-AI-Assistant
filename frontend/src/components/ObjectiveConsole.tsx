@@ -8,6 +8,7 @@ export function ObjectiveConsole() {
   const [objectives, setObjectives] = useState<FridayObjective[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [text, setText] = useState("");
+  const [repositoryId, setRepositoryId] = useState("");
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(async (signal?: AbortSignal) => {
     try { setObjectives(await client.getObjectives(signal)); setError(null); }
@@ -43,12 +44,24 @@ export function ObjectiveConsole() {
     catch (reason) { setError(reason instanceof Error ? reason.message : "Could not cancel objective"); }
     finally { setBusy(false); }
   };
+  const plan = async () => {
+    if (!current || !repositoryId.trim()) return;
+    setBusy(true);
+    try { await client.requestObjectivePlan(current.objective_id, repositoryId.trim()); await refresh(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not request a canonical plan"); }
+    finally { setBusy(false); }
+  };
   return <aside className="objective-console" aria-label="Autonomous objectives">
     <div className="career-forge-heading"><span>OBJECTIVE</span><small>LOCAL · GUARDED</small></div>
     {current ? <>
       <strong>{current.text}</strong>
       <p>{current.task_state ?? current.state} · {current.task_id ? "canonical task linked" : "planning not yet linked"}</p>
       {current.state === "created" ? <button type="button" onClick={() => void resume()} disabled={busy}>BEGIN PLANNING</button> : null}
+      {current.state === "planning" ? <>
+        <label className="objective-create-label" htmlFor="objective-repository">CONFIGURED REPOSITORY ID</label>
+        <input id="objective-repository" value={repositoryId} maxLength={200} onChange={(event) => setRepositoryId(event.target.value)} placeholder="For example: friday" />
+        <button type="button" onClick={() => void plan()} disabled={busy || !repositoryId.trim()}>REQUEST CANONICAL PLAN</button>
+      </> : null}
       <button type="button" onClick={() => void cancel()} disabled={busy}>CANCEL OBJECTIVE</button>
     </> : <p>No objective is active. Friday will not create work without an explicit local objective.</p>}
     <label className="objective-create-label" htmlFor="objective-text">NEW LOCAL OBJECTIVE</label>

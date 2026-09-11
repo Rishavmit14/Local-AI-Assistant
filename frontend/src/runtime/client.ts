@@ -133,6 +133,16 @@ export class FridayRuntimeClient {
     return (await response.json() as { objective: FridayObjective }).objective;
   }
 
+  async requestObjectivePlan(objectiveId: string, repositoryId: string): Promise<FridayObjective> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/plan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repository_id: repositoryId }),
+    });
+    if (!response.ok) throw new Error(`objective planning failed: ${response.status}`);
+    return (await response.json() as { objective: FridayObjective }).objective;
+  }
+
   async cancelObjective(objectiveId: string): Promise<FridayObjective> {
     const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/cancel`, { method: "POST" });
     if (!response.ok) throw new Error(`objective cancellation failed: ${response.status}`);
