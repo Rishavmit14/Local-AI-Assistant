@@ -479,6 +479,20 @@ control.
 
 Accepted recovery commit: `ceb9fc41b309d6cdad2c9499bbe9d9fd4f0f7c28`.
 
+## 2026-09-11 — Stage 17 authenticated objective dispatch qualification
+
+Native objective dispatch now checks the exact approved binding and delegates
+through the existing gateway/executor with a token precondition. The route
+requires gateway enablement/digest, bearer authentication, execution scope, and
+rate policy. Missing configuration fails closed; no credentials/scopes/approvals
+are provisioned. Accepted dispatch is not reported as execution completion.
+Qualification passed 789 tests in full regression and repository verification,
+plus frontend lint/18 tests/build. Authenticated owner UI/voice interaction and
+live execution qualification remain open; no diagnostic task was executed.
+After controlled restart, the live objective execute route returned 503 for
+unconfigured authentication before task lookup/dispatch. API and voice health
+confirmed listening capture, all speech workers alive, and zero recoveries.
+
 ## 2026-09-11 — Stage 17 exact approved-plan execution qualification
 
 Execution integration discovery found the gateway's code-agent adapter generated

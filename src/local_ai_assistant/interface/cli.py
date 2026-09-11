@@ -16,7 +16,10 @@ from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.desktop import DesktopControlService
-from local_ai_assistant.gateway.models import RepositoryMapping
+from local_ai_assistant.gateway.models import RepositoryMapping, GatewayScope
+from local_ai_assistant.gateway.auth import GatewayAuth
+from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
+from local_ai_assistant.onboarding import RepositoryOnboardingService
 from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
@@ -114,10 +117,16 @@ def build_presentation_components(
             rag.retrieve,
         )
 
+    execution_auth = (
+        GatewayAuth(resolved_config.gateway.token_hash, frozenset(GatewayScope(scope) for scope in resolved_config.gateway.scopes))
+        if resolved_config.gateway.enabled and resolved_config.gateway.token_hash else None
+    )
+    execution = CodeAgentExecutionService(resolved_config, history, RepositoryOnboardingService(resolved_config))
     gateway = IntegrationGatewayService(
         history,
         mappings,
         planner_factory=planner_factory,
+        executor=execution.execute_task,
     )
 
     def plan_hash_for_task(task_id: str) -> str | None:
@@ -186,6 +195,7 @@ def build_presentation_components(
         plan_review_for_task=plan_review_for_task,
         create_task_for_objective=create_task_for_objective,
         validate_repository=gateway.validate_repository,
+        execute_task=lambda task_id, token: gateway.request_execution(task_id, expected_plan_hash=token),
         request_plan_for_task=request_plan_for_task,
         cancel_task=cancel_task,
         task_state_for_task=task_state_for_task,
@@ -224,7 +234,9 @@ def build_presentation_components(
         active_window=ActiveWindowService(),
         desktop_control=desktop_control,
         autonomy=autonomy,
-        on_shutdown=gateway.close,
+        objective_execution_auth=execution_auth,
+        objective_execution_requests_per_minute=resolved_config.gateway.request_rate,
+        on_shutdown=lambda: (gateway.close(), execution.close()),
     )
 
     return (

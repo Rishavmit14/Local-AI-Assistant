@@ -1,12 +1,15 @@
 import asyncio
 import json
 import threading
+import hashlib
 
 from fastapi.testclient import TestClient
 
 from local_ai_assistant.autonomy import ObjectiveService
 from local_ai_assistant.career_forge import CareerForgeService
 from local_ai_assistant.desktop import DesktopControlService
+from local_ai_assistant.gateway.auth import GatewayAuth
+from local_ai_assistant.gateway.models import GatewayScope
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.events import FridayEventType
@@ -101,6 +104,41 @@ def test_objective_planning_keeps_health_and_cancellation_responsive(tmp_path):
     assert observed_cancellation == [True]
     assert responses[0].status_code == 409
     assert autonomy.get(objective.objective_id).state == "cancelled"
+
+
+def test_objective_execution_requires_gateway_auth_scope_and_exact_plan(tmp_path):
+    task_id = "task_" + "a" * 20
+    dispatched = []
+    states = {task_id: "approved"}
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda _task: "b" * 64,
+        task_state_for_task=states.get,
+        execute_task=lambda task, token: dispatched.append((task, token)) or {"task_id": task, "accepted": True},
+    )
+    objective = service.bind_plan(service.create("Exact execution").objective_id, task_id)
+    runtime = FridayRuntime("objective-execution")
+    conversation = FridayConversationService(FakeStreamingLLM(), runtime)
+    route = f"/api/v1/objectives/{objective.objective_id}/execute"
+    digest = hashlib.sha256(b"test-execution-token").hexdigest()
+    headers = {"Authorization": "Bearer test-execution-token"}
+    with TestClient(create_presentation_app(runtime, conversation, autonomy=service)) as client:
+        assert client.post(route).status_code == 503
+    read_auth = GatewayAuth(digest, frozenset({GatewayScope.READ_STATUS}))
+    with TestClient(create_presentation_app(runtime, conversation, autonomy=service, objective_execution_auth=read_auth)) as client:
+        assert client.post(route, headers=headers).status_code == 403
+    auth = GatewayAuth(digest, frozenset({GatewayScope.REQUEST_EXECUTION}))
+    with TestClient(create_presentation_app(runtime, conversation, autonomy=service, objective_execution_auth=auth, objective_execution_requests_per_minute=2)) as client:
+        assert client.post(route).status_code == 401
+        states[task_id] = "awaiting_approval"
+        assert client.post(route, headers=headers).status_code == 409
+        assert dispatched == []
+        states[task_id] = "approved"
+        response = client.post(route, headers=headers)
+        assert response.status_code == 202
+        assert response.json()["execution"]["task_id"] == task_id
+        assert dispatched == [(task_id, "b" * 64)]
+        assert client.post(route, headers=headers).status_code == 429
 
 
 def test_voice_health_is_separate_from_http_liveness():
@@ -702,6 +740,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/objectives/{objective_id}/resume",
         "/api/v1/objectives/{objective_id}/plan",
         "/api/v1/objectives/{objective_id}/cancel",
+        "/api/v1/objectives/{objective_id}/execute",
         "/api/v1/desktop/actions",
         "/api/v1/desktop/actions/{action_id}/approve",
         "/api/v1/desktop/actions/{action_id}/execute",

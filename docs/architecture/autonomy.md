@@ -69,7 +69,22 @@ Friday validates the task ID and exact plan token against task history and the
 artifact before projecting it. The UI cannot alter the artifact, approve it, or
 invoke execution.
 
-Later Stage 17 work may connect an objective only to Friday's existing validated
-planner, isolated execution loop, approval, cancellation, validation, rollback,
-and task-history boundaries. It must not create a parallel execution path.
+Explicit objective dispatch requires a planned objective with its exact bound
+token still canonically approved. The gateway rechecks that token at admission
+and delegates to the existing exact-plan loader and isolated executor. Objective
+state does not advance optimistically; task history owns execution/outcomes.
+
+`POST /api/v1/objectives/{objective_id}/execute` reuses gateway bearer
+authentication, `request_execution` scope, and configured request rate. Production
+wiring requires gateway enabled plus a token digest; otherwise dispatch returns
+503. Missing/invalid credentials return 401, insufficient scope 403, ineligible
+binding/readiness 409, and rate exhaustion 429. Dispatch acceptance is 202, not
+completion. No request body can supply an approval, replacement task, command,
+path, or isolation override. Shutdown closes executor admission and cancels
+queued futures; running work retains canonical cooperative cancellation checks.
+
+No credentials/scopes are provisioned automatically. The cinematic panel still
+provides planning/review and cancellation only. Authenticated owner interaction,
+live execution qualification, and bounded observe/validate/repair orchestration
+remain Stage 17 work. No second frontend or parallel executor is introduced.
 See [ADR 0019](../decisions/0019-objective-planning-through-native-gateway.md).

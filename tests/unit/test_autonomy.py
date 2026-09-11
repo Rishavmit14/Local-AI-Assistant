@@ -22,6 +22,33 @@ def test_objective_requires_bounded_text(tmp_path):
         service.create(" ")
 
 
+@pytest.mark.parametrize("task_state, token, allowed", [
+    ("approved", "b" * 64, True),
+    ("awaiting_approval", "b" * 64, False),
+    ("cancelled", "b" * 64, False),
+    ("approved", "c" * 64, False),
+])
+def test_objective_execution_delegates_only_its_exact_approved_binding(tmp_path, task_state, token, allowed):
+    task_id = "task_" + "a" * 20
+    calls = []
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda _task: "b" * 64,
+        task_state_for_task=lambda _task: task_state,
+        execute_task=lambda task, plan: calls.append((task, plan)),
+    )
+    objective = service.bind_plan(service.create("Guarded execution").objective_id, task_id)
+    service.plan_hash_for_task = lambda _task: token
+    if allowed:
+        service.request_execution(objective.objective_id)
+        assert calls == [(task_id, "b" * 64)]
+        assert service.get(objective.objective_id).state == "planned"
+    else:
+        with pytest.raises(ValueError, match="exact approved"):
+            service.request_execution(objective.objective_id)
+        assert calls == []
+
+
 def test_legacy_objective_journal_migrates_without_losing_bindings(tmp_path):
     database = tmp_path / "objectives.sqlite3"
     task_id = "task_" + "a" * 20

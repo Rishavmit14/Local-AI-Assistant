@@ -60,6 +60,10 @@ class CodeAgentExecutionService:
         self._runs[run_id] = self._pool.submit(code_agent.main, argv)
         return ExecutionHandle(task.task_id, run_id)
 
+    def close(self) -> None:
+        """Stop accepting work; running work retains canonical cancellation checks."""
+        self._pool.shutdown(wait=False, cancel_futures=True)
+
     def get_status(self, task_id: str) -> dict:
         future = self._runs.get(f"run_{task_id}")
         if future is None:

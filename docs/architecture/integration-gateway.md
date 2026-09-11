@@ -14,3 +14,8 @@ The execution adapter requests reuse of the exact canonical approved plan via
 code-agent `--approved-plan`, never model regeneration under the old token.
 History validates approved state, artifact bytes, and task/plan/repository/commit
 identity; code-agent checks current HEAD before its existing guarded loop.
+
+The native objective execution route reuses bearer authentication and
+`request_execution` scope. It is disabled unless gateway enablement and a digest
+are configured, has bounded request rate, and passes the objective's stored plan
+token as an execution precondition. It cannot approve tasks or widen scope.

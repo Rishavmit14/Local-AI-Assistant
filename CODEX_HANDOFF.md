@@ -1050,7 +1050,7 @@ publication authority.
 Stage 17 is active on `stage-17/autonomous-assistant-execution`.
 
 Current engineering continuation: recovery base is
-`f194e4cae8be817967b879cbbb2b8614ce3d6755` (stage branch/main and both fetched
+`96cfbcdc208747d6aa6fc51d9b094c66ce218c71` (stage branch/main and both fetched
 remote refs verified exactly aligned). The responsive-planning checkpoint
 moves synchronous objective planning off the HTTP event loop and serializes plan
 admission per presentation process. A deterministic concurrent request test
@@ -1107,6 +1107,32 @@ for this adapter checkpoint; API and voice health remained healthy/listening.
 Next discovery: connect bounded objective execution to the corrected canonical
 adapter, preserving exact approval and strong isolation and handling terminal
 task observations without inventing a parallel task lifecycle.
+
+The guarded-dispatch checkpoint: `ObjectiveService.request_execution`
+checks its exact approved task/token binding and delegates that pair without
+copying execution state. Gateway dispatch accepts an expected-token precondition.
+The native route requires gateway enabled/digest, bearer authentication,
+`request_execution` scope, and configured rate policy. It returns 202 for accepted
+dispatch and does not grant approval. No credentials or execution scopes were
+provisioned. Full regression and repository verification each passed 789 tests;
+frontend lint/18 tests/build passed. Negative HTTP tests cover disabled auth,
+missing credentials, read-only scope, unapproved binding, and rate limits, and
+gateway coverage rejects a stale expected token before executor submission.
+Next: authenticated owner UI/voice interaction, live execution qualification,
+terminal observation, and bounded repair orchestration. Also audit duplicate
+executor submission/admission and shutdown status for cancelled queued futures
+before depending on these under concurrent live dispatch.
+The current session's actual `select_backend()` probe selects Bubblewrap with
+supported process/filesystem/network/user-namespace isolation, unlike the old
+host limitation note; cgroups remain partial. This is a capability probe, not
+end-to-end qualification of arbitrary repository execution. No pending task was
+approved or executed.
+
+Guarded-dispatch runtime qualification: controlled restart completed; the live
+execute route returned 503 (`objective execution authentication is not configured`)
+without dispatch. API/voice health confirmed Friday running/listening, all speech
+workers alive, zero recoveries. This proves the disabled default, not an actual
+approved execution. The required current-owner credential workflow is still open.
 
 The objective journal is locally durable and non-executing. It can now bind one plan-ready
 canonical task-history record by task ID, retaining that task ID and exact plan

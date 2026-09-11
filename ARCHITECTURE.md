@@ -171,6 +171,10 @@ The existing gateway execution adapter now selects exact approved-plan reuse:
 history validates canonical state and artifact bytes/identity, and code-agent
 checks repository HEAD before entering its unchanged isolated execution stack.
 It does not regenerate a new plan under an earlier approval token.
+The native objective dispatch route delegates only an exact approved binding to
+that adapter, guarded by gateway enablement/bearer digest, execution scope, and
+rate policy. Absent configuration fails closed; the cinematic panel does not yet
+expose execution or credential management. Task history owns execution/outcomes.
 
 Task-history SQLite schema v5 keeps plan-attachment metrics additive and checks
 their physical columns at initialization. A stale schema therefore fails before

@@ -23,6 +23,9 @@ from local_ai_assistant.career_forge import (
     TutorMode,
 )
 from local_ai_assistant.desktop import DesktopAction, DesktopControlService
+from local_ai_assistant.gateway.auth import GatewayAuth, GatewayAuthenticationError, GatewayAuthorizationError, GatewayRateLimiter
+from local_ai_assistant.gateway.models import GatewayScope
+from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
 
@@ -132,6 +135,8 @@ def create_presentation_app(
     active_window: ActiveWindowService | None = None,
     desktop_control: DesktopControlService | None = None,
     autonomy: ObjectiveService | None = None,
+    objective_execution_auth: GatewayAuth | None = None,
+    objective_execution_requests_per_minute: int = 30,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -150,6 +155,7 @@ def create_presentation_app(
         app.router.on_shutdown.append(on_shutdown)
     interaction_coordinator = interactions or FridayInteractionCoordinator()
     objective_plan_lock = threading.Lock()
+    objective_execution_limiter = GatewayRateLimiter(objective_execution_requests_per_minute)
 
     def run_objective_plan(operation: Callable[[], object]):
         # Retain admission until the synchronous worker finishes, even if its
@@ -264,6 +270,29 @@ def create_presentation_app(
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except (ValueError, TypeError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/objectives/{objective_id}/execute", status_code=202)
+    async def execute_objective(objective_id: str, request: Request):
+        if objective_execution_auth is None:
+            raise HTTPException(status_code=503, detail="objective execution authentication is not configured")
+        authorization = request.headers.get("authorization", "")
+        token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else None
+        try:
+            principal = objective_execution_auth.require(token, GatewayScope.REQUEST_EXECUTION)
+        except GatewayAuthenticationError as exc:
+            raise HTTPException(status_code=401, detail="authentication required") from exc
+        except GatewayAuthorizationError as exc:
+            raise HTTPException(status_code=403, detail="insufficient gateway scope") from exc
+        if not objective_execution_limiter.allow(principal.name):
+            raise HTTPException(status_code=429, detail="execution request rate limit exceeded")
+        try:
+            return {"execution": await run_in_threadpool(owner_autonomy().request_execution, objective_id)}
+        except RepositoryOnboardingError as exc:
+            raise HTTPException(status_code=409, detail="repository is not ready for guarded execution") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail="canonical execution is unavailable") from exc
 
     @app.get("/api/v1/objectives/{objective_id}/plan")
     def objective_plan_review(objective_id: str):

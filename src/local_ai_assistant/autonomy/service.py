@@ -38,6 +38,7 @@ class ObjectiveService:
         cancel_task: Callable[[str], None] | None = None,
         validate_repository: Callable[[str], object] | None = None,
         task_state_for_task: Callable[[str], str | None] | None = None,
+        execute_task: Callable[[str, str], object] | None = None,
     ) -> None:
         self.database = database.resolve()
         self.plan_hash_for_task = plan_hash_for_task
@@ -47,6 +48,7 @@ class ObjectiveService:
         self.cancel_task = cancel_task
         self.validate_repository = validate_repository
         self.task_state_for_task = task_state_for_task
+        self.execute_task = execute_task
 
     def _db(self) -> sqlite3.Connection:
         self.database.parent.mkdir(parents=True, exist_ok=True)
@@ -155,6 +157,21 @@ class ObjectiveService:
             return self.bind_plan(objective_id, task_id)
         self.request_plan_for_task(task_id)
         return self.bind_plan(objective_id, task_id)
+
+    def request_execution(self, objective_id: str) -> object:
+        """Delegate exact-plan dispatch; canonical history still owns execution."""
+        item = self.get(objective_id)
+        if (
+            item.state != "planned" or item.task_id is None or item.plan_hash is None
+            or item.task_state != "approved" or self.plan_hash_for_task is None
+            or self.plan_hash_for_task(item.task_id) != item.plan_hash
+        ):
+            raise ValueError("objective requires its exact approved canonical plan")
+        if self.execute_task is None:
+            raise RuntimeError("canonical execution is unavailable")
+        # The executor must recheck this exact token at its own admission point;
+        # an objective read does not grant authority over later history changes.
+        return self.execute_task(item.task_id, item.plan_hash)
 
     def plan_review(self, objective_id: str) -> dict[str, object]:
         """Return the configured, bounded review projection for an exact plan."""

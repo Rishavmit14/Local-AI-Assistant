@@ -127,7 +127,7 @@ class IntegrationGatewayService:
     def close(self) -> None:
         self._bridge_stop.set()
 
-    def request_execution(self, task_id: str):
+    def request_execution(self, task_id: str, *, expected_plan_hash: str | None = None):
         if self.executor is None:
             raise RuntimeError("execution service is not configured for this gateway process")
         task = self.get_task(task_id)
@@ -135,6 +135,8 @@ class IntegrationGatewayService:
             raise KeyError(task_id)
         if task.status is not TaskStatus.APPROVED or not task.plan_hash:
             raise ValueError("exact approved plan is required before execution")
+        if expected_plan_hash is not None and task.plan_hash != expected_plan_hash:
+            raise ValueError("execution request does not match the exact approved plan")
         return self.executor(task)
 
     def get_task(self, task_id: str): return self.history.get(task_id)

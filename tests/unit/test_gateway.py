@@ -222,6 +222,10 @@ def test_execution_service_uses_existing_code_agent_boundary(tmp_path, monkeypat
     gateway.history.attach_approval(task.task_id, "plan", "explicitly_approved")
     gateway.history.store.transition(task.task_id, TaskStatus.APPROVED, "test")
     calls = []
+    gateway.executor = lambda _task: calls.append("unexpected dispatch")
+    with pytest.raises(ValueError, match="exact approved plan"):
+        gateway.request_execution(task.task_id, expected_plan_hash="stale-objective-token")
+    assert calls == []
     monkeypatch.setattr("local_ai_assistant.gateway.execution_service.code_agent.main", lambda argv: calls.append(argv))
     onboarding = ReadyOnboarding(path, "r1")
     execution = CodeAgentExecutionService(None, gateway.history, onboarding)

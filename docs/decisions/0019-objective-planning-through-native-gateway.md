@@ -41,6 +41,11 @@ approval state, stored artifact digest, and task/token/repository/commit identit
 code-agent additionally checks current HEAD and request identity. This reuses the
 existing isolated execution path and introduces no approval shortcut.
 
+Native objective dispatch reuses gateway authentication, execution scope, and
+rate policy and passes the stored token as an admission precondition. Missing
+gateway enablement/digest disables dispatch. There is no implicit owner session,
+credential provisioning, approval grant, or unguarded UI execution route.
+
 ## Consequences
 
 The cinematic UI gains a bounded plan-request control but no approval or
