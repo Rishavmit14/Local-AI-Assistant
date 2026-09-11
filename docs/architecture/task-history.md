@@ -14,7 +14,7 @@ SQLite stores compact identities, summaries, lifecycle events, scope, artifact p
 
 ## Schema and lifecycle
 
-Schema version 2 contains normalized `tasks`, `task_status_events`, `plans`, `executions`, `tool_events`, `validations`, `reviews`, `approvals`, `affected_files`, `affected_symbols`, `metrics_summary`, and `artifact_imports` tables. IDs are stable hashes of deterministic identities. Foreign keys isolate records by task; task mutations verify repository and starting-commit identity where applicable. Timeline events carry a per-task sequence so equal timestamps preserve insertion order.
+Schema version 5 contains normalized `tasks`, `task_status_events`, `plans`, `executions`, `tool_events`, `validations`, `reviews`, `approvals`, `affected_files`, `affected_symbols`, `metrics_summary`, and `artifact_imports` tables. IDs are stable hashes of deterministic identities. Foreign keys isolate records by task; task mutations verify repository and starting-commit identity where applicable. Timeline events carry a per-task sequence so equal timestamps preserve insertion order. Version 5 adds the plan/patch validation and review/commit metric columns through an ordered additive migration, so historical version-4 databases cannot falsely report a current schema while lacking plan-attachment fields.
 
 The validated lifecycle is `created → planning → awaiting approval/approved → executing → validating → reviewing → succeeded`, with explicit reapproval, failed, blocked, rolled-back, and cancelled branches. Terminal states cannot resume. Imported historical events retain their original timestamps and artifact links.
 

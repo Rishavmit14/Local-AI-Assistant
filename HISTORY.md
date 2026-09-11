@@ -461,6 +461,13 @@ The same cinematic panel now invokes only Friday’s existing bounded local
 objective create, resume, and cancellation API. It adds no planner, plan binding,
 approval, tool, or execution authority.
 
+## 2026-09-11 — Task-history schema-v5 migration candidate
+
+Stage 17's real local planning path exposed a version-4 task-history database
+whose `metrics_summary` table lacked fields previously added only to the initial
+schema text. Version 5 adds those metrics through an ordered migration and
+validates them at initialization, preventing a late plan-attachment failure.
+
 ## 2026-09-10 — Stage 16 semantic accessibility-action candidate
 
 Friday can invoke only exact preconfigured AT-SPI semantic actions under the

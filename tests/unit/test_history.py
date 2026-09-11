@@ -27,6 +27,7 @@ from local_ai_assistant.history.migrations import MIGRATIONS, SCHEMA_VERSION
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
+from local_ai_assistant.interface import FridayInterfaceService
 from local_ai_assistant.planning.models import (
     ApprovalDecision,
     ApprovalStatus,
@@ -38,7 +39,6 @@ from local_ai_assistant.planning.models import (
     TaskCategory,
     TaskClassification,
 )
-from local_ai_assistant.interface import FridayInterfaceService
 
 
 @pytest.fixture
@@ -578,6 +578,20 @@ def test_schema_one_upgrades_and_interrupted_migration_rolls_back(tmp_path, monk
         assert connection.execute(
             "SELECT COUNT(*) FROM sqlite_master WHERE name='interrupted'"
         ).fetchone()[0] == 0
+
+
+def test_schema_four_gains_metrics_columns_needed_by_plan_attachment(tmp_path):
+    path = tmp_path / "schema-four.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute("CREATE TABLE schema_version(version INTEGER NOT NULL)")
+        connection.execute("INSERT INTO schema_version VALUES (4)")
+        for version in range(1, 5):
+            for statement in MIGRATIONS[version]:
+                connection.execute(statement)
+    TaskHistoryStore(path).initialize()
+    with sqlite3.connect(path) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(metrics_summary)")}
+    assert {"plan_validation_success", "patch_preflight_success", "commit_success"} <= columns
 
 
 def test_corrupt_schema_version_table_fails_closed(tmp_path):

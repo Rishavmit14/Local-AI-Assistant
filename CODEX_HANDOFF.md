@@ -1062,6 +1062,13 @@ create/resume/cancel lifecycle, but has no planner, plan-binding, approval, or
 execution control. Complete and publish its acceptance gate before the next
 Stage 17 capability.
 
+Stage 17 planning exposed and repairs task-history schema drift: schema v5
+additively migrates required plan/patch/review/commit metric fields and verifies
+them at initialization. The real local history DB is now v5. A clean local
+Friday clone and offline BGE index under ignored `var/` support guarded plan
+qualification; its current objective is attached to a canonical plan awaiting
+human review and has not executed.
+
 Stage 14 Career Forge Core V1 is accepted through implementation checkpoint
 `82e74eb83694516d2a4453b9168744f75bcbd682`: full deterministic Python and
 repository verification, frontend lint/tests/build, and a controlled live Friday

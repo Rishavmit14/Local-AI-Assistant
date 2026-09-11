@@ -1,6 +1,6 @@
 """Ordered SQLite migrations for the local task-history store."""
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 MIGRATIONS: dict[int, tuple[str, ...]] = {
     1: (
@@ -77,11 +77,7 @@ MIGRATIONS: dict[int, tuple[str, ...]] = {
             security_blocking_findings INTEGER NOT NULL DEFAULT 0,
             tests_run INTEGER NOT NULL DEFAULT 0, tool_calls INTEGER NOT NULL DEFAULT 0,
             model_calls INTEGER NOT NULL DEFAULT 0, input_tokens INTEGER, output_tokens INTEGER,
-            index_refresh_seconds REAL, failure_category TEXT,
-            plan_validation_success INTEGER, patch_preflight_success INTEGER,
-            first_targeted_test_pass INTEGER, first_full_suite_pass INTEGER,
-            repeated_failures INTEGER NOT NULL DEFAULT 0,
-            review_blocking_findings INTEGER NOT NULL DEFAULT 0, commit_success INTEGER
+            index_refresh_seconds REAL, failure_category TEXT
         )""",
         """CREATE TABLE artifact_imports (
             artifact_hash TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
@@ -126,5 +122,14 @@ MIGRATIONS: dict[int, tuple[str, ...]] = {
             UNIQUE(task_id, external_repository, commit_sha, name)
         )""",
         "CREATE INDEX idx_external_ci_task_sha ON external_ci_checks(task_id, commit_sha)",
+    ),
+    5: (
+        "ALTER TABLE metrics_summary ADD COLUMN plan_validation_success INTEGER",
+        "ALTER TABLE metrics_summary ADD COLUMN patch_preflight_success INTEGER",
+        "ALTER TABLE metrics_summary ADD COLUMN first_targeted_test_pass INTEGER",
+        "ALTER TABLE metrics_summary ADD COLUMN first_full_suite_pass INTEGER",
+        "ALTER TABLE metrics_summary ADD COLUMN repeated_failures INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE metrics_summary ADD COLUMN review_blocking_findings INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE metrics_summary ADD COLUMN commit_success INTEGER",
     ),
 }

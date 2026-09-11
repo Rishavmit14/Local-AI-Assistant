@@ -150,6 +150,10 @@ becoming a second lifecycle authority. Any future objective
 execution must pass through the existing plan, approval, isolation, validation,
 rollback, and audit chain.
 
+Task-history SQLite schema v5 keeps plan-attachment metrics additive and checks
+their physical columns at initialization. A stale schema therefore fails before
+planning rather than after a local model has generated an artifact.
+
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as
 UNVERIFIED, and a mission retains exact resume and assistance-bearing evidence.

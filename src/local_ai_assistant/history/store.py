@@ -77,7 +77,20 @@ class TaskHistoryStore:
                     row[1]
                     for row in connection.execute("PRAGMA table_info(task_status_events)")
                 }
-                if not required_tables <= actual_tables or "sequence" not in event_columns:
+                metrics_columns = {
+                    row[1]
+                    for row in connection.execute("PRAGMA table_info(metrics_summary)")
+                }
+                required_metrics_columns = {
+                    "plan_validation_success", "patch_preflight_success",
+                    "first_targeted_test_pass", "first_full_suite_pass",
+                    "repeated_failures", "review_blocking_findings", "commit_success",
+                }
+                if (
+                    not required_tables <= actual_tables
+                    or "sequence" not in event_columns
+                    or not required_metrics_columns <= metrics_columns
+                ):
                     raise HistoryDatabaseError(
                         "History schema metadata does not match the supported schema"
                     )
