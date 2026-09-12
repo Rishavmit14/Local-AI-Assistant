@@ -87,6 +87,7 @@ class PathConfig:
     vision_cache_dir: Path = Path("/AI/cache/huggingface")
     desktop_control_db: Path = PROJECT_ROOT / "var/desktop-control/actions.sqlite3"
     autonomy_db: Path = PROJECT_ROOT / "var/autonomy/objectives.sqlite3"
+    proactive_db: Path = PROJECT_ROOT / "var/proactive/events.sqlite3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,6 +199,13 @@ class DesktopControlConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ProactiveConfig:
+    enabled: bool = True
+    poll_seconds: int = 30
+    max_notifications_per_hour: int = 20
+
+
+@dataclass(frozen=True, slots=True)
 class AppConfig:
     llama: LlamaConfig = field(default_factory=LlamaConfig)
     paths: PathConfig = field(default_factory=PathConfig)
@@ -213,6 +221,7 @@ class AppConfig:
     isolation: IsolationConfig = field(default_factory=IsolationConfig)
     gateway: GatewayConfig = field(default_factory=GatewayConfig)
     desktop_control: DesktopControlConfig = field(default_factory=DesktopControlConfig)
+    proactive: ProactiveConfig = field(default_factory=ProactiveConfig)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AppConfig:
@@ -247,6 +256,7 @@ class AppConfig:
             vision_cache_dir=_path(values.get("LOCAL_AI_VISION_CACHE_DIR", "/AI/cache/huggingface")),
             desktop_control_db=_path(values.get("LOCAL_AI_DESKTOP_CONTROL_DB", str(var_dir / "desktop-control/actions.sqlite3"))),
             autonomy_db=_path(values.get("LOCAL_AI_AUTONOMY_DB", str(var_dir / "autonomy/objectives.sqlite3"))),
+            proactive_db=_path(values.get("LOCAL_AI_PROACTIVE_DB", str(var_dir / "proactive/events.sqlite3"))),
         )
         document = DocumentRetrievalConfig(
             chunk_size=_integer(values, "LOCAL_AI_RAG_CHUNK_SIZE", 450),
@@ -393,6 +403,11 @@ class AppConfig:
                 github_api_host=github_api_host,
             ),
             desktop_control=desktop_control,
+            proactive=ProactiveConfig(
+                enabled=_boolean(values, "LOCAL_AI_PROACTIVE_ENABLED", True),
+                poll_seconds=_integer(values, "LOCAL_AI_PROACTIVE_POLL_SECONDS", 30, maximum=3600),
+                max_notifications_per_hour=_integer(values, "LOCAL_AI_PROACTIVE_MAX_NOTIFICATIONS_PER_HOUR", 20, maximum=10_000),
+            ),
         )
 
 

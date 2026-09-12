@@ -16,26 +16,28 @@ from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.desktop import DesktopControlService
-from local_ai_assistant.gateway.models import RepositoryMapping, GatewayScope
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
-from local_ai_assistant.onboarding import RepositoryOnboardingService
+from local_ai_assistant.gateway.models import GatewayScope, RepositoryMapping
 from local_ai_assistant.gateway.service import IntegrationGatewayService
-from local_ai_assistant.history.models import TaskStatus
+from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
-from local_ai_assistant.planning.service import PlannerService
-from local_ai_assistant.planning.models import plan_approval_token
+from local_ai_assistant.onboarding import RepositoryOnboardingService
 from local_ai_assistant.perception import (
     ActiveWindowService,
     LocalVisionClassifier,
     ScreenCaptureService,
 )
+from local_ai_assistant.planning.models import plan_approval_token
+from local_ai_assistant.planning.service import PlannerService
+from local_ai_assistant.proactive import EventSource, ProactiveEventEngine, ProactiveRuntime, Watch
 
 from .api import create_presentation_app
 from .conversation import FridayConversationService
+from .events import FridayEventType
 from .interaction import FridayInteractionCoordinator
 from .runtime import FridayRuntime
 from .wake_bootstrap import build_managed_wake_voice
@@ -212,6 +214,34 @@ def build_presentation_components(
         task_outcome_for_task=task_outcome_for_task,
     )
 
+    proactive = ProactiveEventEngine(
+        resolved_config.paths.proactive_db,
+        max_notifications_per_hour=resolved_config.proactive.max_notifications_per_hour,
+    )
+    task_snapshot: str | None = None
+
+    def observe_tasks():
+        nonlocal task_snapshot
+        latest = history.list(TaskFilter(limit=1))
+        value = "none" if not latest else f"{latest[0].task_id}:{latest[0].status.value}:{latest[0].updated_at}"
+        changed = task_snapshot is not None and value != task_snapshot
+        task_snapshot = value
+        return ("task.changed", "Friday task lifecycle changed", 70, {"state": value}) if changed else None
+
+    proactive.register(
+        Watch("canonical-task-history", EventSource.TASK, "Friday task lifecycle", interval_seconds=60, min_relevance=60),
+        observe_tasks,
+    )
+    proactive_runtime = ProactiveRuntime(
+        proactive,
+        interval_seconds=resolved_config.proactive.poll_seconds,
+        on_notification=lambda item: runtime.emit(
+            FridayEventType.PROACTIVE_NOTIFICATION,
+            text=item.summary,
+            metadata={"notification_id": item.notification_id, "watch_id": item.watch_id, "relevance": item.relevance},
+        ),
+    )
+
     conversation = FridayConversationService(
         llm=llm,
         runtime=runtime,
@@ -247,7 +277,9 @@ def build_presentation_components(
         autonomy=autonomy,
         objective_execution_auth=execution_auth,
         objective_execution_requests_per_minute=resolved_config.gateway.request_rate,
-        on_shutdown=lambda: (gateway.close(), execution.close()),
+        proactive=proactive,
+        on_startup=(proactive_runtime.start if resolved_config.proactive.enabled else None),
+        on_shutdown=lambda: (proactive_runtime.close(), gateway.close(), execution.close()),
     )
 
     return (

@@ -50,6 +50,7 @@ class FridayEventType(StrEnum):
     VOICE_SPEECH_INTERRUPTED = "voice.speech.interrupted"
 
     SYSTEM_HEALTH = "system.health"
+    PROACTIVE_NOTIFICATION = "proactive.notification"
     RUNTIME_ERROR = "runtime.error"
 
 

@@ -758,3 +758,19 @@ the general mutation path retains exact approval, scope, isolation, validation,
 rollback, audit, and Git gates. `cat` is permitted only as a repository-relative
 read-only validation family. Full pytest and repository verification passed 811
 tests; frontend lint, 26 tests, and production build passed. Stage 18 is next.
+
+## 2026-09-12 — Stage 18 proactive event and automation accepted
+
+Stage 18 adds a separate local SQLite observation/notification engine rather
+than expanding gateway or execution authority. Typed, explicit watches cover
+system, service, repository, filesystem, task, schedule, and external sources;
+the concrete filesystem and Git observers are read-only, and local snapshots
+emit only material changes. Events are relevance-filtered, redacted/bounded,
+idempotent, rate-limited, durable, and acknowledgeable. The only permission is
+`notify`, so events cannot create objectives, approve plans, execute tasks,
+mutate files/Git, or control the desktop.
+
+Full Python/repository verification passed 819 tests, frontend lint/26 tests and
+production build passed, and one controlled live restart proved scheduled local
+delivery and loopback acknowledgement before disabling the qualification watch.
+Stage 19 is next.

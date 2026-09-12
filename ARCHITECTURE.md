@@ -211,6 +211,15 @@ Task-history SQLite schema v5 keeps plan-attachment metrics additive and checks
 their physical columns at initialization. A stale schema therefore fails before
 planning rather than after a local model has generated an artifact.
 
+Stage 18 adds a separate local proactive event journal, not a second gateway or
+executor. Typed watches observe local system, service, repository, filesystem,
+task, schedule, and explicitly configured external sources. They are
+read-only/change-only where applicable, durable, relevance-filtered,
+deduplicated, rate-limited, and acknowledgeable. The sole Stage 18 permission
+is notification: no watch can plan, approve, execute, mutate Git/files, drive
+the desktop, or grant authority. See `docs/architecture/proactive-events.md`
+and ADR 0021.
+
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as
 UNVERIFIED, and a mission retains exact resume and assistance-bearing evidence.

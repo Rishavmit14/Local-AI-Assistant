@@ -352,9 +352,20 @@ and a controlled live restart with healthy voice workers passed. Stage 18 is nex
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 
-## Stage 18 — Proactive Event and Automation Engine (**Planned**)
+## Stage 18 — Proactive Event and Automation Engine (**Accepted**)
 
 Add local service/system/repository/filesystem/task/external event watches, schedules, meaningful notifications, relevance policy, permission policy, and rate limiting.
+
+The accepted local engine persists typed watches, events, and acknowledgeable
+notifications in SQLite. It provides read-only/change-only filesystem and Git
+observers plus deterministic local system/service/task snapshots, explicit
+external provenance, schedules, relevance floors, payload idempotency, metadata
+redaction/bounds, and hourly delivery rate limits. Its sole permission is
+notification: it cannot create tasks, approve, execute, mutate, or control the
+desktop. A low-frequency presentation worker projects delivered notifications
+through bounded loopback read/ack APIs. Full Python/repository verification
+(819 tests), frontend lint/26 tests/build, and a controlled live service restart
+with scheduled delivery/acknowledgement passed. Stage 19 is next.
 
 ## Stage 19 — Agent / Role Orchestration (**Planned**)
 

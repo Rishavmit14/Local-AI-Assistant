@@ -23,11 +23,17 @@ from local_ai_assistant.career_forge import (
     TutorMode,
 )
 from local_ai_assistant.desktop import DesktopAction, DesktopControlService
-from local_ai_assistant.gateway.auth import GatewayAuth, GatewayAuthenticationError, GatewayAuthorizationError, GatewayRateLimiter
+from local_ai_assistant.gateway.auth import (
+    GatewayAuth,
+    GatewayAuthenticationError,
+    GatewayAuthorizationError,
+    GatewayRateLimiter,
+)
 from local_ai_assistant.gateway.models import GatewayScope
-from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
+from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
+from local_ai_assistant.proactive import ProactiveEventEngine
 
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
@@ -129,6 +135,7 @@ def create_presentation_app(
     presentation_pause: Callable[[], None] | None = None,
     presentation_resume: Callable[[], None] | None = None,
     on_shutdown: Callable[[], None] | None = None,
+    on_startup: Callable[[], None] | None = None,
     memory: FridayMemoryService | None = None,
     career_forge: CareerForgeService | None = None,
     perception: ScreenCaptureService | None = None,
@@ -137,6 +144,7 @@ def create_presentation_app(
     autonomy: ObjectiveService | None = None,
     objective_execution_auth: GatewayAuth | None = None,
     objective_execution_requests_per_minute: int = 30,
+    proactive: ProactiveEventEngine | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -153,6 +161,8 @@ def create_presentation_app(
     )
     if on_shutdown is not None:
         app.router.on_shutdown.append(on_shutdown)
+    if on_startup is not None:
+        app.router.on_startup.append(on_startup)
     interaction_coordinator = interactions or FridayInteractionCoordinator()
     objective_plan_lock = threading.Lock()
     objective_execution_limiter = GatewayRateLimiter(objective_execution_requests_per_minute)
@@ -214,6 +224,25 @@ def create_presentation_app(
         if autonomy is None:
             raise HTTPException(status_code=404, detail="objective lifecycle is unavailable")
         return autonomy
+
+    def owner_proactive() -> ProactiveEventEngine:
+        if proactive is None:
+            raise HTTPException(status_code=404, detail="proactive events are unavailable")
+        return proactive
+
+    @app.get("/api/v1/proactive/notifications")
+    def proactive_notifications(limit: int = 20, include_acknowledged: bool = False):
+        try:
+            return {"notifications": [asdict(item) for item in owner_proactive().notifications(limit=limit, include_acknowledged=include_acknowledged)]}
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/v1/proactive/notifications/{notification_id}/acknowledge")
+    def acknowledge_proactive_notification(notification_id: str):
+        try:
+            return asdict(owner_proactive().acknowledge(notification_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/api/v1/objectives")
     async def create_objective(request: Request):

@@ -1692,3 +1692,20 @@ frontend lint/26 tests/build and a controlled service restart with healthy voice
 workers passed. Commit/push this candidate, record its SHA here, then begin
 Stage 18 discovery on a new `stage-18/` branch. The accepted implementation
 recovery checkpoint is `fc7083925e46f4311edf6296739395d8bc2cb12e`.
+
+## Stage 18 — proactive event and automation candidate (2026-09-12)
+
+Stage 18 is complete locally on `stage-18/proactive-event-automation`. A
+separate `proactive` SQLite engine owns typed local watches, durable events and
+acknowledgeable notifications; it is not the gateway event bus or an executor.
+Its only permission is `notify`. Filesystem/Git watchers are read-only, generic
+local snapshots cover system/service/task changes, external input requires an
+explicit external watch, and schedules are bounded by relevance, redaction,
+payload idempotency, and hourly delivery limits. The presentation service runs
+one low-frequency worker and projects notifications through loopback read/ack
+APIs. It cannot create objectives, approve, execute, mutate, or control the
+desktop. Full Python/repository verification passed 819 tests, frontend
+lint/26 tests/build passed, and a controlled live restart proved scheduled
+delivery and acknowledgement; the qualification watch was disabled afterward.
+Commit/push this candidate and record the exact remote recovery SHA, then begin
+Stage 19 on a new stage branch.
