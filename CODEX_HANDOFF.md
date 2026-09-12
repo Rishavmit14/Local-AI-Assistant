@@ -1720,3 +1720,22 @@ The accepted implementation recovery checkpoint is
 `stage-18/proactive-event-automation` matched it before this documentation
 checkpoint. Push this documentation checkpoint to both refs, verify exact
 remote recovery, then begin Stage 19 on a new stage branch.
+
+## Post-Stage-21 product integration bootstrap (2026-09-12)
+
+Stage 21 is accepted and remotely recoverable at
+`3770151bbf146ff580b8cafa0b4f73a0865c55c5`. The owner-authoritative product
+contract is now `FRIDAY_PRODUCT_BASELINE.md`; rationale is retained in
+`FRIDAY_OWNER_VISION_HISTORY.md`. Read both and
+`docs/qualification/PRODUCT_INTEGRATION_MATRIX.md` before post-Stage-21 work.
+
+The completed authority/audit checkpoint confirms that accepted backend stages
+do not yet establish a qualified coherent product. Highest-severity gaps are
+the intentional one-shot wake lifecycle, no active conversation transcript,
+no capability registry/self-awareness, disconnected capability routes, and
+missing Career Forge interactive surfaces. The first implementation slice, when
+authorized, is capability registry plus bounded continuous session/context and
+behavioral memory integration; preserve voice interruption/stop, all existing
+security/approval/isolation/audit/rollback boundaries, local sovereignty, and
+the single sequential Qwen model. Do not begin broad remediation or independent
+Astra qualification until owner approval.

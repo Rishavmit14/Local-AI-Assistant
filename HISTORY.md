@@ -801,3 +801,15 @@ and review through typed prompt-only clients over one serialized local Qwen
 model. Roles gain no tools, credentials, approval, mutation, desktop, or network
 authority. Full verification passed 822 tests, frontend gates passed, and a live
 role-routed local conversation qualified after a controlled service restart.
+
+## 2026-09-12 — Post-Stage-21 product authority and reality audit
+
+Installed the owner-authored `FRIDAY_PRODUCT_BASELINE.md` as the durable product
+behavior, integration, usability, and final-qualification authority, with
+`FRIDAY_OWNER_VISION_HISTORY.md` retaining the rationale. Accepted Stages 0–21
+remain historical engineering evidence and their security/recovery boundaries
+remain intact. The new product-integration matrix traces actual owner routes and
+records that the current voice architecture deliberately returns to wake after
+each turn, conversation has no active transcript, capability self-awareness is
+absent, and many accepted backend capabilities lack natural conversation/UI
+paths. No product remediation or independent final qualification was started.

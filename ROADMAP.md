@@ -667,7 +667,37 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
-## Stage 22 — Friday Career Forge Advanced Integration (**Planned**)
+## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: authority installation and product-reality audit**)
+
+Stages 0–21 remain accepted historical engineering evidence. Their accepted
+backend/security/recovery scope is not rewritten because owner-facing product
+integration remains incomplete. The owner-authoritative
+`FRIDAY_PRODUCT_BASELINE.md` now governs the target release behavior and
+qualification bar; `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md` is the
+evidence-led integration audit and dependency plan.
+
+Work proceeds in this dependency order:
+
+1. **Foundational Friday coherence:** continuous conversational session and
+   working context, behavioral memory, truthful capability awareness, basic
+   low-risk laptop agency, perception/shared context, and history/undo/recovery.
+2. **Career Forge Advanced Product Integration:** the highest-priority
+   specialization; connect the mature tutor loop, Practice Lab, selected-code
+   and screen-aware tutoring, evidence/retention/progress, projects, interview
+   mode, and approval-gated GitHub evidence.
+3. **Product UI integration:** retain the cinematic identity while adding only
+   connected, truthful workspaces and owner actions.
+4. **Product reality qualification:** execute baseline E2E flows, repair
+   evidence-backed failures, run the stable full regression, and freeze a
+   release candidate before any independent Astra qualification.
+
+Market/trading, creator/media, multiple heavyweight general-purpose models,
+parallel LLM orchestration, paid inference, cloud-GPU core cognition, and
+advanced organization-hierarchy visualization remain deferred unless the owner
+explicitly changes priority. The current Qwen remains the sole general-purpose
+local model and role contexts remain sequential.
+
+## Stage 22 — Friday Career Forge Advanced Integration (**Planned; Priority B of active product integration**)
 
 Integrate the accepted Stage 15–21 general capabilities into the mature Career
 Forge: screen-aware tutoring, policy-governed desktop assistance, bounded

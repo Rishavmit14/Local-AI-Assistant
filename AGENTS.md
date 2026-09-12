@@ -37,6 +37,29 @@ These instructions apply to the entire repository. Read this file and `CODEX_HAN
 - Remove rejected prototypes, obsolete helpers, abandoned configuration, and competing inactive implementations before capability acceptance unless an explicit documented architecture reason requires more than one implementation.
 - Treat Git history and tests as implementation truth, `ARCHITECTURE.md` as current/target design, `ROADMAP.md` as capability/status truth, `HISTORY.md` as accepted chronology, ADRs as durable decisions, and `CODEX_HANDOFF.md` as bootstrap/vision context.
 
+## Owner product authority and product-reality qualification
+
+`FRIDAY_PRODUCT_BASELINE.md` is the owner-authoritative contract for Friday
+product behavior, product integration, owner-facing usability, and final product
+qualification. `FRIDAY_OWNER_VISION_HISTORY.md` is the durable rationale and
+context for that contract. Read both before material product-integration work.
+
+`ARCHITECTURE.md`, `ROADMAP.md`, ADRs, history, and accepted commits remain
+authoritative for accepted architecture, security boundaries, historical stage
+state, implementation evidence, and recovery. Earlier bounded/V1 restrictions
+remain historically accurate, but are not automatically the final usability
+ceiling where the product baseline explicitly strengthens the target behavior.
+Preserve all accepted security, approval, isolation, audit, rollback, Local
+Intelligence Sovereignty, and recovery invariants while closing product gaps.
+
+Use these product-status meanings exactly: **ABSENT**, **PARTIAL**,
+**IMPLEMENTED**, **INTEGRATED**, **USABLE**, **QUALIFIED**, and **DEFERRED**.
+
+**IMPLEMENTED != INTEGRATED != USABLE != QUALIFIED.** A class, API, database
+record, unit test, stage label, CLI command, or rendered frontend component alone
+cannot establish product qualification. Owner-facing functionality requires
+real end-to-end evidence through the applicable owner path.
+
 ## Change workflow
 
 1. Inspect relevant source and current Git status.
