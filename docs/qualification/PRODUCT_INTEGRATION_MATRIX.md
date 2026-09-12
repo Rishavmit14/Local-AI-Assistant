@@ -36,10 +36,10 @@ not applicable because the capability is absent/deferred.
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1. Wake activation | strict matcher, managed capture and worker health | Yes: strict `Hey Friday` enters a session | live runtime/session state | telemetry/journal | wake only, fail-closed | physical wake | Slice 1 real wake/stop run; capture healthy afterward | QUALIFIED | longer stability remains a separate product concern | preserve as session entry | voice lifecycle | clean live wake/recovery smoke |
 | 2. Continuous conversational session | orchestrator holds wake pause across fresh follow-up captures | Yes: wake once, then bounded follow-ups | truthful session-active footer/state | bounded in-process session record | interaction lease; one microphone reader | wake once then speak naturally | physical multi-turn follow-up and pause succeeded | USABLE | full baseline ten-turn qualification is still pending | retain bounded session controller | 1, 6 | baseline E2E-001 |
-| 3. Natural multi-turn conversation | session turns are injected before model response | Yes: owner/Friday prior turns | shared text/voice state where composed | max 16 turns / 12k chars | no mutation authority | natural follow-up/correction | live reference follow-up succeeded | USABLE | full ten-turn pause/correction flow remains pending | retain bounded context and qualify baseline | 2, 6 | 10-turn pause/correction flow |
+| 3. Natural multi-turn conversation | session turns are injected before model response with source-priority policy | Yes: owner/Friday prior turns | shared text/voice state where composed | max 16 turns / 12k chars | no mutation authority | natural follow-up/correction | owner requalification passed current-discussion recall and source distinction | USABLE | full ten-turn pause/correction flow remains pending | retain bounded context and qualify baseline | 2, 6 | 10-turn pause/correction flow |
 | 4. Barge-in/interruption | AEC/Silero/Piper path | Yes during playback | event signal | bounded telemetry | trusted speech only | interrupt spoken response | accepted physical Stage 12 | QUALIFIED | only within one-shot turn; not session continuity | preserve while session controller changes | 2 | regression + live barge-in |
 | 5. Explicit stop | exact stop classifier | Yes | runtime signal | events/telemetry | exact commands only | `stop` / `Friday stop` | accepted physical Stage 12D | QUALIFIED | none for current bounded semantics | preserve | 2 | affected voice regression |
-| 6. Active-session working context | typed session controller and runtime snapshot | prior turns injected across voice/text composition | state/footer reflects actual active state | max 16 turns / 12k chars, cleared on close | model cannot mutate session into durable memory | normal follow-up | live contextual reference resolved | USABLE | explicit text-session close policy is still narrow | maintain bounds/lifecycle; qualify baseline | 2, 3 | E2E-001/002 |
+| 6. Active-session working context | typed session controller and source-priority prompt policy | prior turns are primary evidence for current-discussion references | state/footer reflects actual active state | max 16 turns / 12k chars, cleared on close | model cannot mutate session into durable memory | normal follow-up | physical owner requalification passed Career Forge discussion recall and post-close cleanup | USABLE | explicit text-session close policy is still narrow | maintain bounds/lifecycle; qualify baseline | 2, 3 | E2E-001/002 |
 | 7. Persistent memory | `FridayMemoryService`, SQLite, lexical/local embeddings | bounded retrieval callback connected | raw recall/remember API only | SQLite | explicit owner API; model read-only | API/CLI; recall through conversation | explicit live record recalled, removed, and SQLite integrity passed after restart | IMPLEMENTED | natural capture/control absent | explicit owner-intent path with provenance | 6 | restart memory E2E |
 | 8. Memory recall through normal conversation | `memory.search(prompt, limit=5)` plus separate active context | retrieval is connected and labelled untrusted | composer uses same endpoint | SQLite | retrieved text cannot grant instructions or mutate memory | ask related prompt | live explicit record was recalled through local conversation | USABLE | query-match recall; no natural remembering/capture proof | explicit memory UX with provenance | 3, 7 | E2E-002/003 |
 | 9. Capability self-awareness | typed registry grounded into conversation | Yes: authoritative product-state answer | read-only capability endpoint/session state | composition state only | descriptive only; grants zero execution authority | ask Friday | live Career Forge answer reported integrated route and Practice Lab limitation | USABLE | capability invocation/routing is not yet general | capability-aware router, preserving policy | 10, 26 | E2E-004/011 |
@@ -126,6 +126,24 @@ An explicit temporary durable-memory record was recalled through the normal loca
 conversation path, removed through its governed lifecycle, and the SQLite
 database passed `PRAGMA integrity_check` after controlled service restart. This
 does not claim natural-language durable-memory capture.
+
+### Slice 1 regression repair — current-discussion memory (2026-09-12)
+
+Owner qualification found that the phrase “What do you remember about Career
+Forge from our discussion?” could be answered as though only durable memory
+counted, despite active-session turns being present. The session data was not
+missing: prompt composition lacked an evidence-priority instruction and placed
+durable-memory context before the generic active-history label. The repair makes
+the current owner prompt immediate, active history primary for current-discussion
+references, durable memory explicitly long-term, and capability state descriptive.
+It preserves all distinct provenance and mutation boundaries.
+
+Focused deterministic coverage exercises active-only, durable-only, both-source,
+and post-close cases. Real local Qwen returned a turn-by-turn Career Forge
+summary for the exact owner wording and stated that it referred to the current
+conversation rather than permanent memory. Physical voice requalification passed
+the same six-turn flow; final exact stop was event sequence 1729, with runtime
+IDLE, zero active session turns, and healthy wake capture.
 
 ## Dependency-aware remediation plan
 

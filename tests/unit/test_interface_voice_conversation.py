@@ -185,14 +185,10 @@ def test_voice_transcript_enters_existing_conversation_boundary() -> None:
         utterance
     ]
 
-    assert llm.calls == [
-        {
-            "prompt": "Friday can you hear me clearly?",
-            "system_prompt": "Friday test",
-            "temperature": 0.4,
-            "max_tokens": 256,
-        }
-    ]
+    assert llm.calls[0]["prompt"] == "Friday can you hear me clearly?"
+    assert llm.calls[0]["system_prompt"].startswith("Friday test\n\nConversation evidence policy:")
+    assert llm.calls[0]["temperature"] == 0.4
+    assert llm.calls[0]["max_tokens"] == 256
 
     assert (
         runtime.state
@@ -448,14 +444,12 @@ def test_inline_text_enters_conversation_without_transcriber() -> None:
     assert output == "It is noon."
     assert transcriber.calls == []
 
-    assert llm.calls == [
-        {
-            "prompt": "what time is it",
-            "system_prompt": "Friday inline text test",
-            "temperature": 0.3,
-            "max_tokens": 64,
-        }
-    ]
+    assert llm.calls[0]["prompt"] == "what time is it"
+    assert llm.calls[0]["system_prompt"].startswith(
+        "Friday inline text test\n\nConversation evidence policy:"
+    )
+    assert llm.calls[0]["temperature"] == 0.3
+    assert llm.calls[0]["max_tokens"] == 64
 
     assert (
         runtime.state

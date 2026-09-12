@@ -1,5 +1,14 @@
 # Project History
 
+## 2026-09-12 — Slice 1 current-discussion memory repair accepted
+
+Owner voice qualification exposed a grounding defect: the active session held a
+Career Forge discussion but Friday treated “remember … from our discussion” as
+durable-memory-only. Prompt evidence policy now gives current discussion
+references active-session priority while preserving explicitly retained durable
+memory as a separate source. Focused source/lifecycle coverage and real local
+text plus owner voice requalification passed; exact stop cleared the session.
+
 ## 2026-09-12 — Stage 22 Slice 1 conversational coherence foundation accepted
 
 Friday now composes a typed descriptive capability registry, bounded active

@@ -61,6 +61,11 @@ An active voice session owns a bounded in-process conversation record (at most 1
 
 Persistent memory remains a separately governed SQLite service. Conversation may read bounded retrieved records as labelled untrusted reference context, but model output and active-session turns cannot silently create or mutate durable memory.
 
+Conversation grounding explicitly prioritizes the current owner request and
+active-session history for references to the current discussion. Durable memory
+is a distinct long-term source: its absence cannot override relevant active
+history, and active history is never represented as persistent recall.
+
 Production natural-language barge-in is accepted. Friday owns an ephemeral PipeWire WebRTC AEC graph using `monitor.mode=true`; the default physical speaker monitor is the echo reference, while the published `friday_aec_source` is captured explicitly by `FridayBargeInMonitor`. The wake path remains on the normal raw microphone and is paused during a conversational turn. The AEC session is created by the production wake bootstrap, owned by `FridayManagedWakeVoice`, and closed with the other managed voice resources.
 
 The accepted interruption path is:

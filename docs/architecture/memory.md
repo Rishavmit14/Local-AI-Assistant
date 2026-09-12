@@ -51,3 +51,10 @@ path, not natural-language intent inference.
 Stage 22 Slice 1 adds a bounded in-process conversation record for immediate follow-up context. It retains owner and Friday turns only during an active session (maximum 16 turns / 12,000 characters), is cleared on session close or process restart, and is never the frontend's sole source of truth. It is passed to the local model as conversation context, separately from retrieved memory.
 
 The durable-memory boundary is unchanged: retrieved records remain labelled untrusted reference material, and neither session turns nor arbitrary model output can mutate SQLite memory. Natural-language memory capture therefore remains a future explicit owner-intent design, not an implicit side effect.
+
+Prompt composition makes that source distinction operational: the current owner
+prompt is immediate; active-session history is primary for “our discussion,”
+“earlier,” and similar current-conversation references; durable memory is only
+for explicitly retained long-term information. An empty durable retrieval cannot
+negate available active-session evidence, and active evidence must never be
+described as permanent memory.

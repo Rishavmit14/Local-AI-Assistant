@@ -158,14 +158,10 @@ def test_stream_response_passes_generation_configuration_to_llm():
     )
 
     assert output == "ok"
-    assert llm.calls == [
-        {
-            "prompt": "Explain this",
-            "system_prompt": "Custom system",
-            "temperature": 0.4,
-            "max_tokens": 256,
-        }
-    ]
+    assert llm.calls[0]["prompt"] == "Explain this"
+    assert llm.calls[0]["system_prompt"].startswith("Custom system\n\nConversation evidence policy:")
+    assert llm.calls[0]["temperature"] == 0.4
+    assert llm.calls[0]["max_tokens"] == 256
 
 
 def test_stream_response_rejects_empty_prompt_without_state_change():
@@ -253,6 +249,79 @@ def test_active_session_context_is_bounded_and_shared_by_consecutive_turns():
     assert "Friday: first answer" in second_prompt
     assert service.session.snapshot()["active"] is True
     assert service.session.snapshot()["turn_count"] == 4
+
+
+def test_current_discussion_references_prioritize_active_session_history():
+    runtime = FridayRuntime("current-discussion-history")
+    llm = FakeStreamingLLM(["Career Forge is Friday's learning specialization."])
+    service = FridayConversationService(llm, runtime)
+
+    assert "".join(service.stream_response("Tell me about Career Forge"))
+    llm.chunks = ["We discussed Career Forge."]
+    assert "".join(service.stream_response(
+        "What do you remember about Career Forge from our discussion?"
+    ))
+
+    prompt = llm.calls[1]["system_prompt"]
+    assert "Owner: Tell me about Career Forge" in prompt
+    assert "Friday: Career Forge is Friday's learning specialization." in prompt
+    assert "primary evidence for references to this conversation, our discussion" in prompt
+    assert "never say there is no memory of the discussion" in prompt
+
+
+def test_absent_durable_memory_does_not_negate_active_session_history():
+    runtime = FridayRuntime("session-without-durable-memory")
+    llm = FakeStreamingLLM(["Career Forge is available."])
+    service = FridayConversationService(llm, runtime, memory_context=lambda _prompt: "")
+
+    assert "".join(service.stream_response("Do you have Career Forge?"))
+    llm.chunks = ["From this conversation, yes."]
+    assert "".join(service.stream_response("What do you remember from our discussion?"))
+
+    prompt = llm.calls[1]["system_prompt"]
+    assert "Active session history" in prompt
+    assert "Verified local durable memory" not in prompt
+    assert "Its absence does not negate active-session history." in prompt
+
+
+def test_durable_memory_is_distinct_when_no_prior_session_discussion_exists():
+    runtime = FridayRuntime("durable-memory-only")
+    llm = FakeStreamingLLM(["Your saved preference is concise answers."])
+    service = FridayConversationService(
+        llm,
+        runtime,
+        memory_context=lambda _prompt: "owner preference: concise answers",
+    )
+
+    assert "".join(service.stream_response("What is my saved preference?"))
+    prompt = llm.calls[0]["system_prompt"]
+    assert "Verified local durable memory" in prompt
+    assert "\n\nActive session history (temporary" not in prompt
+    assert "explicitly retained long-term facts" in prompt
+
+
+def test_session_and_durable_memory_remain_distinguishable_and_close_clears_history():
+    runtime = FridayRuntime("session-and-durable-memory")
+    llm = FakeStreamingLLM(["Career Forge was discussed."])
+    service = FridayConversationService(
+        llm,
+        runtime,
+        memory_context=lambda _prompt: "durable project fact: Career Forge exists",
+    )
+
+    assert "".join(service.stream_response("Explain Career Forge"))
+    llm.chunks = ["This is current conversation context."]
+    assert "".join(service.stream_response("What did we discuss?"))
+    prompt = llm.calls[1]["system_prompt"]
+    assert prompt.index("Active session history") < prompt.index("Verified local durable memory")
+    assert "temporary conversation context, not durable long-term memory" in prompt
+
+    service.session.close()
+    llm.chunks = ["Only durable context is available."]
+    assert "".join(service.stream_response("What is saved long term?"))
+    closed_prompt = llm.calls[2]["system_prompt"]
+    assert "\n\nActive session history (temporary" not in closed_prompt
+    assert "Verified local durable memory" in closed_prompt
 
 
 def test_capability_context_truthfully_grounds_conversation_without_authority():

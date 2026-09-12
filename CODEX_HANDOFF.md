@@ -1753,3 +1753,15 @@ exact physical stop leaving IDLE/zero session turns with healthy capture, and
 durable-memory retrieval/removal/integrity verification. Full baseline ten-turn
 qualification, natural memory capture, capability invocation routing, Practice
 Lab, desktop expansion, and broad UI work remain open.
+
+### Slice 1 regression repair
+
+The accepted foundation had one owner-observed qualification defect: available
+active-session Career Forge discussion was not explicitly prioritized when the
+owner used “remember … from our discussion.” The repair adds a bounded general
+source-priority policy: current prompt, active session for current-discussion
+references, durable memory for explicitly retained long-term facts, then
+descriptive capability state. It changes no persistence/mutation authority.
+Focused tests and real Qwen text/physical voice qualification passed; physical
+exact stop left IDLE with zero session turns and healthy capture. Do not begin
+Slice 2 until this repair is published and remotely recoverable.
