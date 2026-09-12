@@ -7,6 +7,7 @@ import resource
 import shutil
 import signal
 import subprocess
+import sys
 import threading
 import time
 from abc import ABC, abstractmethod
@@ -185,6 +186,13 @@ class BubblewrapSandbox(SandboxBackend):
         for system_path in ("/lib", "/lib64", "/etc/ld.so.cache"):
             if Path(system_path).exists():
                 prefix.extend(("--ro-bind", system_path, system_path))
+        # Validation commands are allowlisted and resolved from the running
+        # Friday virtualenv.  Bind that environment read-only so its Python
+        # packages and standalone tools remain available without exposing the
+        # host project or granting write access.
+        virtualenv = Path(sys.executable).parent.parent
+        if (virtualenv / "pyvenv.cfg").is_file():
+            prefix.extend(("--ro-bind", str(virtualenv), str(virtualenv)))
         prefix.extend(
             (
                 "--bind", str(worktree), str(worktree),

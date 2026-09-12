@@ -129,9 +129,15 @@ def _record_plan(config: AppConfig, artifact, path: Path, repo: Path, branch: st
 def _persist_execution(config: AppConfig, report: ExecutionReport, path: Path) -> None:
     persist_report(report, path)
     try:
-        ArtifactImporter(_history_service(config)).import_path(
-            path, repository=Path(report.repository)
-        )
+        history = _history_service(config)
+        task = history.get(report.task_id)
+        # Execution reports name their isolated worktree.  The corresponding
+        # history task remains authoritatively bound to its canonical checkout.
+        # Give the importer that identity so it can validate the exact task,
+        # plan, and starting commit without mistaking a valid worktree for a
+        # repository-identity change.
+        repository = Path(task.repository) if task else Path(report.repository)
+        ArtifactImporter(history).import_path(path, repository=repository)
     except Exception as exc:
         logger.error(
             "task_history_execution_failed",
@@ -393,12 +399,22 @@ def run_intelligent_validation(
             },
         )
     else:
+        report_only = not any(
+            (
+                artifact.plan.files_to_modify,
+                artifact.plan.files_to_create,
+                artifact.plan.files_to_delete_or_rename,
+            )
+        )
         required = service.run(
             artifact,
             validation_plan,
             required_only=True,
             prior_results=targeted.results,
-            model=rag.llm,
+            # No diff has no model-review surface. Keep deterministic review
+            # and exact approved validation, but avoid needless local-model
+            # work for report-only tasks.
+            model=None if report_only else rag.llm,
             symbols=tuple(rag.symbol_index.symbols),
             index_prefix=index_prefix,
         )
@@ -434,9 +450,10 @@ def run_intelligent_validation(
     )
     persist_validation_report(report, validation_path)
     try:
-        ArtifactImporter(_history_service(config)).import_path(
-            validation_path, repository=Path(artifact.repository)
-        )
+        history = _history_service(config)
+        task = history.get(artifact.plan.task_id)
+        repository = Path(task.repository) if task else Path(artifact.repository)
+        ArtifactImporter(history).import_path(validation_path, repository=repository)
     except Exception as exc:
         logger.error(
             "task_history_validation_failed",

@@ -283,7 +283,7 @@ returns an empty audit and rejects a non-allowlisted action while voice remains
 running. Continue the remaining Stage 16 action classes only through independent
 policy and audit extensions.
 
-## Stage 17 — Autonomous Assistant Execution (**Partial / active**)
+## Stage 17 — Autonomous Assistant Execution (**Accepted**)
 
 The active foundation persists bounded local objectives with explicit
 create/resume/cancel lifecycle state. After an explicit resume, an objective may
@@ -340,8 +340,15 @@ cleanup and accepts isolated execution evidence only when it matches the
 existing task's exact plan hash and starting commit. The same task was
 reconciled as `rolled_back`; no replacement plan, task, worktree, promotion, or
 canonical-checkout mutation was created. The local model's quoted numeric tool
-ordinal is normalized only in its unambiguous decimal form. A new successful
-controlled execution remains required before Stage 17 can be accepted.
+ordinal is normalized only in its unambiguous decimal form. A fresh authenticated
+controlled report-only execution subsequently completed with the exact approved
+task/token, isolated worktree, two audited read-only tool events, deterministic
+validation/review artifacts, and a canonical successful terminal outcome.
+Report-only plans now execute only approved inspections and read-only validation
+commands deterministically; mutation-capable plans remain model-directed and
+bound to the existing scope/approval/isolation chain. Complete Python
+regression/repository verification (811 tests), frontend lint/26 tests/build,
+and a controlled live restart with healthy voice workers passed. Stage 18 is next.
 
 Generalize Friday into a bounded objective loop: objective -> plan -> inspect -> act -> observe -> validate -> repair/replan -> complete or request approval. Reuse the existing planner/execution/validation/isolation/Git/history/approval stack.
 

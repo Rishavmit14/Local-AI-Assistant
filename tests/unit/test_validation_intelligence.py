@@ -165,6 +165,18 @@ def test_validation_plan_detection_selection_and_policy(validation_repo):
     assert selected[0][0] == "tests/test_service.py"
 
 
+def test_report_only_plan_uses_only_exact_approved_validation_commands(validation_repo):
+    plan = replace(
+        make_plan(validation_repo),
+        files_to_modify=(), files_to_create=(), files_to_delete_or_rename=(),
+        symbols_to_modify=(), validation_commands=("cat README.md",),
+    )
+    validation = build_validation_plan(validation_repo, plan, "abc")
+
+    assert [item.command for item in validation.final_steps] == ["cat README.md"]
+    assert validation.final_steps[0].requirement is Requirement.REQUIRED
+
+
 def test_validation_cli_exposes_stage5_workflows():
     parser = build_validation_parser()
     assert (

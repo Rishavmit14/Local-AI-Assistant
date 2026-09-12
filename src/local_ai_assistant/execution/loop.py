@@ -54,6 +54,12 @@ class ExecutionLoop:
             raise ToolExecutionError("Cannot execute a policy-rejected plan")
         observations: list[ToolObservation] = []
         mutations = repairs = replans = 0
+        # A no-change plan has no patch decision for the model to make.  Execute
+        # its exact approved inspection/validation contract deterministically;
+        # this avoids spending every bounded loop step on a model repeatedly
+        # choosing `finish` before its required read-only check has run.
+        if self._report_only():
+            return self._run_report_only(observations, dry_run)
         for step in range(1, self.limits.max_steps + 1):
             cancelled = self._cancelled(observations, step - 1, mutations, repairs, replans)
             if cancelled:
@@ -173,6 +179,70 @@ class ExecutionLoop:
             "max_steps", tuple(observations), self.limits.max_steps, mutations, repairs, replans
         )
 
+    def _report_only(self) -> bool:
+        plan = self.context.artifact.plan
+        return not any(
+            (plan.files_to_modify, plan.files_to_create, plan.files_to_delete_or_rename)
+        )
+
+    def _run_report_only(self, observations: list[ToolObservation], dry_run: bool) -> LoopResult:
+        plan = self.context.artifact.plan
+        requests = [
+            ToolRequest(
+                "read_file",
+                {"path": path},
+                "Approved report-only inspection",
+                "Read approved file",
+                index,
+                False,
+            )
+            for index, path in enumerate(plan.files_to_inspect, start=1)
+        ]
+        requests.extend(
+            ToolRequest(
+                "run_safe_command",
+                {"command": command},
+                "Approved report-only validation",
+                "Run exact approved check",
+                len(requests) + index,
+                False,
+            )
+            for index, command in enumerate(plan.validation_commands, start=1)
+        )
+        for step, request in enumerate(requests, start=1):
+            cancelled = self._cancelled(observations, step - 1, 0, 0, 0)
+            if cancelled:
+                return cancelled
+            if dry_run and request.tool == "run_safe_command":
+                observations.append(ToolObservation("dry_run", True, f"Would invoke {request.tool}"))
+            else:
+                try:
+                    observations.append(
+                        self.registry.invoke(
+                            request.tool,
+                            {
+                                **request.arguments,
+                                "_rationale": request.rationale,
+                                "_expected_outcome": request.expected_outcome,
+                                "_plan_step": request.plan_step,
+                                "_mutation_intended": False,
+                            },
+                            self.context,
+                        )
+                    )
+                except ToolExecutionError as exc:
+                    observations.append(ToolObservation("tool_error", False, str(exc)))
+            if not observations[-1].success:
+                return LoopResult("max_repairs", tuple(observations), step, 0, 1, 0)
+        return LoopResult(
+            "dry_run_complete" if dry_run else "complete",
+            tuple(observations),
+            len(requests),
+            0,
+            0,
+            0,
+        )
+
     def _cancelled(
         self,
         observations: list[ToolObservation],
@@ -220,13 +290,38 @@ class ExecutionLoop:
                 "observations": history,
             }
         )[: self.limits.context_characters]
+        system_prompt = (
+            "Choose one tool action. Return strict JSON with tool, arguments, rationale, "
+            "expected_outcome, plan_step, mutation_intended. Use tool=finish when verified."
+        )
         raw = self.model.chat(
             prompt=prompt,
-            system_prompt="Choose one tool action. Return strict JSON with tool, arguments, rationale, expected_outcome, plan_step, mutation_intended. Use tool=finish when verified.",
+            system_prompt=system_prompt,
             temperature=0.0,
             max_tokens=800,
         )
         try:
             return ToolRequest.from_dict(json.loads(raw))
         except (json.JSONDecodeError, ValueError, TypeError) as exc:
-            raise ToolExecutionError(f"Malformed tool choice: {exc}") from exc
+            # Local model output is untrusted at this boundary.  A single,
+            # deterministic corrective retry is enough to repair harmless
+            # serialization drift without relaxing the tool request schema.
+            correction = (
+                "Your immediately preceding response was rejected: "
+                f"{str(exc)[:240]}. Return only one corrected JSON object matching "
+                "the required schema. plan_step must be a JSON integer (for example, "
+                "1), not a string, decimal, list, or object."
+            )
+            retry_raw = self.model.chat(
+                prompt=f"{prompt}\n{correction}",
+                system_prompt=system_prompt,
+                temperature=0.0,
+                max_tokens=400,
+            )
+            try:
+                return ToolRequest.from_dict(json.loads(retry_raw))
+            except (json.JSONDecodeError, ValueError, TypeError) as retry_exc:
+                raise ToolExecutionError(
+                    "Malformed tool choice after bounded corrective retry: "
+                    f"{retry_exc}"
+                ) from retry_exc

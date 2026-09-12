@@ -30,6 +30,22 @@ def build_validation_plan(
     detected = detect_validators(repository, files)
     targeted: list[ValidationStep] = []
     final: list[ValidationStep] = []
+    # A report-only plan has no repository mutation to validate.  Its exact
+    # approved read-only checks are the complete validation contract; running
+    # unrelated repository-wide gates would turn pre-existing baseline debt
+    # into a false task failure.
+    if not files:
+        final = [
+            _step(
+                "plan-validation-" + _slug(str(index)),
+                ValidationKind.STRUCTURAL,
+                Requirement.REQUIRED,
+                command,
+                "Exact approved report-only validation command.",
+            )
+            for index, command in enumerate(plan.validation_commands, start=1)
+        ]
+        detected = ()
     for path, reason, command in targeted_tests:
         targeted.append(
             _step(

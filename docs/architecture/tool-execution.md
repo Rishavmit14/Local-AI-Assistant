@@ -26,6 +26,12 @@ plan before testing the old token.
 
 The loop is bounded by tool steps, mutations, repairs, replans, context characters, and command timeouts. Failed validation permits only bounded further actions. Scope expansion returns `reapproval_required`; the existing plan is never widened in place.
 
+A report-only plan (no create/modify/delete/rename scope) has no patch decision
+to delegate to the model. Friday deterministically invokes only its exact
+approved file inspections and read-only allowlisted validation commands, then
+uses the same validation, review, artifact, terminal-history, and isolation
+boundaries. Mutation-capable work remains model-directed.
+
 Patch analysis classifies modified, created, deleted, and renamed files; changed ranges; existing-symbol modifications; syntactic symbol additions/deletions; file-level unknown effects; and multi-file totals. Unknown effects remain visible rather than being claimed as resolved. Inspect-only files are never mutation allowances.
 
 Quoted repository-relative paths are parsed structurally. Malformed, binary, absolute, traversal, protected, and symlink-escaping patch targets fail closed. Scope analysis includes staged, unstaged, and untracked state. Unknown effects are rejected whenever the approved policy carries symbol-level constraints.

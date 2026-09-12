@@ -256,7 +256,7 @@ RELEVANT ARCHITECTURE:
 Return exactly one JSON object matching this shape:
 {json.dumps(schema, indent=2)}
 
-Rules: existing targets must come from evidence or be justified in assumptions; new files/symbols must appear only in the explicit proposed-new arrays; keep scope minimal; cite paths/symbol IDs in steps; identify tests, dependency, migration, security, and rollback implications. Unknowns belong in unresolved_questions."""
+Rules: existing targets must use exact path values present in DETERMINISTIC SCOPE EVIDENCE or RELEVANT ARCHITECTURE; never invent fallback filenames or directories. If an existing path is not evidenced, put the uncertainty in unresolved_questions instead. New files/symbols must appear only in the explicit proposed-new arrays; keep scope minimal; cite paths/symbol IDs in steps; identify tests, dependency, migration, security, and rollback implications. Unknowns belong in unresolved_questions."""
         return prompt, instruction_sources, context_truncated
 
     @staticmethod

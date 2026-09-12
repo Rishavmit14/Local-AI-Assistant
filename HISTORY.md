@@ -742,3 +742,19 @@ and normalizes only an unambiguous quoted decimal tool ordinal. The original
 task was reconciled to canonical `rolled_back`; no promotion or canonical
 checkout mutation occurred. Stage 17 remains active pending a fresh successful
 controlled qualification.
+
+## 2026-09-12 — Stage 17 autonomous execution accepted
+
+Stage 17 completed its guarded local objective-to-execution path. Recovery
+reconciled affected interrupted tasks to verified checkpoints before cleanup;
+no stale claims or recovery-required worktrees remained. The final authenticated
+controlled report-only task used its exact persisted plan and approval token,
+ran two audited read-only tool events, persisted validation/review/execution
+artifacts, and reached canonical `succeeded` while voice workers were healthy.
+
+Report-only plans now execute their exact approved inspections and allowlisted
+read-only validation commands deterministically, avoiding a model finish-loop;
+the general mutation path retains exact approval, scope, isolation, validation,
+rollback, audit, and Git gates. `cat` is permitted only as a repository-relative
+read-only validation family. Full pytest and repository verification passed 811
+tests; frontend lint, 26 tests, and production build passed. Stage 18 is next.

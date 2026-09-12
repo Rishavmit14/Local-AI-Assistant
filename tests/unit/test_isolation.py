@@ -474,6 +474,31 @@ def test_bwrap_probe_matches_required_runtime_namespaces_and_usrmerge(monkeypatc
     assert options["timeout"] == 2
 
 
+def test_bubblewrap_binds_active_virtualenv_read_only(monkeypatch, repository, tmp_path):
+    from local_ai_assistant.isolation.sandbox import BubblewrapSandbox
+
+    virtualenv = tmp_path / "venv"
+    (virtualenv / "bin").mkdir(parents=True)
+    (virtualenv / "pyvenv.cfg").write_text("home = /usr/bin\n")
+    executable = virtualenv / "bin" / "python"
+    executable.write_text("")
+    executable.chmod(0o755)
+    captured = {}
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox.sys.executable", str(executable))
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox.shutil.which", lambda _: "/usr/bin/bwrap")
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox._bubblewrap_usable", lambda _: True)
+    def fake_run(command, *args, **kwargs):
+        captured["command"] = command
+        return SimpleNamespace(return_code=0, stdout="", stderr="", timed_out=False, backend="bubblewrap")
+
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox._run_process", fake_run)
+    backend = BubblewrapSandbox()
+    backend.run(("/usr/bin/true",), repository, tmp_path / "task", resources=ResourcePolicy(), network=NetworkPolicy.ALLOWED)
+
+    command = captured["command"]
+    assert ("--ro-bind", str(virtualenv), str(virtualenv)) == tuple(command[command.index(str(virtualenv)) - 1:command.index(str(virtualenv)) + 2])
+
+
 def test_worktree_root_must_be_separate_from_repository(repository):
     manager = WorktreeManager(repository / ".friday-worktrees")
     with pytest.raises(IsolationError, match="separate"):

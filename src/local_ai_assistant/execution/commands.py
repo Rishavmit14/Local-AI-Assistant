@@ -46,6 +46,7 @@ ALLOWED_PREFIXES = (
     ("git", "show"),
     ("git", "log"),
     ("git", "branch", "--show-current"),
+    ("cat",),
     ("rg",),
     ("grep",),
     ("find",),
@@ -177,6 +178,13 @@ def parse_allowed_command(command: str | list[str]) -> tuple[str, ...]:
 
 def resolve_executable(name: str) -> Path | None:
     """Resolve a command from PATH or the active Python environment only."""
+    # Keep the lexical virtualenv interpreter path.  Resolving its symlink to
+    # the host interpreter drops pyvenv.cfg and makes `python -m pytest` run
+    # without the approved validation environment inside an isolated worktree.
+    if name in {"python", "python3"}:
+        active_python = Path(sys.executable)
+        if active_python.is_file() and os.access(active_python, os.X_OK):
+            return active_python
     resolved = shutil.which(name)
     if resolved is not None:
         return Path(resolved)
@@ -219,7 +227,7 @@ def run_allowed_command(
         if task_root is None or resources is None or network is None:
             raise CommandPolicyError("Sandbox execution requires task root and explicit policy")
         isolated = sandbox.run(
-            (str(executable_path), *parts[1:]),
+            (str(executable), *parts[1:]),
             repository,
             task_root,
             resources=resources,

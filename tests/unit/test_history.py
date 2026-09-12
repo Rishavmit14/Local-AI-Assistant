@@ -428,6 +428,33 @@ def test_execution_artifact_from_bound_isolated_worktree_keeps_canonical_identit
     assert stored.status is TaskStatus.ROLLED_BACK
 
 
+def test_validation_artifact_from_bound_isolated_worktree_keeps_canonical_identity(
+    history, tmp_path
+):
+    canonical = tmp_path / "canonical"
+    worktree = tmp_path / "worktree"
+    canonical.mkdir()
+    worktree.mkdir()
+    task = history.create_task("report only", canonical, "a" * 40, "friday/task/task-bound", task_id="task-bound")
+    history.store.update_task(task.task_id, task.repository, plan_hash="exact-plan")
+    artifact = tmp_path / "bound-validation.json"
+    artifact.write_text(json.dumps({
+        "schema_version": 1,
+        "plan": {"schema_version": 1, "validation_id": "validation-bound", "task_id": task.task_id,
+                 "plan_hash": "exact-plan", "repository": str(worktree), "starting_commit": "a" * 40,
+                 "risk_level": "low", "affected_files": [], "affected_symbols": [], "targeted_steps": [],
+                 "final_steps": [], "expected_coverage": [], "timeout_policy": {}, "failure_policy": {},
+                 "tdd_enabled": False, "configuration_identity": "test"},
+        "results": [], "failures": [], "review": {"findings": [], "diff_hash": ""},
+        "decision": {"status": "failed", "reasons": ["test"], "evidence": []}, "metadata": {},
+    }))
+
+    imported = ArtifactImporter(history).import_path(artifact, repository=canonical)
+
+    assert imported["imported"] is True
+    assert history.get(task.task_id).repository == str(canonical)
+
+
 def test_artifact_import_rejects_symlink_escape_and_preview_detects_changed_content(tmp_path):
     runtime = tmp_path / "runtime"
     runtime.mkdir()

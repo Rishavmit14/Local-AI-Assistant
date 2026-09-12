@@ -1679,3 +1679,15 @@ isolated-artifact identity binding, and unambiguous quoted-decimal `plan_step`
 normalization. Stage 17 remains active: do not begin Stage 18 until these changes
 pass the full gates, are documented, committed, pushed, and a new successful
 controlled qualification is authorized without replacing the terminal task.
+
+## Stage 17 — accepted autonomous execution (2026-09-12)
+
+The final controlled task `task_2d031e8d358a4db3b351` bound objective
+`7d6dca981a6b40c0af6043bd7f3dfb92` to exact plan token
+`3c597608ac9e64a89310e553f97634064a73535532313a7998a670c4a0bdcb36`.
+It is canonically `succeeded` with persisted plan/approval/execution/validation/
+review evidence and two audited read-only tool events. No recovery-required
+worktrees remain. Full Python and repository verification passed 811 tests;
+frontend lint/26 tests/build and a controlled service restart with healthy voice
+workers passed. Commit/push this candidate, record its SHA here, then begin
+Stage 18 discovery on a new `stage-18/` branch.

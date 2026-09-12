@@ -51,6 +51,7 @@ from local_ai_assistant.isolation.models import NetworkPolicy, ResourcePolicy, S
         "git show HEAD",
         "git log -1",
         "git branch --show-current",
+        "cat README.md",
         "rg symbol src",
         "grep symbol file.py",
         "find src -maxdepth 2",
@@ -116,6 +117,18 @@ def test_resolve_executable_prefers_path(monkeypatch):
     )
 
     assert resolve_executable("pytest") == Path("/usr/bin/pytest")
+
+
+def test_resolve_python_preserves_active_virtualenv_path(monkeypatch, tmp_path):
+    virtualenv = tmp_path / "venv"
+    executable = virtualenv / "bin" / "python"
+    executable.parent.mkdir(parents=True)
+    executable.write_text("")
+    executable.chmod(0o755)
+    monkeypatch.setattr("local_ai_assistant.execution.commands.sys.executable", str(executable))
+    monkeypatch.setattr("local_ai_assistant.execution.commands.shutil.which", lambda _: "/usr/bin/python3")
+
+    assert resolve_executable("python") == executable
 
 
 def test_resolve_executable_falls_back_to_active_python_environment(tmp_path, monkeypatch):

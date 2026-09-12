@@ -274,6 +274,7 @@ def test_plan_generation_parsing_validation_confidence_and_persistence(planning_
     assert artifact.instruction_sources == ("AGENTS.md",)
     assert not [item for item in artifact.validation_issues if item.severity is IssueSeverity.ERROR]
     assert "DETERMINISTIC SCOPE EVIDENCE" in llm.calls[0]["prompt"]
+    assert "never invent fallback filenames or directories" in llm.calls[0]["prompt"]
     assert len(llm.calls[0]["prompt"]) < 40_000
 
 
@@ -829,6 +830,87 @@ def test_bounded_tool_loop_inspects_validates_and_finishes(planning_repo):
     assert result.status == "complete"
     assert result.steps == 3
     assert len(context.events) == 2
+
+
+def test_tool_loop_corrects_one_malformed_model_request_without_relaxing_schema(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    artifact = replace(artifact, plan=replace(artifact.plan, validation_commands=()))
+    registry = ToolRegistry()
+    responses = iter(
+        [
+            json.dumps(
+                {
+                    "tool": "finish", "arguments": {}, "rationale": "done",
+                    "expected_outcome": "complete", "plan_step": [],
+                    "mutation_intended": False,
+                }
+            ),
+            json.dumps(
+                {
+                    "tool": "finish", "arguments": {}, "rationale": "done",
+                    "expected_outcome": "complete", "plan_step": 1,
+                    "mutation_intended": False,
+                }
+            ),
+        ]
+    )
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: model.calls.append(kwargs) or next(responses)
+
+    result = ExecutionLoop(
+        model,
+        registry,
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+        LoopLimits(max_steps=1),
+    ).run()
+
+    assert result.status == "complete"
+    assert len(model.calls) == 2
+    assert "plan_step must be a JSON integer" in model.calls[1]["prompt"]
+
+
+def test_report_only_loop_runs_exact_inspection_and_validation_without_model(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Inspect login_user"
+    )
+    artifact = replace(
+        artifact,
+        plan=replace(
+            artifact.plan,
+            files_to_modify=(),
+            files_to_create=(),
+            files_to_delete_or_rename=(),
+            files_to_inspect=("app/service.py",),
+            validation_commands=("git status --short",),
+        ),
+    )
+    registry = ToolRegistry()
+    invoked = []
+    registry.register(
+        ToolSpec("read_file", "read", ToolPermission.READ_ONLY, False, 1, ("path",)),
+        lambda _context, args: invoked.append(("read_file", args["path"]))
+        or ToolObservation("file", True, "read"),
+    )
+    registry.register(
+        ToolSpec("run_safe_command", "check", ToolPermission.VALIDATION, False, 1, ("command",)),
+        lambda _context, args: invoked.append(("run_safe_command", args["command"]))
+        or ToolObservation("command", True, "passed"),
+    )
+
+    class ModelMustNotRun:
+        def chat(self, **_kwargs):
+            raise AssertionError("report-only execution must not call the model")
+
+    context = ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index)
+    result = ExecutionLoop(ModelMustNotRun(), registry, context).run()
+
+    assert result.status == "complete"
+    assert invoked == [("read_file", "app/service.py"), ("run_safe_command", "git status --short")]
+    assert [event.tool_name for event in context.events] == ["read_file", "run_safe_command"]
 
 
 def test_tool_loop_requires_each_plan_validation_command(planning_repo):

@@ -104,8 +104,21 @@ class ArtifactImporter:
                 plan = report["plan"]
                 task_id = plan["task_id"]
                 repo = Path(plan["repository"]).resolve()
-                self._verify_requested_repository(repo, repository)
-                self._ensure_task(task_id, report.get("metadata", {}).get("original_request", "Imported validation"), repo, plan["starting_commit"], value.get("branch", "unknown"), value.get("timestamp", utc_now()))
+                existing = self.service.get(task_id)
+                if existing:
+                    canonical_repo = Path(existing.repository).resolve()
+                    self._verify_requested_repository(canonical_repo, repository)
+                    if (
+                        existing.starting_commit != plan["starting_commit"]
+                        or not existing.plan_hash
+                        or existing.plan_hash != plan.get("plan_hash")
+                    ):
+                        raise ArtifactImportError(
+                            "Validation artifact is not bound to the existing task plan and commit"
+                        )
+                else:
+                    self._verify_requested_repository(repo, repository)
+                    self._ensure_task(task_id, report.get("metadata", {}).get("original_request", "Imported validation"), repo, plan["starting_commit"], value.get("branch", "unknown"), value.get("timestamp", utc_now()))
                 self._validation(task_id, path, digest, report)
                 schema = int(report["schema_version"])
         except ArtifactImportError:
