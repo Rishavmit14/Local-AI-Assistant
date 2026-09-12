@@ -48,7 +48,11 @@ class CareerForgeConversationAdapter:
         mentions = self._mentions_career_forge(normalized)
         is_status = any(phrase in normalized for phrase in (
             "where am i", "what should i learn next", "what am i currently learning",
-            "what am i learning", "resume my career forge mission",
+            "what am i learning", "what was i working on", "resume my career forge mission", "how am i doing",
+            "what have i completed", "what did i struggle with", "what mistakes did i make",
+            "what hints have i needed", "what hints did i need", "what evidence have i earned",
+            "what am i strongest at", "what still needs work", "show me my recent learning history",
+            "show me my recent career forge history",
         ))
         is_teach = "teach me" in normalized and ("machine learning" in normalized or mentions)
         if not (mentions or is_status or is_teach):
@@ -62,6 +66,26 @@ class CareerForgeConversationAdapter:
         if "what is career forge" in normalized or "what's career forge" in normalized:
             return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._overview())
 
+        if "this conversation" in normalized or "just now" in normalized:
+            return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge",
+                "For this current conversation, I use the temporary active-session context rather than durable Career Forge history. "
+                "Ordinary voice conversation is not stored as learning evidence; only governed lesson attempts, assistance, feedback, and evidence are durable.")
+
+        if "how am i doing" in normalized or "progress" in normalized:
+            return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._progress_summary())
+        if "what have i completed" in normalized:
+            return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._completed())
+        if "struggle" in normalized or "mistake" in normalized or "still needs work" in normalized:
+            return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._struggles())
+        if "hint" in normalized or "assistance" in normalized or "help" in normalized:
+            return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._assistance())
+        if "evidence" in normalized:
+            return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._evidence())
+        if "strongest" in normalized:
+            return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._strengths())
+        if "recent" in normalized and "history" in normalized:
+            return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._history())
+
         if "resume" in normalized and (mentions or "mission" in normalized):
             mission = self.service.resume()
             if mission is None:
@@ -69,7 +93,7 @@ class CareerForgeConversationAdapter:
                     "There is no persisted active Career Forge mission to resume. " + self._next())
             return self._tutor_route(mission.mission_id, TutorMode.EXPLAIN, "Resume the persisted mission from its recorded resume point.")
 
-        if "where am i" in normalized or "currently learning" in normalized or "what am i learning" in normalized:
+        if "where am i" in normalized or "currently learning" in normalized or "what am i learning" in normalized or "what was i working on" in normalized:
             mission = self.service.resume()
             return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._mission_status(mission))
 
@@ -136,14 +160,71 @@ class CareerForgeConversationAdapter:
         if mission is None:
             return "No active mission is persisted. " + self._next()
         competency = self.service.graph[mission.competency_id]
+        phase = str(mission.resume_point.get("phase", "the beginning")).replace("_", " ")
+        question = mission.resume_point.get("question_id")
+        detail = f" at the recorded {phase} phase" + (f" for {question}" if question else "")
         return (f"Your active mission is '{mission.title}' for {competency.title}; "
-                f"it is {mission.state} at resume point {mission.resume_point or 'the beginning'}. ")
+                f"it is {mission.state}{detail}. ")
 
     def _next(self) -> str:
-        item = self.service.next_competency()
-        if item is None:
-            return "The Learner Twin has no dependency-ready next competency."
-        return f"The dependency-ready next competency is {item.title}."
+        return self.service.progress().next_action
+
+    def _progress_summary(self) -> str:
+        progress = self.service.progress()
+        active = self._mission_status(progress.active_mission)
+        return (
+            active + f" You have recorded mastery rungs for {len(progress.evidenced_competencies)} competencies; "
+            f"{len(progress.evidence)} evidence records and {len(progress.recent_attempts)} recent governed attempts are recorded. "
+            + self._next()
+        )
+
+    def _completed(self) -> str:
+        completed = self.service.progress().evidenced_competencies
+        if not completed:
+            return "No competency has qualifying mastery evidence yet. Recorded evidence exists separately and does not promote mastery by itself."
+        details = "; ".join(f"{item.competency.title} ({item.mastery.value.replace('_', ' ')})" for item in completed)
+        return "Competencies with qualifying mastery state: " + details + "."
+
+    def _struggles(self) -> str:
+        retries = self.service.progress().unresolved_retries
+        if not retries:
+            return "There are no unresolved governed Career Forge retries in the recorded learning history. That does not claim there were no unrecorded conversational difficulties."
+        details = "; ".join(
+            f"{item.question_id}: {item.evaluation.value}; feedback: {(item.feedback or 'no feedback recorded')[:500]}"
+            for item in retries[:5]
+        )
+        return "Recorded Career Forge retries or struggles: " + details + ". " + self._next()
+
+    def _assistance(self) -> str:
+        records = self.service.progress().assistance
+        if not records:
+            return "No governed Career Forge assistance records are stored yet."
+        details = "; ".join(item.level.value.replace("_", " ") for item in records[:5])
+        return f"Recorded Career Forge assistance, newest first: {details}. This records help used; it does not imply independent mastery."
+
+    def _evidence(self) -> str:
+        records = self.service.progress().evidence
+        if not records:
+            return "No Career Forge evidence records are stored yet. Evidence is required for mastery, but it does not promote mastery automatically."
+        details = "; ".join(
+            f"{item.evidence_type.replace('_', ' ')}" + (f" with {item.assistance_level.value.replace('_', ' ')} assistance" if item.assistance_level else "")
+            for item in records[:5]
+        )
+        return "Career Forge evidence, newest first: " + details + ". Mastery remains at its recorded rung until an explicit matching-evidence decision."
+
+    def _strengths(self) -> str:
+        records = self.service.progress().evidenced_competencies
+        if not records:
+            return "I do not yet have qualifying mastery evidence to call any competency a strength."
+        return "Your evidence-backed strengths are: " + "; ".join(
+            f"{item.competency.title} ({item.mastery.value.replace('_', ' ')})" for item in records
+        ) + "."
+
+    def _history(self) -> str:
+        history = self.service.progress().history
+        if not history:
+            return "No governed Career Forge learning history is stored yet. Ordinary conversation is not learning history."
+        return "Recent Career Forge history, newest first: " + " ".join(item.summary for item in history[:10])
 
 
 class MemoryConversationAdapter:

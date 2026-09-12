@@ -1795,3 +1795,20 @@ voice transcript/mode. Real voice qualification repaired long speech stress and
 bounded ASR variants (`hint`/`hand`, `check my/me answer`). Practice Lab,
 screen-aware tutoring, interview integration, retention automation, broad UI or
 desktop work, model expansion, and Astra qualification remain out of scope.
+
+## Stage 22 Slice 4 — truthful Career Forge progress and learning history (2026-09-12)
+
+Accepted Slice 4 adds `CareerForgeService.progress()`, a bounded read-only
+projection derived only from the existing Learner Twin SQLite records. It
+contains active mission/resume state, newest-first ordered attempts and retry
+truth, assistance, evidence, recorded mastery rungs, chronological bounded
+history, and a deterministic retry-or-dependency next action. It neither creates
+a progress database nor calculates a fake percentage or advances mastery. The
+existing PROGRESS panel and deterministic conversation router consume this same
+contract. Current-conversation questions remain active-session context; only
+governed attempts, assistance, feedback, and evidence comprise durable learning
+history. Real local text-path qualification covered all progress questions and a
+controlled restart recovered the original active mission/evidence without old
+voice-session continuity. Practice Lab, retention automation, screen-aware
+tutoring, broad UI/desktop work, interview integration, model expansion, and
+Astra remain out of scope. Recovery SHA: pending final acceptance.

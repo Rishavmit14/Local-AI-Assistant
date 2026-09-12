@@ -6,7 +6,7 @@ import hashlib
 from fastapi.testclient import TestClient
 
 from local_ai_assistant.autonomy import ObjectiveService
-from local_ai_assistant.career_forge import CareerForgeService
+from local_ai_assistant.career_forge import CareerForgeService, TutorMode
 from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
@@ -309,6 +309,8 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     journey = client.get("/api/v1/career-forge/journey").json()
     assert journey["next_competency"]["competency_id"] == "se.python"
     assert journey["recommended_mission"]["title"] == "Verify Python state and functions"
+    assert journey["progress"]["next_action"] == "Start the dependency-ready competency 'Python foundations'."
+    assert journey["progress"]["evidence"] == []
     rejected = client.post(
         "/api/v1/career-forge/missions",
         json={"competency_id": "dl.pytorch", "title": "Skip ahead"},
@@ -332,6 +334,11 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
         json={"evidence_type": "teach_back", "content": "I explained the mutation risk."},
     )
     assert evidence.status_code == 200
+    forge.record_attempt(mission_id, "mutable_default", "Private owner answer", mode=TutorMode.EXPLAIN)
+    progress = client.get("/api/v1/career-forge/journey").json()["progress"]
+    assert progress["evidence"][0]["evidence_type"] == "teach_back"
+    assert progress["history"][0]["kind"] in {"attempt", "assistance", "evidence"}
+    assert "response" not in progress["recent_attempts"][0]
     resumed = client.post(
         f"/api/v1/career-forge/missions/{mission_id}/resume",
         json={"resume_point": {"phase": "teach_back"}, "assistance_level": "prompt"},

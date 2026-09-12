@@ -143,6 +143,18 @@ correct assessment creates provenance-bearing evidence without automatic
 advancement. Lesson wording/session history clears on stop or restart while the
 mission, attempts, assistance, feedback, evidence, and resume point remain in
 the local Learner Twin.
+
+### Stage 22 Slice 4 — truthful Career Forge progress and learning history
+
+`CareerForgeService.progress()` is the one bounded, read-only projection of the
+canonical Learner Twin. It derives active mission/resume state, ordered attempts
+and retry truth, recorded assistance, evidence, recorded mastery rungs, and a
+dependency-aware next action directly from SQLite. It contains no percentage,
+no independent progress store, and no inferred mastery. The presentation journey
+and existing PROGRESS surface consume that same contract; conversation routes
+progress/history questions deterministically rather than asking Qwen to invent
+learning state. Current-session questions remain temporary conversation context;
+only governed Career Forge records are durable learning history.
 The first Stage 14 cinematic projection calls only the existing local journey and
 dependency-gated mission-start endpoints. It renders unknown progress honestly;
 the frontend has no Learner Twin advancement, publishing, tool, or desktop

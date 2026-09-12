@@ -127,6 +127,17 @@ else:  # pragma: no cover - app construction already reports the missing extra.
     _FinalizingStreamingResponse = None
 
 
+def _career_progress_payload(progress: object) -> dict[str, object]:
+    """Expose bounded learning metadata, never an unbounded owner-answer transcript."""
+    payload = asdict(progress)
+    for key in ("recent_attempts", "unresolved_retries"):
+        for attempt in payload[key]:
+            attempt.pop("response", None)
+            if attempt.get("feedback"):
+                attempt["feedback"] = attempt["feedback"][:500]
+    return payload
+
+
 def create_presentation_app(
     runtime: FridayRuntime,
     conversation: FridayConversationService,
@@ -462,7 +473,8 @@ def create_presentation_app(
     @app.get("/api/v1/career-forge/journey")
     def career_journey():
         forge = owner_career_forge()
-        active = forge.resume()
+        progress = forge.progress()
+        active = progress.active_mission
         next_item = forge.next_competency()
         return {
             "target": "ML / AI Engineer",
@@ -474,6 +486,7 @@ def create_presentation_app(
                 {"competency": asdict(item.competency), "mastery": item.mastery}
                 for item in forge.competencies()
             ],
+            "progress": _career_progress_payload(progress),
         }
 
     @app.post("/api/v1/career-forge/missions")

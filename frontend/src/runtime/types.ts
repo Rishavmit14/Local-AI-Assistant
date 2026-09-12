@@ -138,6 +138,28 @@ export interface CareerForgeJourney {
     created_at: string;
   }>;
   competencies: CareerForgeCompetency[];
+  progress: {
+    active_mission: CareerForgeMission | null;
+    recent_attempts: Array<{
+      attempt_id: string;
+      mission_id: string;
+      competency_id: string;
+      question_id: string;
+      attempt_order: number;
+      assistance_level: string | null;
+      evaluation: string;
+      evidence_type: string | null;
+      feedback: string | null;
+      retry_needed: boolean;
+      created_at: string;
+    }>;
+    assistance: Array<{ level: string; competency_id: string; created_at: string }>;
+    evidence: Array<{ evidence_type: string; competency_id: string; assistance_level: string | null; created_at: string }>;
+    evidenced_competencies: CareerForgeCompetency[];
+    unresolved_retries: Array<{ question_id: string; feedback: string | null }>;
+    next_action: string;
+    history: Array<{ occurred_at: string; kind: string; summary: string; retry_needed: boolean }>;
+  };
 }
 
 export interface FridayScreenCapture {

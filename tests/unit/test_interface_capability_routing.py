@@ -1,4 +1,4 @@
-from local_ai_assistant.career_forge import CareerForgeService
+from local_ai_assistant.career_forge import AttemptEvaluation, CareerForgeService, TutorMode
 from local_ai_assistant.interface.capabilities import (
     CapabilityStatus,
     FridayCapability,
@@ -130,3 +130,24 @@ def test_active_career_forge_conversation_records_attempt_help_and_bounded_evalu
     assert capability_router.career_forge.latest_assistance_level(mission.mission_id).value == "prompt"
     assert capability_router.career_forge.competencies()[0].mastery.value == "unverified"
     assert len(llm.calls) == 2  # start and semantic evaluation; attempt/help are deterministic.
+
+
+def test_career_forge_progress_questions_use_durable_governed_records(tmp_path):
+    capability_router = router(tmp_path)
+    forge = capability_router.career_forge
+    mission = forge.start_mission("se.python", "Verify Python")
+    attempt = forge.record_attempt(mission.mission_id, "mutable_default", "It is recreated.", mode=TutorMode.EXPLAIN)
+    forge.evaluate_attempt(attempt.attempt_id, AttemptEvaluation.INCORRECT, "The default is shared; retry.")
+    llm = FakeLLM()
+    service = FridayConversationService(llm, FridayRuntime("progress-route"), capability_router=capability_router)
+
+    struggle = "".join(service.stream_response("What did I struggle with in Career Forge?"))
+    next_action = "".join(service.stream_response("What should I learn next?"))
+    current = "".join(service.stream_response("What did I struggle with just now?"))
+    resumed = "".join(service.stream_response("What was I working on in Career Forge?"))
+
+    assert "mutable_default" in struggle and "retry" in struggle.lower()
+    assert "Retry the active mission" in next_action
+    assert "temporary active-session context" in current
+    assert "Verify Python" in resumed
+    assert not llm.calls

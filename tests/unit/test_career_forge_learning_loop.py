@@ -103,3 +103,25 @@ def test_short_conversational_aside_is_not_an_assessed_attempt(tmp_path):
 
     assert loop.prepare("Guess what?", mode=f"career_forge:explain:{mission.mission_id}") is None
     assert not forge.attempts(mission.mission_id)
+
+
+def test_progress_projection_is_canonical_bounded_and_survives_restart(tmp_path):
+    path = tmp_path / "career.sqlite3"
+    forge = CareerForgeService(path)
+    mission = forge.start_mission("se.python", "Verify Python")
+    forge.update_resume(mission.mission_id, {"phase": LessonPhase.QUESTION, "question_id": "mutable_default"})
+    first = forge.record_attempt(mission.mission_id, "mutable_default", "A new list is made each time.", mode=TutorMode.EXPLAIN)
+    forge.evaluate_attempt(first.attempt_id, AttemptEvaluation.INCORRECT, "Defaults are created once; retry.")
+    forge.offer_assistance(mission.mission_id, TutorMode.HINT, AssistanceLevel.PROMPT, "Trace two calls.")
+    second = forge.record_attempt(mission.mission_id, "mutable_default", "The same default list is reused.", mode=TutorMode.EXPLAIN, assistance_level=AssistanceLevel.PROMPT)
+    forge.evaluate_attempt(second.attempt_id, AttemptEvaluation.CORRECT, "Correct mechanism.", evidence_type="quiz_response")
+
+    progress = CareerForgeService(path).progress()
+
+    assert [item.attempt_order for item in progress.recent_attempts] == [2, 1]
+    assert progress.assistance[0].level is AssistanceLevel.PROMPT
+    assert progress.evidence[0].evidence_type == "quiz_response"
+    assert progress.unresolved_retries[0].attempt_id == first.attempt_id
+    assert progress.history[0].occurred_at >= progress.history[-1].occurred_at
+    assert "Retry the active mission" in progress.next_action
+    assert "percentage" not in progress.next_action

@@ -127,7 +127,12 @@ export function CareerForgeConsole() {
 
       <section className="career-forge-section" aria-label="Progress">
         <h2>PROGRESS</h2>
-        <p>{verified} verified · independence, retention, and public evidence await recorded proof.</p>
+        <p>{verified} verified · {journey?.progress.evidence.length ?? 0} evidence records · no percentage is inferred.</p>
+        {journey?.progress.unresolved_retries.length ? <p>Retry remains: {journey.progress.unresolved_retries[0].question_id}</p> : null}
+        {journey?.progress.assistance.length ? <p>Latest help: {displayMastery(journey.progress.assistance[0].level)}</p> : null}
+        {journey?.progress.history.length ? <p>Latest: {journey.progress.history[0].summary}</p> : null}
+        <p>Next: {journey?.progress.next_action ?? "Loading recorded learning state…"}</p>
+        <p>Independence, retention, and public evidence await recorded proof.</p>
       </section>
 
       {error ? <p className="career-forge-error">{error}</p> : null}

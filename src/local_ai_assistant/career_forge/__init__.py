@@ -12,10 +12,13 @@ from .models import (
     MasteryLevel,
     TutorMode,
 )
-from .service import CareerForgeService, LearnerCompetency, LessonAttempt, Mission, ProjectLink
+from .service import (
+    AssistanceRecord, CareerForgeProgress, CareerForgeService, EvidenceRecord,
+    LearnerCompetency, LearningHistoryItem, LessonAttempt, Mission, ProjectLink,
+)
 
 __all__ = [
     "AssistanceLevel", "AttemptEvaluation", "CareerForgeLearningLoop", "COMPETENCY_GRAPH_VERSION", "CareerForgeService", "Competency",
-    "LearnerCompetency", "LearningDirective", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "ProjectLink", "PublicationDecision",
+    "AssistanceRecord", "CareerForgeProgress", "EvidenceRecord", "LearnerCompetency", "LearningDirective", "LearningHistoryItem", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "ProjectLink", "PublicationDecision",
     "TutorMode", "competency_graph", "evaluate_publication",
 ]

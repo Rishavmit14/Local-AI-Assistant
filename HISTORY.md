@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-12 — Stage 22 Slice 4 truthful Career Forge progress and learning history accepted
+
+Friday now derives one bounded owner-visible Career Forge progress projection
+from the canonical Learner Twin records: active mission/resume state, ordered
+attempts and retries, recorded assistance, evidence, recorded mastery rungs,
+and deterministic next action. Normal Friday questions and the existing
+PROGRESS panel use that same read-only projection. No percentage, separate
+progress store, inferred mastery, or ordinary voice-transcript retention was
+introduced. Real local text-path qualification covered progress, struggle,
+assistance, evidence, current mission, next action, history, current-session
+versus durable-history distinction, and restart recovery.
+
 ## 2026-09-12 — Stage 22 Slice 3 owner-facing Career Forge lesson loop accepted
 
 Friday now teaches through the same active conversation: a canonical mission

@@ -667,7 +667,7 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
-## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 3 owner-facing lesson loop accepted**)
+## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 4 truthful progress and learning history accepted**)
 
 Stages 0–21 remain accepted historical engineering evidence. Their accepted
 backend/security/recovery scope is not rewritten because owner-facing product
@@ -720,6 +720,16 @@ and repaired long tutor speech/Piper failure and bounded wake-ASR variants for
 hints/evaluation. Practice Lab, screen-aware tutoring, broad desktop/UI work,
 interview integration, retention automation, and model expansion remain out of
 scope.
+
+Slice 4 exposes the existing governed Learner Twin records as one bounded,
+truthful progress/history projection through normal Friday conversation and the
+existing PROGRESS panel. It reports active mission, ordered attempts/retries,
+recorded assistance, evidence, recorded mastery state, and the deterministic
+next action without a second progress store, percentage, fabricated mastery, or
+ordinary voice-transcript retention. Real local text qualification and a
+controlled service restart recovered the same durable mission/evidence state.
+Practice Lab, retention automation, screen-aware tutoring, broad desktop/UI
+work, interview integration, model expansion, and Astra remain out of scope.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

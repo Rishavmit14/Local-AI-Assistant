@@ -69,6 +69,49 @@ class LessonAttempt:
     evaluated_at: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class AssistanceRecord:
+    assistance_id: str
+    mission_id: str
+    competency_id: str
+    mode: TutorMode
+    level: AssistanceLevel
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class EvidenceRecord:
+    evidence_id: str
+    mission_id: str
+    competency_id: str
+    evidence_type: str
+    assistance_level: AssistanceLevel | None
+    artifact_ref: str | None
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class LearningHistoryItem:
+    occurred_at: str
+    kind: str
+    mission_id: str
+    competency_id: str
+    summary: str
+    retry_needed: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class CareerForgeProgress:
+    active_mission: Mission | None
+    recent_attempts: tuple[LessonAttempt, ...]
+    assistance: tuple[AssistanceRecord, ...]
+    evidence: tuple[EvidenceRecord, ...]
+    evidenced_competencies: tuple[LearnerCompetency, ...]
+    unresolved_retries: tuple[LessonAttempt, ...]
+    next_action: str
+    history: tuple[LearningHistoryItem, ...]
+
+
 MISSION_LOOP = (
     "why_it_matters", "prerequisite_verification", "mental_model", "guided_example",
     "owner_attempt", "minimum_assistance", "independent_attempt", "run_test_experiment",
@@ -249,6 +292,72 @@ class CareerForgeService:
         with self._db() as db:
             rows = db.execute("SELECT attempt_id FROM lesson_attempts WHERE mission_id=? ORDER BY attempt_order", (mission_id,)).fetchall()
         return tuple(self.attempt(row[0]) for row in rows)
+
+    def recent_attempts(self, *, limit: int = 20) -> tuple[LessonAttempt, ...]:
+        if not 1 <= limit <= 100:
+            raise ValueError("attempt limit must be between 1 and 100")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT attempt_id FROM lesson_attempts ORDER BY created_at DESC, attempt_order DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return tuple(self.attempt(row[0]) for row in rows)
+
+    def assistance_history(self, *, limit: int = 20) -> tuple[AssistanceRecord, ...]:
+        if not 1 <= limit <= 100:
+            raise ValueError("assistance limit must be between 1 and 100")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT a.assistance_id, a.mission_id, m.competency_id, a.mode, a.level, a.created_at "
+                "FROM mission_assistance a JOIN missions m ON m.mission_id=a.mission_id "
+                "ORDER BY a.created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return tuple(AssistanceRecord(row[0], row[1], row[2], TutorMode(row[3]), AssistanceLevel(row[4]), row[5]) for row in rows)
+
+    def evidence_history(self, *, limit: int = 20) -> tuple[EvidenceRecord, ...]:
+        if not 1 <= limit <= 100:
+            raise ValueError("evidence limit must be between 1 and 100")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT e.evidence_id, e.mission_id, m.competency_id, e.evidence_type, e.assistance_level, e.artifact_ref, e.created_at "
+                "FROM mission_evidence e JOIN missions m ON m.mission_id=e.mission_id "
+                "ORDER BY e.created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return tuple(EvidenceRecord(row[0], row[1], row[2], row[3], AssistanceLevel(row[4]) if row[4] else None, row[5], row[6]) for row in rows)
+
+    def progress(self, *, limit: int = 20) -> CareerForgeProgress:
+        """Return one bounded, read-only projection of canonical learning records."""
+        attempts = self.recent_attempts(limit=limit)
+        assistance = self.assistance_history(limit=limit)
+        evidence = self.evidence_history(limit=limit)
+        active = self.resume()
+        retries = tuple(item for item in attempts if item.retry_needed)
+        evidenced = tuple(item for item in self.competencies() if item.mastery is not MasteryLevel.UNVERIFIED)
+        if active and any(item.mission_id == active.mission_id for item in retries):
+            next_action = f"Retry the active mission '{active.title}' using its recorded feedback."
+        elif active:
+            next_action = f"Continue the active mission '{active.title}' from its recorded resume point."
+        elif (next_item := self.next_competency()) is not None:
+            next_action = f"Start the dependency-ready competency '{next_item.title}'."
+        else:
+            next_action = "No dependency-ready competency is currently available."
+        history = [
+            LearningHistoryItem(item.created_at, "attempt", item.mission_id, item.competency_id,
+                                f"Attempt {item.attempt_order} for {item.question_id}: {item.evaluation.value}.", item.retry_needed)
+            for item in attempts
+        ] + [
+            LearningHistoryItem(item.created_at, "assistance", item.mission_id, item.competency_id,
+                                f"Used {item.level.value.replace('_', ' ')} assistance.")
+            for item in assistance
+        ] + [
+            LearningHistoryItem(item.created_at, "evidence", item.mission_id, item.competency_id,
+                                f"Earned {item.evidence_type.replace('_', ' ')} evidence.")
+            for item in evidence
+        ]
+        history.sort(key=lambda item: item.occurred_at, reverse=True)
+        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, next_action, tuple(history[:limit]))
 
     def evaluate_attempt(self, attempt_id: str, evaluation: AttemptEvaluation, feedback: str, *,
                          evidence_type: str | None = None) -> LessonAttempt:
