@@ -1690,4 +1690,5 @@ review evidence and two audited read-only tool events. No recovery-required
 worktrees remain. Full Python and repository verification passed 811 tests;
 frontend lint/26 tests/build and a controlled service restart with healthy voice
 workers passed. Commit/push this candidate, record its SHA here, then begin
-Stage 18 discovery on a new `stage-18/` branch.
+Stage 18 discovery on a new `stage-18/` branch. The accepted implementation
+recovery checkpoint is `fc7083925e46f4311edf6296739395d8bc2cb12e`.
