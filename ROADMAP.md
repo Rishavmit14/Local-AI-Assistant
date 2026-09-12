@@ -667,7 +667,7 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
-## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 2 capability routing and Career Forge handoff accepted**)
+## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 3 owner-facing lesson loop accepted**)
 
 Stages 0–21 remain accepted historical engineering evidence. Their accepted
 backend/security/recovery scope is not rewritten because owner-facing product
@@ -708,6 +708,18 @@ existing governed memory service; ambiguity makes no change. Practice Lab,
 screen-aware tutoring, broad desktop routing, and frontend expansion remain out
 of this slice. Focused/affected tests, repository verification, frontend gates,
 real text memory restart, and physical wake/alias/stop qualification passed.
+
+Slice 3 makes the bounded Career Forge learning loop owner-facing through the
+same Friday conversation: lesson framing, explicit attempts, automatic minimum
+progressive assistance, bounded Qwen assessment, feedback, teach-back, and
+durable mission/attempt/evidence resume state. Only explicit lesson-question or
+teach-back contexts create attempts. Correct quiz/teach-back assessments may
+record assistance-bearing evidence but never auto-advance mastery; uncertain or
+incorrect assessment records retry truthfully. Real voice qualification exposed
+and repaired long tutor speech/Piper failure and bounded wake-ASR variants for
+hints/evaluation. Practice Lab, screen-aware tutoring, broad desktop/UI work,
+interview integration, retention automation, and model expansion remain out of
+scope.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

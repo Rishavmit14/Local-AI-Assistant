@@ -1779,3 +1779,19 @@ Known wake-ASR variants for Career Forge are bounded aliases, not fuzzy tool
 matching. Focused/affected tests, repository/frontend gates, real text memory
 restart, and physical wake/alias/stop passed. Do not begin Practice Lab, broad
 desktop/UI work, multi-model work, or Astra qualification without approval.
+
+## Stage 22 Slice 3 — owner-facing Career Forge lesson loop (2026-09-12)
+
+Accepted Slice 3 connects Career Forge's existing mission, assistance, evidence,
+and mastery boundaries to normal Friday conversation. The local Learner Twin now
+holds ordered explicit attempts (question, response, mode, consumed assistance,
+evaluation, feedback, retry state and timestamps). Only an active lesson
+question or teach-back context can create one. Deterministic help advances one
+minimum assistance level and records it automatically. Bounded local-Qwen
+assessment supplies correct/incorrect/uncertain feedback; a correct quiz or
+teach-back may record typed evidence but cannot auto-promote mastery. Restart
+retains the mission/attempt/evidence state while exact stop clears the active
+voice transcript/mode. Real voice qualification repaired long speech stress and
+bounded ASR variants (`hint`/`hand`, `check my/me answer`). Practice Lab,
+screen-aware tutoring, interview integration, retention automation, broad UI or
+desktop work, model expansion, and Astra qualification remain out of scope.

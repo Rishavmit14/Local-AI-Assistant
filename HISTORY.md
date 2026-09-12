@@ -1,5 +1,20 @@
 # Project History
 
+## 2026-09-12 — Stage 22 Slice 3 owner-facing Career Forge lesson loop accepted
+
+Friday now teaches through the same active conversation: a canonical mission
+can explain, ask a bounded question, record explicit owner attempts, provide
+minimum progressive help, evaluate bounded semantic answers, give feedback, and
+ask for teach-back. Assistance is automatically stored with its exact level;
+correct assessment creates assistance-bearing evidence but never advances
+mastery. Incorrect/uncertain assessment remains a retry, and teach-back is
+assessed immediately. Physical voice qualification proved the complete loop,
+exact stop, and controlled-restart resume. It also exposed and repaired Piper
+stress from overlong tutor turns plus bounded ASR variants for help/evaluation;
+false ASR-command attempts were removed from local state with a recovery backup.
+Practice Lab, screen-aware tutoring, interview integration, retention automation,
+and broad UI/desktop work remain absent or deferred.
+
 ## 2026-09-12 — Stage 22 Slice 2 capability routing accepted
 
 Friday now has one typed deterministic conversation-capability router at its

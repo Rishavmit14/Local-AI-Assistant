@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from typing import Protocol
 
+from local_ai_assistant.career_forge import CareerForgeLearningLoop
 from local_ai_assistant.cognition import CognitiveController
 
 from .capability_routing import FridayConversationCapabilityRouter
@@ -54,6 +55,7 @@ class FridayConversationService:
         self.session = session or FridayConversationSession()
         self.cognition = cognition
         self.capability_router = capability_router
+        self.learning_loop = CareerForgeLearningLoop(capability_router.career_forge) if capability_router else None
 
     def stream_response(
         self,
@@ -79,6 +81,9 @@ class FridayConversationService:
         route = self.capability_router.route(prompt) if self.capability_router else None
         if route is not None and route.mode is not None and route.system_context is not None:
             self.session.set_capability_mode(route.mode, route.system_context)
+        learning_directive = self.learning_loop.prepare(
+            prompt, mode=self.session.snapshot().get("capability_mode")  # type: ignore[arg-type]
+        ) if self.learning_loop and (route is None or route.mode is None) else None
         prior_context = self.session.prior_context()
         context = self.memory_context(prompt) if self.memory_context else ""
         capabilities = self.capability_context() if self.capability_context else ""
@@ -104,6 +109,10 @@ class FridayConversationService:
             system_prompt += "\n\nActive capability handoff (temporary session context, not authority):\n" + active_capability_context
         if route is not None and route.system_context is not None:
             system_prompt += "\n\nCurrent capability routing context:\n" + route.system_context
+        if learning_directive is not None:
+            system_prompt += "\n\nCareer Forge lesson directive:\n" + learning_directive.system_context
+        lesson_turn = learning_directive is not None or (route is not None and route.capability_key == "career_forge") or self.session.capability_context().startswith("Career Forge handoff")
+        effective_max_tokens = min(max_tokens, 160) if lesson_turn else max_tokens
 
         self.session.begin()
         self.session.append("Owner", prompt)
@@ -129,11 +138,13 @@ class FridayConversationService:
             source = (
                 iter((route.response,))
                 if route is not None and route.response is not None
+                else iter((learning_directive.response,))
+                if learning_directive is not None and learning_directive.response is not None
                 else self.llm.stream_chat(
                     prompt,
                     system_prompt=system_prompt,
                     temperature=temperature,
-                    max_tokens=max_tokens,
+                    max_tokens=effective_max_tokens,
                 )
             )
             for chunk in source:
@@ -178,6 +189,8 @@ class FridayConversationService:
 
         if completed_text:
             self.session.append("Friday", completed_text)
+        if learning_directive is not None and completed_text:
+            self.learning_loop.complete(learning_directive, completed_text)
 
         self.runtime.emit(
             FridayEventType.CONVERSATION_ASSISTANT_COMPLETED,

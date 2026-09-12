@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 
-from local_ai_assistant.career_forge import CareerForgeService, TutorMode
+from local_ai_assistant.career_forge import CareerForgeService, LessonPhase, TutorMode
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 from .capabilities import CapabilityStatus, FridayCapabilityRegistry
@@ -105,9 +105,19 @@ class CareerForgeConversationAdapter:
         if brief is None or brief.competency_id != mission.competency_id:
             return CapabilityRoute(ConversationIntent.INVOCATION, "career_forge",
                 "That persisted mission is not currently teachable under the dependency graph.")
+        if not mission.resume_point:
+            # Starting a canonical lesson establishes an explicit question context;
+            # only later owner answers in that context can become attempts.
+            mission = self.service.update_resume(mission_id, {
+                "phase": LessonPhase.QUESTION,
+                "question_id": "mission_verification",
+            })
         context = (
             f"Career Forge handoff is active in {mode.value} mode. {lead} "
             "Use Friday's one identity. Do not claim mastery, record evidence, assistance, or alter Learner Twin state. "
+            "Teach in this order when appropriate: why it matters, mental model, a small example, one guided question, "
+            "owner attempt, minimum progressive help, evaluation, teach-back, then the next learning action. "
+            "For voice, keep each response under 120 words, use plain spoken language, and do not read code blocks unless the owner explicitly asks. "
             f"Mission: {brief.title}\nWhy: {brief.why_it_matters}\nVerification: {brief.verification}\n"
             f"Mental model: {brief.mental_model}\nOwner attempt: {brief.owner_attempt}\nTeach-back: {brief.teach_back}"
         )
@@ -185,6 +195,10 @@ class FridayConversationCapabilityRouter:
             "career_forge": CareerForgeConversationAdapter(career_forge),
             "persistent_memory": MemoryConversationAdapter(memory),
         }
+
+    @property
+    def career_forge(self) -> CareerForgeService:
+        return self.adapters["career_forge"].service
 
     def route(self, prompt: str) -> CapabilityRoute | None:
         if "practice lab" in prompt.lower():

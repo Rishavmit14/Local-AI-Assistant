@@ -116,6 +116,26 @@ interaction ownership. It supplies the active mission brief as bounded context
 and can persist the response as assistance only after an explicit level choice.
 The model receives no direct Learner Twin mutation capability.
 
+### Owner-facing lesson loop
+
+The integrated Friday conversation now turns an active canonical mission into a
+bounded learning record. It moves through why/mental model/example/question,
+then records an owner response only while an explicit lesson question or
+teach-back is pending. Short conversational asides and ordinary conversation do
+not become assessed attempts. Assistance requests choose the next minimum level
+and persist the exact help automatically. Voice-ASR wording is deliberately
+bounded to lesson-context help/evaluation variants; it is not a general fuzzy
+command layer.
+
+Assessment supplies a structured local-Qwen semantic judgement against the
+mission criteria. A missing valid assessment label becomes `uncertain`; an
+incorrect/uncertain answer requires retry. A correct quiz response or correct
+teach-back can create typed evidence with the assistance already consumed, but
+neither assessment nor evidence advances mastery. Advancement remains the
+existing explicit one-rung matching-evidence decision. Stop/restart clears only
+the temporary conversation; the Learner Twin retains the active mission,
+ordered attempts, assistance, feedback, evidence, and resume point.
+
 ## Conversation capability handoff
 
 Stage 22 Slice 2 places one deterministic, typed conversation-capability router

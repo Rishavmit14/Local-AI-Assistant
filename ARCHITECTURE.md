@@ -135,6 +135,14 @@ learning product: LEARN, MAP, PROJECTS, and PROGRESS are projections of the
 same local Learner Twin and conversation/voice session. Later perception and
 desktop-control capabilities extend that presentation boundary rather than
 creating a parallel frontend or voice path.
+The owner-facing lesson loop is also inside that same conversation boundary:
+only an explicit canonical lesson question or teach-back context can create an
+attempt; assistance is recorded at the minimum deterministic level; local Qwen
+may return a bounded semantic assessment but cannot promote mastery; and a
+correct assessment creates provenance-bearing evidence without automatic
+advancement. Lesson wording/session history clears on stop or restart while the
+mission, attempts, assistance, feedback, evidence, and resume point remain in
+the local Learner Twin.
 The first Stage 14 cinematic projection calls only the existing local journey and
 dependency-gated mission-start endpoints. It renders unknown progress honestly;
 the frontend has no Learner Twin advancement, publishing, tool, or desktop

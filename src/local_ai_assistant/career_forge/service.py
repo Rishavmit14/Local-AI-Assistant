@@ -11,7 +11,14 @@ from pathlib import Path
 
 from .curriculum import COMPETENCY_GRAPH_VERSION, competency_graph
 from .missions import MissionBrief, mission_brief
-from .models import AssistanceLevel, Competency, MasteryLevel, TutorMode
+from .models import (
+    AssistanceLevel,
+    AttemptEvaluation,
+    Competency,
+    LessonPhase,
+    MasteryLevel,
+    TutorMode,
+)
 
 
 def _now() -> str:
@@ -42,6 +49,24 @@ class ProjectLink:
     mission_id: str
     competency_id: str
     created_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class LessonAttempt:
+    attempt_id: str
+    mission_id: str
+    competency_id: str
+    question_id: str
+    response: str
+    attempt_order: int
+    tutor_mode: TutorMode
+    assistance_level: AssistanceLevel | None
+    evaluation: AttemptEvaluation
+    evidence_type: str | None
+    feedback: str | None
+    retry_needed: bool
+    created_at: str
+    evaluated_at: str | None
 
 
 MISSION_LOOP = (
@@ -86,6 +111,17 @@ class CareerForgeService:
                     mission_id TEXT PRIMARY KEY, project_name TEXT NOT NULL,
                     competency_id TEXT NOT NULL, created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS lesson_attempts (
+                    attempt_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
+                    competency_id TEXT NOT NULL, question_id TEXT NOT NULL,
+                    response TEXT NOT NULL, attempt_order INTEGER NOT NULL,
+                    tutor_mode TEXT NOT NULL, assistance_level TEXT,
+                    evaluation TEXT NOT NULL, evidence_type TEXT, feedback TEXT,
+                    retry_needed INTEGER NOT NULL, created_at TEXT NOT NULL,
+                    evaluated_at TEXT
+                );
+                CREATE INDEX IF NOT EXISTS lesson_attempts_mission_order
+                    ON lesson_attempts(mission_id, attempt_order);
                 """
             )
             for item in self.graph.values():
@@ -173,6 +209,70 @@ class CareerForgeService:
             )
         return evidence_id
 
+    def record_attempt(self, mission_id: str, question_id: str, response: str, *, mode: TutorMode,
+                       assistance_level: AssistanceLevel | None = None) -> LessonAttempt:
+        """Persist an owner answer only inside a named learning question context."""
+        mission = self.mission(mission_id)
+        if not all(isinstance(value, str) and value.strip() for value in (question_id, response)):
+            raise ValueError("attempt question and response must not be empty")
+        with self._db() as db:
+            order = db.execute("SELECT COALESCE(MAX(attempt_order), 0) + 1 FROM lesson_attempts WHERE mission_id=?", (mission_id,)).fetchone()[0]
+            attempt_id, now = "attempt_" + uuid.uuid4().hex, _now()
+            db.execute("INSERT INTO lesson_attempts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+                attempt_id, mission_id, mission.competency_id, question_id.strip(), response.strip(), order,
+                mode, assistance_level, AttemptEvaluation.PENDING, None, None, 0, now, None,
+            ))
+        self.update_resume(mission_id, {"phase": LessonPhase.EVALUATION, "question_id": question_id.strip(), "attempt_id": attempt_id},
+                           assistance_level=assistance_level)
+        return self.attempt(attempt_id)
+
+    def attempt(self, attempt_id: str) -> LessonAttempt:
+        with self._db() as db:
+            row = db.execute("SELECT * FROM lesson_attempts WHERE attempt_id=?", (attempt_id,)).fetchone()
+        if row is None:
+            raise KeyError(attempt_id)
+        return LessonAttempt(row[0], row[1], row[2], row[3], row[4], row[5], TutorMode(row[6]),
+                             AssistanceLevel(row[7]) if row[7] else None, AttemptEvaluation(row[8]), row[9], row[10],
+                             bool(row[11]), row[12], row[13])
+
+    def latest_attempt(self, mission_id: str, *, pending_only: bool = False) -> LessonAttempt | None:
+        query = "SELECT attempt_id FROM lesson_attempts WHERE mission_id=?"
+        if pending_only:
+            query += " AND evaluation='pending'"
+        query += " ORDER BY attempt_order DESC LIMIT 1"
+        with self._db() as db:
+            row = db.execute(query, (mission_id,)).fetchone()
+        return self.attempt(row[0]) if row else None
+
+    def attempts(self, mission_id: str) -> tuple[LessonAttempt, ...]:
+        self.mission(mission_id)
+        with self._db() as db:
+            rows = db.execute("SELECT attempt_id FROM lesson_attempts WHERE mission_id=? ORDER BY attempt_order", (mission_id,)).fetchall()
+        return tuple(self.attempt(row[0]) for row in rows)
+
+    def evaluate_attempt(self, attempt_id: str, evaluation: AttemptEvaluation, feedback: str, *,
+                         evidence_type: str | None = None) -> LessonAttempt:
+        """Store a bounded assessment; this never promotes mastery automatically."""
+        if evaluation is AttemptEvaluation.PENDING or not isinstance(feedback, str) or not feedback.strip():
+            raise ValueError("a final evaluation and feedback are required")
+        attempt = self.attempt(attempt_id)
+        if attempt.evaluation is not AttemptEvaluation.PENDING:
+            raise ValueError("attempt has already been evaluated")
+        if evidence_type is not None and evaluation is not AttemptEvaluation.CORRECT:
+            raise ValueError("only a correct assessment may carry evidence")
+        retry_needed = evaluation is not AttemptEvaluation.CORRECT
+        with self._db() as db:
+            db.execute("UPDATE lesson_attempts SET evaluation=?, evidence_type=?, feedback=?, retry_needed=?, evaluated_at=? WHERE attempt_id=?", (
+                evaluation, evidence_type, feedback.strip(), int(retry_needed), _now(), attempt_id,
+            ))
+        if evidence_type:
+            self.record_evidence(attempt.mission_id, evidence_type, attempt.response,
+                                 assistance_level=attempt.assistance_level)
+        phase = LessonPhase.TEACH_BACK if evaluation is AttemptEvaluation.CORRECT else LessonPhase.QUESTION
+        self.update_resume(attempt.mission_id, {"phase": phase, "question_id": attempt.question_id, "attempt_id": attempt_id},
+                           assistance_level=attempt.assistance_level)
+        return self.attempt(attempt_id)
+
     def mission_loop(self, mission_id: str) -> tuple[str, ...]:
         self.mission(mission_id)
         return MISSION_LOOP
@@ -230,6 +330,12 @@ class CareerForgeService:
             )
         self.update_resume(mission_id, self.mission(mission_id).resume_point, assistance_level=level)
         return assistance_id
+
+    def latest_assistance_level(self, mission_id: str) -> AssistanceLevel | None:
+        self.mission(mission_id)
+        with self._db() as db:
+            row = db.execute("SELECT level FROM mission_assistance WHERE mission_id=? ORDER BY created_at DESC LIMIT 1", (mission_id,)).fetchone()
+        return AssistanceLevel(row[0]) if row else None
 
     def advance_mastery(self, competency_id: str, level: MasteryLevel, *, evidence_id: str) -> LearnerCompetency:
         """Advance exactly one rung, backed by recorded evidence for that competency."""

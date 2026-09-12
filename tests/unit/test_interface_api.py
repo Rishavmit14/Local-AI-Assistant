@@ -171,7 +171,7 @@ def test_runtime_session_and_capability_projection_are_read_only():
     state = client.get("/api/v1/runtime/state").json()
     assert state["session"] == {
         "active": False, "turn_count": 0, "context_characters": 0,
-        "max_turns": 16, "max_characters": 12000, "turns": [],
+        "max_turns": 16, "max_characters": 12000, "turns": [], "capability_mode": None,
     }
     capability = client.get("/api/v1/capabilities").json()["capabilities"][0]
     assert capability["key"] == "career_forge"
@@ -670,6 +670,7 @@ def test_runtime_state_is_read_only_projection():
             "max_turns": 16,
             "max_characters": 12000,
             "turns": [],
+            "capability_mode": None,
         },
     }
 

@@ -36,6 +36,23 @@ class TutorMode(StrEnum):
     INTERVIEW = "interview"
 
 
+class AttemptEvaluation(StrEnum):
+    PENDING = "pending"
+    CORRECT = "correct"
+    INCORRECT = "incorrect"
+    UNCERTAIN = "uncertain"
+
+
+class LessonPhase(StrEnum):
+    WHY = "why_it_matters"
+    MENTAL_MODEL = "mental_model"
+    EXAMPLE = "guided_example"
+    QUESTION = "owner_attempt"
+    EVALUATION = "evaluation"
+    TEACH_BACK = "teach_back"
+    NEXT = "next_action"
+
+
 @dataclass(frozen=True, slots=True)
 class Competency:
     competency_id: str

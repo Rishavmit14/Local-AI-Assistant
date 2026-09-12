@@ -74,6 +74,7 @@ class FridayConversationSession:
                 "max_turns": self.max_turns,
                 "max_characters": self.max_characters,
                 "turns": [asdict(turn) for turn in self._turns],
+                "capability_mode": self._capability_mode,
             }
 
     def _characters(self) -> int:

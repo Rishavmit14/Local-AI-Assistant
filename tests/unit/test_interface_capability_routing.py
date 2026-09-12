@@ -18,7 +18,10 @@ class FakeLLM:
         self.calls = []
 
     def stream_chat(self, prompt, system_prompt="", temperature=0.2, max_tokens=1024):
-        self.calls.append((prompt, system_prompt))
+        self.calls.append((prompt, system_prompt, max_tokens))
+        if "First line MUST be exactly" in system_prompt:
+            yield "ASSESSMENT: incorrect\nThe default list is shared; explain when it is created and retry."
+            return
         yield "tutor response"
 
 
@@ -45,6 +48,7 @@ def test_career_forge_invocation_starts_canonical_mission_and_hands_off_to_exist
     assert "Career Forge handoff is active" in service.session.capability_context()
     assert "tutor response" == "".join(service.stream_response("What should I try first?"))
     assert "Active capability handoff" in llm.calls[1][1]
+    assert llm.calls[0][2] == 160
 
 
 def test_status_and_practice_lab_are_deterministic_and_do_not_call_the_model(tmp_path):
@@ -107,3 +111,22 @@ def test_bounded_known_wake_asr_variants_reach_career_forge_not_generic_conversa
     assert "Career Forge is Friday's integrated" in opened
     assert "There is no persisted active Career Forge mission" in resumed
     assert not llm.calls
+
+
+def test_active_career_forge_conversation_records_attempt_help_and_bounded_evaluation(tmp_path):
+    capability_router = router(tmp_path)
+    llm = FakeLLM()
+    service = FridayConversationService(llm, FridayRuntime("lesson-route"), capability_router=capability_router)
+
+    "".join(service.stream_response("Teach me machine learning."))
+    "".join(service.stream_response("A list is made every time the function runs."))
+    "".join(service.stream_response("Give me hint, but don't tell me the answer."))
+    answer = "".join(service.stream_response("Check my answer."))
+
+    mission = capability_router.career_forge.resume()
+    attempt = capability_router.career_forge.latest_attempt(mission.mission_id)
+    assert "ASSESSMENT: incorrect" in answer
+    assert attempt.evaluation.value == "incorrect" and attempt.retry_needed
+    assert capability_router.career_forge.latest_assistance_level(mission.mission_id).value == "prompt"
+    assert capability_router.career_forge.competencies()[0].mastery.value == "unverified"
+    assert len(llm.calls) == 2  # start and semantic evaluation; attempt/help are deterministic.

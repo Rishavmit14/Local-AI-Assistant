@@ -2,12 +2,20 @@
 
 from .curriculum import COMPETENCY_GRAPH_VERSION, competency_graph
 from .evidence import PublicationDecision, evaluate_publication
+from .learning import CareerForgeLearningLoop, LearningDirective
 from .missions import MissionBrief
-from .models import AssistanceLevel, Competency, MasteryLevel, TutorMode
-from .service import CareerForgeService, LearnerCompetency, Mission, ProjectLink
+from .models import (
+    AssistanceLevel,
+    AttemptEvaluation,
+    Competency,
+    LessonPhase,
+    MasteryLevel,
+    TutorMode,
+)
+from .service import CareerForgeService, LearnerCompetency, LessonAttempt, Mission, ProjectLink
 
 __all__ = [
-    "AssistanceLevel", "COMPETENCY_GRAPH_VERSION", "CareerForgeService", "Competency",
-    "LearnerCompetency", "MasteryLevel", "Mission", "MissionBrief", "ProjectLink", "PublicationDecision",
+    "AssistanceLevel", "AttemptEvaluation", "CareerForgeLearningLoop", "COMPETENCY_GRAPH_VERSION", "CareerForgeService", "Competency",
+    "LearnerCompetency", "LearningDirective", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "ProjectLink", "PublicationDecision",
     "TutorMode", "competency_graph", "evaluate_publication",
 ]
