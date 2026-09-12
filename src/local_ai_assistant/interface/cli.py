@@ -13,6 +13,7 @@ import uvicorn
 from local_ai_assistant.autonomy import ObjectiveService
 from local_ai_assistant.career_forge import CareerForgeService
 from local_ai_assistant.code_index.repository import CodeRAG
+from local_ai_assistant.cognition import CognitiveController
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.desktop import DesktopControlService
@@ -77,6 +78,7 @@ def build_presentation_components(
 
     llm = LocalLLM(config=resolved_config)
     roles = RoleOrchestrator(llm)
+    cognition = CognitiveController()
     research = ResearchService(resolved_config.paths.research_db)
     memory = FridayMemoryService(
         resolved_config.paths.memory_db,
@@ -253,6 +255,7 @@ def build_presentation_components(
             f"[{item.kind}] {item.subject}: {item.content} (provenance={item.provenance}, confidence={item.confidence:g})"
             for item in memory.search(prompt, limit=5)
         ),
+        cognition=cognition,
     )
 
     interactions = FridayInteractionCoordinator()

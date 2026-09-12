@@ -1,5 +1,6 @@
 import pytest
 
+from local_ai_assistant.cognition import CognitiveController
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.events import FridayEventType
 from local_ai_assistant.interface.runtime import FridayRuntime
@@ -47,6 +48,17 @@ def test_memory_context_is_read_only_prompt_context():
     assert llm.calls[0]["prompt"] == "hello"
     assert "owner preference: concise" in llm.calls[0]["system_prompt"]
     assert "untrusted reference" in llm.calls[0]["system_prompt"]
+
+
+def test_cognition_only_adds_read_only_strategy_guidance():
+    runtime = FridayRuntime("cognition-context")
+    llm = FakeStreamingLLM(["ok"])
+    service = FridayConversationService(llm, runtime, cognition=CognitiveController())
+
+    assert "".join(service.stream_response("plan and implement repository integration")) == "ok"
+    prompt = llm.calls[0]["system_prompt"]
+    assert "Cognitive strategy: complex." in prompt
+    assert "primary answer, critique, and reconciliation" in prompt
 
 
 def test_stream_response_emits_real_conversation_runtime_events():

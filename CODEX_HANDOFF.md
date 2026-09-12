@@ -1020,6 +1020,14 @@ Do not use chat history as the only project memory. The durable source of truth 
 
 ## 20. Current implementation snapshot
 
+Stage 21 is accepted on `stage-21/cognitive-amplification`: the local
+deterministic cognitive controller selects bounded strategies and read-only
+conversation guidance, while `CognitiveStore` retains explicit experience and
+versioned skills behind the existing authority boundaries. It supplies a durable
+same-model raw-versus-Friday benchmark contract and does not claim weights or
+quality changed without measured evidence. The accepted recovery SHA is recorded
+with the Stage 21 publication checkpoint.
+
 As of the qualified Stage 12E candidate, Stage 8 isolation/worktree/checkpoint controls are in the current branch; Stage 9 gateway/GitHub/MCP implementation is present with real integration hardening remaining; Stage 10 onboarding is partial; and Stage 11/12 provide the production conversational/wake platform with React/native presentation services, Whisper, Piper, PipeWire, strict `Hey Friday`, Silero, Parakeet primary, Moonshine fallback, persistent fail-closed wake workers, pause/resume orchestration, enabled user-session systemd deployment, production natural-language barge-in, hardened blocked-read cancellation, inline wake commands, fresh bare-wake follow-up capture, exact explicit stop, and supervised capture/worker recovery. The accepted barge-in path uses an ephemeral Friday-owned PipeWire WebRTC AEC graph in `monitor.mode=true`, captures `friday_aec_source`, stops active playback, and feeds trusted interruption audio through main Whisper. Exact `stop`, `friday stop`, and `hey friday stop` end in IDLE without LLM or acknowledgement speech; nonexact phrases remain conversational. Stage 12 remains active for concurrency policy, observability, streaming speech latency, and longer-running stability. `ROADMAP.md` extends the product through memory, perception, desktop/autonomy/events, same-model role orchestration, research, market intelligence, cognitive amplification, and creator intelligence under Local Intelligence Sovereignty.
 
 The preceding historical snapshot is superseded for roadmap priority by the

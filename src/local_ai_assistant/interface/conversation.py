@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from typing import Protocol
 
+from local_ai_assistant.cognition import CognitiveController
+
 from .events import FridayEventType
 from .runtime import FridayRuntime
 from .states import FridayRuntimeState
@@ -31,10 +33,12 @@ class FridayConversationService:
         runtime: FridayRuntime,
         *,
         memory_context: Callable[[str], str] | None = None,
+        cognition: CognitiveController | None = None,
     ) -> None:
         self.llm = llm
         self.runtime = runtime
         self.memory_context = memory_context
+        self.cognition = cognition
 
     def stream_response(
         self,
@@ -58,6 +62,9 @@ class FridayConversationService:
             )
 
         context = self.memory_context(prompt) if self.memory_context else ""
+        cognitive_plan = self.cognition.classify(prompt) if self.cognition else None
+        if cognitive_plan is not None:
+            system_prompt += "\n\n" + self.cognition.prompt_guidance(cognitive_plan)
         if context:
             system_prompt = (
                 system_prompt

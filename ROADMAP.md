@@ -498,7 +498,7 @@ evaluation splits, backtest/walk-forward/paper/live-shadow measurement, outcome
 and mistake learning, evidence-gated challengers, domain specialization, useful
 alerts/briefings/explanations, and transparent performance views.
 
-## Stage 21 — Cognitive Architecture & Local Intelligence Amplification (**Planned**)
+## Stage 21 — Cognitive Architecture & Local Intelligence Amplification (**Done / accepted**)
 
 Make the same current local general-purpose model materially more effective via
 memory, retrieval, structured knowledge, planning, decomposition, tools, skills,
@@ -550,6 +550,15 @@ repository understanding, planning/tools, memory/research, long tasks, and later
 market/creator tasks compares `RAW CURRENT MODEL` with `SAME MODEL + FRIDAY` on
 correctness, reliability, latency/resource cost, completion, and verification.
 Only evidence-positive, versioned cognitive changes are promoted.
+
+Accepted implementation: deterministic bounded strategy selection and complex
+phase decomposition; provenance/contradiction-aware bounded evidence selection;
+local SQLite experience and versioned skill records; qualitative failure and
+confidence handling; same-model raw-versus-Friday benchmark contracts across all
+required areas; and read-only conversation guidance. Existing tool, execution,
+approval, validation, isolation, audit, and Git authorities remain unchanged.
+The suite defines durable comparison artifacts but does not claim an unmeasured
+model-quality gain or pretrained-weight change.
 
 ## Deferred specialization — Creator Studio & Digital Media Intelligence
 

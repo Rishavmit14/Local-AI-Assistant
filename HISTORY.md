@@ -1,5 +1,16 @@
 # Project History
 
+## 2026-09-12 — Stage 21 cognitive architecture accepted
+
+Stage 21 added deterministic local cognitive-policy routing over the existing
+Friday boundaries: bounded FAST/DEEP strategies, complex-work phases, bounded
+provenance-aware evidence selection, critique guidance, local experience and
+versioned procedural-skill records, and a same-Qwen raw-versus-Friday benchmark
+contract covering the required domains. It grants no tool, mutation, permission,
+or execution authority, adds no general model, and does not claim an unmeasured
+quality improvement or pretrained-weight change. ADR 0024 and
+`docs/architecture/cognition.md` record the accepted boundary.
+
 ## 2026-09-11 — Local runtime credential governance clarified
 
 The owner durably authorized Codex to provision Friday's protected local-only
