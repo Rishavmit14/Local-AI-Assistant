@@ -1739,3 +1739,17 @@ behavioral memory integration; preserve voice interruption/stop, all existing
 security/approval/isolation/audit/rollback boundaries, local sovereignty, and
 the single sequential Qwen model. Do not begin broad remediation or independent
 Astra qualification until owner approval.
+
+## Stage 22 Slice 1 — conversational coherence foundation (2026-09-12)
+
+Implemented and qualified on the real local service: typed descriptive runtime
+capability projection grounded into Friday conversation, bounded active session
+context (16 turns / 12,000 characters), and a 60-second bounded sequential
+voice-follow-up window. The session remains distinct from governed durable
+memory; it clears on explicit stop, idle, or restart. Exact stop, strict wake,
+barge-in, interaction ownership, and recovery remain unchanged. Live evidence
+includes Career Forge truthful self-awareness, physical wake-once follow-up,
+exact physical stop leaving IDLE/zero session turns with healthy capture, and
+durable-memory retrieval/removal/integrity verification. Full baseline ten-turn
+qualification, natural memory capture, capability invocation routing, Practice
+Lab, desktop expansion, and broad UI work remain open.

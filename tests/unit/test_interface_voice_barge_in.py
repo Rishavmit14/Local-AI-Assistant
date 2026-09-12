@@ -570,14 +570,9 @@ def test_trusted_barge_in_reenters_existing_voice_path(
         ),
     ]
 
-    assert all(
-        call[
-            "system_prompt"
-        ]
-        == "Friday test"
-        for call
-        in llm.calls
-    )
+    assert llm.calls[0]["system_prompt"] == "Friday test"
+    assert llm.calls[1]["system_prompt"].startswith("Friday test")
+    assert "Active session history" in llm.calls[1]["system_prompt"]
 
     assert all(
         call[

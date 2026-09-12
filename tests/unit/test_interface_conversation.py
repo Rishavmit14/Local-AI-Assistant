@@ -2,6 +2,11 @@ import pytest
 
 from local_ai_assistant.cognition import CognitiveController
 from local_ai_assistant.interface.conversation import FridayConversationService
+from local_ai_assistant.interface.capabilities import (
+    CapabilityStatus,
+    FridayCapability,
+    FridayCapabilityRegistry,
+)
 from local_ai_assistant.interface.events import FridayEventType
 from local_ai_assistant.interface.runtime import FridayRuntime
 from local_ai_assistant.interface.states import FridayRuntimeState
@@ -231,3 +236,40 @@ def test_stream_completion_preserves_speaking_started_by_incremental_voice():
     ]
     assert len(completed) == 1
     assert completed[0].text == "First. Second."
+
+
+def test_active_session_context_is_bounded_and_shared_by_consecutive_turns():
+    runtime = FridayRuntime("bounded-session")
+    llm = FakeStreamingLLM(["first answer"])
+    service = FridayConversationService(llm, runtime)
+
+    assert "".join(service.stream_response("Explain gradients")) == "first answer"
+    llm.chunks = ["second answer"]
+    assert "".join(service.stream_response("What was the first idea?")) == "second answer"
+
+    second_prompt = llm.calls[1]["system_prompt"]
+    assert "Active session history" in second_prompt
+    assert "Owner: Explain gradients" in second_prompt
+    assert "Friday: first answer" in second_prompt
+    assert service.session.snapshot()["active"] is True
+    assert service.session.snapshot()["turn_count"] == 4
+
+
+def test_capability_context_truthfully_grounds_conversation_without_authority():
+    registry = FridayCapabilityRegistry((
+        FridayCapability(
+            "career_forge", "Career Forge", CapabilityStatus.INTEGRATED,
+            True, True, True, "Career Forge panel", "Practice Lab is not installed",
+        ),
+    ))
+    runtime = FridayRuntime("capability-grounding")
+    llm = FakeStreamingLLM(["Career Forge is available through the panel."])
+    service = FridayConversationService(
+        llm, runtime, capability_context=registry.conversation_context,
+    )
+
+    assert "".join(service.stream_response("Do you have Career Forge?"))
+    prompt = llm.calls[0]["system_prompt"]
+    assert "Authoritative Friday capability state" in prompt
+    assert "Career Forge: integrated" in prompt
+    assert "Practice Lab is not installed" in prompt

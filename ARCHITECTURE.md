@@ -43,12 +43,23 @@ microphone -> Silero VAD -> Parakeet Full -> strict `Hey Friday`
                        Moonshine Medium
                               |
                               v
-pause wake -> Whisper -> local LLM -> Piper -> PipeWire -> resume wake
+pause wake -> bounded active session -> Whisper -> local LLM -> Piper -> PipeWire
+                                        | exact stop / bounded idle
+                                        v
+                                  clear session -> resume wake
 ```
 
 Parakeet and Moonshine run as persistent fail-closed workers. Request/protocol failures invalidate a worker before reuse so stale responses cannot contaminate later requests.
 
 Production Friday runs as the logged-in user's `systemd --user` service `friday-local-ai.service`. It has passed cold restart, controlled shutdown, live wake qualification, and full conversational turn qualification.
+
+### Stage 22 Slice 1 — conversational coherence foundation
+
+The presentation composition owns one typed, descriptive capability registry. It projects installed/integrated status, configuration, permission and live health without granting execution authority; conversation receives that projection as grounding, so it cannot truthfully invent or deny Friday's product surface.
+
+An active voice session owns a bounded in-process conversation record (at most 16 turns and 12,000 characters). Following a successful wake turn it keeps raw wake capture paused, permits sequential fresh follow-up captures for up to the configured 60-second idle period, and returns to wake only on exact explicit stop, deliberate close, error, or idle expiry. The session record is cleared on close/restart; it is not persistent memory. The existing interaction lease keeps one microphone owner, and Stage 12's strict wake, exact stop, barge-in, and recovery paths remain authoritative.
+
+Persistent memory remains a separately governed SQLite service. Conversation may read bounded retrieved records as labelled untrusted reference context, but model output and active-session turns cannot silently create or mutate durable memory.
 
 Production natural-language barge-in is accepted. Friday owns an ephemeral PipeWire WebRTC AEC graph using `monitor.mode=true`; the default physical speaker monitor is the echo reference, while the published `friday_aec_source` is captured explicitly by `FridayBargeInMonitor`. The wake path remains on the normal raw microphone and is paused during a conversational turn. The AEC session is created by the production wake bootstrap, owned by `FridayManagedWakeVoice`, and closed with the other managed voice resources.
 

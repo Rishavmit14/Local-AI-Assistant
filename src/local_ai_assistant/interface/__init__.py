@@ -2,6 +2,7 @@
 
 from .api import create_presentation_app
 from .conversation import FridayConversationService, StreamingLLM
+from .capabilities import CapabilityStatus, FridayCapability, FridayCapabilityRegistry
 from .events import FridayEventType, FridayRuntimeEvent
 from .interaction import (
     FridayInteractionCoordinator,
@@ -11,10 +12,16 @@ from .interaction import (
 from .runtime import FridayRuntime, InvalidRuntimeTransition
 from .service import FridayInterfaceService, RepositorySnapshot
 from .states import FridayRuntimeState
+from .session import ConversationTurn, FridayConversationSession
 from .voice_conversation import FridayVoiceConversationService, VoiceTranscriber
 
 __all__ = [
     "FridayConversationService",
+    "FridayConversationSession",
+    "FridayCapability",
+    "FridayCapabilityRegistry",
+    "CapabilityStatus",
+    "ConversationTurn",
     "FridayEventType",
     "FridayInterfaceService",
     "FridayInteractionCoordinator",

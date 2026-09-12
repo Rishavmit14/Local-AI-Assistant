@@ -86,7 +86,7 @@ function App() {
         <div className="system-item">
           <span className="system-key">SESSION</span>
           <span className="system-value">
-            {state.sessionId?.slice(0, 12) ?? "INITIALIZING"}
+            {state.sessionId ? `${state.sessionId.slice(0, 12)} · ${state.sessionActive ? "ACTIVE" : "WAITING"}` : "INITIALIZING"}
           </span>
         </div>
       </footer>

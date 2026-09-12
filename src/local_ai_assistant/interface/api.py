@@ -37,6 +37,7 @@ from local_ai_assistant.proactive import ProactiveEventEngine
 from local_ai_assistant.research import ResearchService
 
 from .conversation import FridayConversationService
+from .capabilities import FridayCapabilityRegistry
 from .interaction import FridayInteractionCoordinator
 from .runtime import FridayRuntime
 
@@ -147,6 +148,7 @@ def create_presentation_app(
     objective_execution_requests_per_minute: int = 30,
     proactive: ProactiveEventEngine | None = None,
     research: ResearchService | None = None,
+    capabilities: FridayCapabilityRegistry | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -192,7 +194,14 @@ def create_presentation_app(
         return {
             "session_id": runtime.session_id,
             "state": runtime.state.value,
+            "session": conversation.session.snapshot(),
         }
+
+    @app.get("/api/v1/capabilities")
+    def capability_state():
+        if capabilities is None:
+            raise HTTPException(status_code=404, detail="capability registry is unavailable")
+        return capabilities.to_dict()
 
     @app.get("/api/v1/voice/health")
     def wake_health():

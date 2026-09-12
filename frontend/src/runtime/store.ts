@@ -17,6 +17,7 @@ export type FridayConnectionState =
 
 export interface FridayRuntimeViewState {
   sessionId: string | null;
+  sessionActive: boolean;
   runtimeState: FridayRuntimeState;
   connectionState: FridayConnectionState;
   cursor: number;
@@ -31,6 +32,7 @@ type Listener = (state: FridayRuntimeViewState) => void;
 
 const DEFAULT_STATE: FridayRuntimeViewState = {
   sessionId: null,
+  sessionActive: false,
   runtimeState: "idle",
   connectionState: "disconnected",
   cursor: 0,
@@ -153,6 +155,7 @@ export class FridayRuntimeStore {
   private applySnapshot(snapshot: FridayRuntimeSnapshot): void {
     this.patch({
       sessionId: snapshot.session_id,
+      sessionActive: snapshot.session?.active ?? false,
       runtimeState: snapshot.state,
     });
   }

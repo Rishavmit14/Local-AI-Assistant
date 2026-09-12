@@ -16,7 +16,13 @@ The matcher uses Unicode NFKC, case folding, punctuation-to-space normalization,
 
 Parakeet and Moonshine run as persistent fail-closed subprocess workers. Request/protocol failures invalidate the worker before reuse so stale results cannot satisfy later requests.
 
-On wake: pause wake capture -> Whisper -> local LLM -> Piper -> PipeWire playback -> resume wake capture.
+Stage 12 accepted a one-turn wake lifecycle. Stage 22 Slice 1 extends it without replacing its components: on wake, capture pauses; a bounded active session runs the initial and sequential fresh follow-up turns; exact explicit stop, a deliberate close, failure, or the configured idle deadline clears that session and resumes wake capture.
+
+## Stage 22 Slice 1 — bounded active voice session
+
+`FridayWakeVoiceOrchestrator` remains the exclusive owner of wake/capture lifecycle. After a completed turn it opens one fresh raw-microphone follow-up capture at a time (default idle allowance: 60 seconds, configurable from 15 to 300 seconds). Wake remains paused throughout the active session, so the design does not introduce competing microphone readers. The session controller retains at most 16 turns / 12,000 characters for conversational grounding and clears them on close; it does not persist audio or a transcript.
+
+Exact `stop`, `friday stop`, and `hey friday stop` retain their accepted meaning. Trusted barge-in still stops Piper before its utterance becomes the next turn. Only a classifier-confirmed explicit stop closes the session immediately; an ASR near miss remains ordinary conversation rather than weakening the stop boundary.
 
 ## Deployment
 

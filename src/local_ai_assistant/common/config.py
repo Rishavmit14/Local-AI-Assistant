@@ -140,6 +140,7 @@ class WakeConfig:
 
     enabled: bool = False
     phrase: str = "hey friday"
+    session_idle_seconds: int = 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -343,6 +344,9 @@ class AppConfig:
                     False,
                 ),
                 phrase=wake_phrase,
+                session_idle_seconds=_integer(
+                    values, "LOCAL_AI_SESSION_IDLE_SECONDS", 60, minimum=15, maximum=300
+                ),
             ),
             execution=ExecutionConfig(
                 inspection_timeout_seconds=_integer(values, "LOCAL_AI_INSPECTION_TIMEOUT", 15),

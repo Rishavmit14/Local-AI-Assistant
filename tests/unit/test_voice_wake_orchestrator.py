@@ -309,6 +309,48 @@ def test_inline_wake_remainder_bypasses_original_utterance(
     assert result.response_text == "direct"
 
 
+def test_active_session_captures_follow_up_without_repeating_wake() -> None:
+    capture = FakeWakeCapture()
+
+    class InlineVoice(FakeVoice):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.closed = 0
+
+        def close_session(self):
+            self.closed += 1
+
+        def stream_text(self, text, **kwargs):
+            del text, kwargs
+            yield "first"
+
+    class SessionCapture:
+        def __init__(self):
+            self.items = [utterance(), None]
+            self.calls = 0
+
+        def capture_utterance(self):
+            self.calls += 1
+            return self.items.pop(0)
+
+    voice = InlineVoice(chunks=[" second"])
+    voice.capture = capture
+    session_capture = SessionCapture()
+    orchestrator = FridayWakeVoiceOrchestrator(
+        cast(object, capture), voice, session_follow_up_capture=cast(object, session_capture),
+    )
+
+    result = orchestrator.handle_wake_utterance(wake_event(remainder="start"))
+
+    assert result.response_text == "first second"
+    assert session_capture.calls == 2
+    assert voice.started == 3
+    assert voice.stop_reasons == ["voice_session_idle_timeout"]
+    assert voice.closed == 1
+    assert capture.pause_calls == 1
+    assert capture.resume_calls == 1
+
+
 def test_resume_occurs_when_voice_turn_fails(
 ) -> None:
 

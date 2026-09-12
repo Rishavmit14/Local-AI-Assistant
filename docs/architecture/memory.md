@@ -45,3 +45,9 @@ model output write memory. Direct owner capture is available through the local p
 API's complete-record `POST /api/v1/memory/remember` endpoint and read-back
 route; incomplete or malformed capture is rejected. This is an explicit input
 path, not natural-language intent inference.
+
+## Active-session context is not durable memory
+
+Stage 22 Slice 1 adds a bounded in-process conversation record for immediate follow-up context. It retains owner and Friday turns only during an active session (maximum 16 turns / 12,000 characters), is cleared on session close or process restart, and is never the frontend's sole source of truth. It is passed to the local model as conversation context, separately from retrieved memory.
+
+The durable-memory boundary is unchanged: retrieved records remain labelled untrusted reference material, and neither session turns nor arbitrary model output can mutate SQLite memory. Natural-language memory capture therefore remains a future explicit owner-intent design, not an implicit side effect.

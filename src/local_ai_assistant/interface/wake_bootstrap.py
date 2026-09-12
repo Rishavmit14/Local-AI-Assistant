@@ -282,6 +282,11 @@ class InstrumentedConversation:
         self.inner = inner
         self.telemetry = telemetry
 
+    @property
+    def session(self):
+        """Preserve the authoritative active-session boundary through telemetry."""
+        return self.inner.session
+
 
     def stream_response(
         self,
@@ -1014,9 +1019,8 @@ class FridayManagedWakeVoice:
 
         except BaseException as exc:
 
-            self.telemetry.mark(
-                "VOICE_THREAD_ERROR"
-            )
+            self.telemetry.mark("VOICE_THREAD_ERROR")
+            self.telemetry.mark(f"VOICE_THREAD_ERROR_TYPE {type(exc).__name__}")
 
             with self._lock:
 
@@ -1264,6 +1268,20 @@ def build_managed_wake_voice(
         )
     )
 
+    session_follow_up_capture = (
+        FridayOneShotFollowUpCapture(
+            capture=AlsaAudioCapture(config=WAKE_AUDIO_CONFIG),
+            segmenter_factory=lambda: (
+                UtteranceSegmenter(
+                    audio_config=WAKE_AUDIO_CONFIG,
+                    vad_config=WAKE_VAD_CONFIG,
+                    detector=SileroVad(audio_config=WAKE_AUDIO_CONFIG),
+                )
+            ),
+            max_wait_seconds=config.wake.session_idle_seconds,
+        )
+    )
+
 
     orchestrator = (
         FridayWakeVoiceOrchestrator(
@@ -1272,6 +1290,7 @@ def build_managed_wake_voice(
             follow_up_capture=(
                 follow_up_capture
             ),
+            session_follow_up_capture=session_follow_up_capture,
         )
     )
 

@@ -455,12 +455,25 @@ def test_voice_error_is_retained_and_microphone_resumes(
         "VOICE_THREAD_ERROR"
         in stages
     )
-
     assert (
         "WAKE_RESUMED"
         in stages
     )
 
+
+def test_instrumented_conversation_proxies_active_session() -> None:
+    from local_ai_assistant.interface.conversation import FridayConversationService
+    from local_ai_assistant.interface.runtime import FridayRuntime
+    from local_ai_assistant.interface.wake_bootstrap import InstrumentedConversation
+
+    class Llm:
+        def stream_chat(self, *_args, **_kwargs):
+            yield "ok"
+
+    inner = FridayConversationService(Llm(), FridayRuntime("instrumented-session"))
+    wrapped = InstrumentedConversation(inner, VoiceTurnTelemetry())
+
+    assert wrapped.session is inner.session
 
 def test_shutdown_cleans_workers_even_when_voice_thread_is_stuck(
 ):

@@ -1,5 +1,16 @@
 # Project History
 
+## 2026-09-12 — Stage 22 Slice 1 conversational coherence foundation accepted
+
+Friday now composes a typed descriptive capability registry, bounded active
+conversation context, and governed persistent-memory recall into its local
+conversation path. The voice lifecycle keeps wake capture paused through a
+bounded follow-up session and returns safely on exact stop, idle, or recovery;
+it retains Stage 12's strict wake, barge-in, and interaction ownership. Real
+local qualification proved truthful Career Forge awareness, contextual
+follow-up, exact-stop cleanup, and persistent-memory integrity without adding a
+model, cloud dependency, execution authority, or automatic durable-memory write.
+
 ## 2026-09-12 — Stage 21 cognitive architecture accepted
 
 Stage 21 added deterministic local cognitive-policy routing over the existing

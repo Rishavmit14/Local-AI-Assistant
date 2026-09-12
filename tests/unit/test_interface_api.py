@@ -12,6 +12,7 @@ from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
+from local_ai_assistant.interface.capabilities import CapabilityStatus, FridayCapability, FridayCapabilityRegistry
 from local_ai_assistant.interface.events import FridayEventType
 from local_ai_assistant.interface.interaction import FridayInteractionCoordinator
 from local_ai_assistant.interface.runtime import FridayRuntime
@@ -156,6 +157,26 @@ def test_voice_health_is_separate_from_http_liveness():
     assert disabled.get("/api/v1/voice/health").json() == {
         "enabled": False, "status": "disabled",
     }
+
+
+def test_runtime_session_and_capability_projection_are_read_only():
+    runtime = FridayRuntime("capability-projection")
+    conversation = FridayConversationService(FakeStreamingLLM(["ok"]), runtime)
+    registry = FridayCapabilityRegistry((
+        FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED,
+                         True, True, True, "panel", "Practice Lab is not installed"),
+    ))
+    client = TestClient(create_presentation_app(runtime, conversation, capabilities=registry))
+
+    state = client.get("/api/v1/runtime/state").json()
+    assert state["session"] == {
+        "active": False, "turn_count": 0, "context_characters": 0,
+        "max_turns": 16, "max_characters": 12000, "turns": [],
+    }
+    capability = client.get("/api/v1/capabilities").json()["capabilities"][0]
+    assert capability["key"] == "career_forge"
+    assert capability["status"] == "integrated"
+    assert capability["limitation"] == "Practice Lab is not installed"
 
 
 def test_memory_capture_requires_an_explicit_complete_owner_record(tmp_path):
@@ -642,6 +663,14 @@ def test_runtime_state_is_read_only_projection():
     assert response.json() == {
         "session_id": "session-api",
         "state": "thinking",
+        "session": {
+            "active": False,
+            "turn_count": 0,
+            "context_characters": 0,
+            "max_turns": 16,
+            "max_characters": 12000,
+            "turns": [],
+        },
     }
 
 
@@ -733,6 +762,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
     assert paths == {
         "/health",
         "/api/v1/runtime/state",
+        "/api/v1/capabilities",
         "/api/v1/voice/health",
         "/api/v1/interaction/state",
         "/api/v1/research/sources",

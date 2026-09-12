@@ -107,6 +107,7 @@ class FridayWakeVoiceOrchestrator:
         voice: VoiceConversationBoundary,
         *,
         follow_up_capture: FollowUpCaptureBoundary | None = None,
+        session_follow_up_capture: FollowUpCaptureBoundary | None = None,
     ) -> None:
 
         self.wake_capture = (
@@ -117,6 +118,7 @@ class FridayWakeVoiceOrchestrator:
         self.follow_up_capture = (
             follow_up_capture
         )
+        self.session_follow_up_capture = session_follow_up_capture
 
 
     def handle_wake_utterance(
@@ -151,6 +153,10 @@ class FridayWakeVoiceOrchestrator:
 
 
         try:
+
+            begin_session = getattr(self.voice, "begin_session", None)
+            if begin_session is not None:
+                begin_session()
 
             self.voice.start_listening()
 
@@ -230,11 +236,35 @@ class FridayWakeVoiceOrchestrator:
                     )
 
             response_parts: list[str] = []
-
             for chunk in chunks:
-                response_parts.append(
-                    chunk
-                )
+                response_parts.append(chunk)
+
+            # The raw wake stream remains paused for the complete active session,
+            # so only this one fresh follow-up reader can own the microphone.
+            while (
+                self.session_follow_up_capture is not None
+                and not getattr(self.voice, "active_session_closed", False)
+            ):
+                self.voice.start_listening()
+                follow_up = self.session_follow_up_capture.capture_utterance()
+                if follow_up is None:
+                    self.voice.stop_listening(reason="voice_session_idle_timeout")
+                    close_session = getattr(self.voice, "close_session", None)
+                    if close_session is not None:
+                        close_session()
+                    break
+                for chunk in self.voice.stream_utterance(
+                    follow_up,
+                    system_prompt=system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                ):
+                    response_parts.append(chunk)
+
+            if getattr(self.voice, "active_session_closed", False):
+                close_session = getattr(self.voice, "close_session", None)
+                if close_session is not None:
+                    close_session()
 
 
             return WakeVoiceTurnResult(

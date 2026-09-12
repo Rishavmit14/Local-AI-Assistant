@@ -52,6 +52,14 @@ export type FridayVoicePresentationSignal =
 export interface FridayRuntimeSnapshot {
   session_id: string;
   state: FridayRuntimeState;
+  session?: {
+    active: boolean;
+    turn_count: number;
+    context_characters: number;
+    max_turns: number;
+    max_characters: number;
+    turns: Array<{ role: string; text: string }>;
+  };
 }
 
 export interface FridayRuntimeEvent {

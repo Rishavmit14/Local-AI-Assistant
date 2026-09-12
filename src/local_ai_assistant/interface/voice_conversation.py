@@ -146,6 +146,22 @@ class FridayVoiceConversationService:
         self.barge_in_monitor = (
             barge_in_monitor
         )
+        self._explicit_session_close = False
+
+    def begin_session(self) -> None:
+        """Begin one wake-authorized session without changing microphone ownership."""
+        self._explicit_session_close = False
+
+    def close_session(self) -> None:
+        """Close the bounded context after a deliberate voice-session end."""
+        session = getattr(self.conversation, "session", None)
+        if session is not None:
+            session.close()
+
+    @property
+    def active_session_closed(self) -> bool:
+        """Whether exact stop explicitly closed the voice conversation session."""
+        return self._explicit_session_close
 
     def start_listening(
         self,
@@ -199,6 +215,8 @@ class FridayVoiceConversationService:
             FridayRuntimeState.IDLE,
             reason=reason,
         )
+        if reason in {"voice_session_idle_timeout", "voice_explicit_stop"}:
+            self.close_session()
 
     def speak_ready_acknowledgement(self) -> None:
         """Speak the bare-wake cue before opening fresh microphone capture."""
@@ -238,6 +256,8 @@ class FridayVoiceConversationService:
             FridayRuntimeState.IDLE,
             reason="voice_explicit_stop",
         )
+        self.close_session()
+        self._explicit_session_close = True
 
         return True
 

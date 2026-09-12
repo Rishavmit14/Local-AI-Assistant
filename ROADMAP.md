@@ -667,7 +667,7 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
-## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: authority installation and product-reality audit**)
+## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 1 conversational coherence foundation accepted**)
 
 Stages 0–21 remain accepted historical engineering evidence. Their accepted
 backend/security/recovery scope is not rewritten because owner-facing product
@@ -690,6 +690,13 @@ Work proceeds in this dependency order:
 4. **Product reality qualification:** execute baseline E2E flows, repair
    evidence-backed failures, run the stable full regression, and freeze a
    release candidate before any independent Astra qualification.
+
+Slice 1 accepted the narrow foundation only: a truthful typed capability
+projection, bounded active voice-session continuity, bounded active-session
+context, and governed persistent-memory recall through normal conversation. It
+does not accept desktop expansion, Practice Lab, advanced Career Forge tutoring,
+or broad workspace redesign. Further owner-facing qualification remains required
+before the product is generally qualified.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

@@ -39,6 +39,7 @@ from local_ai_assistant.research import ResearchService
 from local_ai_assistant.roles import Role, RoleOrchestrator
 
 from .api import create_presentation_app
+from .capabilities import CapabilityStatus, FridayCapability, FridayCapabilityRegistry
 from .conversation import FridayConversationService
 from .events import FridayEventType
 from .interaction import FridayInteractionCoordinator
@@ -248,6 +249,27 @@ def build_presentation_components(
         ),
     )
 
+    def voice_capability_health() -> bool | None:
+        if wake_voice is None:
+            return False
+        health = wake_voice.health()
+        return bool(health.get("capture_thread_alive")) and health.get("status") == "running"
+
+    capabilities = FridayCapabilityRegistry((
+        FridayCapability("conversation", "Conversation", CapabilityStatus.INTEGRATED, True, True, True, "voice and text presentation", "active session is bounded and non-persistent"),
+        FridayCapability("voice", "Voice", CapabilityStatus.INTEGRATED, resolved_config.wake.enabled, True, resolved_config.wake.enabled, "Hey Friday when wake is configured", "requires the local microphone and wake workers"),
+        FridayCapability("persistent_memory", "Persistent memory", CapabilityStatus.INTEGRATED, True, True, True, "conversation retrieval and explicit memory controls", "Friday cannot silently write durable memory"),
+        FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED, True, True, True, "Career Forge panel and bounded local API", "interactive Practice Lab and advanced tutoring surfaces are not installed"),
+        FridayCapability("perception", "Screen perception", CapabilityStatus.IMPLEMENTED, True, True, True, "explicit capture API and perception panel", "not attached to normal conversation context"),
+        FridayCapability("ocr", "OCR", CapabilityStatus.IMPLEMENTED, resolved_config.ocr.enabled, True, resolved_config.ocr.enabled, "explicit captured-screen API", "OCR results are not attached to normal conversation context"),
+        FridayCapability("desktop_control", "Desktop control", CapabilityStatus.IMPLEMENTED, True, True, True, "allowlisted proposal/approval API", "only configured allowlisted actions; no general keyboard or mouse control"),
+        FridayCapability("objectives", "Guarded objectives", CapabilityStatus.INTEGRATED, True, execution_auth is not None, True, "objective console and bounded API", "execution retains authenticated exact-plan approval and isolation gates"),
+        FridayCapability("proactive", "Proactive notifications", CapabilityStatus.IMPLEMENTED, resolved_config.proactive.enabled, True, resolved_config.proactive.enabled, "configured local watches", "notifications only; no action authority"),
+        FridayCapability("research", "Local research ledger", CapabilityStatus.IMPLEMENTED, True, True, True, "bounded local research API", "owner-provided sources only; no automatic web research"),
+        FridayCapability("code_intelligence", "Repository and code intelligence", CapabilityStatus.IMPLEMENTED, True, True, True, "CLI and guarded engineering paths", "not yet a normal conversation capability"),
+        FridayCapability("github", "GitHub integration", CapabilityStatus.IMPLEMENTED, resolved_config.gateway.enabled, execution_auth is not None, resolved_config.gateway.enabled, "authenticated gateway", "not a general conversation route and publication remains review-gated"),
+    ), health={"voice": voice_capability_health})
+
     conversation = FridayConversationService(
         llm=roles.client(Role.CONVERSATION),
         runtime=runtime,
@@ -255,6 +277,7 @@ def build_presentation_components(
             f"[{item.kind}] {item.subject}: {item.content} (provenance={item.provenance}, confidence={item.confidence:g})"
             for item in memory.search(prompt, limit=5)
         ),
+        capability_context=capabilities.conversation_context,
         cognition=cognition,
     )
 
@@ -286,6 +309,7 @@ def build_presentation_components(
         objective_execution_requests_per_minute=resolved_config.gateway.request_rate,
         proactive=proactive,
         research=research,
+        capabilities=capabilities,
         on_startup=(proactive_runtime.start if resolved_config.proactive.enabled else None),
         on_shutdown=lambda: (proactive_runtime.close(), gateway.close(), execution.close()),
     )

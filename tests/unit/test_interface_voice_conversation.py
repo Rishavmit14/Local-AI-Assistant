@@ -528,3 +528,18 @@ def test_stop_listening_returns_to_idle_and_emits_reason() -> None:
     assert stopped[0].metadata == {
         "reason": "bare_wake_follow_up_timeout",
     }
+
+
+def test_exact_stop_closes_active_session_without_a_response() -> None:
+    voice, _, llm, runtime = make_service(transcript="Friday, stop")
+    voice.begin_session()
+    voice.conversation.session.begin()
+    voice.conversation.session.append("Owner", "Earlier context")
+    voice.start_listening()
+
+    assert list(voice.stream_utterance(make_utterance())) == []
+    assert runtime.state is FridayRuntimeState.IDLE
+    assert voice.active_session_closed is True
+    assert voice.conversation.session.snapshot()["active"] is False
+    assert voice.conversation.session.snapshot()["turn_count"] == 0
+    assert llm.calls == []
