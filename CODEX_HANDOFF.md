@@ -1811,4 +1811,5 @@ history. Real local text-path qualification covered all progress questions and a
 controlled restart recovered the original active mission/evidence without old
 voice-session continuity. Practice Lab, retention automation, screen-aware
 tutoring, broad UI/desktop work, interview integration, model expansion, and
-Astra remain out of scope. Recovery SHA: pending final acceptance.
+Astra remain out of scope. The accepted recovery SHA is the published
+stage-22/product-integration and main ref for this checkpoint.
