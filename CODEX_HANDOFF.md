@@ -1693,7 +1693,7 @@ workers passed. Commit/push this candidate, record its SHA here, then begin
 Stage 18 discovery on a new `stage-18/` branch. The accepted implementation
 recovery checkpoint is `fc7083925e46f4311edf6296739395d8bc2cb12e`.
 
-## Stage 18 — proactive event and automation candidate (2026-09-12)
+## Stage 18 — proactive event and automation accepted (2026-09-12)
 
 Stage 18 is complete locally on `stage-18/proactive-event-automation`. A
 separate `proactive` SQLite engine owns typed local watches, durable events and
@@ -1707,5 +1707,8 @@ APIs. It cannot create objectives, approve, execute, mutate, or control the
 desktop. Full Python/repository verification passed 819 tests, frontend
 lint/26 tests/build passed, and a controlled live restart proved scheduled
 delivery and acknowledgement; the qualification watch was disabled afterward.
-Commit/push this candidate and record the exact remote recovery SHA, then begin
-Stage 19 on a new stage branch.
+The accepted implementation recovery checkpoint is
+`e3ae649ee2cc44f1909b7fbb363c8e0625b3e3e2`: local and remote `main` and
+`stage-18/proactive-event-automation` matched it before this documentation
+checkpoint. Push this documentation checkpoint to both refs, verify exact
+remote recovery, then begin Stage 19 on a new stage branch.
