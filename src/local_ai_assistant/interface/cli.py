@@ -40,6 +40,7 @@ from local_ai_assistant.roles import Role, RoleOrchestrator
 
 from .api import create_presentation_app
 from .capabilities import CapabilityStatus, FridayCapability, FridayCapabilityRegistry
+from .capability_routing import FridayConversationCapabilityRouter
 from .conversation import FridayConversationService
 from .events import FridayEventType
 from .interaction import FridayInteractionCoordinator
@@ -260,6 +261,7 @@ def build_presentation_components(
         FridayCapability("voice", "Voice", CapabilityStatus.INTEGRATED, resolved_config.wake.enabled, True, resolved_config.wake.enabled, "Hey Friday when wake is configured", "requires the local microphone and wake workers"),
         FridayCapability("persistent_memory", "Persistent memory", CapabilityStatus.INTEGRATED, True, True, True, "conversation retrieval and explicit memory controls", "Friday cannot silently write durable memory"),
         FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED, True, True, True, "Career Forge panel and bounded local API", "interactive Practice Lab and advanced tutoring surfaces are not installed"),
+        FridayCapability("practice_lab", "Practice Lab", CapabilityStatus.ABSENT, False, False, False, "no owner route", "not installed"),
         FridayCapability("perception", "Screen perception", CapabilityStatus.IMPLEMENTED, True, True, True, "explicit capture API and perception panel", "not attached to normal conversation context"),
         FridayCapability("ocr", "OCR", CapabilityStatus.IMPLEMENTED, resolved_config.ocr.enabled, True, resolved_config.ocr.enabled, "explicit captured-screen API", "OCR results are not attached to normal conversation context"),
         FridayCapability("desktop_control", "Desktop control", CapabilityStatus.IMPLEMENTED, True, True, True, "allowlisted proposal/approval API", "only configured allowlisted actions; no general keyboard or mouse control"),
@@ -270,6 +272,7 @@ def build_presentation_components(
         FridayCapability("github", "GitHub integration", CapabilityStatus.IMPLEMENTED, resolved_config.gateway.enabled, execution_auth is not None, resolved_config.gateway.enabled, "authenticated gateway", "not a general conversation route and publication remains review-gated"),
     ), health={"voice": voice_capability_health})
 
+    capability_router = FridayConversationCapabilityRouter(capabilities, career_forge=career_forge, memory=memory)
     conversation = FridayConversationService(
         llm=roles.client(Role.CONVERSATION),
         runtime=runtime,
@@ -279,6 +282,7 @@ def build_presentation_components(
         ),
         capability_context=capabilities.conversation_context,
         cognition=cognition,
+        capability_router=capability_router,
     )
 
     interactions = FridayInteractionCoordinator()

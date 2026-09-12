@@ -116,6 +116,20 @@ interaction ownership. It supplies the active mission brief as bounded context
 and can persist the response as assistance only after an explicit level choice.
 The model receives no direct Learner Twin mutation capability.
 
+## Conversation capability handoff
+
+Stage 22 Slice 2 places one deterministic, typed conversation-capability router
+inside Friday's existing conversation service. The descriptive capability registry
+is consulted before an adapter is selected; it remains unable to grant authority.
+Only explicitly composed adapters may run. The first adapter is Career Forge:
+information requests project the actual Learner Twin/mission state, while owner
+invocations can open the existing apprenticeship context, begin the
+dependency-ready canonical mission for an explicit teaching request, resume the
+persisted active mission, or select an existing tutor mode. The handoff is
+temporary active-session context and keeps one Friday identity. It calls neither
+shell, desktop, Git, evidence, mastery, nor publication authority; model output
+cannot alter Learner Twin state.
+
 The initial mission catalog is deterministic and local. It supplies a specific
 Python verification mission and safe structured fallback briefs for each later
 dependency-ready competency; model-generated adaptation is not required to start

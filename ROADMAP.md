@@ -667,7 +667,7 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
-## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 1 conversational coherence foundation accepted**)
+## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 2 capability routing and Career Forge handoff accepted**)
 
 Stages 0–21 remain accepted historical engineering evidence. Their accepted
 backend/security/recovery scope is not rewritten because owner-facing product
@@ -697,6 +697,17 @@ context, and governed persistent-memory recall through normal conversation. It
 does not accept desktop expansion, Practice Lab, advanced Career Forge tutoring,
 or broad workspace redesign. Further owner-facing qualification remains required
 before the product is generally qualified.
+
+Slice 2 adds one typed, deterministic conversation-to-capability router. Its
+registry remains descriptive; only explicitly composed adapters may invoke
+existing authority. The first adapter connects Career Forge information,
+canonical mission start/resume, and bounded TutorMode handoff to Friday's active
+conversation without creating a second agent or allowing model-driven Learner
+Twin mutation. A narrow explicit owner memory form may persist through the
+existing governed memory service; ambiguity makes no change. Practice Lab,
+screen-aware tutoring, broad desktop routing, and frontend expansion remain out
+of this slice. Focused/affected tests, repository verification, frontend gates,
+real text memory restart, and physical wake/alias/stop qualification passed.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

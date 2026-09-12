@@ -58,3 +58,12 @@ prompt is immediate; active-session history is primary for “our discussion,”
 for explicitly retained long-term information. An empty durable retrieval cannot
 negate available active-session evidence, and active evidence must never be
 described as permanent memory.
+
+Stage 22 Slice 2 additionally accepts a deliberately narrow explicit owner
+conversation form: `Friday, remember that my <subject> is <value>`. The typed
+router writes this only through `FridayMemoryService` with
+`owner_explicit_conversation` provenance and full confidence. Natural wording
+outside that unambiguous form receives clarification without a write. Recall is
+read-only, and forget selects exactly one matching governed record or makes no
+change. This route does not allow model output to become memory and does not
+merge durable records with active-session context.

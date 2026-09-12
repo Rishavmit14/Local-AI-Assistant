@@ -7,11 +7,11 @@ from typing import Protocol
 
 from local_ai_assistant.cognition import CognitiveController
 
+from .capability_routing import FridayConversationCapabilityRouter
 from .events import FridayEventType
 from .runtime import FridayRuntime
 from .session import FridayConversationSession
 from .states import FridayRuntimeState
-
 
 _CONTEXT_EVIDENCE_POLICY = """Conversation evidence policy:
 - The current owner prompt is the immediate request.
@@ -45,6 +45,7 @@ class FridayConversationService:
         capability_context: Callable[[], str] | None = None,
         session: FridayConversationSession | None = None,
         cognition: CognitiveController | None = None,
+        capability_router: FridayConversationCapabilityRouter | None = None,
     ) -> None:
         self.llm = llm
         self.runtime = runtime
@@ -52,6 +53,7 @@ class FridayConversationService:
         self.capability_context = capability_context
         self.session = session or FridayConversationSession()
         self.cognition = cognition
+        self.capability_router = capability_router
 
     def stream_response(
         self,
@@ -74,6 +76,9 @@ class FridayConversationService:
                 reason="conversation_ready",
             )
 
+        route = self.capability_router.route(prompt) if self.capability_router else None
+        if route is not None and route.mode is not None and route.system_context is not None:
+            self.session.set_capability_mode(route.mode, route.system_context)
         prior_context = self.session.prior_context()
         context = self.memory_context(prompt) if self.memory_context else ""
         capabilities = self.capability_context() if self.capability_context else ""
@@ -94,6 +99,11 @@ class FridayConversationService:
             )
         if capabilities:
             system_prompt += "\n\n" + capabilities
+        active_capability_context = self.session.capability_context()
+        if active_capability_context:
+            system_prompt += "\n\nActive capability handoff (temporary session context, not authority):\n" + active_capability_context
+        if route is not None and route.system_context is not None:
+            system_prompt += "\n\nCurrent capability routing context:\n" + route.system_context
 
         self.session.begin()
         self.session.append("Owner", prompt)
@@ -116,12 +126,17 @@ class FridayConversationService:
         parts: list[str] = []
 
         try:
-            for chunk in self.llm.stream_chat(
-                prompt,
-                system_prompt=system_prompt,
-                temperature=temperature,
-                max_tokens=max_tokens,
-            ):
+            source = (
+                iter((route.response,))
+                if route is not None and route.response is not None
+                else self.llm.stream_chat(
+                    prompt,
+                    system_prompt=system_prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            )
+            for chunk in source:
                 if not chunk:
                     continue
 

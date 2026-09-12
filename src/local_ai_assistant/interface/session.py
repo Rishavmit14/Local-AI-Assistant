@@ -22,6 +22,8 @@ class FridayConversationSession:
         self.max_characters = max_characters
         self._turns: list[ConversationTurn] = []
         self._active = False
+        self._capability_mode: str | None = None
+        self._capability_context: str | None = None
         self._lock = Lock()
 
     def begin(self) -> None:
@@ -32,6 +34,20 @@ class FridayConversationSession:
         with self._lock:
             self._active = False
             self._turns.clear()
+            self._capability_mode = None
+            self._capability_context = None
+
+    def set_capability_mode(self, mode: str, context: str) -> None:
+        """Retain only bounded, non-authoritative active-session mode context."""
+        if not mode.strip() or not context.strip():
+            raise ValueError("capability mode and context must not be empty")
+        with self._lock:
+            self._capability_mode = mode.strip()[:160]
+            self._capability_context = context.strip()[:8_000]
+
+    def capability_context(self) -> str:
+        with self._lock:
+            return self._capability_context or ""
 
     def prior_context(self) -> str:
         with self._lock:

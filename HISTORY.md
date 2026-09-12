@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-12 — Stage 22 Slice 2 capability routing accepted
+
+Friday now has one typed deterministic conversation-capability router at its
+existing conversation boundary. It consults the descriptive registry and calls
+only explicitly composed adapters. The first Career Forge adapter projects
+actual Learner Twin state and hands normal Friday conversation to canonical
+mission start/resume and bounded tutor modes without model mutation authority.
+A narrow explicit owner-memory route preserves existing provenance and deletion
+governance. Practice Lab and all broad desktop/UI work remain absent/out of
+scope. Focused/affected tests, repository verification, frontend gates, real
+text memory restart, and physical wake/alias/stop qualification passed.
+
 ## 2026-09-12 — Slice 1 current-discussion memory repair accepted
 
 Owner voice qualification exposed a grounding defect: the active session held a

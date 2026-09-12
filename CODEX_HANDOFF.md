@@ -1765,3 +1765,17 @@ descriptive capability state. It changes no persistence/mutation authority.
 Focused tests and real Qwen text/physical voice qualification passed; physical
 exact stop left IDLE with zero session turns and healthy capture. Do not begin
 Slice 2 until this repair is published and remotely recoverable.
+
+## Stage 22 Slice 2 — typed capability routing and Career Forge handoff (2026-09-12)
+
+Accepted Slice 2 adds one deterministic conversation-capability router at the
+existing Friday boundary. It consults the descriptive registry then dispatches
+only explicitly composed adapters. Career Forge information/open, Learner Twin
+status, canonical mission resume/teach handoff, and bounded TutorMode context
+now share one Friday session; the model cannot mutate learner state. The narrow
+memory adapter accepts only `remember that my <subject> is <value>`, preserves
+owner provenance, and uses governed recall/forget. Practice Lab remains ABSENT.
+Known wake-ASR variants for Career Forge are bounded aliases, not fuzzy tool
+matching. Focused/affected tests, repository/frontend gates, real text memory
+restart, and physical wake/alias/stop passed. Do not begin Practice Lab, broad
+desktop/UI work, multi-model work, or Astra qualification without approval.
