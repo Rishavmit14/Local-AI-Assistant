@@ -774,3 +774,11 @@ Full Python/repository verification passed 819 tests, frontend lint/26 tests and
 production build passed, and one controlled live restart proved scheduled local
 delivery and loopback acknowledgement before disabling the qualification watch.
 Stage 19 is next.
+
+## 2026-09-12 — Stage 19 role orchestration accepted
+
+Friday now routes conversation, planning, coding, debugging, test generation,
+and review through typed prompt-only clients over one serialized local Qwen
+model. Roles gain no tools, credentials, approval, mutation, desktop, or network
+authority. Full verification passed 822 tests, frontend gates passed, and a live
+role-routed local conversation qualified after a controlled service restart.

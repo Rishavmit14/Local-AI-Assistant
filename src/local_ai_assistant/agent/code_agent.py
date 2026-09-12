@@ -51,6 +51,7 @@ from local_ai_assistant.planning.patch_scope import (
     validate_patch_scope,
     worktree_diff,
 )
+from local_ai_assistant.roles import Role, RoleOrchestrator
 from local_ai_assistant.validation.decision import decide_final
 from local_ai_assistant.validation.errors import TestGenerationError, ValidationIntelligenceError
 from local_ai_assistant.validation.models import DecisionStatus, ValidationReport
@@ -290,6 +291,7 @@ def run_intelligent_validation(
     *,
     context: ToolContext | None = None,
     max_repairs: int = 0,
+    roles: RoleOrchestrator | None = None,
 ) -> tuple[bool, str, str]:
     """Run targeted checks, bounded repair, final checks, and review in that order."""
     _mark_validation_started(config, artifact.plan.task_id)
@@ -326,7 +328,7 @@ def run_intelligent_validation(
         index_prefix=index_prefix,
     )
     repair_engine = BoundedRepairEngine(
-        rag.llm,
+        roles.client(Role.DEBUGGER) if roles else rag.llm,
         scope_guard_from_plan(artifact.plan),
         symbols=tuple(rag.symbol_index.symbols),
         index_prefix=index_prefix,
@@ -414,7 +416,7 @@ def run_intelligent_validation(
             # No diff has no model-review surface. Keep deterministic review
             # and exact approved validation, but avoid needless local-model
             # work for report-only tasks.
-            model=None if report_only else rag.llm,
+            model=None if report_only else (roles.client(Role.REVIEWER) if roles else rag.llm),
             symbols=tuple(rag.symbol_index.symbols),
             index_prefix=index_prefix,
         )
@@ -475,12 +477,13 @@ def prepare_generated_test(
     context: ToolContext,
     *,
     tdd: bool,
+    roles: RoleOrchestrator | None = None,
 ) -> tuple[bool, str]:
     """Generate/apply an approved test mutation and optionally prove a meaningful RED phase."""
     evidence = rag.build_context(rag.retrieve(artifact.plan.original_request))[:12_000]
     try:
         generated = generate_test_patch(
-            rag.llm,
+            roles.client(Role.TESTER) if roles else rag.llm,
             artifact.plan,
             context.policy,
             evidence,
@@ -1849,11 +1852,12 @@ def main(argv: list[str] | None = None):
     print("Refreshing repository index before patch generation...")
 
     rag.reindex()
+    roles = RoleOrchestrator(rag.llm)
 
     planner = PlannerService(
         repo,
         rag.symbol_index,
-        rag.llm,
+        roles.client(Role.PLANNER),
         config.paths.code_index_dir / "plans" / args.repo,
         getattr(rag, "retrieve", None),
     )
@@ -1920,7 +1924,7 @@ def main(argv: list[str] | None = None):
                 args.approve_risk,
             )
             result = ExecutionLoop(
-                rag.llm,
+                roles.client(Role.CODER),
                 default_registry(config.execution),
                 context,
                 LoopLimits(
@@ -2056,6 +2060,7 @@ def main(argv: list[str] | None = None):
                 config,
                 context,
                 tdd=args.tdd,
+                roles=roles,
             )
             print(generated_output)
             if not generated_ok:
@@ -2105,7 +2110,7 @@ def main(argv: list[str] | None = None):
                 sys.exit(1)
         try:
             result = ExecutionLoop(
-                rag.llm,
+                roles.client(Role.CODER),
                 default_registry(config.execution),
                 context,
                 LoopLimits(
@@ -2195,6 +2200,7 @@ def main(argv: list[str] | None = None):
                 max_repairs=(
                     args.max_repairs if args.max_repairs is not None else limits.max_repairs
                 ),
+                roles=roles,
             )
         cancelled = cancelled_before_validation or _cancel_requested(
             config, artifact.plan.task_id

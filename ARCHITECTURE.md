@@ -220,6 +220,13 @@ is notification: no watch can plan, approve, execute, mutate Git/files, drive
 the desktop, or grant authority. See `docs/architecture/proactive-events.md`
 and ADR 0021.
 
+Stage 19 adds a typed, prompt-only local role router over the existing sole Qwen
+client. Conversation, planning, coding, debugging, testing, review, retrieval,
+vision, reasoning, and security roles are sequential contexts, never privileged
+agents. They cannot select another model or bypass task, tool, approval,
+validation, isolation, Git, desktop, or audit policy. See
+`docs/architecture/role-orchestration.md` and ADR 0022.
+
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as
 UNVERIFIED, and a mission retains exact resume and assistance-bearing evidence.

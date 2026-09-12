@@ -367,13 +367,18 @@ through bounded loopback read/ack APIs. Full Python/repository verification
 (819 tests), frontend lint/26 tests/build, and a controlled live service restart
 with scheduled delivery/acknowledgement passed. Stage 19 is next.
 
-## Stage 19 — Agent / Role Orchestration (**Planned**)
+## Stage 19 — Agent / Role Orchestration (**Accepted**)
 
 Keep one user-facing Friday while internally routing conversational, reasoning,
 coding, vision, retrieval, planner, coder, reviewer, debugger, test, and security
 roles. Roles use sequential invocations of the current sole general-purpose Qwen
 model unless later evidence qualifies another model; specialized components gain
 no implicit extra privileges.
+
+Typed prompt-only role clients serialize use of one local Qwen model. Conversation,
+planning, coding, debugging, test generation, and review retain their existing
+authority boundaries. Full verification passed 822 tests; frontend gates and a
+controlled live role-routed conversation passed. Stage 20 is next.
 
 ## Stage 20 — Self-Learning / Research Engine (**Planned**)
 

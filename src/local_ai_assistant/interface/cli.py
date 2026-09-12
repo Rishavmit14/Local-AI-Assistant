@@ -34,6 +34,7 @@ from local_ai_assistant.perception import (
 from local_ai_assistant.planning.models import plan_approval_token
 from local_ai_assistant.planning.service import PlannerService
 from local_ai_assistant.proactive import EventSource, ProactiveEventEngine, ProactiveRuntime, Watch
+from local_ai_assistant.roles import Role, RoleOrchestrator
 
 from .api import create_presentation_app
 from .conversation import FridayConversationService
@@ -74,6 +75,7 @@ def build_presentation_components(
     )
 
     llm = LocalLLM(config=resolved_config)
+    roles = RoleOrchestrator(llm)
     memory = FridayMemoryService(
         resolved_config.paths.memory_db,
         embedding_model=resolved_config.embedding.model,
@@ -114,7 +116,7 @@ def build_presentation_components(
         return PlannerService(
             repository,
             rag.symbol_index,
-            rag.llm,
+            roles.client(Role.PLANNER),
             resolved_config.paths.code_index_dir / "plans",
             rag.retrieve,
         )
@@ -243,7 +245,7 @@ def build_presentation_components(
     )
 
     conversation = FridayConversationService(
-        llm=llm,
+        llm=roles.client(Role.CONVERSATION),
         runtime=runtime,
         memory_context=lambda prompt: "\n".join(
             f"[{item.kind}] {item.subject}: {item.content} (provenance={item.provenance}, confidence={item.confidence:g})"
