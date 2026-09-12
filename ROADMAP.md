@@ -380,9 +380,15 @@ planning, coding, debugging, test generation, and review retain their existing
 authority boundaries. Full verification passed 822 tests; frontend gates and a
 controlled live role-routed conversation passed. Stage 20 is next.
 
-## Stage 20 — Self-Learning / Research Engine (**Planned**)
+## Stage 20 — Self-Learning / Research Engine (**Accepted**)
 
 Add trusted-source collection, provenance, domain indexing, knowledge-gap identification, research plans, synthesis, curriculum generation, teaching/evaluation, and refresh/versioning. This does not mean silently modifying model weights.
+
+The accepted local research ledger stores owner-provided versioned sources with
+provenance and content hashes, supports bounded source collection/synthesis,
+domain gaps, transparent curriculum status, and evidence-term evaluation. It
+does not fetch externally or modify model weights. Full Python/repository
+verification passed 824 tests. Stage 21 is next.
 
 ## Deferred specialization — Market Intelligence & Adaptive Trading Research
 

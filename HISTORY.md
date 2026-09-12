@@ -775,6 +775,14 @@ production build passed, and one controlled live restart proved scheduled local
 delivery and loopback acknowledgement before disabling the qualification watch.
 Stage 19 is next.
 
+## 2026-09-12 — Stage 20 local research accepted
+
+Friday gained a local provenance-bearing research ledger with versioned
+owner-provided sources, evidence synthesis, knowledge-gap detection, transparent
+curriculum sequencing, and deterministic evidence-term evaluation. It does not
+fetch external data, modify model weights, or grant execution authority. Full
+Python/repository verification passed 824 tests.
+
 ## 2026-09-12 — Stage 19 role orchestration accepted
 
 Friday now routes conversation, planning, coding, debugging, test generation,

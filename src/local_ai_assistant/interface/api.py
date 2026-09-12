@@ -34,6 +34,7 @@ from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
 from local_ai_assistant.proactive import ProactiveEventEngine
+from local_ai_assistant.research import ResearchService
 
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
@@ -145,6 +146,7 @@ def create_presentation_app(
     objective_execution_auth: GatewayAuth | None = None,
     objective_execution_requests_per_minute: int = 30,
     proactive: ProactiveEventEngine | None = None,
+    research: ResearchService | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -229,6 +231,37 @@ def create_presentation_app(
         if proactive is None:
             raise HTTPException(status_code=404, detail="proactive events are unavailable")
         return proactive
+
+    def owner_research() -> ResearchService:
+        if research is None:
+            raise HTTPException(status_code=404, detail="local research is unavailable")
+        return research
+
+    @app.get("/api/v1/research/sources")
+    def research_sources(domain: str | None = None, limit: int = 20):
+        try:
+            return {"sources": [asdict(item) for item in owner_research().sources(domain, limit=limit)]}
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/v1/research/sources")
+    async def collect_research_source(request: Request):
+        try:
+            body = await request.json()
+            if not isinstance(body, dict):
+                raise ValueError("research source object is required")
+            item = owner_research().collect(
+                str(body.get("domain", "")), str(body.get("title", "")),
+                str(body.get("content", "")), str(body.get("provenance", "")),
+                version=str(body.get("version", "1")),
+            )
+            return asdict(item)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/api/v1/research/synthesis")
+    def research_synthesis(domain: str, question: str):
+        return {"synthesis": owner_research().synthesis(domain, question)}
 
     @app.get("/api/v1/proactive/notifications")
     def proactive_notifications(limit: int = 20, include_acknowledged: bool = False):

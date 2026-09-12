@@ -88,6 +88,7 @@ class PathConfig:
     desktop_control_db: Path = PROJECT_ROOT / "var/desktop-control/actions.sqlite3"
     autonomy_db: Path = PROJECT_ROOT / "var/autonomy/objectives.sqlite3"
     proactive_db: Path = PROJECT_ROOT / "var/proactive/events.sqlite3"
+    research_db: Path = PROJECT_ROOT / "var/research/knowledge.sqlite3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,6 +258,7 @@ class AppConfig:
             desktop_control_db=_path(values.get("LOCAL_AI_DESKTOP_CONTROL_DB", str(var_dir / "desktop-control/actions.sqlite3"))),
             autonomy_db=_path(values.get("LOCAL_AI_AUTONOMY_DB", str(var_dir / "autonomy/objectives.sqlite3"))),
             proactive_db=_path(values.get("LOCAL_AI_PROACTIVE_DB", str(var_dir / "proactive/events.sqlite3"))),
+            research_db=_path(values.get("LOCAL_AI_RESEARCH_DB", str(var_dir / "research/knowledge.sqlite3"))),
         )
         document = DocumentRetrievalConfig(
             chunk_size=_integer(values, "LOCAL_AI_RAG_CHUNK_SIZE", 450),

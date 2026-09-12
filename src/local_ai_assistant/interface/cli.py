@@ -34,6 +34,7 @@ from local_ai_assistant.perception import (
 from local_ai_assistant.planning.models import plan_approval_token
 from local_ai_assistant.planning.service import PlannerService
 from local_ai_assistant.proactive import EventSource, ProactiveEventEngine, ProactiveRuntime, Watch
+from local_ai_assistant.research import ResearchService
 from local_ai_assistant.roles import Role, RoleOrchestrator
 
 from .api import create_presentation_app
@@ -76,6 +77,7 @@ def build_presentation_components(
 
     llm = LocalLLM(config=resolved_config)
     roles = RoleOrchestrator(llm)
+    research = ResearchService(resolved_config.paths.research_db)
     memory = FridayMemoryService(
         resolved_config.paths.memory_db,
         embedding_model=resolved_config.embedding.model,
@@ -280,6 +282,7 @@ def build_presentation_components(
         objective_execution_auth=execution_auth,
         objective_execution_requests_per_minute=resolved_config.gateway.request_rate,
         proactive=proactive,
+        research=research,
         on_startup=(proactive_runtime.start if resolved_config.proactive.enabled else None),
         on_shutdown=lambda: (proactive_runtime.close(), gateway.close(), execution.close()),
     )
