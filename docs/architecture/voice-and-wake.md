@@ -50,6 +50,19 @@ first-speakable to first PCM at 54–619 ms (median 388 ms). This is a schedulin
 repair, not a TTS/model change; Piper naturalness and every accepted AEC,
 barge-in, exact-stop, and wake lifecycle boundary remain intact.
 
+## Stage 22 Slice 8 — pre-Qwen prompt-assembly classification
+
+The bounded trace now has content-free begin/complete boundaries for total
+assembly, route classification, Career Forge and active-session projection,
+SQLite/lexical/semantic durable-memory retrieval, capability projection,
+cognitive policy, and serialization. The historical 27.5-second pre-Qwen event
+was not reproduced: cold assembly was 16.9 ms; the eight-turn warm/mixed corpus
+median was 2.23 ms and p95/max 128.4 ms, with a 127.2 ms Career Forge projection
+as the slowest substage. Isolated first-use local BGE initialization took 5.15 s
+(34.2 ms warm), but cannot explain the historical empty-memory event. Friday
+therefore retains diagnostic boundaries without speculative warmup or context
+omission. Qwen prefill and correctly grounded teaching remain the latency floor.
+
 ## Accepted always-on wake path
 
 Canonical phrase: `Hey Friday`. Wake uses 16 kHz mono PCM, Silero VAD, Parakeet Full primary ASR, and Moonshine Medium only after a primary miss. Both use the same strict matcher.

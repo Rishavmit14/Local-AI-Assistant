@@ -273,6 +273,12 @@ def build_presentation_components(
     ), health={"voice": voice_capability_health})
 
     capability_router = FridayConversationCapabilityRouter(capabilities, career_forge=career_forge, memory=memory)
+    def memory_context_with_timing(prompt: str, mark) -> str:
+        return "\n".join(
+            f"[{item.kind}] {item.subject}: {item.content} (provenance={item.provenance}, confidence={item.confidence:g})"
+            for item in memory.search(prompt, limit=5, timing=mark)
+        )
+
     conversation = FridayConversationService(
         llm=roles.client(Role.CONVERSATION),
         runtime=runtime,
@@ -280,6 +286,7 @@ def build_presentation_components(
             f"[{item.kind}] {item.subject}: {item.content} (provenance={item.provenance}, confidence={item.confidence:g})"
             for item in memory.search(prompt, limit=5)
         ),
+        memory_context_with_timing=memory_context_with_timing,
         capability_context=capabilities.conversation_context,
         cognition=cognition,
         capability_router=capability_router,

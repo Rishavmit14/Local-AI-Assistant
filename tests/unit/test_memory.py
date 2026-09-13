@@ -76,6 +76,28 @@ def test_memory_lexical_search_is_active_only(tmp_path):
     assert memory.search("tensors") == (found,)
 
 
+def test_memory_search_reports_content_free_retrieval_boundaries(tmp_path):
+    memory = FridayMemoryService(tmp_path / "memory.sqlite3")
+    memory.remember(
+        kind=MemoryKind.FACT,
+        subject="latency",
+        content="prompt diagnostics are content-free",
+        provenance="test",
+        confidence=1,
+    )
+    stages = []
+
+    assert memory.search("latency", timing=stages.append)
+    assert stages == [
+        "MEMORY_SQLITE_READ_BEGIN",
+        "MEMORY_SQLITE_READ_COMPLETE",
+        "MEMORY_LEXICAL_RETRIEVAL_BEGIN",
+        "MEMORY_LEXICAL_RETRIEVAL_COMPLETE",
+        "MEMORY_SEMANTIC_RETRIEVAL_BEGIN",
+        "MEMORY_SEMANTIC_RETRIEVAL_COMPLETE",
+    ]
+
+
 def test_semantic_search_is_local_and_persists_rebuildable_vectors(tmp_path):
     vectors = {
         "find neural network work": (1.0, 0.0),

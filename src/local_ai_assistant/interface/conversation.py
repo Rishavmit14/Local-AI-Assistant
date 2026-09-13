@@ -49,6 +49,7 @@ class FridayConversationService:
         capability_router: FridayConversationCapabilityRouter | None = None,
         latency_stage: Callable[[str], None] | None = None,
         latency_detail: Callable[[str, Mapping[str, int | float]], None] | None = None,
+        memory_context_with_timing: Callable[[str, Callable[[str], None]], str] | None = None,
     ) -> None:
         self.llm = llm
         self.runtime = runtime
@@ -59,6 +60,7 @@ class FridayConversationService:
         self.capability_router = capability_router
         self.latency_stage = latency_stage
         self.latency_detail = latency_detail
+        self.memory_context_with_timing = memory_context_with_timing
         self.learning_loop = CareerForgeLearningLoop(capability_router.career_forge) if capability_router else None
 
     def stream_response(
@@ -82,6 +84,7 @@ class FridayConversationService:
                 reason="conversation_ready",
             )
 
+        self._mark("PROMPT_ASSEMBLY_BEGIN")
         self._mark("CONVERSATION_ROUTING_BEGIN")
         route = self.capability_router.route(prompt) if self.capability_router else None
         self._mark("CONVERSATION_ROUTING_COMPLETE")
@@ -92,20 +95,29 @@ class FridayConversationService:
             prompt, mode=self.session.snapshot().get("capability_mode")  # type: ignore[arg-type]
         ) if self.learning_loop and (route is None or route.mode is None) else None
         self._mark("CAREER_FORGE_PROJECTION_COMPLETE")
+        self._mark("ACTIVE_SESSION_PROJECTION_BEGIN")
         prior_context = self.session.prior_context()
+        self._mark("ACTIVE_SESSION_PROJECTION_COMPLETE")
         self._mark("MEMORY_RETRIEVAL_BEGIN")
-        context = self.memory_context(prompt) if self.memory_context else ""
+        context = (
+            self.memory_context_with_timing(prompt, self._mark)
+            if self.memory_context_with_timing
+            else self.memory_context(prompt) if self.memory_context else ""
+        )
         self._mark("MEMORY_RETRIEVAL_COMPLETE")
         self._mark("CAPABILITY_PROJECTION_BEGIN")
         capabilities = self.capability_context() if self.capability_context else ""
         self._mark("CAPABILITY_PROJECTION_COMPLETE")
+        self._mark("COGNITIVE_POLICY_BEGIN")
         cognitive_plan = self.cognition.classify(prompt) if self.cognition else None
+        self._mark("COGNITIVE_POLICY_COMPLETE")
         # Keep invariant identity, evidence policy, and capability truth at the
         # beginning of every request.  llama.cpp's prompt cache can then retain
         # that semantically unchanged prefix while mutable session/retrieval
         # context follows it.  This changes no source priority: the current
         # owner request remains the user message and volatile sources retain
         # their labels and relative order below.
+        self._mark("PROMPT_SERIALIZATION_BEGIN")
         system_prompt += "\n\n" + _CONTEXT_EVIDENCE_POLICY
         fixed_context_characters = len(system_prompt)
         if capabilities:
@@ -149,6 +161,7 @@ class FridayConversationService:
                 "lesson_context": len(learning_directive.system_context) if learning_directive is not None else 0,
             },
         )
+        self._mark("PROMPT_ASSEMBLY_COMPLETE")
 
         self.session.begin()
         self.session.append("Owner", prompt)

@@ -667,7 +667,7 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
-## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Slice 7 first-PCM handoff optimization accepted; owner review pending**)
+## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Slice 8 prompt-assembly investigation accepted; owner review pending**)
 
 Stages 0–21 remain accepted historical engineering evidence. Their accepted
 backend/security/recovery scope is not rewritten because owner-facing product
@@ -762,6 +762,17 @@ speech-end to first-PCM range was 3.29–31.44 s (median 6.01 s); the 31.44 s
 teaching-path outlier was pre-Qwen prompt assembly, outside this bounded
 post-Qwen scope. Qwen, grounding, memory, Career Forge, Piper, AEC, barge-in,
 exact stop, and wake recovery remain unchanged and qualified.
+
+Slice 8 investigated the one 27.5-second pre-Qwen prompt-assembly outlier with
+additional content-free substage timing. A controlled-restart, eight-turn
+representative corpus did not reproduce it: cold assembly was 16.9 ms, and
+warm/mixed median/p95/max was 2.23/128.4/128.4 ms. The slowest turn's 127.2 ms
+was Career Forge projection; no route, active-session, memory, SQLite,
+capability, policy, or serialization work reached seconds. Isolated first-use
+local embedding initialization took 5.15 s but cannot explain the historical
+empty-memory turn, so no speculative warmup or behavior change was made. Normal
+warm Qwen TTFT remained 1.93–2.92 s; grounded Career Forge resume was 7.28 s.
+Practice Lab and all other product scope remain out of this accepted slice.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

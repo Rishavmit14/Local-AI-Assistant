@@ -1,5 +1,19 @@
 # Project History
 
+## 2026-09-13 — Stage 22 Slice 8 pre-Qwen prompt-assembly outlier classified
+
+Friday now traces content-free prompt-assembly substage durations for routing,
+Career Forge/active-session projection, SQLite/lexical/semantic memory,
+capability, cognitive policy, and serialization. The sole historical 27.5-second
+outlier was not reproduced by the controlled-restart eight-turn corpus: cold
+assembly was 16.9 ms; warm/mixed median was 2.23 ms and p95/max 128.4 ms, driven
+by a 127.2 ms Career Forge projection. Isolated record-bearing memory first use
+did take 5.15 s to initialize local BGE (34.2 ms warm), but the historical turn
+had no durable-memory context, so no unrelated warmup was accepted. The
+production Qwen YAML was also reconciled to the established live profile:
+31 CPU MoE layers, 32K context, 1024/256 batch sizes, 4/8 threads, and flash
+attention on. Slice 6 prefix reuse and Slice 7 first-PCM code remain unchanged.
+
 ## 2026-09-13 — Stage 22 Slice 7 first-PCM handoff optimization accepted
 
 Friday's content-free voice trace now attributes the complete handoff from the

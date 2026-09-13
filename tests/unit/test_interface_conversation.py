@@ -93,6 +93,38 @@ def test_prompt_telemetry_contains_only_section_sizes():
     assert all(isinstance(value, int) for value in metrics.values())
 
 
+def test_prompt_telemetry_marks_content_free_substages():
+    runtime = FridayRuntime("prompt-substages")
+    llm = FakeStreamingLLM(["ok"])
+    observations = []
+    service = FridayConversationService(
+        llm,
+        runtime,
+        memory_context_with_timing=lambda _prompt, mark: (
+            mark("MEMORY_SQLITE_READ_BEGIN"),
+            mark("MEMORY_SQLITE_READ_COMPLETE"),
+            mark("MEMORY_LEXICAL_RETRIEVAL_BEGIN"),
+            mark("MEMORY_LEXICAL_RETRIEVAL_COMPLETE"),
+            mark("MEMORY_SEMANTIC_RETRIEVAL_BEGIN"),
+            mark("MEMORY_SEMANTIC_RETRIEVAL_COMPLETE"),
+            "",
+        )[-1],
+        latency_stage=observations.append,
+    )
+
+    assert "".join(service.stream_response("Hello")) == "ok"
+    assert observations == [
+        "PROMPT_ASSEMBLY_BEGIN", "CONVERSATION_ROUTING_BEGIN", "CONVERSATION_ROUTING_COMPLETE",
+        "CAREER_FORGE_PROJECTION_BEGIN", "CAREER_FORGE_PROJECTION_COMPLETE",
+        "ACTIVE_SESSION_PROJECTION_BEGIN", "ACTIVE_SESSION_PROJECTION_COMPLETE", "MEMORY_RETRIEVAL_BEGIN",
+        "MEMORY_SQLITE_READ_BEGIN", "MEMORY_SQLITE_READ_COMPLETE", "MEMORY_LEXICAL_RETRIEVAL_BEGIN",
+        "MEMORY_LEXICAL_RETRIEVAL_COMPLETE", "MEMORY_SEMANTIC_RETRIEVAL_BEGIN",
+        "MEMORY_SEMANTIC_RETRIEVAL_COMPLETE", "MEMORY_RETRIEVAL_COMPLETE", "CAPABILITY_PROJECTION_BEGIN",
+        "CAPABILITY_PROJECTION_COMPLETE", "COGNITIVE_POLICY_BEGIN", "COGNITIVE_POLICY_COMPLETE",
+        "PROMPT_SERIALIZATION_BEGIN", "PROMPT_CONTEXT_ASSEMBLED", "PROMPT_ASSEMBLY_COMPLETE", "QWEN_GENERATION_BEGIN",
+    ]
+
+
 def test_cognition_only_adds_read_only_strategy_guidance():
     runtime = FridayRuntime("cognition-context")
     llm = FakeStreamingLLM(["ok"])

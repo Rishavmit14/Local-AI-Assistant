@@ -134,6 +134,26 @@ does not change text, synthesis, the audio bytes, Qwen configuration, AEC,
 barge-in, or stop behavior. Physical qualification measured first-speakable to
 first PCM at 54–619 ms (median 388 ms), removing the multi-second handoff wait.
 
+### Stage 22 Slice 8 — pre-Qwen prompt-assembly investigation
+
+The content-free latency trace now attributes total prompt assembly to route
+classification, Career Forge projection, active-session projection,
+SQLite/lexical/semantic durable-memory retrieval, capability projection,
+cognitive policy, and prompt serialization. It retains only monotonic timing
+and existing numeric sizes, never prompts, transcripts, memory contents, or
+embedding vectors.
+
+The historical 27.5-second class was not reproduced after one controlled service
+restart and a bounded eight-turn normal/follow-up/current-discussion/memory/
+Career Forge/long-session corpus. Cold assembly was 16.9 ms; warm/mixed median
+was 2.23 ms and p95/max 128.4 ms. The slowest turn was a 127.2 ms Career Forge
+projection; no serialization, memory, SQLite, capability, or model-service wait
+approached tens of seconds. An isolated record-bearing memory store took 5.15 s
+to initialize local BGE and 34.2 ms warm, but the historical outlier had empty
+durable-memory context, so it is non-causal and no speculative warmup was added.
+Normal warm Qwen TTFT remained 1.93–2.92 s; grounded Career Forge resume was
+7.28 s. Slice 8 keeps diagnostics only and changes no product behavior.
+
 ## Deployment compatibility
 
 Stages 0 through 8 did not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so reviewed deployments can point to existing paths or new state directories. Stage 11 removed the obsolete Streamlit product service and introduced the persistent user-session Friday presentation/wake service. A sanitized example is tracked at `config/services/friday-local-ai.service.example`; machine-local installed units remain external deployment state.

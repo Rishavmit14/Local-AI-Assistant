@@ -6,13 +6,13 @@ server:
   host: 127.0.0.1
   port: 8080
   gpu_layers: 999
-  cpu_moe_layers: 34
-  context_size: 262144
-  batch_size: 128
-  micro_batch_size: 32
+  cpu_moe_layers: 31
+  context_size: 32768
+  batch_size: 1024
+  micro_batch_size: 256
   threads: 4
-  batch_threads: 4
-  flash_attention: off
+  batch_threads: 8
+  flash_attention: on
   kv_key_type: turbo4
   kv_value_type: turbo3
   reasoning: off

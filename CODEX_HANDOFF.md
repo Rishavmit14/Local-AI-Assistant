@@ -1863,3 +1863,21 @@ exact contiguous remainder. Qualified first-speakable to first-PCM was
 outside this handoff repair. Qwen, Piper naturalness, AEC/barge-in, exact stop,
 and wake recovery passed physical qualification. No alternative TTS or Qwen
 configuration change is authorized by this slice.
+
+## Stage 22 Slice 8 — pre-Qwen prompt-assembly outlier (accepted, 2026-09-13)
+
+Slice 8 adds content-free begin/complete telemetry for total prompt assembly,
+route classification, Career Forge/active-session projection, SQLite/lexical/
+semantic memory retrieval, capability projection, cognitive policy, and prompt
+serialization. The historical 27.5-second outlier was not reproduced by a
+controlled restart and eight representative text turns: cold assembly was
+16.9 ms; warm/mixed median/p95/max was 2.23/128.4/128.4 ms. The slowest 127.2 ms
+contribution was Career Forge projection. A scratch record-bearing memory store
+showed local BGE lazy initialization at 5.15 s and 34.2 ms warm semantic
+retrieval, but the historical outlier had no durable-memory section; do not
+claim it as root cause or add speculative service warmup. No behavior repair was
+required. Warm normal Qwen TTFT was 1.93–2.92 s; grounded Career Forge resume
+was 7.28 s. Slice 7's first-PCM repair remains unchanged. The YAML model profile
+now matches the proven live service: ncmoe 31, 32K context, 1024/256 batches,
+4/8 threads, flash attention on; no unsupported parallel-slots schema field was
+added. Owner review is the next gate; do not begin Practice Lab or other scope.

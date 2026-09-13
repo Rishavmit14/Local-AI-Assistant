@@ -208,10 +208,18 @@ class FridayMemoryService:
             ).fetchall()
         return tuple(self._record(row) for row in rows)
 
-    def search(self, query: str, limit: int = 20) -> tuple[MemoryRecord, ...]:
+    def search(
+        self,
+        query: str,
+        limit: int = 20,
+        *,
+        timing: Callable[[str], None] | None = None,
+    ) -> tuple[MemoryRecord, ...]:
         """Return bounded hybrid local retrieval, safely falling back to lexical."""
         query = _normalize(query, "search query")
         self._limit(limit)
+        if timing:
+            timing("MEMORY_SQLITE_READ_BEGIN")
         self.enforce_retention()
         with self._db() as db:
             rows = db.execute(
@@ -219,9 +227,18 @@ class FridayMemoryService:
                 "ORDER BY confidence DESC, updated_at DESC LIMIT 500",
                 (MemoryState.ACTIVE,),
             ).fetchall()
+        if timing:
+            timing("MEMORY_SQLITE_READ_COMPLETE")
         records = [self._record(row) for row in rows]
+        if timing:
+            timing("MEMORY_LEXICAL_RETRIEVAL_BEGIN")
         lexical = self._lexical_scores(query, records)
+        if timing:
+            timing("MEMORY_LEXICAL_RETRIEVAL_COMPLETE")
+            timing("MEMORY_SEMANTIC_RETRIEVAL_BEGIN")
         semantic = self._semantic_scores(query, records)
+        if timing:
+            timing("MEMORY_SEMANTIC_RETRIEVAL_COMPLETE")
         scored = [
             (
                 0.65 * semantic.get(record.memory_id, 0.0)
