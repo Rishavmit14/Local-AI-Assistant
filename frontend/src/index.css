@@ -1,33 +1,15 @@
-:root {
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  color-scheme: dark;
-  background: #000;
-  color: #fff;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  width: 100%;
-  min-width: 320px;
-  min-height: 100%;
-  margin: 0;
-}
-
-body {
-  min-height: 100vh;
-  overflow: hidden;
-}
+@font-face { font-family: Friday Sans; src: url('/fonts/friday-sans.ttf') format('truetype'); font-weight: 100 500; font-display: swap; }
+@font-face { font-family: Friday Sans; src: url('/fonts/friday-sans-bold.ttf') format('truetype'); font-weight: 600 900; font-display: swap; }
+:root { font-family: 'Friday Sans', sans-serif; color: #e9edf4; background: #080c12; color-scheme: dark; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; }
+button, input, textarea, select { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button:disabled { cursor: not-allowed; opacity: .5; }
+button, input, textarea, select { outline: none; }
+:focus-visible { outline: 2px solid #b5c4ff; outline-offset: 4px; }
+button { cursor: pointer; color: inherit; touch-action: manipulation; }
+a { color: inherit; }
+::selection { background: #596ba5; color: white; }
+svg { flex-shrink: 0; }
+* { scrollbar-width: thin; scrollbar-color: #2a3343 transparent; }
