@@ -8,7 +8,7 @@ Voice is an input/output surface and has no privileged path around Friday's nati
 
 `microphone -> Whisper STT -> local LLM streaming -> Piper TTS -> PipeWire playback`
 
-## Stage 22 Slice 5 — measured TTS decision and latency trace
+## Stage 22 Slices 5–6 — measured TTS decision and Qwen latency trace
 
 Piper remains the accepted production TTS. Kokoro CPU was evaluated locally with
 the current Qwen configuration and three female candidates; the owner selected
@@ -19,11 +19,23 @@ unnatural long pauses. GPU Kokoro was not attempted: Qwen already occupied about
 
 The runtime retains a bounded, in-memory, content-free latency trace and
 read-only `/api/v1/voice/latency` projection. It records endpoint finalization,
-ASR finalization, prompt assembly, Qwen generation/first token, first stable
-speakable chunk, TTS first audio, and first PCM written to PipeWire. The owner
-trial isolated the principal remaining latency target upstream: Qwen first token
-arrived about ten seconds after generation began on the observed slow turn;
-Piper synthesis was not the cause. No raw audio or transcript is retained.
+ASR finalization, conversation routing, Career Forge/memory/capability work,
+prompt assembly, Qwen request dispatch/acceptance/first token and returned
+usage, first stable speakable chunk, TTS first audio, and first PCM written to
+PipeWire. It retains only monotonic durations and numeric character/token/cache
+metrics, never raw audio, a transcript, a prompt, or memory content.
+
+Slice 6 confirmed that the installed one-slot llama.cpp runtime already enabled
+prompt caching. The bottleneck was volatile material preceding the large static
+capability projection, not a model-server queue or a new model requirement.
+The immutable identity/evidence/capability prefix now comes first; cognitive,
+session, memory, Career Forge, and route material remain present afterwards with
+their existing labels and priority semantics. In bounded local comparisons,
+warm normal/follow-up prefill fell from 639–1,394 newly evaluated tokens
+(5.60–11.88 s) to 260–305 (2.06–3.09 s Qwen TTFT), with LCP similarity rising
+from 0.240–0.413 to 0.902–0.970. The current Qwen configuration, Piper, AEC,
+barge-in, and exact stop were unchanged. A fully grounded teaching turn remains
+correctly heavier; it is not compacted away for latency.
 
 ## Accepted always-on wake path
 

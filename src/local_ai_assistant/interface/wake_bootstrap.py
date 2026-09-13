@@ -160,7 +160,10 @@ class VoiceTurnTelemetry:
             "ASR_FINAL",
             "PROMPT_CONTEXT_ASSEMBLED",
             "QWEN_GENERATION_BEGIN",
+            "QWEN_REQUEST_DISPATCHED",
+            "QWEN_REQUEST_ACCEPTED",
             "QWEN_FIRST_TOKEN",
+            "QWEN_USAGE",
             "FIRST_SPEAKABLE_CHUNK",
             "TTS_SYNTHESIS_BEGIN",
             "TTS_FIRST_AUDIO_AVAILABLE",
@@ -212,6 +215,18 @@ class VoiceTurnTelemetry:
             flush=True,
         )
 
+    def mark_with_details(
+        self,
+        stage: str,
+        details: dict[str, int | float],
+    ) -> None:
+        """Record safe numeric boundary metadata without retaining content."""
+        timestamp = time.monotonic()
+        with self._lock:
+            self._events.append((timestamp, stage))
+            self._record_latency_stage(timestamp, stage, details)
+        print("FRIDAY_VOICE_STAGE " + stage, flush=True)
+
 
     def snapshot(
         self,
@@ -248,7 +263,12 @@ class VoiceTurnTelemetry:
         with self._lock:
             return tuple(dict(record) for record in self._turns)
 
-    def _record_latency_stage(self, timestamp: float, stage: str) -> None:
+    def _record_latency_stage(
+        self,
+        timestamp: float,
+        stage: str,
+        details: dict[str, int | float] | None = None,
+    ) -> None:
         if stage == "OWNER_SPEECH_ENDED":
             self._active_turn = {"stages": {stage: timestamp}}
             return
@@ -257,6 +277,10 @@ class VoiceTurnTelemetry:
         stages = self._active_turn["stages"]
         assert isinstance(stages, dict)
         stages.setdefault(stage, timestamp)
+        if details:
+            stage_details = self._active_turn.setdefault("details", {})
+            assert isinstance(stage_details, dict)
+            stage_details.update(details)
         if stage != "PLAYBACK_FIRST_PCM_WRITTEN":
             return
         origin = stages["OWNER_SPEECH_ENDED"]
@@ -266,7 +290,10 @@ class VoiceTurnTelemetry:
             for name, value in stages.items()
             if isinstance(value, float)
         }
-        self._turns.append({"durations_ms": durations_ms})
+        record: dict[str, object] = {"durations_ms": durations_ms}
+        if stage_details := self._active_turn.get("details"):
+            record["metrics"] = stage_details
+        self._turns.append(record)
         self._active_turn = None
 
 
@@ -335,25 +362,12 @@ class InstrumentedConversation:
         **kwargs,
     ) -> Iterator[str]:
 
-        first = True
-
         try:
 
-            for chunk in (
-                self.inner
-                .stream_response(
-                    prompt,
-                    **kwargs,
-                )
-            ):
-
-                if first:
-
-                    first = False
-
-                    self.telemetry.mark("QWEN_FIRST_TOKEN")
-
-                yield chunk
+            yield from self.inner.stream_response(
+                prompt,
+                **kwargs,
+            )
 
 
         except BaseException:
@@ -1125,6 +1139,8 @@ def build_managed_wake_voice(
     # Prompt assembly happens inside the existing conversation service, before
     # its stream wrapper can observe the first token.
     conversation.latency_stage = telemetry.mark
+    conversation.latency_detail = telemetry.mark_with_details
+    conversation.set_latency_observer(telemetry.mark_with_details)
 
 
     transcriber = (

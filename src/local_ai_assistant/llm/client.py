@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping
 
 from openai import OpenAI
 
@@ -28,10 +28,22 @@ class LocalLLM:
             api_key=self.config.llama.api_key,
             timeout=self.config.llama.timeout_seconds,
         )
+        self._latency_observer: Callable[[str, Mapping[str, int | float]], None] | None = None
         logger.info(
             "llm_client_initialized",
             extra={"event": "llm.client.initialized", "base_url": resolved_base_url},
         )
+
+    def set_latency_observer(
+        self,
+        observer: Callable[[str, Mapping[str, int | float]], None] | None,
+    ) -> None:
+        """Install a content-free observer for the current local model boundary."""
+        self._latency_observer = observer
+
+    def _observe(self, stage: str, **details: int | float) -> None:
+        if self._latency_observer is not None:
+            self._latency_observer(stage, details)
 
     def chat(
         self,
@@ -58,6 +70,7 @@ class LocalLLM:
             },
         )
         try:
+            self._observe("QWEN_REQUEST_DISPATCHED")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -67,6 +80,7 @@ class LocalLLM:
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
+            self._observe("QWEN_REQUEST_ACCEPTED")
         except Exception as exc:
             logger.exception("llm_chat_failed", extra={"event": "llm.chat.failed"})
             raise LLMError(f"Local model request failed: {exc}") from exc
@@ -97,6 +111,7 @@ class LocalLLM:
             extra={"event": "llm.stream.started", "model": self.model},
         )
         try:
+            self._observe("QWEN_REQUEST_DISPATCHED")
             stream = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -106,18 +121,34 @@ class LocalLLM:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 stream=True,
+                stream_options={"include_usage": True},
             )
+            self._observe("QWEN_REQUEST_ACCEPTED")
         except Exception as exc:
             logger.exception("llm_stream_failed", extra={"event": "llm.stream.failed"})
             raise LLMError(f"Local model streaming request failed: {exc}") from exc
 
+        first_token = True
         for chunk in stream:
+            usage = getattr(chunk, "usage", None)
+            if usage is not None:
+                prompt_details = getattr(usage, "prompt_tokens_details", None)
+                cached_tokens = getattr(prompt_details, "cached_tokens", 0) if prompt_details else 0
+                self._observe(
+                    "QWEN_USAGE",
+                    prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+                    cached_tokens=int(cached_tokens or 0),
+                    completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+                )
             if not chunk.choices:
                 continue
 
             content = chunk.choices[0].delta.content
 
             if content:
+                if first_token:
+                    first_token = False
+                    self._observe("QWEN_FIRST_TOKEN")
                 yield content
         logger.info("llm_stream_completed", extra={"event": "llm.stream.completed"})
 

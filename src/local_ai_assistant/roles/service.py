@@ -1,7 +1,7 @@
 """Prompt-only role routing over one local general-purpose model."""
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -56,6 +56,11 @@ class RoleClient:
 
     def stream_chat(self, prompt: str, system_prompt: str = "", temperature: float = 0.2, max_tokens: int = 1024) -> Iterator[str]:
         return self._orchestrator.stream_chat(self.role, prompt, system_prompt, temperature, max_tokens)
+
+    def set_latency_observer(self, observer: Callable[[str, Mapping[str, int | float]], None] | None) -> None:
+        setter = getattr(self._orchestrator.model, "set_latency_observer", None)
+        if setter is not None:
+            setter(observer)
 
 
 class RoleOrchestrator:

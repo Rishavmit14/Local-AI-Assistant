@@ -1,12 +1,12 @@
 import pytest
 
 from local_ai_assistant.cognition import CognitiveController
-from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.capabilities import (
     CapabilityStatus,
     FridayCapability,
     FridayCapabilityRegistry,
 )
+from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.events import FridayEventType
 from local_ai_assistant.interface.runtime import FridayRuntime
 from local_ai_assistant.interface.states import FridayRuntimeState
@@ -53,6 +53,44 @@ def test_memory_context_is_read_only_prompt_context():
     assert llm.calls[0]["prompt"] == "hello"
     assert "owner preference: concise" in llm.calls[0]["system_prompt"]
     assert "untrusted reference" in llm.calls[0]["system_prompt"]
+
+
+def test_stable_capability_grounding_precedes_mutable_session_and_memory_context():
+    runtime = FridayRuntime("stable-prefix")
+    llm = FakeStreamingLLM(["ok"])
+    service = FridayConversationService(
+        llm,
+        runtime,
+        memory_context=lambda prompt: "owner preference: concise",
+        capability_context=lambda: "Authoritative capability: Career Forge is integrated.",
+    )
+    service.session.append("Owner", "We are discussing latency.")
+
+    assert "".join(service.stream_response("Continue.")) == "ok"
+    system_prompt = llm.calls[0]["system_prompt"]
+
+    assert system_prompt.index("Authoritative capability") < system_prompt.index("\n\nActive session history")
+    assert system_prompt.index("Authoritative capability") < system_prompt.index("\n\nVerified local durable memory")
+    assert "current owner prompt is the immediate request" in system_prompt.lower()
+
+
+def test_prompt_telemetry_contains_only_section_sizes():
+    runtime = FridayRuntime("prompt-metrics")
+    llm = FakeStreamingLLM(["ok"])
+    observations = []
+    service = FridayConversationService(
+        llm,
+        runtime,
+        capability_context=lambda: "Capability state",
+        latency_detail=lambda stage, details: observations.append((stage, dict(details))),
+    )
+
+    assert "".join(service.stream_response("Hello")) == "ok"
+
+    stage, metrics = next(item for item in observations if item[0] == "PROMPT_CONTEXT_ASSEMBLED")
+    assert stage == "PROMPT_CONTEXT_ASSEMBLED"
+    assert metrics["section_characters_capability_projection"] == len("Capability state")
+    assert all(isinstance(value, int) for value in metrics.values())
 
 
 def test_cognition_only_adds_read_only_strategy_guidance():

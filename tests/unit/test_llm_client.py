@@ -60,6 +60,23 @@ def test_stream_chat_yields_only_nonempty_content(monkeypatch):
     assert "".join(llm.stream_chat("question")) == "hello world"
 
 
+def test_stream_chat_reports_content_free_qwen_boundary_events(monkeypatch):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+    llm = client_module.LocalLLM()
+    events = []
+    llm.set_latency_observer(lambda stage, details: events.append((stage, dict(details))))
+
+    assert "".join(llm.stream_chat("question")) == "hello world"
+
+    assert events == [
+        ("QWEN_REQUEST_DISPATCHED", {}),
+        ("QWEN_REQUEST_ACCEPTED", {}),
+        ("QWEN_FIRST_TOKEN", {}),
+    ]
+    call = llm.client.chat.completions.calls[0]
+    assert call["stream_options"] == {"include_usage": True}
+
+
 def test_client_wraps_transport_failures_in_application_error(monkeypatch):
     monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
     llm = client_module.LocalLLM()

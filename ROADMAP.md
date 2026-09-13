@@ -667,7 +667,7 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
-## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 5 voice latency evidence accepted**)
+## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Slice 6 Qwen/conversation latency optimization accepted; owner review pending**)
 
 Stages 0–21 remain accepted historical engineering evidence. Their accepted
 backend/security/recovery scope is not rewritten because owner-facing product
@@ -736,6 +736,20 @@ Kokoro CPU was evaluated locally but rejected after owner listening because its
 response delay and long speech pauses degraded Friday; Piper remains production.
 The evidence identifies Qwen time-to-first-token, not Piper, as the next bounded
 latency target. No new voice model, Practice Lab, or UI scope was accepted.
+
+Slice 6 profiled and optimized the accepted Qwen/conversation path without
+changing the model, quantization, GPU offload, context capability, grounding,
+memory, Career Forge, voice lifecycle, Piper, AEC, barge-in, or exact stop.
+The measured root cause was avoidable prompt-cache loss: volatile session and
+retrieval material preceded the static capability projection. Stable ordering
+raised warm slot similarity from 0.240–0.413 to 0.902–0.970, reducing normal
+warm prefill from 5.60–11.88 s across the bounded baseline to 2.06–3.09 s Qwen
+TTFT for 260–305 newly evaluated tokens. Grounded Career Forge teaching remains
+longer where its real context requires it. Physical qualification exercised
+wake, follow-up, Career Forge, teaching, barge-in/stop, and wake recovery; the
+service remained healthy. The remaining owner-perceived first-PCM variability
+is a separately measured voice handoff concern, not a reason to weaken Qwen
+grounding or restart TTS experimentation in this slice.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

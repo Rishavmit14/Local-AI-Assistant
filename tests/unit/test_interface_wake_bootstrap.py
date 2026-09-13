@@ -786,6 +786,21 @@ def test_voice_turn_telemetry_projects_content_free_latency_record():
     )}
 
 
+def test_voice_turn_telemetry_includes_only_numeric_qwen_and_prompt_metrics():
+    telemetry = VoiceTurnTelemetry()
+    telemetry.mark("OWNER_SPEECH_ENDED")
+    telemetry.mark_with_details("PROMPT_CONTEXT_ASSEMBLED", {"section_characters_fixed_system": 123})
+    telemetry.mark_with_details("QWEN_USAGE", {"prompt_tokens": 456, "cached_tokens": 321})
+    telemetry.mark("PLAYBACK_FIRST_PCM_WRITTEN")
+
+    record = telemetry.latency_snapshot()[0]
+    assert record["metrics"] == {
+        "section_characters_fixed_system": 123,
+        "prompt_tokens": 456,
+        "cached_tokens": 321,
+    }
+
+
 def test_health_projects_managed_worker_liveness():
     service, *_ = make_service()
 

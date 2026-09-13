@@ -1,5 +1,25 @@
 # Project History
 
+## 2026-09-13 — Stage 22 Slice 6 Qwen/conversation TTFT optimization accepted
+
+Friday now measures the local LLM boundary without retaining private content:
+numeric prompt-section sizes, Qwen dispatch/acceptance/first-token timing, and
+returned input/cache/output-token usage join the existing bounded voice trace.
+Profiling the exact installed one-slot llama.cpp runtime found prompt prefill,
+not transport or generation, dominated slow starts. Before the change, volatile
+context ahead of capability grounding yielded 0.240–0.413 LCP similarity and
+639–1,394 newly evaluated prompt tokens, taking 5.60–11.88 seconds at roughly
+95–127 tokens/s. Friday now keeps the unchanged identity/evidence/capability
+grounding as the reusable prefix and places the same dynamic session, durable
+memory, Career Forge, and route context afterwards. Warm normal/follow-up runs
+reached 0.902–0.970 similarity, 260–305 evaluated tokens, and about 2.06–3.09
+seconds to Qwen first token. Physical owner qualification exercised wake,
+follow-up, Career Forge, a longer teaching response, barge-in/exact stop, and
+wake recovery without service error. Qwen configuration, quality/grounding,
+Piper, AEC, and security boundaries are unchanged. Grounded teaching remains
+appropriately heavier; variable first-PCM handoff is recorded for a later
+separate voice-latency slice.
+
 ## 2026-09-13 — Stage 22 Slice 5 voice latency evidence accepted
 
 Friday now retains a bounded, local, transcript-free latency trace and read-only

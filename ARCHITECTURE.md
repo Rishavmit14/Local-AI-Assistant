@@ -96,13 +96,30 @@ Production qualification on Stage 12B proved two controlled restarts with no sys
 
 See [voice and wake architecture](docs/architecture/voice-and-wake.md).
 
-### Stage 22 Slice 5 — voice latency evidence
+### Stage 22 Slice 6 — Qwen/conversation time-to-first-token optimization
 
-The accepted Piper/ PipeWire path now emits bounded, content-free per-turn
-latency stages through a read-only local API. Kokoro CPU was evaluated but
-rejected after owner listening because its slower response start and long pauses
-degraded the real Friday interaction; Piper remains the production provider.
-The observed slow path was upstream Qwen time-to-first-token, not Piper.
+The bounded local latency projection now distinguishes conversation routing,
+Career Forge projection, memory retrieval, capability projection, prompt
+assembly, Qwen request dispatch/acceptance/first token, returned token usage,
+first speakable chunk, TTS, and first PipeWire PCM. It records only monotonic
+timings and numeric size/token/cache metrics; no prompt, transcript, audio, or
+memory content is retained.
+
+The installed `llama-server` already had one slot and prompt caching enabled.
+Profiling established that the slow path was prefill, not request transport or
+generation: the previous prompt order put volatile active-session/retrieval
+material before the large capability projection, so consecutive requests had
+only 0.240–0.413 LCP similarity and evaluated 639–1,394 prompt tokens at
+95–127 tokens/s (5.60–11.88 s). Friday now puts its immutable identity,
+evidence policy, and descriptive capability projection first, followed by the
+same labelled cognitive, active-session, durable-memory, Career Forge, and
+route context. Source priority and all authority semantics are unchanged.
+Warm normal/follow-up requests reached 0.902–0.970 slot similarity, evaluated
+260–305 tokens at 98–126 tokens/s, and reached Qwen first token in about
+2.06–3.09 s. The same Qwen model, quantization, offload, 32K configured runtime
+context, memory, Career Forge grounding, Piper, AEC/barge-in, and exact-stop
+boundaries remain in force. A grounded Career Forge teaching turn legitimately
+remains heavier (988 newly evaluated tokens; about 11.13 s prefill).
 
 ## Deployment compatibility
 

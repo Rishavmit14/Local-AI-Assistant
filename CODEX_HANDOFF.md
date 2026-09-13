@@ -1823,3 +1823,28 @@ unnatural long pauses. GPU TTS was not attempted because Qwen used about 7.18
 of 8 GiB VRAM. The observed slow turn localized the next latency target to Qwen
 first-token time (about ten seconds), not Piper. Do not retry alternate TTS
 engines in this slice; await owner review before a separate Qwen-latency slice.
+
+## Stage 22 Slice 6 — Qwen/conversation time-to-first-token optimization (2026-09-13)
+
+Accepted candidate keeps the current Qwen model, quantization, GPU offload,
+32K configured runtime context, memory, Career Forge grounding, Piper, AEC,
+barge-in, exact stop, and all security/authority boundaries unchanged. New
+content-free LLM-boundary telemetry records routing/retrieval/projection stages,
+numeric prompt-section sizes, Qwen dispatch/acceptance/first token, and server
+usage/cache counts through the existing read-only voice latency endpoint.
+
+The exact installed e30664a llama-server has one slot and prompt caching enabled.
+The baseline showed 0.240–0.413 LCP similarity and 639–1,394 newly evaluated
+prompt tokens at about 95–127 t/s (5.60–11.88 s prefill). Root cause: dynamic
+active-session/retrieval material was serialized before the large static
+capability projection. The accepted ordering retains every context source and
+its labels/priority, but serializes immutable identity/evidence/capability
+grounding first. Warm normal/follow-up similarity became 0.902–0.970; 260–305
+newly evaluated tokens reached Qwen first token in 2.06–3.09 s. A fully grounded
+Career Forge teaching turn remains heavier (988 tokens; 11.13 s prefill), as
+required for correctness. Physical qualification covered wake, simple/follow-up,
+Career Forge, teaching, barge-in/exact stop, and wake recovery with a healthy
+service. First-PCM timing remains variable and must be a separately scoped
+voice-handoff investigation; do not restart TTS experiments or weaken grounding
+to mask it. Run final full verification and publish only after the final
+telemetry-classification repair is deployed and checked.
