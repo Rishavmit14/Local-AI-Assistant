@@ -7,11 +7,11 @@ import subprocess
 import threading
 import time
 from collections import deque
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Full, Queue
-from typing import Any, BinaryIO, Callable
+from typing import Any, BinaryIO
 
 DEFAULT_PIPER_PYTHON_PATH = Path(
     "/AI/tools/piper/.venv/bin/python"
@@ -184,6 +184,12 @@ class PipeWirePlayerConfig:
 
     stop_timeout_seconds: float = 1.0
 
+    # A bounded initial payload lets pw-play begin consuming audio before a
+    # long Piper chunk can fill its stdin pipe.  At Piper's 22.05 kHz mono
+    # 16-bit format this is about 186 ms: enough startup audio without making
+    # first playback wait for the remainder of a sentence-sized chunk.
+    initial_pcm_bytes: int = 8_192
+
     def __post_init__(
         self,
     ) -> None:
@@ -194,6 +200,15 @@ class PipeWirePlayerConfig:
             raise ValueError(
                 "stop_timeout_seconds "
                 "must be positive"
+            )
+
+        if (
+            self.initial_pcm_bytes <= 0
+            or self.initial_pcm_bytes % 2 != 0
+        ):
+            raise ValueError(
+                "initial_pcm_bytes must be a positive "
+                "16-bit PCM boundary"
             )
 
 
@@ -287,6 +302,7 @@ class PiperSpeechSynthesizer:
             PiperSynthesisMetrics
             | None
         ) = None
+        self._latency_observer: Callable[[str, Mapping[str, int | float]], None] | None = None
 
         self._validate_runtime()
 
@@ -334,6 +350,17 @@ class PiperSpeechSynthesizer:
             self.worker_pid
             is not None
         )
+
+    def set_latency_observer(
+        self,
+        observer: Callable[[str, Mapping[str, int | float]], None] | None,
+    ) -> None:
+        """Attach content-free handoff instrumentation without changing synthesis."""
+        self._latency_observer = observer
+
+    def _observe(self, stage: str) -> None:
+        if self._latency_observer is not None:
+            self._latency_observer(stage, {})
 
     def __enter__(
         self,
@@ -521,9 +548,12 @@ class PiperSpeechSynthesizer:
                 "be non-empty"
             )
 
+        self._observe("PIPER_STREAM_ENTER")
         self.start()
+        self._observe("PIPER_WORKER_AVAILABLE")
 
         with self._request_lock:
+            self._observe("PIPER_REQUEST_LOCK_ACQUIRED")
             process = (
                 self._require_process()
             )
@@ -572,6 +602,7 @@ class PiperSpeechSynthesizer:
             )
 
             try:
+                self._observe("PIPER_REQUEST_DISPATCHED")
                 process.stdin.write(
                     request
                 )
@@ -609,6 +640,7 @@ class PiperSpeechSynthesizer:
                     "request acknowledgement: "
                     f"{accepted}"
                 )
+            self._observe("PIPER_REQUEST_ACCEPTED")
 
             first_audio = None
             terminal_seen = False
@@ -662,6 +694,7 @@ class PiperSpeechSynthesizer:
                             first_audio = (
                                 time.monotonic()
                             )
+                            self._observe("PIPER_FIRST_AUDIO_READ")
 
                         yield PiperAudioChunk(
                             pcm=(
@@ -1364,6 +1397,18 @@ class PipeWireSpeechPlayer:
             subprocess.Popen[bytes]
             | None
         ) = None
+        self._latency_observer: Callable[[str, Mapping[str, int | float]], None] | None = None
+
+    def set_latency_observer(
+        self,
+        observer: Callable[[str, Mapping[str, int | float]], None] | None,
+    ) -> None:
+        """Attach content-free playback-boundary instrumentation."""
+        self._latency_observer = observer
+
+    def _observe(self, stage: str) -> None:
+        if self._latency_observer is not None:
+            self._latency_observer(stage, {})
 
     @property
     def is_playing(
@@ -1387,6 +1432,7 @@ class PipeWireSpeechPlayer:
         ],
     ) -> SpeechPlaybackResult:
         with self._play_lock:
+            self._observe("PLAYBACK_PLAYER_ENTER")
             self._stop_requested.clear()
 
             started = (
@@ -1432,6 +1478,7 @@ class PipeWireSpeechPlayer:
                             chunk.sample_rate
                         )
 
+                        self._observe("PW_PLAY_PROCESS_START")
                         process = (
                             subprocess.Popen(
                                 self._command(
@@ -1450,6 +1497,7 @@ class PipeWireSpeechPlayer:
                                 bufsize=0,
                             )
                         )
+                        self._observe("PW_PLAY_PROCESS_STARTED")
 
                         with (
                             self._active_lock
@@ -1477,19 +1525,33 @@ class PipeWireSpeechPlayer:
                         )
 
                     try:
-                        process.stdin.write(
-                            chunk.pcm
-                        )
-
-                        process.stdin.flush()
-
-                        written += len(
-                            chunk.pcm
-                        )
                         if not first_pcm_written:
+                            self._observe("PW_PLAY_FIRST_PCM_WRITE_BEGIN")
+                            initial_pcm = chunk.pcm[
+                                : self.config.initial_pcm_bytes
+                            ]
+                            process.stdin.write(initial_pcm)
+                            process.stdin.flush()
+                            written += len(initial_pcm)
                             first_pcm_written = True
+                            self._observe("PW_PLAY_FIRST_PCM_WRITTEN")
                             if self._on_first_pcm_written is not None:
                                 self._on_first_pcm_written()
+
+                            # Do not make the first-PCM boundary wait for a
+                            # full sentence-sized pipe write.  The remaining
+                            # bytes are unchanged and preserve contiguous
+                            # audio; a stop still terminates this pipe.
+                            remaining_pcm = chunk.pcm[len(initial_pcm) :]
+                            if remaining_pcm:
+                                process.stdin.write(remaining_pcm)
+                                process.stdin.flush()
+                                written += len(remaining_pcm)
+
+                        else:
+                            process.stdin.write(chunk.pcm)
+                            process.stdin.flush()
+                            written += len(chunk.pcm)
 
                     except (
                         BrokenPipeError,

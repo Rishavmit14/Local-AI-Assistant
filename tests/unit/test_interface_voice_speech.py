@@ -237,6 +237,9 @@ def test_voice_turn_marks_endpoint_and_first_stable_sentence_without_text():
         "OWNER_SPEECH_ENDED",
         "ENDPOINT_FINALIZED",
         "FIRST_SPEAKABLE_CHUNK",
+        "SPEECH_CHUNK_ACCEPTED",
+        "SPEECH_WORKER_STARTED",
+        "PLAYBACK_QUEUE_ADMITTED",
     ]
 
 

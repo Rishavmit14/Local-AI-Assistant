@@ -8,7 +8,7 @@ Voice is an input/output surface and has no privileged path around Friday's nati
 
 `microphone -> Whisper STT -> local LLM streaming -> Piper TTS -> PipeWire playback`
 
-## Stage 22 Slices 5–6 — measured TTS decision and Qwen latency trace
+## Stage 22 Slices 5–7 — measured latency attribution and handoff repair
 
 Piper remains the accepted production TTS. Kokoro CPU was evaluated locally with
 the current Qwen configuration and three female candidates; the owner selected
@@ -36,6 +36,19 @@ warm normal/follow-up prefill fell from 639–1,394 newly evaluated tokens
 from 0.240–0.413 to 0.902–0.970. The current Qwen configuration, Piper, AEC,
 barge-in, and exact stop were unchanged. A fully grounded teaching turn remains
 correctly heavier; it is not compacted away for latency.
+
+Slice 7 extends the same privacy-safe trace through completed speech chunk,
+queue/worker admission, Piper request and first audio, `pw-play` startup, and
+first PCM write. It found no material queue, Piper, process-start, AEC, or
+sentence-gating delay after the first completed speakable chunk. Instead, the
+old player attempted to write a complete sentence-sized PCM buffer before its
+first-PCM callback; pipe backpressure made that blocking operation take
+0.85–10.83 s in four of five baseline turns (54 ms in the fifth). The player
+now writes and flushes an 8 KiB 16-bit PCM prefix first, then writes the exact
+unchanged remainder contiguously. Qualified post-change turns measured
+first-speakable to first PCM at 54–619 ms (median 388 ms). This is a scheduling
+repair, not a TTS/model change; Piper naturalness and every accepted AEC,
+barge-in, exact-stop, and wake lifecycle boundary remain intact.
 
 ## Accepted always-on wake path
 

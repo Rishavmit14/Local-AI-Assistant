@@ -1848,3 +1848,18 @@ service. First-PCM timing remains variable and must be a separately scoped
 voice-handoff investigation; do not restart TTS experiments or weaken grounding
 to mask it. Run final full verification and publish only after the final
 telemetry-classification repair is deployed and checked.
+
+## Stage 22 Slice 7 — first-speakable to first-PCM handoff (accepted, 2026-09-13)
+
+Slice 7 retains the accepted Qwen prefix order and all voice/memory/Career Forge
+boundaries. Content-free telemetry now includes speech queue/worker, Piper
+request/first-audio, `pw-play` startup, and the first PCM write. Baseline
+profiling found a full initial Piper chunk blocked on `pw-play` stdin for
+0.85–10.83 s (median 4.88 s); Piper and process startup were not the cause.
+`PipeWireSpeechPlayer` now flushes an 8 KiB 16-bit PCM prefix before writing the
+exact contiguous remainder. Qualified first-speakable to first-PCM was
+54–619 ms (median 388 ms). Speech-end to first-PCM was 3.29–31.44 s (median
+6.01 s); the 31.44 s teaching outlier was prompt assembly before Qwen and lies
+outside this handoff repair. Qwen, Piper naturalness, AEC/barge-in, exact stop,
+and wake recovery passed physical qualification. No alternative TTS or Qwen
+configuration change is authorized by this slice.

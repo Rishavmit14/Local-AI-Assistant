@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import threading
 import time
-from collections.abc import Generator, Iterator
+from collections.abc import Callable, Generator, Iterator
 from dataclasses import replace
-from typing import Callable, Protocol
+from typing import Protocol
 
 from local_ai_assistant.voice import (
     BargeInResult,
@@ -565,6 +565,7 @@ class FridayVoiceConversationService:
 
         def play_sentences(first_sentence: str) -> None:
             try:
+                self._mark_latency("SPEECH_WORKER_STARTED")
                 speech_results.append(
                     self._speak_response(
                         first_sentence,
@@ -585,6 +586,7 @@ class FridayVoiceConversationService:
                     raise speech_errors[0]
                 try:
                     queue.put(sentence, timeout=0.1)
+                    self._mark_latency("SPEECH_CHUNK_ACCEPTED")
                     break
                 except SpeechQueueClosed:
                     if speech_errors:
@@ -692,6 +694,7 @@ class FridayVoiceConversationService:
         )
 
         try:
+            self._mark_latency("PLAYBACK_QUEUE_ADMITTED")
             (
                 result,
                 barge_in,
@@ -1040,6 +1043,7 @@ class FridayVoiceConversationService:
         )
 
         worker.start()
+        self._mark_latency("BARGE_MONITOR_THREAD_STARTED")
 
         playback_error: (
             Exception

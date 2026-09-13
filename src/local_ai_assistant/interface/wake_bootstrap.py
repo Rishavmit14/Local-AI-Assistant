@@ -165,8 +165,23 @@ class VoiceTurnTelemetry:
             "QWEN_FIRST_TOKEN",
             "QWEN_USAGE",
             "FIRST_SPEAKABLE_CHUNK",
+            "SPEECH_CHUNK_ACCEPTED",
+            "SPEECH_WORKER_STARTED",
+            "PLAYBACK_QUEUE_ADMITTED",
+            "BARGE_MONITOR_THREAD_STARTED",
             "TTS_SYNTHESIS_BEGIN",
+            "PIPER_STREAM_ENTER",
+            "PIPER_WORKER_AVAILABLE",
+            "PIPER_REQUEST_LOCK_ACQUIRED",
+            "PIPER_REQUEST_DISPATCHED",
+            "PIPER_REQUEST_ACCEPTED",
+            "PIPER_FIRST_AUDIO_READ",
             "TTS_FIRST_AUDIO_AVAILABLE",
+            "PLAYBACK_PLAYER_ENTER",
+            "PW_PLAY_PROCESS_START",
+            "PW_PLAY_PROCESS_STARTED",
+            "PW_PLAY_FIRST_PCM_WRITE_BEGIN",
+            "PW_PLAY_FIRST_PCM_WRITTEN",
             "PLAYBACK_FIRST_PCM_WRITTEN",
         }
     )
@@ -416,6 +431,9 @@ class InstrumentedSynthesizer:
 
         self.inner.close()
 
+    def set_latency_observer(self, observer) -> None:
+        self.inner.set_latency_observer(observer)
+
 
     def stream(
         self,
@@ -509,6 +527,9 @@ class InstrumentedSpeechPlayer:
         )
 
         return result
+
+    def set_latency_observer(self, observer) -> None:
+        self.inner.set_latency_observer(observer)
 
 
     def __getattr__(
@@ -1165,6 +1186,8 @@ def build_managed_wake_voice(
         ),
         telemetry,
     )
+    speech_synthesizer.set_latency_observer(telemetry.mark_with_details)
+    speech_player.set_latency_observer(telemetry.mark_with_details)
 
 
     voice_conversation = (

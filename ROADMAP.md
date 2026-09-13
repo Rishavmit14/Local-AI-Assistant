@@ -667,7 +667,7 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
-## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Slice 6 Qwen/conversation latency optimization accepted; owner review pending**)
+## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Slice 7 first-PCM handoff optimization accepted; owner review pending**)
 
 Stages 0–21 remain accepted historical engineering evidence. Their accepted
 backend/security/recovery scope is not rewritten because owner-facing product
@@ -750,6 +750,18 @@ wake, follow-up, Career Forge, teaching, barge-in/stop, and wake recovery; the
 service remained healthy. The remaining owner-perceived first-PCM variability
 is a separately measured voice handoff concern, not a reason to weaken Qwen
 grounding or restart TTS experimentation in this slice.
+
+Slice 7 measured that handoff rather than altering Qwen or replacing Piper.
+The post-Qwen bottleneck was an oversized initial write to the newly started
+`pw-play` stdin pipe: first-speakable to the old first-PCM callback ranged from
+54 ms to 10.83 s (median 4.88 s), while Piper first audio and process startup
+were fast. Friday now flushes an 8 KiB PCM prefix before the contiguous
+unchanged remainder. Qualified turns measured first-speakable to first PCM at
+54–619 ms (median 388 ms), with no multi-second handoff stall. The observed
+speech-end to first-PCM range was 3.29–31.44 s (median 6.01 s); the 31.44 s
+teaching-path outlier was pre-Qwen prompt assembly, outside this bounded
+post-Qwen scope. Qwen, grounding, memory, Career Forge, Piper, AEC, barge-in,
+exact stop, and wake recovery remain unchanged and qualified.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

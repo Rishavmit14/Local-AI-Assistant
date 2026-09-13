@@ -380,6 +380,29 @@ def test_persistent_worker_streams(
     finalize()
 
 
+def test_piper_stream_reports_ordered_content_free_handoff_stages(
+    tmp_path: Path,
+) -> None:
+    synth = PiperSpeechSynthesizer(runtime_config(tmp_path))
+    stages: list[tuple[str, dict[str, int | float]]] = []
+    synth.set_latency_observer(lambda stage, details: stages.append((stage, dict(details))))
+
+    try:
+        assert len(list(synth.stream("Friday"))) == 2
+    finally:
+        synth.close()
+
+    assert [stage for stage, _ in stages] == [
+        "PIPER_STREAM_ENTER",
+        "PIPER_WORKER_AVAILABLE",
+        "PIPER_REQUEST_LOCK_ACQUIRED",
+        "PIPER_REQUEST_DISPATCHED",
+        "PIPER_REQUEST_ACCEPTED",
+        "PIPER_FIRST_AUDIO_READ",
+    ]
+    assert all(not details for _, details in stages)
+
+
 def test_worker_reused(
     tmp_path: Path,
 ) -> None:
@@ -547,6 +570,38 @@ def test_player_normal(
     )
 
     finalize()
+
+
+@pytest.mark.parametrize("initial_pcm_bytes", [0, -2, 7])
+def test_player_initial_pcm_bytes_must_align_to_16_bit_pcm(
+    initial_pcm_bytes: int,
+) -> None:
+    with pytest.raises(ValueError, match="initial_pcm_bytes"):
+        PipeWirePlayerConfig(initial_pcm_bytes=initial_pcm_bytes)
+
+
+def test_player_reports_process_and_first_pcm_boundaries(
+    tmp_path: Path,
+) -> None:
+    stages: list[tuple[str, dict[str, int | float]]] = []
+    player = PipeWireSpeechPlayer(PipeWirePlayerConfig(player_path=fake_player(tmp_path)))
+    player.set_latency_observer(lambda stage, details: stages.append((stage, dict(details))))
+
+    player.play(iter([PiperAudioChunk(
+        pcm=b"\x01\x00" * 8_000,
+        sample_rate=22_050,
+        sample_width_bytes=2,
+        channels=1,
+    )]))
+
+    assert [stage for stage, _ in stages] == [
+        "PLAYBACK_PLAYER_ENTER",
+        "PW_PLAY_PROCESS_START",
+        "PW_PLAY_PROCESS_STARTED",
+        "PW_PLAY_FIRST_PCM_WRITE_BEGIN",
+        "PW_PLAY_FIRST_PCM_WRITTEN",
+    ]
+    assert all(not details for _, details in stages)
 
 
 def test_player_interruptible(

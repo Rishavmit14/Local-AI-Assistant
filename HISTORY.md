@@ -1,5 +1,20 @@
 # Project History
 
+## 2026-09-13 — Stage 22 Slice 7 first-PCM handoff optimization accepted
+
+Friday's content-free voice trace now attributes the complete handoff from the
+first completed speakable chunk through speech queue/worker, Piper request and
+first audio, `pw-play` startup, and first PCM. Baseline evidence found the
+multi-second delay was not Qwen, sentence gating, Piper, PipeWire process
+startup, AEC, or queue synchronization: writing a complete sentence-sized PCM
+buffer to `pw-play` before recording first PCM blocked for 0.85–10.83 seconds
+(median 4.88 seconds). The player now flushes a bounded 8 KiB 16-bit PCM prefix
+before its unchanged contiguous remainder. Physical qualification measured
+54–619 ms (median 388 ms) from first speakable chunk to first PCM; Qwen first
+token, audio quality/naturalness, barge-in, exact stop, and wake recovery
+remained healthy. The remaining floor is Qwen/prompt work plus Piper's roughly
+52–617 ms first-audio interval, not post-Qwen pipe backpressure.
+
 ## 2026-09-13 — Stage 22 Slice 6 Qwen/conversation TTFT optimization accepted
 
 Friday now measures the local LLM boundary without retaining private content:

@@ -121,6 +121,19 @@ context, memory, Career Forge grounding, Piper, AEC/barge-in, and exact-stop
 boundaries remain in force. A grounded Career Forge teaching turn legitimately
 remains heavier (988 newly evaluated tokens; about 11.13 s prefill).
 
+### Stage 22 Slice 7 — first-speakable PCM handoff
+
+The same bounded content-free trace now marks speech-queue admission, worker
+start, Piper worker/request/first-audio boundaries, `pw-play` process start, and
+first PCM write. Profiling isolated the post-Qwen delay to a single oversized
+first `pw-play` stdin write: Piper and process startup were fast, but flushing a
+whole sentence-sized PCM chunk could block for 0.85–10.83 s before the previous
+first-PCM marker. The player now flushes an unchanged 8 KiB 16-bit PCM prefix
+(about 186 ms at 22.05 kHz) before streaming the remainder contiguously. This
+does not change text, synthesis, the audio bytes, Qwen configuration, AEC,
+barge-in, or stop behavior. Physical qualification measured first-speakable to
+first PCM at 54–619 ms (median 388 ms), removing the multi-second handoff wait.
+
 ## Deployment compatibility
 
 Stages 0 through 8 did not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so reviewed deployments can point to existing paths or new state directories. Stage 11 removed the obsolete Streamlit product service and introduced the persistent user-session Friday presentation/wake service. A sanitized example is tracked at `config/services/friday-local-ai.service.example`; machine-local installed units remain external deployment state.
