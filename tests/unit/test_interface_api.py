@@ -157,6 +157,18 @@ def test_voice_health_is_separate_from_http_liveness():
     assert disabled.get("/api/v1/voice/health").json() == {
         "enabled": False, "status": "disabled",
     }
+    assert disabled.get("/api/v1/voice/latency").json() == {"turns": []}
+
+
+def test_voice_latency_trace_is_read_only_and_content_free():
+    runtime = FridayRuntime("voice-latency")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        voice_latency=lambda: ({"durations_ms": {"qwen_first_token": 123.4}},),
+    ))
+    assert client.get("/api/v1/voice/latency").json() == {
+        "turns": [{"durations_ms": {"qwen_first_token": 123.4}}],
+    }
 
 
 def test_runtime_session_and_capability_projection_are_read_only():
@@ -772,6 +784,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/runtime/state",
         "/api/v1/capabilities",
         "/api/v1/voice/health",
+        "/api/v1/voice/latency",
         "/api/v1/interaction/state",
         "/api/v1/research/sources",
         "/api/v1/research/synthesis",

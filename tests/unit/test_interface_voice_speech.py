@@ -170,6 +170,7 @@ def make_voice_service(
     *,
     chunks: list[str] | None = None,
     player: FakeSpeechPlayer | None = None,
+    latency_stages: list[str] | None = None,
 ):
     runtime = FridayRuntime(
         "stage-11f3-test"
@@ -210,6 +211,7 @@ def make_voice_service(
                 synthesizer
             ),
             speech_player=player,
+            latency_stage=(latency_stages.append if latency_stages is not None else None),
         )
     )
 
@@ -221,6 +223,21 @@ def make_voice_service(
         synthesizer,
         player,
     )
+
+
+def test_voice_turn_marks_endpoint_and_first_stable_sentence_without_text():
+    stages: list[str] = []
+    voice, _, _, _, _, _ = make_voice_service(
+        chunks=["A complete sentence."], latency_stages=stages,
+    )
+    voice.start_listening()
+
+    assert list(voice.stream_utterance(make_utterance())) == ["A complete sentence."]
+    assert stages == [
+        "OWNER_SPEECH_ENDED",
+        "ENDPOINT_FINALIZED",
+        "FIRST_SPEAKABLE_CHUNK",
+    ]
 
 
 def state_path(

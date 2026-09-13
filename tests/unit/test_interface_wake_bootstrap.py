@@ -759,6 +759,33 @@ def test_voice_turn_telemetry_requires_positive_capacity():
         VoiceTurnTelemetry(max_events=0)
 
 
+def test_voice_turn_telemetry_projects_content_free_latency_record():
+    telemetry = VoiceTurnTelemetry()
+    for stage in (
+        "OWNER_SPEECH_ENDED",
+        "ENDPOINT_FINALIZED",
+        "ASR_FINAL",
+        "PROMPT_CONTEXT_ASSEMBLED",
+        "QWEN_GENERATION_BEGIN",
+        "QWEN_FIRST_TOKEN",
+        "FIRST_SPEAKABLE_CHUNK",
+        "TTS_SYNTHESIS_BEGIN",
+        "TTS_FIRST_AUDIO_AVAILABLE",
+        "PLAYBACK_FIRST_PCM_WRITTEN",
+    ):
+        telemetry.mark(stage)
+
+    turns = telemetry.latency_snapshot()
+    assert len(turns) == 1
+    assert set(turns[0]) == {"durations_ms"}
+    assert set(turns[0]["durations_ms"]) == {stage.lower() for stage in (
+        "OWNER_SPEECH_ENDED", "ENDPOINT_FINALIZED", "ASR_FINAL",
+        "PROMPT_CONTEXT_ASSEMBLED", "QWEN_GENERATION_BEGIN",
+        "QWEN_FIRST_TOKEN", "FIRST_SPEAKABLE_CHUNK", "TTS_SYNTHESIS_BEGIN",
+        "TTS_FIRST_AUDIO_AVAILABLE", "PLAYBACK_FIRST_PCM_WRITTEN",
+    )}
+
+
 def test_health_projects_managed_worker_liveness():
     service, *_ = make_service()
 

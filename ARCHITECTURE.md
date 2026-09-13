@@ -96,6 +96,14 @@ Production qualification on Stage 12B proved two controlled restarts with no sys
 
 See [voice and wake architecture](docs/architecture/voice-and-wake.md).
 
+### Stage 22 Slice 5 — voice latency evidence
+
+The accepted Piper/ PipeWire path now emits bounded, content-free per-turn
+latency stages through a read-only local API. Kokoro CPU was evaluated but
+rejected after owner listening because its slower response start and long pauses
+degraded the real Friday interaction; Piper remains the production provider.
+The observed slow path was upstream Qwen time-to-first-token, not Piper.
+
 ## Deployment compatibility
 
 Stages 0 through 8 did not mutate `/AI/projects/local-ai`, `/AI/projects/code-assistant`, llama.cpp, or model storage. The packaged code uses `LOCAL_AI_*` environment variables so reviewed deployments can point to existing paths or new state directories. Stage 11 removed the obsolete Streamlit product service and introduced the persistent user-session Friday presentation/wake service. A sanitized example is tracked at `config/services/friday-local-ai.service.example`; machine-local installed units remain external deployment state.

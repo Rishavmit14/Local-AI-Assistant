@@ -147,7 +147,26 @@ class WakeCaptureBoundary(
 
 
 class VoiceTurnTelemetry:
-    """Thread-safe bounded rolling production voice-stage trace."""
+    """Thread-safe, bounded and content-free voice timing trace.
+
+    Timestamps are monotonic and only stage names are retained.  In particular,
+    this diagnostic boundary never retains microphone audio or transcripts.
+    """
+
+    _LATENCY_STAGES = frozenset(
+        {
+            "OWNER_SPEECH_ENDED",
+            "ENDPOINT_FINALIZED",
+            "ASR_FINAL",
+            "PROMPT_CONTEXT_ASSEMBLED",
+            "QWEN_GENERATION_BEGIN",
+            "QWEN_FIRST_TOKEN",
+            "FIRST_SPEAKABLE_CHUNK",
+            "TTS_SYNTHESIS_BEGIN",
+            "TTS_FIRST_AUDIO_AVAILABLE",
+            "PLAYBACK_FIRST_PCM_WRITTEN",
+        }
+    )
 
     def __init__(
         self,
@@ -169,6 +188,9 @@ class VoiceTurnTelemetry:
             ]
         ] = deque(maxlen=max_events)
 
+        self._turns: deque[dict[str, object]] = deque(maxlen=64)
+        self._active_turn: dict[str, object] | None = None
+
 
     def mark(
         self,
@@ -180,13 +202,8 @@ class VoiceTurnTelemetry:
         )
 
         with self._lock:
-
-            self._events.append(
-                (
-                    timestamp,
-                    stage,
-                )
-            )
+            self._events.append((timestamp, stage))
+            self._record_latency_stage(timestamp, stage)
 
 
         print(
@@ -225,6 +242,32 @@ class VoiceTurnTelemetry:
             for _, stage
             in self.snapshot()
         )
+
+    def latency_snapshot(self) -> tuple[dict[str, object], ...]:
+        """Return completed bounded timing records, newest last, without content."""
+        with self._lock:
+            return tuple(dict(record) for record in self._turns)
+
+    def _record_latency_stage(self, timestamp: float, stage: str) -> None:
+        if stage == "OWNER_SPEECH_ENDED":
+            self._active_turn = {"stages": {stage: timestamp}}
+            return
+        if self._active_turn is None or stage not in self._LATENCY_STAGES:
+            return
+        stages = self._active_turn["stages"]
+        assert isinstance(stages, dict)
+        stages.setdefault(stage, timestamp)
+        if stage != "PLAYBACK_FIRST_PCM_WRITTEN":
+            return
+        origin = stages["OWNER_SPEECH_ENDED"]
+        assert isinstance(origin, float)
+        durations_ms = {
+            name.lower(): round((value - origin) * 1000, 1)
+            for name, value in stages.items()
+            if isinstance(value, float)
+        }
+        self._turns.append({"durations_ms": durations_ms})
+        self._active_turn = None
 
 
 class InstrumentedTranscriber:
@@ -265,9 +308,7 @@ class InstrumentedTranscriber:
             raise
 
 
-        self.telemetry.mark(
-            "WHISPER_COMPLETE"
-        )
+        self.telemetry.mark("ASR_FINAL")
 
         return result
 
@@ -294,10 +335,6 @@ class InstrumentedConversation:
         **kwargs,
     ) -> Iterator[str]:
 
-        self.telemetry.mark(
-            "LLM_BEGIN"
-        )
-
         first = True
 
         try:
@@ -314,9 +351,7 @@ class InstrumentedConversation:
 
                     first = False
 
-                    self.telemetry.mark(
-                        "LLM_FIRST_TOKEN"
-                    )
+                    self.telemetry.mark("QWEN_FIRST_TOKEN")
 
                 yield chunk
 
@@ -373,9 +408,7 @@ class InstrumentedSynthesizer:
         text: str,
     ) -> Iterator[PiperAudioChunk]:
 
-        self.telemetry.mark(
-            "PIPER_BEGIN"
-        )
+        self.telemetry.mark("TTS_SYNTHESIS_BEGIN")
 
         first = True
 
@@ -392,9 +425,7 @@ class InstrumentedSynthesizer:
 
                     first = False
 
-                    self.telemetry.mark(
-                        "PIPER_FIRST_AUDIO"
-                    )
+                    self.telemetry.mark("TTS_FIRST_AUDIO_AVAILABLE")
 
                 yield chunk
 
@@ -439,9 +470,7 @@ class InstrumentedSpeechPlayer:
         ],
     ) -> SpeechPlaybackResult:
 
-        self.telemetry.mark(
-            "PLAYBACK_BEGIN"
-        )
+        self.telemetry.mark("PLAYBACK_BEGIN")
 
         try:
 
@@ -999,6 +1028,9 @@ class FridayManagedWakeVoice:
                 },
             }
 
+    def latency_snapshot(self) -> tuple[dict[str, object], ...]:
+        return self.telemetry.latency_snapshot()
+
 
     def _run_voice_turn(
         self,
@@ -1090,6 +1122,9 @@ def build_managed_wake_voice(
     telemetry = (
         VoiceTurnTelemetry()
     )
+    # Prompt assembly happens inside the existing conversation service, before
+    # its stream wrapper can observe the first token.
+    conversation.latency_stage = telemetry.mark
 
 
     transcriber = (
@@ -1108,11 +1143,11 @@ def build_managed_wake_voice(
     )
 
 
-    speech_player = (
-        InstrumentedSpeechPlayer(
-            PipeWireSpeechPlayer(),
-            telemetry,
-        )
+    speech_player = InstrumentedSpeechPlayer(
+        PipeWireSpeechPlayer(
+            on_first_pcm_written=lambda: telemetry.mark("PLAYBACK_FIRST_PCM_WRITTEN")
+        ),
+        telemetry,
     )
 
 
@@ -1179,6 +1214,7 @@ def build_managed_wake_voice(
             barge_in_monitor=(
                 barge_in_monitor
             ),
+            latency_stage=telemetry.mark,
         )
     )
 

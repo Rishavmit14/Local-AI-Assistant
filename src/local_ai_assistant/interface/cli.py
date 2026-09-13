@@ -298,6 +298,7 @@ def build_presentation_components(
         runtime=runtime,
         conversation=conversation,
         voice_health=wake_voice.health if wake_voice is not None else None,
+        voice_latency=wake_voice.latency_snapshot if wake_voice is not None else None,
         interactions=interactions,
         presentation_pause=(wake_voice.pause_for_presentation if wake_voice is not None else None),
         presentation_resume=(

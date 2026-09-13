@@ -667,7 +667,7 @@ review-gated packaging/publication, authorized cross-platform analytics, durable
 performance/experiment journals, evidence-driven learning, useful proactive views,
 business-value analysis, and versioned creator skills as one Friday capability.
 
-## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 4 truthful progress and learning history accepted**)
+## Post-Stage-21 — Friday Product Integration & Career Forge Advanced Integration (**Active: Slice 5 voice latency evidence accepted**)
 
 Stages 0–21 remain accepted historical engineering evidence. Their accepted
 backend/security/recovery scope is not rewritten because owner-facing product
@@ -730,6 +730,12 @@ ordinary voice-transcript retention. Real local text qualification and a
 controlled service restart recovered the same durable mission/evidence state.
 Practice Lab, retention automation, screen-aware tutoring, broad desktop/UI
 work, interview integration, model expansion, and Astra remain out of scope.
+
+Slice 5 adds privacy-safe bounded latency evidence to the accepted voice path.
+Kokoro CPU was evaluated locally but rejected after owner listening because its
+response delay and long speech pauses degraded Friday; Piper remains production.
+The evidence identifies Qwen time-to-first-token, not Piper, as the next bounded
+latency target. No new voice model, Practice Lab, or UI scope was accepted.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

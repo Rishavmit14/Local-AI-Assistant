@@ -4,7 +4,7 @@ import threading
 import time
 from collections.abc import Generator, Iterator
 from dataclasses import replace
-from typing import Protocol
+from typing import Callable, Protocol
 
 from local_ai_assistant.voice import (
     BargeInResult,
@@ -110,6 +110,7 @@ class FridayVoiceConversationService:
         speech_synthesizer: VoiceSpeechSynthesizer | None = None,
         speech_player: VoiceSpeechPlayer | None = None,
         barge_in_monitor: VoiceBargeInMonitor | None = None,
+        latency_stage: Callable[[str], None] | None = None,
     ) -> None:
         if (
             speech_synthesizer
@@ -146,6 +147,7 @@ class FridayVoiceConversationService:
         self.barge_in_monitor = (
             barge_in_monitor
         )
+        self.latency_stage = latency_stage
         self._explicit_session_close = False
 
     def begin_session(self) -> None:
@@ -414,6 +416,7 @@ class FridayVoiceConversationService:
                 f"{self.runtime.state.value}"
             )
 
+        self._mark_latency("OWNER_SPEECH_ENDED")
         self.runtime.emit(
             FridayEventType
             .VOICE_LISTENING_STOPPED,
@@ -434,6 +437,7 @@ class FridayVoiceConversationService:
                 "voice_utterance_complete"
             ),
         )
+        self._mark_latency("ENDPOINT_FINALIZED")
 
         try:
             transcript = (
@@ -574,6 +578,8 @@ class FridayVoiceConversationService:
 
         def enqueue(sentence: str) -> None:
             nonlocal speech_thread
+            if speech_thread is None:
+                self._mark_latency("FIRST_SPEAKABLE_CHUNK")
             while True:
                 if speech_errors:
                     raise speech_errors[0]
@@ -617,6 +623,10 @@ class FridayVoiceConversationService:
         if speech_errors:
             raise speech_errors[0]
         return speech_results[0]
+
+    def _mark_latency(self, stage: str) -> None:
+        if self.latency_stage is not None:
+            self.latency_stage(stage)
 
     def _speak_response(
         self,

@@ -11,7 +11,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from queue import Empty, Full, Queue
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, Callable
 
 DEFAULT_PIPER_PYTHON_PATH = Path(
     "/AI/tools/piper/.venv/bin/python"
@@ -1328,12 +1328,15 @@ class PipeWireSpeechPlayer:
             PipeWirePlayerConfig
             | None
         ) = None,
+        *,
+        on_first_pcm_written: Callable[[], None] | None = None,
     ) -> None:
         self.config = (
             config
             if config is not None
             else PipeWirePlayerConfig()
         )
+        self._on_first_pcm_written = on_first_pcm_written
 
         if not (
             self.config
@@ -1395,6 +1398,7 @@ class PipeWireSpeechPlayer:
             written = 0
             interrupted = False
             produced = False
+            first_pcm_written = False
 
             try:
                 for chunk in chunks:
@@ -1482,6 +1486,10 @@ class PipeWireSpeechPlayer:
                         written += len(
                             chunk.pcm
                         )
+                        if not first_pcm_written:
+                            first_pcm_written = True
+                            if self._on_first_pcm_written is not None:
+                                self._on_first_pcm_written()
 
                     except (
                         BrokenPipeError,

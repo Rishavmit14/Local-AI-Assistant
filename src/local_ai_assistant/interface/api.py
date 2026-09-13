@@ -144,6 +144,7 @@ def create_presentation_app(
     *,
     max_prompt_chars: int = 20_000,
     voice_health: Callable[[], dict[str, object]] | None = None,
+    voice_latency: Callable[[], tuple[dict[str, object], ...]] | None = None,
     interactions: FridayInteractionCoordinator | None = None,
     presentation_pause: Callable[[], None] | None = None,
     presentation_resume: Callable[[], None] | None = None,
@@ -217,6 +218,10 @@ def create_presentation_app(
     @app.get("/api/v1/voice/health")
     def wake_health():
         return voice_health() if voice_health else {"enabled": False, "status": "disabled"}
+
+    @app.get("/api/v1/voice/latency")
+    def voice_latency_trace():
+        return {"turns": list(voice_latency() if voice_latency else ())}
 
     @app.get("/api/v1/interaction/state")
     def interaction_state():

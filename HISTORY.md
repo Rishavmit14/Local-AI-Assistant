@@ -1,5 +1,16 @@
 # Project History
 
+## 2026-09-13 — Stage 22 Slice 5 voice latency evidence accepted
+
+Friday now retains a bounded, local, transcript-free latency trace and read-only
+voice-latency endpoint from speech endpoint through ASR, prompt assembly, Qwen,
+stable speech chunk, TTS, and first PipeWire PCM. Piper remained fast in the
+local baseline and remains production TTS. Kokoro CPU was evaluated and rejected
+by owner qualification because it added unacceptable response delay and
+unnatural long pauses. GPU Kokoro was not tried because Qwen already consumed
+about 7.18 of 8 GiB VRAM. The observed slow live turn placed the primary next
+target at Qwen first-token latency (about ten seconds), not Piper.
+
 ## 2026-09-12 — Stage 22 Slice 4 truthful Career Forge progress and learning history accepted
 
 Friday now derives one bounded owner-visible Career Forge progress projection

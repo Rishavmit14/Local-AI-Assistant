@@ -1813,3 +1813,13 @@ voice-session continuity. Practice Lab, retention automation, screen-aware
 tutoring, broad UI/desktop work, interview integration, model expansion, and
 Astra remain out of scope. The accepted recovery SHA is the published
 stage-22/product-integration and main ref for this checkpoint.
+
+## Stage 22 Slice 5 — voice latency evidence (2026-09-13)
+
+Accepted Slice 5 retains bounded local content-free voice timing and the
+read-only latency endpoint. Piper remains production after a local Kokoro CPU
+evaluation and owner listening rejected Kokoro for slower response start and
+unnatural long pauses. GPU TTS was not attempted because Qwen used about 7.18
+of 8 GiB VRAM. The observed slow turn localized the next latency target to Qwen
+first-token time (about ten seconds), not Piper. Do not retry alternate TTS
+engines in this slice; await owner review before a separate Qwen-latency slice.

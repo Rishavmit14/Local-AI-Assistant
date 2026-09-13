@@ -47,6 +47,7 @@ class FridayConversationService:
         session: FridayConversationSession | None = None,
         cognition: CognitiveController | None = None,
         capability_router: FridayConversationCapabilityRouter | None = None,
+        latency_stage: Callable[[str], None] | None = None,
     ) -> None:
         self.llm = llm
         self.runtime = runtime
@@ -55,6 +56,7 @@ class FridayConversationService:
         self.session = session or FridayConversationSession()
         self.cognition = cognition
         self.capability_router = capability_router
+        self.latency_stage = latency_stage
         self.learning_loop = CareerForgeLearningLoop(capability_router.career_forge) if capability_router else None
 
     def stream_response(
@@ -113,6 +115,8 @@ class FridayConversationService:
             system_prompt += "\n\nCareer Forge lesson directive:\n" + learning_directive.system_context
         lesson_turn = learning_directive is not None or (route is not None and route.capability_key == "career_forge") or self.session.capability_context().startswith("Career Forge handoff")
         effective_max_tokens = min(max_tokens, 160) if lesson_turn else max_tokens
+        if self.latency_stage is not None:
+            self.latency_stage("PROMPT_CONTEXT_ASSEMBLED")
 
         self.session.begin()
         self.session.append("Owner", prompt)
@@ -135,6 +139,8 @@ class FridayConversationService:
         parts: list[str] = []
 
         try:
+            if self.latency_stage is not None:
+                self.latency_stage("QWEN_GENERATION_BEGIN")
             source = (
                 iter((route.response,))
                 if route is not None and route.response is not None

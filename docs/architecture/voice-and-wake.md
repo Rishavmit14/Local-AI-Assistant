@@ -8,6 +8,23 @@ Voice is an input/output surface and has no privileged path around Friday's nati
 
 `microphone -> Whisper STT -> local LLM streaming -> Piper TTS -> PipeWire playback`
 
+## Stage 22 Slice 5 — measured TTS decision and latency trace
+
+Piper remains the accepted production TTS. Kokoro CPU was evaluated locally with
+the current Qwen configuration and three female candidates; the owner selected
+Bella for a bounded comparison, then rejected Kokoro for production after a real
+Friday trial because response start was materially slower and speech had
+unnatural long pauses. GPU Kokoro was not attempted: Qwen already occupied about
+7.18 of the GTX 1070's 8 GiB VRAM, leaving no safe whole-Friday headroom.
+
+The runtime retains a bounded, in-memory, content-free latency trace and
+read-only `/api/v1/voice/latency` projection. It records endpoint finalization,
+ASR finalization, prompt assembly, Qwen generation/first token, first stable
+speakable chunk, TTS first audio, and first PCM written to PipeWire. The owner
+trial isolated the principal remaining latency target upstream: Qwen first token
+arrived about ten seconds after generation began on the observed slow turn;
+Piper synthesis was not the cause. No raw audio or transcript is retained.
+
 ## Accepted always-on wake path
 
 Canonical phrase: `Hey Friday`. Wake uses 16 kHz mono PCM, Silero VAD, Parakeet Full primary ASR, and Moonshine Medium only after a primary miss. Both use the same strict matcher.
