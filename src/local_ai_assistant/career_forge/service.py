@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -173,8 +175,18 @@ class CareerForgeService:
                     (item.competency_id, COMPETENCY_GRAPH_VERSION, MasteryLevel.UNVERIFIED, _now()),
                 )
 
-    def _db(self) -> sqlite3.Connection:
-        return sqlite3.connect(self.path)
+    @contextmanager
+    def _db(self) -> Iterator[sqlite3.Connection]:
+        """Commit/rollback and always close each short-lived SQLite connection."""
+        connection = sqlite3.connect(self.path)
+        try:
+            yield connection
+            connection.commit()
+        except BaseException:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     def competencies(self) -> tuple[LearnerCompetency, ...]:
         with self._db() as db:

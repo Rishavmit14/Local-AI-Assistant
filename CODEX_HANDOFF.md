@@ -1881,3 +1881,27 @@ was 7.28 s. Slice 7's first-PCM repair remains unchanged. The YAML model profile
 now matches the proven live service: ncmoe 31, 32K context, 1024/256 batches,
 4/8 threads, flash attention on; no unsupported parallel-slots schema field was
 added. Owner review is the next gate; do not begin Practice Lab or other scope.
+
+## Stage 22 Practice Lab — integrated, physical qualification pending (2026-09-13)
+
+The bounded Practice Lab candidate is on `stage-22/product-integration` above
+accepted Slice 8 checkpoint `11d2834dcfba2e6b3644773e409f397df6747020`. It
+uses one Career Forge SQLite authority for typed Python exercises, drafts,
+bounded run metadata, canonical lesson attempts/evaluation/evidence, assistance,
+resume, and deterministic diffs. Run/Test/Submit are distinct and submission
+never advances mastery. Learner code uses a fresh fail-closed Bubblewrap
+namespace with denied networking and strict CPU/wall/process/memory/output/file
+bounds; no shell, repository, credential, or production-store mount exists.
+The existing cinematic UI has an overlay Lab with highlighted editable Python,
+output, progressive hint, attempt history and diffs. The router accepts narrow
+explicit practice/resume phrases and gives the existing tutor whole canonical
+exercise/draft context; selected-code and screen-aware tutoring remain absent.
+
+Focused service/router tests and a frontend production build passed. Host smoke
+proved starter failure, corrected test/submission, no automatic mastery, host
+`/etc/passwd` denial, and runaway containment. The restored external test venv
+is untracked at `/AI/projects/local-ai/.venv`. Physical voice route and visual
+workspace/CLOSE qualification passed; the live API completed Run/Test/Hint/
+Submit/evidence/restart-resume without automatic mastery. The Lab is QUALIFIED.
+The live qualification repaired the short-lived Career Forge/Lab SQLite
+connection leak that had exhausted Friday's descriptor limit.

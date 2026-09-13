@@ -83,6 +83,7 @@ class PathConfig:
     isolation_dir: Path = PROJECT_ROOT / "var/isolation"
     onboarding_registry: Path = PROJECT_ROOT / "var/onboarding/repositories.json"
     career_forge_db: Path = PROJECT_ROOT / "var/career-forge/learner.sqlite3"
+    career_forge_lab_dir: Path = PROJECT_ROOT / "var/career-forge/lab"
     perception_dir: Path = PROJECT_ROOT / "var/perception"
     vision_cache_dir: Path = Path("/AI/cache/huggingface")
     desktop_control_db: Path = PROJECT_ROOT / "var/desktop-control/actions.sqlite3"
@@ -253,6 +254,9 @@ class AppConfig:
             ),
             career_forge_db=_path(
                 values.get("LOCAL_AI_CAREER_FORGE_DB", str(var_dir / "career-forge/learner.sqlite3"))
+            ),
+            career_forge_lab_dir=_path(
+                values.get("LOCAL_AI_CAREER_FORGE_LAB_DIR", str(var_dir / "career-forge/lab"))
             ),
             perception_dir=_path(values.get("LOCAL_AI_PERCEPTION_DIR", str(var_dir / "perception"))),
             vision_cache_dir=_path(values.get("LOCAL_AI_VISION_CACHE_DIR", "/AI/cache/huggingface")),

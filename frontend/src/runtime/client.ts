@@ -1,6 +1,7 @@
 import type {
   CareerForgeJourney,
   CareerForgeMission,
+  PracticeLab,
   ConversationRequest,
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
@@ -92,6 +93,40 @@ export class FridayRuntimeClient {
     if (!response.ok) {
       throw new Error(`Career Forge project link failed: ${response.status}`);
     }
+  }
+
+  async openPracticeLab(): Promise<PracticeLab> {
+    return this.practiceRequest("open");
+  }
+
+  async getPracticeLab(): Promise<PracticeLab> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab`);
+    if (!response.ok) throw new Error(`Practice Lab request failed: ${response.status}`);
+    return response.json() as Promise<PracticeLab>;
+  }
+
+  async savePracticeDraft(code: string): Promise<PracticeLab> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/draft`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+    if (!response.ok) throw new Error(`Practice Lab draft save failed: ${response.status}`);
+    return response.json() as Promise<PracticeLab>;
+  }
+
+  async practiceAction(action: "run" | "test" | "submit", code: string): Promise<PracticeLab> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code }) });
+    if (!response.ok) throw new Error(`Practice Lab ${action} failed: ${response.status}`);
+    return (await response.json() as { lab: PracticeLab }).lab;
+  }
+
+  async practiceHint(message: string): Promise<{ response: string; assistance_level: string }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/hint`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) });
+    if (!response.ok) throw new Error(`Practice Lab hint failed: ${response.status}`);
+    return response.json() as Promise<{ response: string; assistance_level: string }>;
+  }
+
+  private async practiceRequest(action: "open"): Promise<PracticeLab> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/${action}`, { method: "POST" });
+    if (!response.ok) throw new Error(`Practice Lab ${action} failed: ${response.status}`);
+    return response.json() as Promise<PracticeLab>;
   }
 
   async getScreenCaptures(signal?: AbortSignal): Promise<FridayScreenCapture[]> {

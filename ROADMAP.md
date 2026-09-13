@@ -774,6 +774,18 @@ empty-memory turn, so no speculative warmup or behavior change was made. Normal
 warm Qwen TTFT remained 1.93–2.92 s; grounded Career Forge resume was 7.28 s.
 Practice Lab and all other product scope remain out of this accepted slice.
 
+Practice Lab is qualified: the active Career Forge mission supplies a typed Python exercise,
+persisted draft, bounded Run/Test/Submit flow, progressive Tutor hint, governed
+attempt/evidence projection, and deterministic submitted-code diffs. Learner
+code runs only through fail-closed Bubblewrap with denied networking and strict
+resource bounds; it has no shell, repository, credential, or production-store
+access. Test success remains evidence rather than automatic mastery. The first
+Lab is intentionally Python-only and passes whole active exercise/draft context,
+not arbitrary selected-code or screen-aware context. The real Friday voice route,
+owner visual workspace/CLOSE review, and live Run/Test/Hint/Submit/restart-resume
+flow passed. A Career Forge SQLite descriptor leak exposed during live Lab
+projection was repaired by deterministic short-lived connection closure.
+
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and
 advanced organization-hierarchy visualization remain deferred unless the owner

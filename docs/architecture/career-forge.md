@@ -155,6 +155,32 @@ Python verification mission and safe structured fallback briefs for each later
 dependency-ready competency; model-generated adaptation is not required to start
 or resume learning.
 
+## Practice Lab
+
+The Practice Lab is a bounded Career Forge workspace, not an IDE or shell. Its
+typed exercise contract carries the assignment, starter code, runtime, bounded
+test contract, evaluation criteria, mission/competency linkage, and hint context.
+The initial exercise is Python and is attached only to the active dependency-ready
+mission. A draft and bounded run/test metadata persist in the existing Career
+Forge SQLite database; submitted code is an existing governed lesson attempt.
+Diffs are deterministic unified diffs from the previous submitted attempt (or
+the starter code), not synthetic Git history.
+
+Run reports only the isolated program's output and exit state. Test runs the
+trusted bounded exercise contract but does not create evidence. Submit runs that
+same contract, then records a canonical attempt, truthful assistance level,
+evaluation, retry state, and correct-only typed evidence. Neither path advances
+mastery: an explicit matching-evidence decision remains required.
+
+Learner code runs only in a fresh Bubblewrap namespace with denied networking,
+read-only system runtime, a dedicated temporary Lab directory, isolated
+environment, and small wall/CPU/process/memory/output/file limits. If Bubblewrap
+cannot prove process, filesystem, and network containment, Practice Lab is
+unavailable; it never degrades to native execution. The Lab panel supplies the
+active whole exercise/current draft to Friday's existing Tutor mode and records
+deliberate hint actions through the existing progressive-assistance authority.
+Selected-code and screen-aware context are intentionally outside this boundary.
+
 ## Mission and tutoring loop
 
 Missions, not passive chapters, follow: why it matters → prerequisite check →

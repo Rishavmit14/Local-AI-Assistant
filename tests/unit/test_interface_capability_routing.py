@@ -1,4 +1,4 @@
-from local_ai_assistant.career_forge import AttemptEvaluation, CareerForgeService, TutorMode
+from local_ai_assistant.career_forge import AttemptEvaluation, CareerForgeService, PracticeLabService, TutorMode
 from local_ai_assistant.interface.capabilities import (
     CapabilityStatus,
     FridayCapability,
@@ -29,12 +29,14 @@ def router(tmp_path):
     registry = FridayCapabilityRegistry((
         FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED, True, True, True, "local", None),
         FridayCapability("persistent_memory", "Persistent memory", CapabilityStatus.INTEGRATED, True, True, True, "local", None),
-        FridayCapability("practice_lab", "Practice Lab", CapabilityStatus.ABSENT, False, False, False, "none", "not installed"),
+        FridayCapability("practice_lab", "Practice Lab", CapabilityStatus.INTEGRATED, True, True, True, "local", "Python only"),
     ))
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
     return FridayConversationCapabilityRouter(
         registry,
-        career_forge=CareerForgeService(tmp_path / "career.sqlite3"),
+        career_forge=forge,
         memory=FridayMemoryService(tmp_path / "memory.sqlite3", embed=lambda values: [[1.0] for _ in values]),
+        practice_lab=PracticeLabService(forge, tmp_path / "lab"),
     )
 
 
@@ -57,10 +59,10 @@ def test_status_and_practice_lab_are_deterministic_and_do_not_call_the_model(tmp
     service = FridayConversationService(llm, FridayRuntime("route-status"), capability_router=capability_router)
 
     opened = "".join(service.stream_response("Friday, open Career Forge."))
-    absent = "".join(service.stream_response("Open the Practice Lab."))
+    opened_lab = "".join(service.stream_response("Open the Practice Lab."))
 
     assert "integrated local ML/AI Engineer apprenticeship" in opened
-    assert "Practice Lab is absent" in absent
+    assert "Practice Lab is ready" in opened_lab
     assert not llm.calls
 
 
@@ -111,6 +113,25 @@ def test_bounded_known_wake_asr_variants_reach_career_forge_not_generic_conversa
     assert "Career Forge is Friday's integrated" in opened
     assert "There is no persisted active Career Forge mission" in resumed
     assert not llm.calls
+
+
+def test_continue_mission_and_open_practice_lab_never_become_lesson_attempts(tmp_path):
+    capability_router = router(tmp_path)
+    forge = capability_router.career_forge
+    brief = forge.next_mission_brief()
+    assert brief is not None
+    mission = forge.start_mission(brief.competency_id, brief.title)
+    forge.update_resume(mission.mission_id, {"phase": "question", "question_id": "mission_verification"})
+    llm = FakeLLM()
+    service = FridayConversationService(llm, FridayRuntime("route-continue"), capability_router=capability_router)
+
+    resumed = "".join(service.stream_response("Hey Friday, continue my Career Forge mission."))
+    opened = "".join(service.stream_response("Open Practice Lab."))
+
+    assert "I recorded that as your lesson attempt" not in resumed
+    assert "Practice Lab is ready" in opened
+    assert forge.attempts(mission.mission_id) == ()
+    assert capability_router.adapters["career_forge"].practice_lab.open().mission_id == mission.mission_id
 
 
 def test_active_career_forge_conversation_records_attempt_help_and_bounded_evaluation(tmp_path):

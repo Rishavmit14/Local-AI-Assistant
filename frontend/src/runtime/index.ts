@@ -11,6 +11,7 @@ export type {
   CareerForgeJourney,
   CareerForgeMission,
   CareerForgeMissionBrief,
+  PracticeLab,
   ConversationRequest,
   FridayConversationMessage,
   FridayConversationRole,

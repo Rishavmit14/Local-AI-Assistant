@@ -16,9 +16,10 @@ from .service import (
     AssistanceRecord, CareerForgeProgress, CareerForgeService, EvidenceRecord,
     LearnerCompetency, LearningHistoryItem, LessonAttempt, Mission, ProjectLink,
 )
+from .practice_lab import PracticeAttempt, PracticeExercise, PracticeLabProjection, PracticeLabService, PracticeRun
 
 __all__ = [
     "AssistanceLevel", "AttemptEvaluation", "CareerForgeLearningLoop", "COMPETENCY_GRAPH_VERSION", "CareerForgeService", "Competency",
     "AssistanceRecord", "CareerForgeProgress", "EvidenceRecord", "LearnerCompetency", "LearningDirective", "LearningHistoryItem", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "ProjectLink", "PublicationDecision",
-    "TutorMode", "competency_graph", "evaluate_publication",
+    "TutorMode", "competency_graph", "evaluate_publication", "PracticeAttempt", "PracticeExercise", "PracticeLabProjection", "PracticeLabService", "PracticeRun",
 ]

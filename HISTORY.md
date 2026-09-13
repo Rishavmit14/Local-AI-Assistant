@@ -932,3 +932,17 @@ records that the current voice architecture deliberately returns to wake after
 each turn, conversation has no active transcript, capability self-awareness is
 absent, and many accepted backend capabilities lack natural conversation/UI
 paths. No product remediation or independent final qualification was started.
+
+## 2026-09-13 — Stage 22 Practice Lab integrated pending product qualification
+
+Added the first bounded Career Forge Practice Lab without a second learner-state
+database: typed Python assignments, durable drafts/runs, deterministic tests,
+governed submissions/evidence, progressive help, attempt diffs, capability
+handoff, and an integrated cinematic workspace overlay. Learner code runs only
+inside fail-closed Bubblewrap with denied networking and narrow resource limits;
+it cannot become shell or repository access. Passing tests do not advance
+mastery. Qualification then passed through the real voice route and owner visual
+workspace/CLOSE review plus the live API Run/Test/Hint/Submit/restart-resume
+flow. The live path also exposed a Career Forge SQLite descriptor leak; short
+lived connections now always close, preventing the service FD exhaustion that
+had blocked Lab projection.

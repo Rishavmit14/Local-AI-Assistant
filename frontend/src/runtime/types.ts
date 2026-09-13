@@ -162,6 +162,16 @@ export interface CareerForgeJourney {
   };
 }
 
+export interface PracticeLab {
+  mission_id: string;
+  exercise: { exercise_id: string; title: string; instructions: string; starter_code: string; language: string; evaluation_criteria: string };
+  draft_code: string;
+  latest_run: { kind: string; return_code: number; stdout: string; stderr: string; timed_out: boolean; passed: boolean | null } | null;
+  attempts: Array<{ attempt: { attempt_id: string; attempt_order: number; evaluation: string; feedback: string | null; evidence_type: string | null; assistance_level: string | null }; diff: string }>;
+  available: boolean;
+  availability_detail: string | null;
+}
+
 export interface FridayScreenCapture {
   capture_id: string;
   captured_at: string;

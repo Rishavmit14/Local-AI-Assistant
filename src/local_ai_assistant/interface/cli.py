@@ -11,7 +11,7 @@ from uuid import uuid4
 import uvicorn
 
 from local_ai_assistant.autonomy import ObjectiveService
-from local_ai_assistant.career_forge import CareerForgeService
+from local_ai_assistant.career_forge import CareerForgeService, PracticeLabService
 from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.cognition import CognitiveController
 from local_ai_assistant.common.config import AppConfig, get_config
@@ -88,6 +88,7 @@ def build_presentation_components(
         embedding_device=resolved_config.embedding.device,
     )
     career_forge = CareerForgeService(resolved_config.paths.career_forge_db)
+    practice_lab = PracticeLabService(career_forge, resolved_config.paths.career_forge_lab_dir)
     perception = ScreenCaptureService(resolved_config.paths.perception_dir)
     perception.set_vision_classifier(LocalVisionClassifier(resolved_config.paths.vision_cache_dir))
     desktop_control = DesktopControlService(
@@ -260,8 +261,8 @@ def build_presentation_components(
         FridayCapability("conversation", "Conversation", CapabilityStatus.INTEGRATED, True, True, True, "voice and text presentation", "active session is bounded and non-persistent"),
         FridayCapability("voice", "Voice", CapabilityStatus.INTEGRATED, resolved_config.wake.enabled, True, resolved_config.wake.enabled, "Hey Friday when wake is configured", "requires the local microphone and wake workers"),
         FridayCapability("persistent_memory", "Persistent memory", CapabilityStatus.INTEGRATED, True, True, True, "conversation retrieval and explicit memory controls", "Friday cannot silently write durable memory"),
-        FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED, True, True, True, "Career Forge panel and bounded local API", "interactive Practice Lab and advanced tutoring surfaces are not installed"),
-        FridayCapability("practice_lab", "Practice Lab", CapabilityStatus.ABSENT, False, False, False, "no owner route", "not installed"),
+        FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED, True, True, True, "Career Forge panel and bounded local API", "advanced tutoring surfaces are not installed"),
+        FridayCapability("practice_lab", "Practice Lab", CapabilityStatus.INTEGRATED, True, True, practice_lab.availability()[0], "Career Forge Practice Lab panel and bounded local API", "Python only; whole active exercise context, not selected-code or screen-aware tutoring"),
         FridayCapability("perception", "Screen perception", CapabilityStatus.IMPLEMENTED, True, True, True, "explicit capture API and perception panel", "not attached to normal conversation context"),
         FridayCapability("ocr", "OCR", CapabilityStatus.IMPLEMENTED, resolved_config.ocr.enabled, True, resolved_config.ocr.enabled, "explicit captured-screen API", "OCR results are not attached to normal conversation context"),
         FridayCapability("desktop_control", "Desktop control", CapabilityStatus.IMPLEMENTED, True, True, True, "allowlisted proposal/approval API", "only configured allowlisted actions; no general keyboard or mouse control"),
@@ -272,7 +273,7 @@ def build_presentation_components(
         FridayCapability("github", "GitHub integration", CapabilityStatus.IMPLEMENTED, resolved_config.gateway.enabled, execution_auth is not None, resolved_config.gateway.enabled, "authenticated gateway", "not a general conversation route and publication remains review-gated"),
     ), health={"voice": voice_capability_health})
 
-    capability_router = FridayConversationCapabilityRouter(capabilities, career_forge=career_forge, memory=memory)
+    capability_router = FridayConversationCapabilityRouter(capabilities, career_forge=career_forge, memory=memory, practice_lab=practice_lab)
     def memory_context_with_timing(prompt: str, mark) -> str:
         return "\n".join(
             f"[{item.kind}] {item.subject}: {item.content} (provenance={item.provenance}, confidence={item.confidence:g})"
@@ -313,6 +314,7 @@ def build_presentation_components(
         ),
         memory=memory,
         career_forge=career_forge,
+        practice_lab=practice_lab,
         perception=perception,
         active_window=ActiveWindowService(),
         desktop_control=desktop_control,

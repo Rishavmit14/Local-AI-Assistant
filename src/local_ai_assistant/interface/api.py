@@ -20,6 +20,7 @@ from local_ai_assistant.career_forge import (
     AssistanceLevel,
     CareerForgeService,
     MasteryLevel,
+    PracticeLabService,
     TutorMode,
 )
 from local_ai_assistant.desktop import DesktopAction, DesktopControlService
@@ -35,6 +36,7 @@ from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
 from local_ai_assistant.proactive import ProactiveEventEngine
 from local_ai_assistant.research import ResearchService
+from local_ai_assistant.isolation.errors import SandboxUnavailableError
 
 from .conversation import FridayConversationService
 from .capabilities import FridayCapabilityRegistry
@@ -152,6 +154,7 @@ def create_presentation_app(
     on_startup: Callable[[], None] | None = None,
     memory: FridayMemoryService | None = None,
     career_forge: CareerForgeService | None = None,
+    practice_lab: PracticeLabService | None = None,
     perception: ScreenCaptureService | None = None,
     active_window: ActiveWindowService | None = None,
     desktop_control: DesktopControlService | None = None,
@@ -236,6 +239,11 @@ def create_presentation_app(
         if career_forge is None:
             raise HTTPException(status_code=404, detail="Career Forge is unavailable")
         return career_forge
+
+    def owner_practice_lab() -> PracticeLabService:
+        if practice_lab is None:
+            raise HTTPException(status_code=404, detail="Practice Lab is unavailable")
+        return practice_lab
 
     def owner_perception() -> ScreenCaptureService:
         if perception is None:
@@ -616,6 +624,97 @@ def create_presentation_app(
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"competency": asdict(competency.competency), "mastery": competency.mastery}
+
+    @app.get("/api/v1/career-forge/practice-lab")
+    def practice_lab_projection():
+        try:
+            return asdict(owner_practice_lab().open())
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/career-forge/practice-lab/open")
+    def practice_lab_open():
+        try:
+            return asdict(owner_practice_lab().open())
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.put("/api/v1/career-forge/practice-lab/draft")
+    async def practice_lab_save_draft(request: Request):
+        try:
+            body = await request.json()
+            mission = owner_career_forge().resume()
+            if mission is None:
+                raise ValueError("an active Career Forge mission is required")
+            return asdict(owner_practice_lab().save_draft(mission.mission_id, body["code"]))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    async def practice_lab_operation(request: Request, operation: str):
+        try:
+            body = await request.json()
+            mission = owner_career_forge().resume()
+            if mission is None:
+                raise ValueError("an active Career Forge mission is required")
+            code = body.get("code")
+            if code is not None and not isinstance(code, str):
+                raise ValueError("learner code must be text")
+            lab = owner_practice_lab()
+            if operation == "run":
+                result = await run_in_threadpool(lab.run, mission.mission_id, code)
+                return {"run": asdict(result), "lab": asdict(lab.projection(mission.mission_id))}
+            if operation == "test":
+                result = await run_in_threadpool(lab.test, mission.mission_id, code)
+                return {"run": asdict(result), "lab": asdict(lab.projection(mission.mission_id))}
+            result = await run_in_threadpool(lab.submit, mission.mission_id, code)
+            return {"attempt": asdict(result), "lab": asdict(lab.projection(mission.mission_id))}
+        except SandboxUnavailableError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/v1/career-forge/practice-lab/run")
+    async def practice_lab_run(request: Request):
+        return await practice_lab_operation(request, "run")
+
+    @app.post("/api/v1/career-forge/practice-lab/test")
+    async def practice_lab_test(request: Request):
+        return await practice_lab_operation(request, "test")
+
+    @app.post("/api/v1/career-forge/practice-lab/submit")
+    async def practice_lab_submit(request: Request):
+        return await practice_lab_operation(request, "submit")
+
+    @app.post("/api/v1/career-forge/practice-lab/hint")
+    async def practice_lab_hint(request: Request):
+        """A deliberate hint action records exactly one progressive assistance step."""
+        try:
+            body = await request.json()
+            message = body.get("message", "Give me the next minimum useful hint.")
+            if not isinstance(message, str) or not message.strip() or len(message) > max_prompt_chars:
+                raise ValueError("bounded tutor message is required")
+            mission = owner_career_forge().resume()
+            if mission is None:
+                raise ValueError("an active Career Forge mission is required")
+            lab = owner_practice_lab()
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        lease = interaction_coordinator.try_acquire("presentation")
+        if lease is None:
+            raise HTTPException(status_code=409, detail="interaction busy")
+        try:
+            if presentation_pause is not None:
+                presentation_pause()
+            response = "".join(conversation.stream_response(message, system_prompt=lab.tutor_context(mission.mission_id)))
+            level = lab.next_assistance_level(mission.mission_id)
+            assistance_id = owner_career_forge().offer_assistance(mission.mission_id, TutorMode.GUIDE, level, response)
+            return {"response": response, "assistance_id": assistance_id, "assistance_level": level}
+        finally:
+            try:
+                if presentation_resume is not None:
+                    presentation_resume()
+            finally:
+                lease.release()
 
     @app.get("/api/v1/memory/recall")
     def memory_recall(subject: str, limit: int = 20):

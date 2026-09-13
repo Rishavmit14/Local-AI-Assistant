@@ -10,7 +10,7 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 
-from local_ai_assistant.career_forge import CareerForgeService, LessonPhase, TutorMode
+from local_ai_assistant.career_forge import CareerForgeService, LessonPhase, PracticeLabService, TutorMode
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 from .capabilities import CapabilityStatus, FridayCapabilityRegistry
@@ -33,8 +33,9 @@ class CapabilityRoute:
 class CareerForgeConversationAdapter:
     """Read/owner-pace operations over the existing Learner Twin authority."""
 
-    def __init__(self, service: CareerForgeService) -> None:
+    def __init__(self, service: CareerForgeService, practice_lab: PracticeLabService | None = None) -> None:
         self.service = service
+        self.practice_lab = practice_lab
 
     @staticmethod
     def _mentions_career_forge(text: str) -> bool:
@@ -45,6 +46,32 @@ class CareerForgeConversationAdapter:
 
     def route(self, text: str) -> CapabilityRoute | None:
         normalized = text.strip().lower()
+        is_practice_request = any(phrase in normalized for phrase in (
+            "practice lab", "let's practice", "lets practice", "practice this",
+            "give me a coding exercise", "let me try it", "continue my exercise",
+        ))
+        if is_practice_request:
+            if self.practice_lab is None:
+                return CapabilityRoute(ConversationIntent.INFORMATION, "practice_lab",
+                    "Practice Lab is not available through Friday right now.")
+            mission = self.service.resume()
+            if mission is None:
+                brief = self.service.next_mission_brief()
+                if brief is None:
+                    return CapabilityRoute(ConversationIntent.INVOCATION, "practice_lab",
+                        "There is no dependency-ready Career Forge mission for a practice exercise.")
+                mission = self.service.start_mission(brief.competency_id, brief.title)
+            try:
+                lab = self.practice_lab.open(mission.mission_id)
+            except ValueError as exc:
+                return CapabilityRoute(ConversationIntent.INFORMATION, "practice_lab", str(exc))
+            return CapabilityRoute(
+                ConversationIntent.INVOCATION, "practice_lab",
+                f"Practice Lab is ready for '{lab.exercise.title}'. Open the Practice Lab panel to write, run, test, and submit your work. "
+                "I will tutor from this active exercise without replacing your solution.",
+                system_context=self.practice_lab.tutor_context(mission.mission_id),
+                mode=f"career_forge:guide:{mission.mission_id}",
+            )
         mentions = self._mentions_career_forge(normalized)
         is_status = any(phrase in normalized for phrase in (
             "where am i", "what should i learn next", "what am i currently learning",
@@ -57,11 +84,6 @@ class CareerForgeConversationAdapter:
         is_teach = "teach me" in normalized and ("machine learning" in normalized or mentions)
         if not (mentions or is_status or is_teach):
             return None
-
-        if "practice lab" in normalized:
-            return CapabilityRoute(ConversationIntent.INFORMATION, "practice_lab",
-                "Practice Lab is absent: Friday does not currently have an executable learning workspace. "
-                "Career Forge's existing local mission and tutor boundaries remain available.")
 
         if "what is career forge" in normalized or "what's career forge" in normalized:
             return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._overview())
@@ -86,7 +108,7 @@ class CareerForgeConversationAdapter:
         if "recent" in normalized and "history" in normalized:
             return CapabilityRoute(ConversationIntent.INFORMATION, "career_forge", self._history())
 
-        if "resume" in normalized and (mentions or "mission" in normalized):
+        if ("resume" in normalized or "continue" in normalized) and (mentions or "mission" in normalized):
             mission = self.service.resume()
             if mission is None:
                 return CapabilityRoute(ConversationIntent.INVOCATION, "career_forge",
@@ -153,7 +175,7 @@ class CareerForgeConversationAdapter:
         return (
             "Career Forge is Friday's integrated local ML/AI Engineer apprenticeship. "
             "It uses the persisted Learner Twin, dependency graph, canonical missions, and evidence-backed mastery boundary. "
-            + self._mission_status(mission) + " Practice Lab and screen-aware tutoring are not available."
+            + self._mission_status(mission) + " Practice Lab is available for its current bounded Python exercise; selected-code and screen-aware tutoring are not available."
         )
 
     def _mission_status(self, mission) -> str:
@@ -270,10 +292,10 @@ class FridayConversationCapabilityRouter:
     """Classify deterministic intents and dispatch only registered adapters."""
 
     def __init__(self, registry: FridayCapabilityRegistry, *, career_forge: CareerForgeService,
-                 memory: FridayMemoryService) -> None:
+                 memory: FridayMemoryService, practice_lab: PracticeLabService | None = None) -> None:
         self.registry = registry
         self.adapters = {
-            "career_forge": CareerForgeConversationAdapter(career_forge),
+            "career_forge": CareerForgeConversationAdapter(career_forge, practice_lab),
             "persistent_memory": MemoryConversationAdapter(memory),
         }
 
@@ -282,10 +304,6 @@ class FridayConversationCapabilityRouter:
         return self.adapters["career_forge"].service
 
     def route(self, prompt: str) -> CapabilityRoute | None:
-        if "practice lab" in prompt.lower():
-            return CapabilityRoute(ConversationIntent.INFORMATION, "practice_lab",
-                "Practice Lab is absent: Friday does not currently have an executable learning workspace. "
-                "Career Forge's existing local mission and tutor boundaries remain available.")
         for key, adapter in self.adapters.items():
             route = adapter.route(prompt)
             if route is None:

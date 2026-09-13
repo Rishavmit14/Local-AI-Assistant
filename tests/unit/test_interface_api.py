@@ -6,7 +6,7 @@ import hashlib
 from fastapi.testclient import TestClient
 
 from local_ai_assistant.autonomy import ObjectiveService
-from local_ai_assistant.career_forge import CareerForgeService, TutorMode
+from local_ai_assistant.career_forge import CareerForgeService, PracticeLabService, TutorMode
 from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
@@ -813,6 +813,13 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/missions/{mission_id}/evidence",
         "/api/v1/career-forge/missions/{mission_id}/tutor",
         "/api/v1/career-forge/competencies/{competency_id}/advance",
+        "/api/v1/career-forge/practice-lab",
+        "/api/v1/career-forge/practice-lab/open",
+        "/api/v1/career-forge/practice-lab/draft",
+        "/api/v1/career-forge/practice-lab/run",
+        "/api/v1/career-forge/practice-lab/test",
+        "/api/v1/career-forge/practice-lab/submit",
+        "/api/v1/career-forge/practice-lab/hint",
         "/api/v1/memory/recall",
         "/api/v1/memory/remember",
         "/api/v1/runtime/events",

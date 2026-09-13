@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { FridayRuntimeClient } from "../runtime";
 import type { CareerForgeJourney } from "../runtime";
+import { PracticeLabPanel } from "./PracticeLab";
 
 const projects = [
   "FraudShield",
@@ -91,6 +92,7 @@ export function CareerForgeConsole() {
           <>
             <strong>{journey.current_mission.title}</strong>
             <p>Resume point is preserved in your local Learner Twin.</p>
+            <PracticeLabPanel />
             {activeProject && !activeMissionLinked ? <button type="button" onClick={() => void linkProject()} disabled={linking}>
               {linking ? "LINKING" : `CONNECT ${activeProject.toUpperCase()}`}
             </button> : null}
