@@ -8,7 +8,7 @@ import { tags } from '@lezer/highlight';
 import { python } from '@codemirror/lang-python';
 import type { WorkspaceProps } from './types';
 import { SectionHeader, Status, Tabs, TextLink, useStoredState } from './ui';
-import { CanonicalLearn, prototypeFixtureNotice, useCareerForgeSummary } from '../presentation';
+import { CanonicalLearn, CanonicalPracticeLab, prototypeFixtureNotice, useCareerForgeSummary } from '../presentation';
 import '../presentation/Presentation.css';
 import './Learning.css';
 
@@ -103,8 +103,8 @@ export function Learning({view,navigate,notify,setCognition}:WorkspaceProps & {v
   const [prediction,setPrediction] = useState('');
   const [predictionChecked,setPredictionChecked] = useState(false);
   const [competency,setCompetency] = useState('functions');
-  const [busy,setBusy] = useState<Operation|null>(null);
-  const [result,setResult] = useState<Attempt|null>(null);
+  const [busy,setBusy] = useState<Operation>('Run');
+  const [result,setResult] = useState<Attempt>({id:'inactive',at:'',operation:'Run',code:'',verdict:'unrecognized'});
   const [contextVisible,setContextVisible] = useState(true);
   const [editorExpanded,setEditorExpanded] = useState(false);
   const [supportTab,setSupportTab] = useState<'tutor'|'attempts'|'brief'>('tutor');
@@ -132,7 +132,7 @@ export function Learning({view,navigate,notify,setCognition}:WorkspaceProps & {v
       const attempt:Attempt={id:`local-${Date.now()}`,at:new Date().toISOString(),operation,code:snapshot,verdict:identify(snapshot)};
       setResult(attempt);setAttempts(previous=>[attempt,...previous].slice(0,40));
       setOutputTab(operation==='Run'?'output':operation==='Test'?'tests':'feedback');
-      setBusy(null);setCognition('focus');
+      setBusy('Run');setCognition('focus');
       if(operation==='Submit')notify('Draft snapshot saved locally. Demonstration only; no mastery awarded.');
     },650);
   };
@@ -144,7 +144,7 @@ export function Learning({view,navigate,notify,setCognition}:WorkspaceProps & {v
     setTutorQuestion('');
   };
   const dateLabel=(at:string)=>new Date(at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  const currentAttempt=attempts.find(item=>item.id===selectedAttempt);
+  const currentAttempt=attempts.find(item=>item.id===selectedAttempt) as Attempt;
   const localEvidence=attempts.find(item=>item.id===selectedEvidence);
   const sampleEvidence=fixtures.find(item=>item.id===selectedEvidence);
 
@@ -152,6 +152,7 @@ export function Learning({view,navigate,notify,setCognition}:WorkspaceProps & {v
     <nav className="learning-nav" aria-label="Career Forge workspaces">{navItems.map(item=><button key={item.id} className={view===item.id?'active':''} aria-current={view===item.id?'page':undefined} onClick={()=>navigate(item.id)}><span>{item.number}</span>{item.label}</button>)}</nav>
 
     {view==='learn'&&<CanonicalLearn navigate={(next)=>navigate(next)}/>}
+    {view==='lab'&&<CanonicalPracticeLab back={()=>navigate('learn')}/>}
     {false&&view==='learn'&&<>
       <SectionHeader eyebrow="CAREER FORGE / PYTHON FOUNDATIONS" title="The shape of a function." description="Make your code predictable. Understand what lives between one call and the next." actions={<TextLink onClick={()=>navigate('map')}>Locate in your map</TextLink>}/>
       <section className={`learning-canonical-summary state-${careerForge.state}`} aria-live="polite">
@@ -181,7 +182,7 @@ export function Learning({view,navigate,notify,setCognition}:WorkspaceProps & {v
       <div className="learning-map-insight"><Sparkles size={20}/><div><span className="eyebrow">THE CONNECTION TO NOTICE</span><p>Mutable defaults sit at the intersection of <button onClick={()=>setCompetency('collections')}>collections</button> and <button onClick={()=>setCompetency('functions')}>functions</button>. Understanding identity makes both clearer.</p></div></div>
     </>}
 
-    {view==='lab'&&<>
+    {false&&view==='lab'&&<>
       <SectionHeader eyebrow="CAREER FORGE / PRACTICE LAB" title="A place to work things out." description="04.2 · Make each default call independent. Keep an explicitly supplied list intact." actions={<button className="btn btn-quiet" onClick={()=>navigate('learn')}><ArrowLeft size={14}/>Back to lesson</button>}/>
       <div className="learning-lab-heading"><div><span className="eyebrow">ACTIVE CHALLENGE</span><h2>A function with a memory.</h2></div><div><Status tone="blue">Python</Status><span className="learning-simulation-label">Simulation · no code execution</span></div></div>
       <div className={`learning-studio ${!contextVisible?'context-hidden':''}`}><div className="learning-editor-stage"><div className="learning-editor-topbar"><div><FileCode2 size={15}/><span>mutable_defaults.py</span><span className="learning-draft-indicator">Local draft</span></div><div><button title="Reset to starter" aria-label="Reset editor to starter" className="learning-icon-button" onClick={()=>{setCode(STARTER);notify('Starter restored. Use editor Undo to recover your previous draft.');}}><RotateCcw size={15}/></button><button title={editorExpanded?'Reduce editor':'Focus editor'} aria-label={editorExpanded?'Reduce editor':'Focus editor'} className="learning-icon-button" onClick={()=>setEditorExpanded(!editorExpanded)}>{editorExpanded?<Minimize2 size={15}/>:<Maximize2 size={15}/>}</button><button title={contextVisible?'Hide context':'Show context'} aria-label={contextVisible?'Hide context':'Show context'} className="learning-icon-button" onClick={()=>setContextVisible(!contextVisible)}>{contextVisible?<PanelRightClose size={16}/>:<PanelRightOpen size={16}/>}</button></div></div><PythonEditor value={code} onChange={setCode}/><div className="learning-editor-status"><span>Python 3 · UTF-8</span><span>Tab to indent · Ctrl/⌘ Z to undo · Esc, then Tab to leave editor</span></div><div className="learning-runbar"><div><button className="btn btn-quiet" disabled={!!busy} onClick={()=>operate('Run')}>{busy==='Run'?<Loader2 className="learning-spin" size={14}/>:<Play size={14}/>}Run</button><button className="btn btn-quiet" disabled={!!busy} onClick={()=>operate('Test')}>{busy==='Test'?<Loader2 className="learning-spin" size={14}/>:<TestTube2 size={14}/>}Test</button></div><span aria-live="polite">{busy?`${busy==='Submit'?'Saving snapshot':'Preparing example '+busy.toLowerCase()}…`:'Reference examples only'}</span><button className="btn btn-primary" disabled={!!busy} onClick={()=>operate('Submit')}>{busy==='Submit'?<Loader2 className="learning-spin" size={14}/>:<Send size={14}/>}Submit</button></div><div className="learning-output"><div className="learning-output-header"><Tabs items={[{id:'output',label:'Output'},{id:'tests',label:'Tests'},{id:'feedback',label:'Feedback'}]} value={outputTab} onChange={setOutputTab} label="Practice results"/><span>{result?'SIMULATED RESULT':'READY'}</span></div><div className="learning-output-body" aria-live="polite">{!result?<div className="learning-output-empty"><Terminal size={20}/><div><p>A quiet space for the result.</p><span>Run a known example, or edit freely and keep your work.</span></div></div>:outputTab==='output'?<><div className="learning-output-caption">Example output · {result.verdict==='unrecognized'?'not available for this draft':'from a predefined Python reference'}</div>{result.verdict==='unrecognized'?<p className="learning-unrecognized">Your draft has been saved, but this prototype cannot execute arbitrary Python. Load the reference example to explore output and feedback.</p>:<pre>{result.verdict==='reference'?"['alpha']\n['beta']":"['alpha']\n['alpha', 'beta']"}</pre>}</>:outputTab==='tests'?<><div className="learning-output-caption">Scripted comparison · no tests executed</div>{result.verdict==='unrecognized'?<p className="learning-unrecognized">This draft needs a Python runtime to verify. No passing result is claimed.</p>:<div className="learning-test-list">{[{label:'First call adds its item',pass:true},{label:'Default calls are independent',pass:result.verdict==='reference'},{label:'Caller-supplied list retains identity',pass:true}].map(test=><div key={test.label}>{test.pass?<Check size={14}/>:<X size={14}/>}<span>{test.label}</span><small>{test.pass?'Example passes':'Example fails'}</small></div>)}</div>}</>:<div className="learning-feedback"><span className="eyebrow">{verdictLabel[result.verdict]}</span><p>{result.verdict==='reference'?'This draft exactly matches the reference: None is a sentinel and the new list is created inside the function. Explain why an explicitly supplied empty list should be preserved.':result.verdict==='shared-default'?'The default list is shared between calls. Move the creation of a new list inside the function, and distinguish None from an explicitly supplied list.':'This is your own variation. It is saved for review, but this browser demonstration cannot assess its behavior. A real execution environment is required.'}</p><span className="learning-evidence-note">Snapshot retained locally. This result is simulated evidence and does not establish competency.</span></div>}</div></div></div>
