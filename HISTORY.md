@@ -1,5 +1,18 @@
 # Project History
 
+## 2026-09-14 — Astra Vision presentation integration foundation
+
+The Astra cinematic frontend now has a typed presentation seam over Friday's
+existing runtime client. Its first live LEARN projection renders the canonical
+Learner Twin active mission/resume phase, next action, evidence, and assistance
+counts from `/api/v1/career-forge/journey`; unavailable API state remains
+unavailable rather than falling back to demo records. Prototype fixtures are
+explicitly isolated, and typed boundaries exist for session/conversation,
+Practice Lab, and system/workspace work to follow. The Neural Core and Astra
+visual language were preserved. Focused frontend tests and production build
+passed; existing full-project lint has unrelated pre-existing vision-rule
+failures.
+
 ## 2026-09-13 — Stage 22 Slice 8 pre-Qwen prompt-assembly outlier classified
 
 Friday now traces content-free prompt-assembly substage durations for routing,

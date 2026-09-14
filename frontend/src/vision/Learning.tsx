@@ -8,6 +8,8 @@ import { tags } from '@lezer/highlight';
 import { python } from '@codemirror/lang-python';
 import type { WorkspaceProps } from './types';
 import { SectionHeader, Status, Tabs, TextLink, useStoredState } from './ui';
+import { prototypeFixtureNotice, useCareerForgeSummary } from '../presentation';
+import '../presentation/Presentation.css';
 import './Learning.css';
 
 type LearningView = 'learn' | 'map' | 'lab' | 'progress';
@@ -93,6 +95,7 @@ function PythonEditor({value,onChange}:{value:string;onChange:(value:string)=>vo
 }
 
 export function Learning({view,navigate,notify,setCognition}:WorkspaceProps & {view:LearningView}) {
+  const careerForge = useCareerForgeSummary();
   const [code,setCode] = useStoredState('practice-python-draft',STARTER);
   const [attempts,setAttempts] = useStoredState<Attempt[]>('practice-attempts',[]);
   const [lessonStep,setLessonStep] = useStoredState('lesson-step',0);
@@ -149,9 +152,15 @@ export function Learning({view,navigate,notify,setCognition}:WorkspaceProps & {v
 
     {view==='learn'&&<>
       <SectionHeader eyebrow="CAREER FORGE / PYTHON FOUNDATIONS" title="The shape of a function." description="Make your code predictable. Understand what lives between one call and the next." actions={<TextLink onClick={()=>navigate('map')}>Locate in your map</TextLink>}/>
+      <section className={`learning-canonical-summary state-${careerForge.state}`} aria-live="polite">
+        <div className="learning-canonical-summary-heading"><span className="eyebrow">FRIDAY / CANONICAL CAREER FORGE</span>{careerForge.state==='ready'?<Status tone="green">Live Learner Twin</Status>:careerForge.state==='loading'?<Status tone="amber">Connecting</Status>:<Status tone="red">Unavailable</Status>}</div>
+        {careerForge.state==='loading'&&<p>Reading your Career Forge resume point…</p>}
+        {careerForge.state==='unavailable'&&<><p>Friday’s Career Forge projection is unavailable. The lesson below remains a clearly labelled Astra specimen and does not stand in for your learning record.</p><button className="text-link" onClick={careerForge.reload}>Try Career Forge again<ArrowRight size={14}/></button></>}
+        {careerForge.summary&&<><h2>{careerForge.summary.mission?.title ?? careerForge.summary.next?.title ?? 'Your next dependency-aware step'}</h2><p>{careerForge.summary.mission ? `Resuming ${careerForge.summary.mission.competency}${careerForge.summary.mission.resumePhase ? ` · ${careerForge.summary.mission.resumePhase.replaceAll('_',' ')}` : ''}.` : careerForge.summary.next?.whyItMatters}</p><div><span>{careerForge.summary.nextAction}</span><small>{careerForge.summary.evidenceCount} evidence record{careerForge.summary.evidenceCount===1?'':'s'} · {careerForge.summary.assistanceCount} assistance record{careerForge.summary.assistanceCount===1?'':'s'}</small></div></>}
+      </section>
       <div className="learning-mission-meta"><Status tone="blue">Current mission</Status><span>Functions & state</span><span>Lesson 04</span><span>About 12 minutes</span></div>
       <div className="learning-lesson-layout">
-        <aside className="learning-mission-rail"><div className="eyebrow">YOUR PATH THROUGH THIS</div><ol>{['Notice the unexpected','Understand what persists','Make the change','Explain your reasoning'].map((step,index)=><li key={step}><button className={lessonStep===index?'active':lessonStep>index?'complete':''} onClick={()=>setLessonStep(index)}><span>{lessonStep>index?<Check size={12}/>:String(index+1).padStart(2,'0')}</span>{step}</button></li>)}</ol><div className="learning-why"><GitBranch size={18}/><h3>A small detail. A larger idea.</h3><p>Object identity connects functions, collections, and reliable tests. This lesson brings those ideas together.</p></div><div className="learning-resume"><span className="eyebrow">SAVED LOCALLY</span><p>Your lesson position and lab draft stay with this browser.</p></div></aside>
+        <aside className="learning-mission-rail"><div className="eyebrow">YOUR PATH THROUGH THIS</div><ol>{['Notice the unexpected','Understand what persists','Make the change','Explain your reasoning'].map((step,index)=><li key={step}><button className={lessonStep===index?'active':lessonStep>index?'complete':''} onClick={()=>setLessonStep(index)}><span>{lessonStep>index?<Check size={12}/>:String(index+1).padStart(2,'0')}</span>{step}</button></li>)}</ol><div className="learning-why"><GitBranch size={18}/><h3>A small detail. A larger idea.</h3><p>Object identity connects functions, collections, and reliable tests. This lesson brings those ideas together.</p></div><div className="learning-resume"><span className="eyebrow">ASTRA SPECIMEN</span><p>{prototypeFixtureNotice} Lesson position and lab draft stay with this browser.</p></div></aside>
         <article className="learning-lesson">
           <div className="learning-chapter-marker">04.<span>{lessonStep+1}</span><i/></div>
           {lessonStep===0&&<><h2>Same function.<br/>An unexpected memory.</h2><p>Imagine a function that adds an item to a list. You give the list a sensible default, then call it twice.</p><pre className="learning-lesson-code"><code><span className="syntax-keyword">def</span> <span className="syntax-function">add_item</span>(item, bucket=[]):{'\n'}    bucket.append(item){'\n'}    <span className="syntax-keyword">return</span> bucket{'\n\n'}print(add_item(<span className="syntax-string">"alpha"</span>)){'\n'}print(add_item(<span className="syntax-string">"beta"</span>))</code><span>PYTHON</span></pre><div className="learning-inline-exercise"><span className="eyebrow">FIRST, MAKE A PREDICTION</span><h3>What does the second call print?</h3><div className="learning-predictions">{["['beta']","['alpha', 'beta']","It raises an error"].map(answer=><button key={answer} className={prediction===answer?'selected':''} aria-pressed={prediction===answer} onClick={()=>{setPrediction(answer);setPredictionChecked(false);}}><span>{prediction===answer?<Check size={13}/>:<Circle size={13}/>}</span><code>{answer}</code></button>)}</div><button className="btn btn-quiet" disabled={!prediction} onClick={()=>setPredictionChecked(true)}>Check my reasoning<ArrowRight size={14}/></button>{predictionChecked&&<div className={`learning-prediction-feedback ${prediction==="['alpha', 'beta']"?'correct':''}`}><Lightbulb size={17}/><p>{prediction==="['alpha', 'beta']"?'Exactly. The default list is created once, when the function is defined. The second call mutates the same list.':'The second call prints [\'alpha\', \'beta\']. Default arguments are evaluated once when the function is defined, so the list survives between calls.'} <button onClick={()=>setLessonStep(1)}>See why <ArrowRight size={13}/></button></p></div>}</div></>}

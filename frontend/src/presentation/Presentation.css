@@ -1,0 +1,30 @@
+.learning-canonical-summary {
+  max-width: 820px;
+  margin-top: 27px;
+  padding: 18px 21px;
+  border: 1px solid #293852;
+  background: linear-gradient(100deg, rgba(22, 35, 56, .78), rgba(10, 16, 26, .24));
+}
+
+.learning-canonical-summary-heading,
+.learning-canonical-summary > div:last-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.learning-canonical-summary-heading > .eyebrow { font-size: 8px; letter-spacing: 1.5px; }
+.learning-canonical-summary-heading > .status { font-size: 8px; }
+.learning-canonical-summary h2 { margin: 13px 0 7px; color: #dce5f7; font-size: 18px; font-weight: 450; letter-spacing: -.3px; }
+.learning-canonical-summary p { max-width: 620px; font-size: 12px; }
+.learning-canonical-summary > div:last-child { margin-top: 13px; color: #a6b7db; font-size: 10px; line-height: 1.6; }
+.learning-canonical-summary > div:last-child small { color: #71809a; font-size: 9px; white-space: nowrap; }
+.learning-canonical-summary .text-link { margin-top: 12px; font-size: 10px; }
+.learning-canonical-summary.state-unavailable { border-color: #4d3840; }
+
+@media (max-width: 680px) {
+  .learning-canonical-summary { margin-top: 22px; padding: 15px; }
+  .learning-canonical-summary > div:last-child { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .learning-canonical-summary > div:last-child small { white-space: normal; }
+}

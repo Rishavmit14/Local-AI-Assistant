@@ -213,6 +213,19 @@ and existing PROGRESS surface consume that same contract; conversation routes
 progress/history questions deterministically rather than asking Qwen to invent
 learning state. Current-session questions remain temporary conversation context;
 only governed Career Forge records are durable learning history.
+
+### Astra presentation integration foundation
+
+The Astra visual workspace consumes Friday only through `frontend/src/presentation`:
+a typed presentation adapter maps the existing `CareerForgeJourney` read model
+into an Astra summary view, while explicit action methods retain the existing
+canonical command boundary. The first connected surface is LEARN, which renders
+the active/resumable mission, dependency-aware next action, and evidence and
+assistance counts directly from the Learner Twin. Session/conversation,
+Practice Lab, and system-workspace presentation contracts are intentionally
+typed but not yet connected. Astra specimens remain isolated fixtures and are
+never substituted for unavailable canonical data; no second frontend store,
+session owner, or Career Forge persistence exists.
 The first Stage 14 cinematic projection calls only the existing local journey and
 dependency-gated mission-start endpoints. It renders unknown progress honestly;
 the frontend has no Learner Twin advancement, publishing, tool, or desktop

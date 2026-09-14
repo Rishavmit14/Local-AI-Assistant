@@ -1905,3 +1905,17 @@ workspace/CLOSE qualification passed; the live API completed Run/Test/Hint/
 Submit/evidence/restart-resume without automatic mastery. The Lab is QUALIFIED.
 The live qualification repaired the short-lived Career Forge/Lab SQLite
 connection leak that had exhausted Friday's descriptor limit.
+
+## Astra Vision integration foundation (2026-09-14)
+
+`integration/astra-friday` begins from visual checkpoint `50a6137`. Astra now
+uses `frontend/src/presentation` as its sole typed presentation boundary over
+the existing runtime client. LEARN has one live proof: `/api/v1/career-forge/journey`
+is mapped to an Astra summary of canonical active/resume mission, next action,
+evidence, and assistance. No fallback fixture may claim canonical data. Typed
+session/conversation, Practice Lab, and workspace/system seams are reserved for
+later slices; their UI specimens remain isolated. The Vite candidate is bound
+to localhost:5191 and proxies `/api` to the existing localhost:8765 Friday
+presentation service. Browser verification showed both live Learner Twin data
+and unchanged Neural Core/Astra home. Next boundary only: Career Forge LEARN
+owner journey; do not implement its whole lifecycle as part of this foundation.
