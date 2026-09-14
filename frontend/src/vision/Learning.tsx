@@ -8,7 +8,7 @@ import { tags } from '@lezer/highlight';
 import { python } from '@codemirror/lang-python';
 import type { WorkspaceProps } from './types';
 import { SectionHeader, Status, Tabs, TextLink, useStoredState } from './ui';
-import { prototypeFixtureNotice, useCareerForgeSummary } from '../presentation';
+import { CanonicalLearn, prototypeFixtureNotice, useCareerForgeSummary } from '../presentation';
 import '../presentation/Presentation.css';
 import './Learning.css';
 
@@ -96,6 +96,7 @@ function PythonEditor({value,onChange}:{value:string;onChange:(value:string)=>vo
 
 export function Learning({view,navigate,notify,setCognition}:WorkspaceProps & {view:LearningView}) {
   const careerForge = useCareerForgeSummary();
+  const careerForgeSummary = careerForge.summary as NonNullable<typeof careerForge.summary>;
   const [code,setCode] = useStoredState('practice-python-draft',STARTER);
   const [attempts,setAttempts] = useStoredState<Attempt[]>('practice-attempts',[]);
   const [lessonStep,setLessonStep] = useStoredState('lesson-step',0);
@@ -150,13 +151,14 @@ export function Learning({view,navigate,notify,setCognition}:WorkspaceProps & {v
   return <section className={`learning-workspace learning-view-${view}${editorExpanded?' learning-editor-expanded':''}`}>
     <nav className="learning-nav" aria-label="Career Forge workspaces">{navItems.map(item=><button key={item.id} className={view===item.id?'active':''} aria-current={view===item.id?'page':undefined} onClick={()=>navigate(item.id)}><span>{item.number}</span>{item.label}</button>)}</nav>
 
-    {view==='learn'&&<>
+    {view==='learn'&&<CanonicalLearn navigate={(next)=>navigate(next)}/>}
+    {false&&view==='learn'&&<>
       <SectionHeader eyebrow="CAREER FORGE / PYTHON FOUNDATIONS" title="The shape of a function." description="Make your code predictable. Understand what lives between one call and the next." actions={<TextLink onClick={()=>navigate('map')}>Locate in your map</TextLink>}/>
       <section className={`learning-canonical-summary state-${careerForge.state}`} aria-live="polite">
         <div className="learning-canonical-summary-heading"><span className="eyebrow">FRIDAY / CANONICAL CAREER FORGE</span>{careerForge.state==='ready'?<Status tone="green">Live Learner Twin</Status>:careerForge.state==='loading'?<Status tone="amber">Connecting</Status>:<Status tone="red">Unavailable</Status>}</div>
         {careerForge.state==='loading'&&<p>Reading your Career Forge resume point…</p>}
         {careerForge.state==='unavailable'&&<><p>Friday’s Career Forge projection is unavailable. The lesson below remains a clearly labelled Astra specimen and does not stand in for your learning record.</p><button className="text-link" onClick={careerForge.reload}>Try Career Forge again<ArrowRight size={14}/></button></>}
-        {careerForge.summary&&<><h2>{careerForge.summary.mission?.title ?? careerForge.summary.next?.title ?? 'Your next dependency-aware step'}</h2><p>{careerForge.summary.mission ? `Resuming ${careerForge.summary.mission.competency}${careerForge.summary.mission.resumePhase ? ` · ${careerForge.summary.mission.resumePhase.replaceAll('_',' ')}` : ''}.` : careerForge.summary.next?.whyItMatters}</p><div><span>{careerForge.summary.nextAction}</span><small>{careerForge.summary.evidenceCount} evidence record{careerForge.summary.evidenceCount===1?'':'s'} · {careerForge.summary.assistanceCount} assistance record{careerForge.summary.assistanceCount===1?'':'s'}</small></div></>}
+        {careerForgeSummary&&<><h2>{careerForgeSummary.mission?.title ?? careerForgeSummary.next?.title ?? 'Your next dependency-aware step'}</h2><p>{careerForgeSummary.mission ? `Resuming ${careerForgeSummary.mission?.competency}${careerForgeSummary.mission?.resumePhase ? ` · ${careerForgeSummary.mission?.resumePhase?.replaceAll('_',' ')}` : ''}.` : careerForgeSummary.next?.whyItMatters}</p><div><span>{careerForgeSummary.nextAction}</span><small>{careerForgeSummary.evidenceCount} evidence record{careerForgeSummary.evidenceCount===1?'':'s'} · {careerForgeSummary.assistanceCount} assistance record{careerForgeSummary.assistanceCount===1?'':'s'}</small></div></>}
       </section>
       <div className="learning-mission-meta"><Status tone="blue">Current mission</Status><span>Functions & state</span><span>Lesson 04</span><span>About 12 minutes</span></div>
       <div className="learning-lesson-layout">

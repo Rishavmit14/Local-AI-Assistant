@@ -28,4 +28,8 @@ export class FridayPresentation implements FridayPresentationActions {
   async openPracticeLab(): Promise<void> {
     await this.runtime.openPracticeLab();
   }
+
+  async continueLearn(message: string, onChunk: (chunk: string) => void): Promise<void> {
+    await this.runtime.streamConversation({ prompt: message }, onChunk);
+  }
 }

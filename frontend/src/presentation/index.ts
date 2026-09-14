@@ -2,6 +2,7 @@ export { FridayPresentation } from "./FridayPresentation";
 export { presentCareerForgeJourney } from "./careerForge";
 export { useCareerForgeSummary } from "./useCareerForgeSummary";
 export { prototypeFixtureNotice } from "./fixtures";
+export { CanonicalLearn } from "./CanonicalLearn";
 export type {
   CareerForgeSummaryView,
   FridayPresentationActions,
