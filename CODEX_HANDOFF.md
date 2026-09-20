@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`eb6bb3e`. The
+`df2d41e`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -133,7 +133,7 @@ was verified on the remote integration branch. The active dependency is bounded
 Career Forge mission autonomy and recovery through the existing objective/task
 path.
 
-Bounded mission autonomy is implemented in the current worktree. An active
+Bounded mission autonomy is accepted and published at `df2d41e`. An active
 mission may prepare exactly one owner-authored Friday objective; its durable
 mission/objective link recovers live objective and canonical task state after
 restart. Planning, repository selection, exact-plan approval, isolated execution,
@@ -143,7 +143,8 @@ completion, or publication qualification. The typed client and PROJECTS
 workspace expose prepare/recovery state. Focused Python and frontend validation
 passes with 48 Python tests and 13 frontend runtime tests; changed-file lint,
 the production frontend build, dependency consistency, and full repository
-verification with 892 Python tests pass. The recovery checkpoint remains pending.
+verification with 892 Python tests pass; the remote integration branch was
+verified at the exact capability commit.
 Next: retention/progress automation through Friday's proactive event boundary.
 
 ## 0. Non-negotiable project rules
