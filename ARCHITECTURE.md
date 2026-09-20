@@ -247,6 +247,10 @@ explicit evidence-backed mastery rung completes the reinforcement, resume falls
 back to the preserved mission. No weakness, reinforcement start, or correct
 answer mutates mastery automatically, and a later correct retention outcome
 clears historical retention weakness from the current projection.
+Friday's existing proactive engine observes the oldest due `scheduled` review
+and emits one deduplicated local notification keyed by review identity and due
+time. The watch is notify-only: it cannot deliver or evaluate the review, create
+evidence, change mastery, start reinforcement, or alter mission state.
 
 Interview Mode is a persistent two-question, no-help state machine attached to
 one active canonical mission. The first question uses the mission verification

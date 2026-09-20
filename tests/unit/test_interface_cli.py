@@ -5,7 +5,13 @@ from types import SimpleNamespace
 
 import uvicorn
 
-from local_ai_assistant.interface.cli import FridayUvicornServer, _repository_mappings
+from local_ai_assistant.career_forge import CareerForgeService, MasteryLevel
+from local_ai_assistant.interface.cli import (
+    FridayUvicornServer,
+    _career_retention_observer,
+    _repository_mappings,
+)
+from local_ai_assistant.proactive import EventSource, ProactiveEventEngine, Watch
 
 
 async def _app(scope, receive, send):
@@ -63,3 +69,31 @@ def test_repository_mappings_require_explicit_onboarded_github_identity(tmp_path
         ("fraud-shield", "acme", "fraud-shield"),
         ("local-only", "", ""),
     }
+
+
+def test_due_career_retention_watch_notifies_once_without_delivering(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python mental model")
+    evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained mutable defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    review = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute(
+            "UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?",
+            (review.review_id,),
+        )
+    engine = ProactiveEventEngine(tmp_path / "proactive.sqlite3")
+    observer = _career_retention_observer(forge)
+    engine.register(
+        Watch("career-forge-retention-due", EventSource.SCHEDULE, "Retention", interval_seconds=60),
+        observer,
+    )
+
+    first = engine.poll_due(now=1_000)
+    second = engine.poll_due(now=1_060)
+
+    assert len(first) == 1 and first[0].summary.endswith("Python foundations")
+    assert second == ()
+    assert forge.retention_review(review.review_id).state == "scheduled"
+    forge.deliver_retention_review(review.review_id)
+    assert observer() is None

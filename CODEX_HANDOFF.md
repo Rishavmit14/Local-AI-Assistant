@@ -147,6 +147,16 @@ verification with 892 Python tests pass; the remote integration branch was
 verified at the exact capability commit.
 Next: retention/progress automation through Friday's proactive event boundary.
 
+Retention/progress automation is implemented in the current worktree. The
+existing proactive engine registers a notify-only Career Forge watch and emits
+one deduplicated notification for the oldest due scheduled review. Stable
+metadata contains only review/competency identity and due time; polling never
+delivers or evaluates a review and never changes evidence, mastery,
+reinforcement, or mission state. Twelve focused proactive/interface tests pass;
+dependency consistency and full repository verification with 893 Python tests
+also pass. The recovery checkpoint remains pending. Next:
+sequential specialist-role integration.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

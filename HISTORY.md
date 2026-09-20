@@ -1,5 +1,14 @@
 # Project History
 
+## 2026-09-20 — Career Forge retention notification candidate
+
+Friday's existing proactive ledger now emits one deduplicated local notification
+for the oldest due scheduled Career Forge review. The observer is notify-only
+and leaves review delivery/evaluation, evidence, mastery, reinforcement, and
+mission state untouched. Focused qualification passes 12 proactive/interface
+tests; dependency consistency and full repository verification with 893 Python
+tests also pass.
+
 ## 2026-09-20 — Bounded Career Forge mission autonomy candidate
 
 An active canonical mission can now prepare and recover exactly one explicit

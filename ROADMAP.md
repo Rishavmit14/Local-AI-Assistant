@@ -852,8 +852,11 @@ or bounded failure for safe retry. Bounded mission autonomy now lets one active
 project-linked mission prepare and recover one explicit Friday objective while
 the existing objective/task path exclusively owns repository selection, planning,
 approval, isolated execution, cancellation, and outcome. No task state becomes
-learning evidence or mastery automatically. The next Career Forge dependency is
-retention/progress automation through Friday's proactive event boundary.
+learning evidence or mastery automatically. Retention/progress automation now
+registers a notify-only proactive watch for the oldest due scheduled review;
+stable event identity deduplicates repeat polls, while delivery, evaluation,
+evidence, mastery, reinforcement, and mission changes remain explicit. The next
+Career Forge dependency is sequential specialist-role integration.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

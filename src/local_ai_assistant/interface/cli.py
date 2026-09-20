@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from types import FrameType
 from uuid import uuid4
@@ -71,6 +72,26 @@ def _repository_mappings(code_repo_dir: Path, profiles: tuple[object, ...]) -> t
             owner, name = parts
         mappings.append(RepositoryMapping(repository_id, str(path.resolve()), owner, name))
     return tuple(mappings)
+
+
+def _career_retention_observer(career_forge: CareerForgeService):
+    """Notify about a due review without delivering or mutating it."""
+    def observe():
+        review = next(
+            (item for item in career_forge.retention_reviews(limit=100)
+             if item.state == "scheduled" and item.due_at <= datetime.now(UTC).isoformat()),
+            None,
+        )
+        if review is None:
+            return None
+        competency = career_forge.graph[review.competency_id]
+        return (
+            "career.retention_review_due",
+            f"Career Forge retention review is due: {competency.title}",
+            75,
+            {"review_id": review.review_id, "competency_id": review.competency_id, "due_at": review.due_at},
+        )
+    return observe
 
 
 class FridayUvicornServer(uvicorn.Server):
@@ -271,6 +292,14 @@ def build_presentation_components(
     proactive.register(
         Watch("canonical-task-history", EventSource.TASK, "Friday task lifecycle", interval_seconds=60, min_relevance=60),
         observe_tasks,
+    )
+    proactive.register(
+        Watch(
+            "career-forge-retention-due", EventSource.SCHEDULE,
+            "Career Forge retention review", interval_seconds=60, min_relevance=70,
+            metadata={"authority": "notify_only"},
+        ),
+        _career_retention_observer(career_forge),
     )
     proactive_runtime = ProactiveRuntime(
         proactive,

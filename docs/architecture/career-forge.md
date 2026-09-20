@@ -161,6 +161,11 @@ Only the latest completed retention outcome determines whether historical
 retention failures remain a current weakness; unresolved latest mission attempts
 remain independently actionable.
 
+The existing local proactive event engine polls for the oldest due scheduled
+review and writes a deduplicated notification. Its stable payload contains only
+the review/competency IDs and due time. Observation never delivers or evaluates
+the review and has no evidence, mastery, reinforcement, or mission authority.
+
 ## Conversation capability handoff
 
 Stage 22 Slice 2 places one deterministic, typed conversation-capability router
