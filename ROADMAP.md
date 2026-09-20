@@ -800,8 +800,12 @@ an explicit one-rung mastery advancement succeeds. Its progressive interval is
 deterministic. A due review can now be explicitly delivered through the
 canonical service/API/Progress surface, recording only `delivered` and a
 deterministic verification prompt; it does not claim completion, retention,
-evidence, or a mastery change. Outcome evaluation, weak-area reinforcement, and
-adaptive curriculum selection remain active work.
+evidence, or a mastery change. The current candidate adds governed local-Qwen
+review evaluation and a read-only weak-area projection
+from failed/uncertain retention plus latest unresolved attempts. Private answers
+remain local and unprojected; mastery never decreases automatically. The
+canonical next action prioritizes due/delivered reviews and evidence-backed weak
+areas. Adaptive reinforcement mission construction remains next.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

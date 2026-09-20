@@ -111,6 +111,20 @@ class RetentionReview:
     due_at: str
     state: str
     created_at: str
+    evaluation: AttemptEvaluation | None = None
+    feedback: str | None = None
+    evaluated_at: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class WeakArea:
+    competency_id: str
+    title: str
+    retention_failures: int
+    unresolved_retries: int
+    assistance_events: int
+    reasons: tuple[str, ...]
+    last_observed_at: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,6 +136,7 @@ class CareerForgeProgress:
     evidenced_competencies: tuple[LearnerCompetency, ...]
     unresolved_retries: tuple[LessonAttempt, ...]
     retention_reviews: tuple[RetentionReview, ...]
+    weak_areas: tuple[WeakArea, ...]
     next_action: str
     history: tuple[LearningHistoryItem, ...]
 
@@ -188,6 +203,15 @@ class CareerForgeService:
                     ON retention_reviews(state, due_at);
                 """
             )
+            columns = {row[1] for row in db.execute("PRAGMA table_info(retention_reviews)")}
+            for name, declaration in (
+                ("response", "TEXT"),
+                ("evaluation", "TEXT"),
+                ("feedback", "TEXT"),
+                ("evaluated_at", "TEXT"),
+            ):
+                if name not in columns:
+                    db.execute(f"ALTER TABLE retention_reviews ADD COLUMN {name} {declaration}")
             for item in self.graph.values():
                 db.execute(
                     "INSERT OR IGNORE INTO learner_competencies VALUES(?,?,?,?)",
@@ -364,14 +388,20 @@ class CareerForgeService:
         assistance = self.assistance_history(limit=limit)
         evidence = self.evidence_history(limit=limit)
         active = self.resume()
-        retries = tuple(item for item in attempts if item.retry_needed)
+        retries = self.unresolved_attempts(limit=limit)
         reviews = self.retention_reviews(limit=limit)
+        weak_areas = self.weak_areas(limit=limit)
         evidenced = tuple(item for item in self.competencies() if item.mastery is not MasteryLevel.UNVERIFIED)
         due_review = next((item for item in reviews if item.state == "scheduled" and item.due_at <= _now()), None)
+        delivered_review = next((item for item in reviews if item.state == "delivered"), None)
         if due_review:
             next_action = f"Complete the scheduled retention review for '{self.graph[due_review.competency_id].title}'."
+        elif delivered_review:
+            next_action = f"Answer the delivered retention review for '{self.graph[delivered_review.competency_id].title}'."
         elif active and any(item.mission_id == active.mission_id for item in retries):
             next_action = f"Retry the active mission '{active.title}' using its recorded feedback."
+        elif weak_areas:
+            next_action = f"Reinforce the evidence-backed weak area '{weak_areas[0].title}'."
         elif active:
             next_action = f"Continue the active mission '{active.title}' from its recorded resume point."
         elif (next_item := self.next_competency()) is not None:
@@ -392,17 +422,58 @@ class CareerForgeService:
             for item in evidence
         ]
         history.sort(key=lambda item: item.occurred_at, reverse=True)
-        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, next_action, tuple(history[:limit]))
+        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, weak_areas, next_action, tuple(history[:limit]))
+
+    def unresolved_attempts(self, *, limit: int = 20) -> tuple[LessonAttempt, ...]:
+        """Return only the latest still-failing attempt for each mission question."""
+        if not 1 <= limit <= 100:
+            raise ValueError("attempt limit must be between 1 and 100")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT a.attempt_id FROM lesson_attempts a JOIN ("
+                "SELECT mission_id, question_id, MAX(attempt_order) AS latest_order "
+                "FROM lesson_attempts GROUP BY mission_id, question_id"
+                ") latest ON latest.mission_id=a.mission_id AND latest.question_id=a.question_id "
+                "AND latest.latest_order=a.attempt_order WHERE a.retry_needed=1 "
+                "ORDER BY a.created_at DESC LIMIT ?", (limit,),
+            ).fetchall()
+        return tuple(self.attempt(row[0]) for row in rows)
 
     def retention_reviews(self, *, limit: int = 20) -> tuple[RetentionReview, ...]:
         if not 1 <= limit <= 100:
             raise ValueError("review limit must be between 1 and 100")
         with self._db() as db:
             rows = db.execute(
-                "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at "
-                "FROM retention_reviews WHERE state IN ('scheduled', 'delivered') ORDER BY due_at LIMIT ?", (limit,)
+                "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at, "
+                "evaluation, feedback, evaluated_at FROM retention_reviews "
+                "ORDER BY CASE state WHEN 'scheduled' THEN 0 WHEN 'delivered' THEN 1 ELSE 2 END, due_at ASC LIMIT ?",
+                (limit,),
             ).fetchall()
-        return tuple(RetentionReview(row[0], row[1], row[2], MasteryLevel(row[3]), row[4], row[5], row[6]) for row in rows)
+        return tuple(self._retention_review(row) for row in rows)
+
+    @staticmethod
+    def _retention_review(row: tuple[object, ...]) -> RetentionReview:
+        return RetentionReview(
+            str(row[0]), str(row[1]), str(row[2]), MasteryLevel(str(row[3])),
+            str(row[4]), str(row[5]), str(row[6]),
+            AttemptEvaluation(str(row[7])) if row[7] else None,
+            str(row[8]) if row[8] else None, str(row[9]) if row[9] else None,
+        )
+
+    def retention_review(self, review_id: str) -> RetentionReview:
+        with self._db() as db:
+            row = db.execute(
+                "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at, "
+                "evaluation, feedback, evaluated_at FROM retention_reviews WHERE review_id=?",
+                (review_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(review_id)
+        return self._retention_review(row)
+
+    def retention_review_prompt(self, review_id: str) -> str:
+        review = self.retention_review(review_id)
+        return mission_brief(self.graph[review.competency_id]).verification
 
     def deliver_retention_review(self, review_id: str) -> tuple[RetentionReview, str]:
         """Deliver one due review without creating evidence or changing mastery."""
@@ -411,12 +482,13 @@ class CareerForgeService:
         now = _now()
         with self._db() as db:
             row = db.execute(
-                "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at "
+                "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at, "
+                "evaluation, feedback, evaluated_at "
                 "FROM retention_reviews WHERE review_id=?", (review_id,)
             ).fetchone()
             if row is None:
                 raise KeyError(review_id)
-            review = RetentionReview(row[0], row[1], row[2], MasteryLevel(row[3]), row[4], row[5], row[6])
+            review = self._retention_review(row)
             if review.state != "scheduled":
                 raise ValueError("retention review has already been delivered")
             if review.due_at > now:
@@ -431,6 +503,62 @@ class CareerForgeService:
                                     review.mastery, review.due_at, "delivered", review.created_at)
         prompt = mission_brief(self.graph[review.competency_id]).verification
         return delivered, prompt
+
+    def evaluate_retention_review(
+        self, review_id: str, response: str, evaluation: AttemptEvaluation, feedback: str,
+    ) -> RetentionReview:
+        """Record a governed review outcome without changing mastery or mission evidence."""
+        if evaluation is AttemptEvaluation.PENDING:
+            raise ValueError("a final retention evaluation is required")
+        if not isinstance(response, str) or not response.strip():
+            raise ValueError("a retention review response is required")
+        if not isinstance(feedback, str) or not feedback.strip():
+            raise ValueError("retention review feedback is required")
+        with self._db() as db:
+            changed = db.execute(
+                "UPDATE retention_reviews SET state='completed', response=?, evaluation=?, feedback=?, evaluated_at=? "
+                "WHERE review_id=? AND state='delivered'",
+                (response.strip(), evaluation, feedback.strip(), _now(), review_id),
+            ).rowcount
+        if changed != 1:
+            if self.retention_review(review_id).state == "completed":
+                raise ValueError("retention review has already been evaluated")
+            raise ValueError("retention review must be delivered before evaluation")
+        return self.retention_review(review_id)
+
+    def weak_areas(self, *, limit: int = 20) -> tuple[WeakArea, ...]:
+        """Derive current weak areas from failed retention and latest retry truth."""
+        if not 1 <= limit <= 100:
+            raise ValueError("weak-area limit must be between 1 and 100")
+        retries = self.unresolved_attempts(limit=100)
+        retry_counts: dict[str, int] = {}
+        last_seen: dict[str, str] = {}
+        for item in retries:
+            retry_counts[item.competency_id] = retry_counts.get(item.competency_id, 0) + 1
+            last_seen[item.competency_id] = max(last_seen.get(item.competency_id, ""), item.evaluated_at or item.created_at)
+        with self._db() as db:
+            review_rows = db.execute(
+                "SELECT competency_id, COUNT(*), MAX(evaluated_at) FROM retention_reviews "
+                "WHERE state='completed' AND evaluation IN ('incorrect', 'uncertain') GROUP BY competency_id"
+            ).fetchall()
+            assistance_counts = dict(db.execute(
+                "SELECT m.competency_id, COUNT(*) FROM mission_assistance a "
+                "JOIN missions m ON m.mission_id=a.mission_id GROUP BY m.competency_id"
+            ))
+        review_counts = {str(row[0]): int(row[1]) for row in review_rows}
+        for row in review_rows:
+            last_seen[str(row[0])] = max(last_seen.get(str(row[0]), ""), str(row[2]))
+        areas = []
+        for competency_id in set(retry_counts) | set(review_counts):
+            failures, unresolved = review_counts.get(competency_id, 0), retry_counts.get(competency_id, 0)
+            reasons = tuple(filter(None, (
+                f"{failures} failed retention review{'s' if failures != 1 else ''}" if failures else "",
+                f"{unresolved} unresolved latest attempt{'s' if unresolved != 1 else ''}" if unresolved else "",
+            )))
+            areas.append(WeakArea(competency_id, self.graph[competency_id].title, failures, unresolved,
+                                  int(assistance_counts.get(competency_id, 0)), reasons, last_seen[competency_id]))
+        areas.sort(key=lambda item: (-(item.retention_failures + item.unresolved_retries), item.competency_id))
+        return tuple(areas[:limit])
 
     def evaluate_attempt(self, attempt_id: str, evaluation: AttemptEvaluation, feedback: str, *,
                          evidence_type: str | None = None) -> LessonAttempt:
@@ -544,7 +672,9 @@ class CareerForgeService:
             evidence_at = datetime.fromisoformat(row[2]).astimezone(UTC)
             interval_days = (1, 3, 7, 14, 30, 60, 90)[tuple(MasteryLevel).index(level)]
             db.execute(
-                "INSERT OR IGNORE INTO retention_reviews VALUES(?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO retention_reviews "
+                "(review_id, competency_id, evidence_id, mastery, due_at, state, created_at) "
+                "VALUES(?,?,?,?,?,?,?)",
                 ("review_" + uuid.uuid4().hex, competency_id, evidence_id, level,
                  (evidence_at + timedelta(days=interval_days)).isoformat(), "scheduled", _now()),
             )

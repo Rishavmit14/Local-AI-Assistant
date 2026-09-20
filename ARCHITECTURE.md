@@ -220,7 +220,17 @@ the review stays scheduled until the owner explicitly delivers it through the
 canonical local service/API/Progress surface. Delivery returns the deterministic
 competency verification prompt and records only `delivered`. Queue and delivery
 state have no authority to create evidence, complete a review, or advance
-mastery; evaluation and weak-area detection remain separate governed work.
+mastery; evaluation and weak-area detection use the separate governed boundary
+below.
+
+Governed review evaluation reuses Friday's existing local conversation model
+and interaction lease. The evaluator must return a bounded correct/incorrect/
+uncertain result; the private owner answer remains in local SQLite and is not
+projected by the journey API. Incorrect or uncertain completed reviews plus the
+latest still-failing attempt per mission question derive a read-only weak-area
+projection. Assistance is supporting context, never enough by itself to label a
+weakness. The canonical next action prioritizes due/delivered reviews and then
+the strongest evidence-backed weak area without automatically lowering mastery.
 
 ### Astra presentation integration foundation
 

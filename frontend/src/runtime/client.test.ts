@@ -95,4 +95,18 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       { method: "POST" },
     );
   });
+
+  it("submits a retention answer for governed evaluation", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      review: { review_id: "r1", state: "completed", evaluation: "incorrect" }, weak_areas: [],
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new FridayRuntimeClient().evaluateRetentionReview("r1", "My answer");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/career-forge/retention-reviews/r1/evaluate",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ response: "My answer" }) }),
+    );
+  });
 });

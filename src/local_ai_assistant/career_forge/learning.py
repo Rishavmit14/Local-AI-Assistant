@@ -85,7 +85,7 @@ class CareerForgeLearningLoop:
         if directive.action == "assistance" and directive.assistance_level is not None:
             self.service.offer_assistance(directive.mission_id, TutorMode.HINT, directive.assistance_level, response)
         elif directive.action in {"evaluate", "teach_back_evaluate"} and directive.attempt_id is not None:
-            evaluation, feedback = self._parse_evaluation(response)
+            evaluation, feedback = self.parse_evaluation(response)
             evidence_type = (
                 "teach_back" if directive.action == "teach_back_evaluate" else "quiz_response"
             ) if evaluation is AttemptEvaluation.CORRECT else None
@@ -151,7 +151,7 @@ class CareerForgeLearningLoop:
                 "Do not claim mastery or write learner state. Owner answer: " + answer)
 
     @staticmethod
-    def _parse_evaluation(response: str) -> tuple[AttemptEvaluation, str]:
+    def parse_evaluation(response: str) -> tuple[AttemptEvaluation, str]:
         match = re.search(r"^\s*ASSESSMENT:\s*(correct|incorrect|uncertain)\b", response, re.I)
         if match is None:
             return AttemptEvaluation.UNCERTAIN, "The bounded evaluator did not return a valid assessment label. " + response.strip()[:1500]

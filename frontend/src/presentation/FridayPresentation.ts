@@ -31,6 +31,7 @@ export class FridayPresentation implements FridayPresentationActions {
   }
 
   deliverRetentionReview(reviewId: string) { return this.runtime.deliverRetentionReview(reviewId); }
+  evaluateRetentionReview(reviewId: string, response: string) { return this.runtime.evaluateRetentionReview(reviewId, response); }
 
   async openPracticeLab(): Promise<void> {
     await this.runtime.openPracticeLab();

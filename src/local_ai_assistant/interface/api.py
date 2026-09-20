@@ -18,6 +18,7 @@ except ImportError:  # optional dependency; validated when app creation is reque
 from local_ai_assistant.autonomy import ObjectiveService
 from local_ai_assistant.career_forge import (
     AssistanceLevel,
+    CareerForgeLearningLoop,
     CareerForgeService,
     MasteryLevel,
     PracticeLabService,
@@ -487,6 +488,10 @@ def create_presentation_app(
     def career_journey():
         forge = owner_career_forge()
         progress = forge.progress()
+        progress_payload = _career_progress_payload(progress)
+        for review in progress_payload["retention_reviews"]:
+            if review["state"] in {"scheduled", "delivered"}:
+                review["prompt"] = forge.retention_review_prompt(review["review_id"])
         active = progress.active_mission
         next_item = forge.next_competency()
         return {
@@ -499,7 +504,7 @@ def create_presentation_app(
                 {"competency": asdict(item.competency), "mastery": item.mastery}
                 for item in forge.competencies()
             ],
-            "progress": _career_progress_payload(progress),
+            "progress": progress_payload,
         }
 
     @app.post("/api/v1/career-forge/retention-reviews/{review_id}/deliver")
@@ -509,6 +514,49 @@ def create_presentation_app(
         except (KeyError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"review": asdict(review), "prompt": prompt}
+
+    @app.post("/api/v1/career-forge/retention-reviews/{review_id}/evaluate")
+    async def career_evaluate_retention_review(review_id: str, request: Request):
+        try:
+            body = await request.json()
+            response = body["response"]
+            review = owner_career_forge().retention_review(review_id)
+            prompt = owner_career_forge().retention_review_prompt(review_id)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if review.state != "delivered":
+            raise HTTPException(status_code=409, detail="retention review must be delivered before evaluation")
+        if not isinstance(response, str) or not response.strip() or len(response) > max_prompt_chars:
+            raise HTTPException(status_code=400, detail="bounded retention review response is required")
+        lease = interaction_coordinator.try_acquire("presentation")
+        if lease is None:
+            raise HTTPException(status_code=409, detail="interaction busy")
+        try:
+            if presentation_pause is not None:
+                presentation_pause()
+            system_prompt = (
+                "Evaluate one explicit Career Forge retention answer using the stated criterion, "
+                "not lexical similarity. First line MUST be exactly ASSESSMENT: correct, "
+                "ASSESSMENT: incorrect, or ASSESSMENT: uncertain. Then give concise feedback "
+                "naming the mechanism, misconception if any, and retry action. Do not claim or "
+                "change mastery and do not invent evidence. "
+                f"Competency: {review.competency_id}. Criterion: {prompt}"
+            )
+            model_response = "".join(conversation.stream_response(response, system_prompt=system_prompt))
+            evaluation, feedback = CareerForgeLearningLoop.parse_evaluation(model_response)
+            completed = owner_career_forge().evaluate_retention_review(
+                review_id, response, evaluation, feedback,
+            )
+            return {
+                "review": asdict(completed),
+                "weak_areas": [asdict(item) for item in owner_career_forge().weak_areas()],
+            }
+        finally:
+            try:
+                if presentation_resume is not None:
+                    presentation_resume()
+            finally:
+                lease.release()
 
     @app.post("/api/v1/career-forge/missions")
     async def career_start_mission(request: Request):

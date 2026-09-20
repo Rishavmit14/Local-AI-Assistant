@@ -12,14 +12,29 @@ from .models import (
     MasteryLevel,
     TutorMode,
 )
-from .service import (
-    AssistanceRecord, CareerForgeProgress, CareerForgeService, EvidenceRecord,
-    LearnerCompetency, LearningHistoryItem, LessonAttempt, Mission, ProjectLink, RetentionReview,
+from .practice_lab import (
+    PracticeAttempt,
+    PracticeExercise,
+    PracticeLabProjection,
+    PracticeLabService,
+    PracticeRun,
 )
-from .practice_lab import PracticeAttempt, PracticeExercise, PracticeLabProjection, PracticeLabService, PracticeRun
+from .service import (
+    AssistanceRecord,
+    CareerForgeProgress,
+    CareerForgeService,
+    EvidenceRecord,
+    LearnerCompetency,
+    LearningHistoryItem,
+    LessonAttempt,
+    Mission,
+    ProjectLink,
+    RetentionReview,
+    WeakArea,
+)
 
 __all__ = [
     "AssistanceLevel", "AttemptEvaluation", "CareerForgeLearningLoop", "COMPETENCY_GRAPH_VERSION", "CareerForgeService", "Competency",
-    "AssistanceRecord", "CareerForgeProgress", "EvidenceRecord", "LearnerCompetency", "LearningDirective", "LearningHistoryItem", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "ProjectLink", "PublicationDecision", "RetentionReview",
+    "AssistanceRecord", "CareerForgeProgress", "EvidenceRecord", "LearnerCompetency", "LearningDirective", "LearningHistoryItem", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "ProjectLink", "PublicationDecision", "RetentionReview", "WeakArea",
     "TutorMode", "competency_graph", "evaluate_publication", "PracticeAttempt", "PracticeExercise", "PracticeLabProjection", "PracticeLabService", "PracticeRun",
 ]

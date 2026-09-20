@@ -1,7 +1,10 @@
+import sqlite3
+
 import pytest
 
 from local_ai_assistant.career_forge import (
     AssistanceLevel,
+    AttemptEvaluation,
     CareerForgeService,
     MasteryLevel,
     TutorMode,
@@ -21,6 +24,22 @@ def test_ml_ai_engineer_curriculum_is_dependency_ordered_and_unverified_by_defau
         "transformers_nlp", "generative_ai", "production_ml", "system_design",
         "work_simulation", "interview_career_proof",
     }
+
+
+def test_existing_retention_queue_schema_migrates_for_governed_outcomes(tmp_path):
+    path = tmp_path / "learner.sqlite3"
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "CREATE TABLE retention_reviews (review_id TEXT PRIMARY KEY, competency_id TEXT NOT NULL, "
+            "evidence_id TEXT NOT NULL UNIQUE, mastery TEXT NOT NULL, due_at TEXT NOT NULL, "
+            "state TEXT NOT NULL, created_at TEXT NOT NULL)"
+        )
+
+    CareerForgeService(path)
+
+    with sqlite3.connect(path) as db:
+        columns = {row[1] for row in db.execute("PRAGMA table_info(retention_reviews)")}
+    assert {"response", "evaluation", "feedback", "evaluated_at"} <= columns
 
 
 def test_learner_twin_starts_unverified_and_resumes_exact_mission_state(tmp_path):
@@ -76,6 +95,37 @@ def test_due_retention_review_is_delivered_once_without_changing_mastery_or_evid
     assert forge.evidence_history()[0].evidence_id == evidence
     with pytest.raises(ValueError, match="already been delivered"):
         forge.deliver_retention_review(review.review_id)
+
+
+def test_retention_outcome_derives_weak_area_without_changing_mastery(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    review = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
+    forge.deliver_retention_review(review.review_id)
+
+    completed = forge.evaluate_retention_review(
+        review.review_id, "Defaults are made each call.",
+        AttemptEvaluation.INCORRECT, "Defaults are created once; revisit object lifetime.",
+    )
+
+    assert completed.state == "completed"
+    assert completed.evaluation is AttemptEvaluation.INCORRECT
+    assert forge.competencies()[0].mastery is MasteryLevel.RECOGNIZE
+    weak = forge.weak_areas()
+    assert len(weak) == 1
+    assert weak[0].competency_id == "se.python"
+    assert weak[0].retention_failures == 1
+    assert "failed retention review" in weak[0].reasons[0]
+    assert forge.progress().weak_areas == weak
+    assert "Reinforce the evidence-backed weak area" in forge.progress().next_action
+    with pytest.raises(ValueError, match="already been evaluated"):
+        forge.evaluate_retention_review(
+            review.review_id, "Another answer", AttemptEvaluation.CORRECT, "Too late",
+        )
 
 
 def test_mission_loop_and_progressive_assistance_preserve_independence_context(tmp_path):

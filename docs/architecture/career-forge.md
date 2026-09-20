@@ -145,6 +145,15 @@ mastery, create evidence, imply retention, or replace a new evidence-bearing
 assessment. Outcome evaluation, weak-area detection, and reinforcement remain
 separate active work.
 
+The next governed slice evaluates an explicit delivered answer through Friday's
+existing local-Qwen conversation and interaction boundary. Only a bounded
+correct/incorrect/uncertain outcome plus feedback is persisted; the private
+answer is excluded from journey projections. Weak areas are deterministically
+derived from incorrect/uncertain completed retention reviews and the latest
+still-failing attempt for a mission question. Historical retries resolved by a
+later correct attempt are not current weakness. Recorded assistance is visible
+context but cannot independently label a competency weak or change mastery.
+
 ## Conversation capability handoff
 
 Stage 22 Slice 2 places one deterministic, typed conversation-capability router

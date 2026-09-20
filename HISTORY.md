@@ -1,5 +1,19 @@
 # Project History
 
+## 2026-09-20 — Career Forge review evaluation and weak-area candidate
+
+Friday can now evaluate an explicitly delivered retention answer through the
+existing local model and interaction lease, persist a bounded outcome/feedback,
+and derive current weak areas from failed or uncertain retention plus the latest
+unresolved mission-question attempt. Private answers never enter the journey
+projection, resolved retries cease to be weak, assistance alone cannot label a
+weakness, and neither review nor weakness automatically changes mastery. The
+canonical Progress surface resumes delivered reviews after refresh and displays
+only evidence-backed weakness reasons. Focused Python/frontend tests and the
+production frontend build pass. Full repository verification passed with 879
+Python tests and dependency consistency; known unrelated Astra lint debt remains
+separately documented.
+
 ## 2026-09-20 — Governed Career Forge retention-review delivery candidate
 
 Due evidence-linked reviews can now be delivered exactly once through the local

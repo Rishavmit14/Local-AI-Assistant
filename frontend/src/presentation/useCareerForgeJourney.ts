@@ -10,6 +10,7 @@ export interface CareerForgeJourneyState {
   error: string | null;
   reload(): void;
   deliverReview(reviewId: string): Promise<string>;
+  evaluateReview(reviewId: string, response: string): Promise<void>;
 }
 
 /** Reads the one Career Forge projection; it never substitutes fixtures. */
@@ -40,5 +41,9 @@ export function useCareerForgeJourney(): CareerForgeJourneyState {
     reload();
     return delivered.prompt;
   }, [reload]);
-  return { state, journey, error, reload, deliverReview };
+  const evaluateReview = useCallback(async (reviewId: string, response: string) => {
+    await presentation.current.evaluateRetentionReview(reviewId, response);
+    reload();
+  }, [reload]);
+  return { state, journey, error, reload, deliverReview, evaluateReview };
 }

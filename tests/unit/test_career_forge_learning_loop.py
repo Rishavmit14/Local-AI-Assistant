@@ -121,7 +121,7 @@ def test_progress_projection_is_canonical_bounded_and_survives_restart(tmp_path)
     assert [item.attempt_order for item in progress.recent_attempts] == [2, 1]
     assert progress.assistance[0].level is AssistanceLevel.PROMPT
     assert progress.evidence[0].evidence_type == "quiz_response"
-    assert progress.unresolved_retries[0].attempt_id == first.attempt_id
+    assert progress.unresolved_retries == ()
     assert progress.history[0].occurred_at >= progress.history[-1].occurred_at
-    assert "Retry the active mission" in progress.next_action
+    assert "Continue the active mission" in progress.next_action
     assert "percentage" not in progress.next_action

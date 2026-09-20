@@ -374,6 +374,17 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     assert delivered.json()["review"]["state"] == "delivered"
     assert "mutable default" in delivered.json()["prompt"].lower()
     assert client.post(f"/api/v1/career-forge/retention-reviews/{review.review_id}/deliver").status_code == 409
+    resumed_review = client.get("/api/v1/career-forge/journey").json()["progress"]["retention_reviews"][0]
+    assert resumed_review["state"] == "delivered"
+    assert "mutable default" in resumed_review["prompt"].lower()
+    evaluated = client.post(
+        f"/api/v1/career-forge/retention-reviews/{review.review_id}/evaluate",
+        json={"response": "A new default list is created for every call."},
+    )
+    assert evaluated.status_code == 200
+    assert evaluated.json()["review"]["evaluation"] == "uncertain"
+    assert evaluated.json()["weak_areas"][0]["competency_id"] == "se.python"
+    assert "response" not in evaluated.json()["review"]
     assert client.post(f"/api/v1/career-forge/missions/{mission_id}/project").status_code == 409
 
 
@@ -815,6 +826,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/perception/screen/captures/{capture_id}/visual-labels",
         "/api/v1/career-forge/journey",
         "/api/v1/career-forge/retention-reviews/{review_id}/deliver",
+        "/api/v1/career-forge/retention-reviews/{review_id}/evaluate",
         "/api/v1/career-forge/missions",
         "/api/v1/career-forge/missions/{mission_id}/project",
         "/api/v1/career-forge/missions/{mission_id}/resume",

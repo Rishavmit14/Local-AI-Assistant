@@ -10,7 +10,7 @@ describe("Career Forge Astra presentation adapter", () => {
       next_competency: { competency_id: "se.python", domain: "Software engineering", title: "Python foundations", prerequisites: [], project_family: null },
       recommended_mission: { competency_id: "se.python", title: "Verify Python state", why_it_matters: "Reliable code starts with state.", verification: "Explain it", mental_model: "State", owner_attempt: "Try", teach_back: "Teach" },
       project_links: [], competencies: [],
-      progress: { active_mission: null, recent_attempts: [], assistance: [{ level: "prompt", competency_id: "se.python", created_at: "now" }], evidence: [{ evidence_type: "teach_back", competency_id: "se.python", assistance_level: "prompt", created_at: "now" }], evidenced_competencies: [], unresolved_retries: [], retention_reviews: [], next_action: "Resume the active mission.", history: [] },
+      progress: { active_mission: null, recent_attempts: [], assistance: [{ level: "prompt", competency_id: "se.python", created_at: "now" }], evidence: [{ evidence_type: "teach_back", competency_id: "se.python", assistance_level: "prompt", created_at: "now" }], evidenced_competencies: [], unresolved_retries: [], retention_reviews: [], weak_areas: [], next_action: "Resume the active mission.", history: [] },
     });
 
     expect(summary).toMatchObject({

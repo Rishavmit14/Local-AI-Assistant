@@ -91,6 +91,14 @@ export class FridayRuntimeClient {
     return response.json() as Promise<{ review: CareerForgeJourney["progress"]["retention_reviews"][number]; prompt: string }>;
   }
 
+  async evaluateRetentionReview(reviewId: string, responseText: string): Promise<{ review: CareerForgeJourney["progress"]["retention_reviews"][number]; weak_areas: CareerForgeJourney["progress"]["weak_areas"] }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/retention-reviews/${encodeURIComponent(reviewId)}/evaluate`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ response: responseText }),
+    });
+    if (!response.ok) throw new Error(`Retention review evaluation failed: ${response.status}`);
+    return response.json() as Promise<{ review: CareerForgeJourney["progress"]["retention_reviews"][number]; weak_areas: CareerForgeJourney["progress"]["weak_areas"] }>;
+  }
+
   async linkCareerMissionProject(missionId: string): Promise<void> {
     const response = await fetch(
       `${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/project`,
