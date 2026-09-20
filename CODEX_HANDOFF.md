@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted adaptive-reinforcement capability
-checkpoint: `2d52afa`. The
+checkpoint: `f457453`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -106,17 +106,18 @@ repository verification passes with 886 Python tests and dependency consistency;
 the remote integration branch was verified at the exact capability commit. The
 active dependency is project evidence and approval-gated GitHub publication.
 
-The durable public-evidence review candidate is implemented in the current
-worktree. A canonical project-linked mission with existing evidence may record
+The durable public-evidence review lifecycle is accepted and published at
+`f457453`. A canonical project-linked mission with existing evidence may record
 the six deterministic gate results; blocked reasons remain explicit, qualified
 state has no publication authority, and owner approval is a separate durable
 transition that still performs no Git or GitHub mutation. The typed API/client
 and PROJECTS workspace expose this lifecycle. Focused validation passes 44
 Python tests, 16 frontend tests, changed-file lint, and the production frontend
 build. Full repository verification passes with 887 Python tests and dependency
-consistency. The recovery checkpoint remains pending.
-Next: bind an approved candidate to the existing promotion-ready task and
-authenticated GitHub gateway.
+consistency; the remote integration branch was verified at the exact capability
+commit.
+The active dependency is binding an approved candidate to the existing
+promotion-ready task and authenticated GitHub gateway.
 
 ## 0. Non-negotiable project rules
 
