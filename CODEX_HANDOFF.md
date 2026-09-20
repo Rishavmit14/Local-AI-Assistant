@@ -17,8 +17,8 @@ bootstrap instructions describe completed work; use current recovery refs and
 ## Current integration recovery state — 2026-09-20
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
-`integration/astra-friday`; accepted adaptive-reinforcement capability
-checkpoint: `f457453`. The
+`integration/astra-friday`; accepted Career Forge capability checkpoint:
+`eb6bb3e`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -119,7 +119,7 @@ commit.
 The active dependency is binding an approved candidate to the existing
 promotion-ready task and authenticated GitHub gateway.
 
-That publication binding is implemented in the current worktree. The accepted
+Authenticated publication binding is accepted and published at `eb6bb3e`. The
 candidate schema migrates in place and retains its exact task/repository/base,
 gateway result URL, bounded failure, and publication time. The presentation
 route requires bearer authentication with `GITHUB_WRITE`, validates promotion
@@ -129,8 +129,9 @@ eligibility before binding, and delegates all external work to the existing
 handles that credential. Qualification passes 69 focused Python tests, 12 frontend runtime
 tests, changed-file lint, the production frontend build, dependency consistency,
 and full repository verification with 890 Python tests. The recovery checkpoint
-remains pending. Next after qualification: bounded Career Forge mission autonomy
-and recovery through the existing objective/task path.
+was verified on the remote integration branch. The active dependency is bounded
+Career Forge mission autonomy and recovery through the existing objective/task
+path.
 
 ## 0. Non-negotiable project rules
 
