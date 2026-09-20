@@ -170,4 +170,24 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       }),
     );
   });
+
+  it("prepares a Career Forge desktop action without approving or executing it", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ action: {
+      action_id: "a1", action: "focus_app", app_id: "org.gnome.Terminal", state: "proposed",
+      created_at: "now", approved_at: null, executed_at: null,
+    } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new FridayRuntimeClient().proposeCareerDesktopAction(
+      "mission 1", "focus_app", "org.gnome.Terminal",
+    )).resolves.toMatchObject({ state: "proposed" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/career-forge/missions/mission%201/desktop-actions",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ action: "focus_app", target: "org.gnome.Terminal" }),
+      }),
+    );
+  });
 });

@@ -214,6 +214,14 @@ screen implicitly. Contextual explanation alone records no attempt, evidence,
 mastery, or desktop action and does not copy retained screen text into the
 Learner Twin.
 
+Policy-governed desktop assistance reuses Friday's existing allowlists, exact
+target validation, short approval expiry, audit store, and separate
+propose/approve/execute transitions. Career Forge may bind a proposal to the
+active mission for audit, but the tutor/model cannot approve or execute it and
+the action cannot count as learning evidence or mastery. The first Astra control
+prepares only an exact focus request for the configured local terminal; the
+owner reviews that action and target before a separate approval and execution.
+
 ## Mission and tutoring loop
 
 Missions, not passive chapters, follow: why it matters → prerequisite check →

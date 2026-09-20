@@ -482,6 +482,41 @@ def test_contextual_tutor_uses_only_explicit_bounded_code_or_retained_screen_tex
     ).status_code == 400
 
 
+def test_career_desktop_assistance_links_proposal_but_keeps_approval_and_execution_separate(tmp_path):
+    calls = []
+    control = DesktopControlService(
+        tmp_path / "desktop.sqlite3", allowed_apps=("org.gnome.Terminal",),
+        runner=lambda command, **_kwargs: calls.append(command) or type("Result", (), {"returncode": 0})(),
+    )
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    runtime = FridayRuntime("career-desktop-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        desktop_control=control, career_forge=forge,
+    ))
+
+    proposed = client.post(
+        f"/api/v1/career-forge/missions/{mission.mission_id}/desktop-actions",
+        json={"action": "focus_app", "target": "org.gnome.Terminal"},
+    )
+    assert proposed.status_code == 200
+    action_id = proposed.json()["action"]["action_id"]
+    assert proposed.json()["action"]["state"] == "proposed"
+    assert proposed.json()["mission_action"]["mission_id"] == mission.mission_id
+    assert client.get(
+        f"/api/v1/career-forge/missions/{mission.mission_id}/desktop-actions",
+    ).json()["actions"][0]["action_id"] == action_id
+    assert client.post(f"/api/v1/desktop/actions/{action_id}/execute").status_code == 409
+    assert calls == []
+    assert client.post(f"/api/v1/desktop/actions/{action_id}/approve").json()["action"]["state"] == "approved"
+    assert calls == []
+    assert client.post(f"/api/v1/desktop/actions/{action_id}/execute").json()["action"]["state"] == "executed"
+    assert len(calls) == 1
+    assert forge.evidence_history() == ()
+    assert forge.competencies()[0].mastery.value == "unverified"
+
+
 def test_busy_voice_rejects_http_before_runtime_events():
     runtime = FridayRuntime("busy-voice")
     conversation = FridayConversationService(FakeStreamingLLM(["unused"]), runtime)
@@ -933,6 +968,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/missions/{mission_id}/evidence",
         "/api/v1/career-forge/missions/{mission_id}/tutor",
         "/api/v1/career-forge/missions/{mission_id}/contextual-tutor",
+        "/api/v1/career-forge/missions/{mission_id}/desktop-actions",
         "/api/v1/career-forge/competencies/{competency_id}/advance",
         "/api/v1/career-forge/practice-lab",
         "/api/v1/career-forge/practice-lab/open",

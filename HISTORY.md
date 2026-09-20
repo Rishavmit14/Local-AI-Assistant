@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-20 — Governed Career Forge desktop assistance candidate
+
+Career Forge can now prepare one allowlisted desktop action for its active
+mission and retain a Learner Twin audit link. Astra displays the exact action and
+target, then keeps proposal, explicit owner approval, and execution as separate
+interactions through Friday's existing desktop-control state machine. The local
+model receives no desktop authority, and action state cannot become learning
+evidence or mastery.
+Focused validation passes 43 Python tests and 15 frontend tests; changed-file
+lint, the production frontend build, and full repository verification with 886
+Python tests also pass.
+
 ## 2026-09-20 — Selected-code and screen-aware Career Forge tutoring candidate
 
 Career Forge can now explain an explicit Practice Lab selection or bounded local

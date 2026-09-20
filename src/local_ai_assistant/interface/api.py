@@ -816,6 +816,30 @@ def create_presentation_app(
             finally:
                 lease.release()
 
+    @app.get("/api/v1/career-forge/missions/{mission_id}/desktop-actions")
+    def career_desktop_actions(mission_id: str):
+        try:
+            return {"actions": [asdict(item) for item in owner_career_forge().desktop_actions(mission_id)]}
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/api/v1/career-forge/missions/{mission_id}/desktop-actions")
+    async def career_propose_desktop_action(mission_id: str, request: Request):
+        try:
+            body = await request.json()
+            mission = owner_career_forge().mission(mission_id)
+            if mission.state != "active":
+                raise ValueError("desktop assistance requires an active mission")
+            action = DesktopAction(body["action"])
+            target = body["target"]
+            proposal = owner_desktop_control().propose(action, target)
+            linked = owner_career_forge().record_desktop_action(
+                mission_id, proposal.action_id, proposal.action.value, proposal.app_id,
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"action": asdict(proposal), "mission_action": asdict(linked)}
+
     @app.post("/api/v1/career-forge/competencies/{competency_id}/advance")
     async def career_advance(competency_id: str, request: Request):
         try:

@@ -165,6 +165,18 @@ export class FridayRuntimeClient {
     return response.json() as Promise<{ response: string; source: { kind: string; reference: string }; recorded_assistance: boolean }>;
   }
 
+  async proposeCareerDesktopAction(
+    missionId: string, action: FridayDesktopAction["action"], target: string,
+  ): Promise<FridayDesktopAction> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/desktop-actions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, target }),
+    });
+    if (!response.ok) throw new Error(`Career Forge desktop proposal failed: ${response.status}`);
+    return (await response.json() as { action: FridayDesktopAction }).action;
+  }
+
   async openPracticeLab(): Promise<PracticeLab> {
     return this.practiceRequest("open");
   }

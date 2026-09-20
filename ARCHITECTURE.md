@@ -268,6 +268,14 @@ authority. The response creates no attempt, evidence, mastery, desktop action,
 or durable context copy; optional progressive assistance remains the only
 governed learning-state write.
 
+Career Forge desktop assistance composes, but does not weaken, the existing
+desktop-control state machine. An explicit owner action for the active mission
+may create one allowlisted `proposed` record and a Learner Twin audit link.
+Proposal, exact-action approval, and execution remain three separate API/UI
+transitions; local Qwen has none of those authorities. The link never becomes
+attempt evidence or mastery, and desktop failure changes only the audited action
+state.
+
 ### Astra presentation integration foundation
 
 The Astra visual workspace consumes Friday only through `frontend/src/presentation`:

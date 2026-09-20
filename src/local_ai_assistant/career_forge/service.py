@@ -142,6 +142,15 @@ class InterviewSession:
 
 
 @dataclass(frozen=True, slots=True)
+class MissionDesktopAction:
+    mission_id: str
+    action_id: str
+    action: str
+    target: str
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
 class CareerForgeProgress:
     active_mission: Mission | None
     recent_attempts: tuple[LessonAttempt, ...]
@@ -225,6 +234,11 @@ class CareerForgeService:
                 CREATE UNIQUE INDEX IF NOT EXISTS active_interview_per_mission
                     ON career_interviews(mission_id)
                     WHERE state IN ('awaiting_answer', 'awaiting_evaluation');
+                CREATE TABLE IF NOT EXISTS mission_desktop_actions (
+                    action_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
+                    action TEXT NOT NULL, target TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
                 """
             )
             columns = {row[1] for row in db.execute("PRAGMA table_info(retention_reviews)")}
@@ -779,6 +793,36 @@ class CareerForgeService:
                 "FROM mission_projects ORDER BY created_at DESC"
             ).fetchall()
         return tuple(ProjectLink(*row) for row in rows)
+
+    def record_desktop_action(
+        self, mission_id: str, action_id: str, action: str, target: str,
+    ) -> MissionDesktopAction:
+        """Bind an already governed proposal to active learning context for audit."""
+        mission = self.mission(mission_id)
+        if mission.state != "active":
+            raise ValueError("desktop assistance requires an active mission")
+        if not all(isinstance(value, str) and value.strip() for value in (action_id, action, target)):
+            raise ValueError("desktop assistance metadata is incomplete")
+        now = _now()
+        with self._db() as db:
+            try:
+                db.execute(
+                    "INSERT INTO mission_desktop_actions VALUES(?,?,?,?,?)",
+                    (action_id, mission_id, action, target, now),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("desktop action is already linked") from exc
+        return MissionDesktopAction(mission_id, action_id, action, target, now)
+
+    def desktop_actions(self, mission_id: str) -> tuple[MissionDesktopAction, ...]:
+        self.mission(mission_id)
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT mission_id, action_id, action, target, created_at "
+                "FROM mission_desktop_actions WHERE mission_id=? ORDER BY created_at DESC",
+                (mission_id,),
+            ).fetchall()
+        return tuple(MissionDesktopAction(*row) for row in rows)
 
     def offer_assistance(self, mission_id: str, mode: TutorMode, level: AssistanceLevel, content: str) -> str:
         """Record minimum progressive help; substantial help remains visible evidence."""

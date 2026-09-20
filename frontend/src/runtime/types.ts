@@ -197,7 +197,7 @@ export interface FridayScreenCapture {
 
 export interface FridayDesktopAction {
   action_id: string;
-  action: "focus_app" | "launch_app";
+  action: "focus_app" | "launch_app" | "open_uri" | "open_file" | "activate_accessible";
   app_id: string;
   state: string;
   created_at: string;

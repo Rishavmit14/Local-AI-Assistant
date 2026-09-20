@@ -44,6 +44,9 @@ export class FridayPresentation implements FridayPresentationActions {
     if (!captures.length) throw new Error("No retained explicit screen capture is available");
     return this.runtime.contextualCareerTutor(missionId, message, { capture_id: captures[0].capture_id });
   }
+  proposeCareerDesktopAction(missionId: string, action: "focus_app" | "launch_app", target: string) { return this.runtime.proposeCareerDesktopAction(missionId, action, target); }
+  approveDesktopAction(actionId: string) { return this.runtime.approveDesktopAction(actionId); }
+  executeDesktopAction(actionId: string) { return this.runtime.executeDesktopAction(actionId); }
 
   async openPracticeLab(): Promise<void> {
     await this.runtime.openPracticeLab();
