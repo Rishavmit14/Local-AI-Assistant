@@ -34,6 +34,10 @@ export class FridayPresentation implements FridayPresentationActions {
   evaluateRetentionReview(reviewId: string, response: string) { return this.runtime.evaluateRetentionReview(reviewId, response); }
   startCareerReinforcement(competencyId: string) { return this.runtime.startCareerReinforcement(competencyId); }
   linkCareerMissionProject(missionId: string) { return this.runtime.linkCareerMissionProject(missionId); }
+  getCurrentCareerInterview(missionId?: string) { return this.runtime.getCurrentCareerInterview(missionId); }
+  startCareerInterview(missionId: string) { return this.runtime.startCareerInterview(missionId); }
+  submitCareerInterviewAnswer(interviewId: string, response: string) { return this.runtime.submitCareerInterviewAnswer(interviewId, response); }
+  evaluateCareerInterview(interviewId: string) { return this.runtime.evaluateCareerInterview(interviewId); }
 
   async openPracticeLab(): Promise<void> {
     await this.runtime.openPracticeLab();

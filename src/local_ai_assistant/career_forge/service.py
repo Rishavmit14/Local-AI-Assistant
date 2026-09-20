@@ -128,6 +128,20 @@ class WeakArea:
 
 
 @dataclass(frozen=True, slots=True)
+class InterviewSession:
+    interview_id: str
+    mission_id: str
+    competency_id: str
+    state: str
+    question_id: str
+    prompt: str
+    turn_number: int
+    current_attempt_id: str | None
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
 class CareerForgeProgress:
     active_mission: Mission | None
     recent_attempts: tuple[LessonAttempt, ...]
@@ -201,6 +215,16 @@ class CareerForgeService:
                 );
                 CREATE INDEX IF NOT EXISTS retention_reviews_due
                     ON retention_reviews(state, due_at);
+                CREATE TABLE IF NOT EXISTS career_interviews (
+                    interview_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
+                    competency_id TEXT NOT NULL, state TEXT NOT NULL,
+                    question_id TEXT NOT NULL, prompt TEXT NOT NULL,
+                    turn_number INTEGER NOT NULL, current_attempt_id TEXT,
+                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS active_interview_per_mission
+                    ON career_interviews(mission_id)
+                    WHERE state IN ('awaiting_answer', 'awaiting_evaluation');
                 """
             )
             columns = {row[1] for row in db.execute("PRAGMA table_info(retention_reviews)")}
@@ -642,6 +666,83 @@ class CareerForgeService:
     def mission_loop(self, mission_id: str) -> tuple[str, ...]:
         self.mission(mission_id)
         return MISSION_LOOP
+
+    def start_interview(self, mission_id: str) -> InterviewSession:
+        """Start a bounded no-help interview for one active canonical mission."""
+        mission = self.mission(mission_id)
+        if mission.state != "active":
+            raise ValueError("interview requires an active mission")
+        brief = self.mission_brief_for(mission.competency_id)
+        now, interview_id = _now(), "interview_" + uuid.uuid4().hex
+        with self._db() as db:
+            try:
+                db.execute(
+                    "INSERT INTO career_interviews VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    (interview_id, mission_id, mission.competency_id, "awaiting_answer",
+                     "interview_primary", brief.verification, 1, None, now, now),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("mission already has an active interview") from exc
+        return self.interview(interview_id)
+
+    def interview(self, interview_id: str) -> InterviewSession:
+        with self._db() as db:
+            row = db.execute("SELECT * FROM career_interviews WHERE interview_id=?", (interview_id,)).fetchone()
+        if row is None:
+            raise KeyError(interview_id)
+        return InterviewSession(*row)
+
+    def active_interview(self, mission_id: str | None = None) -> InterviewSession | None:
+        query = "SELECT interview_id FROM career_interviews WHERE state IN ('awaiting_answer', 'awaiting_evaluation')"
+        params: tuple[str, ...] = ()
+        if mission_id is not None:
+            query += " AND mission_id=?"
+            params = (mission_id,)
+        query += " ORDER BY updated_at DESC LIMIT 1"
+        with self._db() as db:
+            row = db.execute(query, params).fetchone()
+        return self.interview(row[0]) if row else None
+
+    def submit_interview_answer(self, interview_id: str, response: str) -> LessonAttempt:
+        session = self.interview(interview_id)
+        if session.state != "awaiting_answer":
+            raise ValueError("interview is not awaiting an answer")
+        attempt = self.record_attempt(
+            session.mission_id, session.question_id, response,
+            mode=TutorMode.INTERVIEW, assistance_level=None,
+        )
+        with self._db() as db:
+            changed = db.execute(
+                "UPDATE career_interviews SET state='awaiting_evaluation', current_attempt_id=?, updated_at=? "
+                "WHERE interview_id=? AND state='awaiting_answer'",
+                (attempt.attempt_id, _now(), interview_id),
+            ).rowcount
+        if changed != 1:
+            raise ValueError("interview answer could not be bound")
+        return attempt
+
+    def evaluate_interview_answer(
+        self, interview_id: str, evaluation: AttemptEvaluation, feedback: str,
+    ) -> tuple[InterviewSession, LessonAttempt]:
+        session = self.interview(interview_id)
+        if session.state != "awaiting_evaluation" or session.current_attempt_id is None:
+            raise ValueError("interview is not awaiting evaluation")
+        attempt = self.evaluate_attempt(
+            session.current_attempt_id, evaluation, feedback,
+            evidence_type="interview_response" if evaluation is AttemptEvaluation.CORRECT else None,
+        )
+        if session.turn_number >= 2:
+            state, question_id, prompt, turn = "completed", session.question_id, session.prompt, session.turn_number
+        else:
+            brief = self.mission_brief_for(session.competency_id)
+            state, question_id, prompt, turn = "awaiting_answer", "interview_followup", brief.teach_back, 2
+        with self._db() as db:
+            db.execute(
+                "UPDATE career_interviews SET state=?, question_id=?, prompt=?, turn_number=?, "
+                "current_attempt_id=NULL, updated_at=? WHERE interview_id=?",
+                (state, question_id, prompt, turn, _now(), interview_id),
+            )
+        return self.interview(interview_id), attempt
 
     def link_project(self, mission_id: str) -> ProjectLink:
         """Attach a mission only to its canonical evolving project family."""

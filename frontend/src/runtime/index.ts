@@ -9,6 +9,7 @@ export type {
 export type {
   CareerForgeCompetency,
   CareerForgeJourney,
+  CareerForgeInterview,
   CareerForgeMission,
   CareerForgeMissionBrief,
   PracticeLab,

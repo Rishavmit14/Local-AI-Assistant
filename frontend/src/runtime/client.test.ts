@@ -131,4 +131,24 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       expect.objectContaining({ method: "POST", body: JSON.stringify({ competency_id: "se.python" }) }),
     );
   });
+
+  it("persists and evaluates a bounded Career Forge interview answer", async () => {
+    const session = { interview_id: "interview 1", mission_id: "m1", competency_id: "se.python", state: "awaiting_evaluation", question_id: "q1", prompt: "Explain defaults", turn_number: 1, current_attempt_id: "a1", created_at: "now", updated_at: "now" };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ interview: session }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ interview: { ...session, state: "awaiting_answer", turn_number: 2 }, attempt: { evaluation: "correct", feedback: "Good.", evidence_type: "interview_response" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+
+    await client.submitCareerInterviewAnswer("interview 1", "The object is shared.");
+    await client.evaluateCareerInterview("interview 1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1,
+      "/api/v1/career-forge/interviews/interview%201/answers",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ response: "The object is shared." }) }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(2,
+      "/api/v1/career-forge/interviews/interview%201/evaluate", { method: "POST" },
+    );
+  });
 });

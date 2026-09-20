@@ -225,6 +225,14 @@ experiments, testing/debugging, diagnosis, design/review, oral defense and
 projects. ML work encourages question → hypothesis → prediction → run → observe
 → compare → conclusion.
 
+The first governed Interview Mode is deliberately bounded to two questions for
+an active mission: its verification question followed by a teach-back defense.
+No assistance is attached to interview attempts. Friday's existing local model
+evaluates through the same strict assessment label boundary; correct answers may
+record `interview_response` evidence, while feedback, completion, and evidence
+never auto-advance mastery or assert readiness. Awaiting-answer and
+awaiting-evaluation state persists locally and resumes after restart.
+
 ## Projects and public evidence
 
 Use a few evolving, hardware-aware projects: **FraudShield** (fraud/classical

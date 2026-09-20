@@ -1,5 +1,18 @@
 # Project History
 
+## 2026-09-20 — Governed Career Forge Interview Mode candidate
+
+Friday now runs a persistent two-question, no-help interview for the active
+Career Forge mission. Answers are private assistance-free interview attempts;
+the existing local model and interaction lease provide bounded semantic
+evaluation, and only correct responses create typed interview evidence. A
+verification question is followed by a teach-back defense, pending evaluation
+survives restart, and neither completion nor feedback changes mastery or claims
+job readiness. Astra exposes the same state through a typed Interview workspace.
+Focused validation passes 41 Python tests and 13 frontend tests; changed-file
+lint, the production frontend build, and full repository verification with 884
+Python tests also pass.
+
 ## 2026-09-20 — Canonical Career Forge PROJECTS workspace candidate
 
 Astra now exposes PROJECTS as a connected Career Forge workspace rather than a

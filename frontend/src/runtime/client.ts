@@ -1,5 +1,6 @@
 import type {
   CareerForgeJourney,
+  CareerForgeInterview,
   CareerForgeMission,
   PracticeLab,
   ConversationRequest,
@@ -94,6 +95,36 @@ export class FridayRuntimeClient {
     if (!response.ok) throw new Error(`Career Forge reinforcement request failed: ${response.status}`);
     const body = await response.json() as { mission: CareerForgeMission };
     return body.mission;
+  }
+
+  async getCurrentCareerInterview(missionId?: string): Promise<CareerForgeInterview | null> {
+    const query = missionId ? `?${new URLSearchParams({ mission_id: missionId })}` : "";
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/interviews/current${query}`);
+    if (!response.ok) throw new Error(`Career Forge interview request failed: ${response.status}`);
+    const body = await response.json() as { interview: CareerForgeInterview | null };
+    return body.interview;
+  }
+
+  async startCareerInterview(missionId: string): Promise<CareerForgeInterview> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/interviews`, { method: "POST" });
+    if (!response.ok) throw new Error(`Career Forge interview start failed: ${response.status}`);
+    const body = await response.json() as { interview: CareerForgeInterview };
+    return body.interview;
+  }
+
+  async submitCareerInterviewAnswer(interviewId: string, responseText: string): Promise<CareerForgeInterview> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/interviews/${encodeURIComponent(interviewId)}/answers`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ response: responseText }),
+    });
+    if (!response.ok) throw new Error(`Career Forge interview answer failed: ${response.status}`);
+    const body = await response.json() as { interview: CareerForgeInterview };
+    return body.interview;
+  }
+
+  async evaluateCareerInterview(interviewId: string): Promise<{ interview: CareerForgeInterview; attempt: { evaluation: string; feedback: string | null; evidence_type: string | null } }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/interviews/${encodeURIComponent(interviewId)}/evaluate`, { method: "POST" });
+    if (!response.ok) throw new Error(`Career Forge interview evaluation failed: ${response.status}`);
+    return response.json() as Promise<{ interview: CareerForgeInterview; attempt: { evaluation: string; feedback: string | null; evidence_type: string | null } }>;
   }
 
   async deliverRetentionReview(reviewId: string): Promise<{ review: CareerForgeJourney["progress"]["retention_reviews"][number]; prompt: string }> {

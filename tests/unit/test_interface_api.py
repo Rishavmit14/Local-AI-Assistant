@@ -401,6 +401,40 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     assert client.post(f"/api/v1/career-forge/missions/{mission_id}/project").status_code == 409
 
 
+def test_career_interview_uses_no_help_attempt_and_governed_local_evaluation(tmp_path):
+    runtime = FridayRuntime("career-interview-api")
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    client = TestClient(create_presentation_app(
+        runtime,
+        FridayConversationService(FakeStreamingLLM([
+            "ASSESSMENT: correct\nThe answer names the shared object and cross-call consequence.",
+        ]), runtime),
+        career_forge=forge,
+    ))
+    mission = forge.start_mission("se.python", "Verify Python")
+
+    started = client.post(f"/api/v1/career-forge/missions/{mission.mission_id}/interviews")
+    assert started.status_code == 200
+    interview_id = started.json()["interview"]["interview_id"]
+    assert client.get(
+        "/api/v1/career-forge/interviews/current", params={"mission_id": mission.mission_id},
+    ).json()["interview"]["interview_id"] == interview_id
+
+    submitted = client.post(
+        f"/api/v1/career-forge/interviews/{interview_id}/answers",
+        json={"response": "The default list is allocated once and reused by later calls."},
+    )
+    assert submitted.status_code == 200
+    assert submitted.json()["attempt"]["assistance_level"] is None
+    assert "response" not in submitted.json()["attempt"]
+    evaluated = client.post(f"/api/v1/career-forge/interviews/{interview_id}/evaluate")
+    assert evaluated.status_code == 200
+    assert evaluated.json()["attempt"]["evaluation"] == "correct"
+    assert evaluated.json()["attempt"]["evidence_type"] == "interview_response"
+    assert evaluated.json()["interview"]["state"] == "awaiting_answer"
+    assert evaluated.json()["interview"]["turn_number"] == 2
+
+
 def test_busy_voice_rejects_http_before_runtime_events():
     runtime = FridayRuntime("busy-voice")
     conversation = FridayConversationService(FakeStreamingLLM(["unused"]), runtime)
@@ -841,6 +875,10 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/retention-reviews/{review_id}/deliver",
         "/api/v1/career-forge/retention-reviews/{review_id}/evaluate",
         "/api/v1/career-forge/reinforcement",
+        "/api/v1/career-forge/interviews/current",
+        "/api/v1/career-forge/missions/{mission_id}/interviews",
+        "/api/v1/career-forge/interviews/{interview_id}/answers",
+        "/api/v1/career-forge/interviews/{interview_id}/evaluate",
         "/api/v1/career-forge/missions",
         "/api/v1/career-forge/missions/{mission_id}/project",
         "/api/v1/career-forge/missions/{mission_id}/resume",

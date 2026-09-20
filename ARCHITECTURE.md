@@ -248,6 +248,16 @@ back to the preserved mission. No weakness, reinforcement start, or correct
 answer mutates mastery automatically, and a later correct retention outcome
 clears historical retention weakness from the current projection.
 
+Interview Mode is a persistent two-question, no-help state machine attached to
+one active canonical mission. The first question uses the mission verification
+criterion and the follow-up uses its teach-back criterion. Each explicit owner
+answer is stored as a normal `TutorMode.INTERVIEW` attempt with no assistance;
+evaluation reuses the existing local-Qwen interaction lease and bounded
+correct/incorrect/uncertain parser. Correct answers may create typed
+`interview_response` evidence, but neither completion nor model feedback changes
+mastery or claims job readiness. Pending evaluation survives restart and can be
+resumed without resubmitting the private answer.
+
 ### Astra presentation integration foundation
 
 The Astra visual workspace consumes Friday only through `frontend/src/presentation`:
@@ -259,7 +269,8 @@ draft, Run/Test/Submit, hint, and attempt endpoints; MAP renders the canonical
 competency graph, prerequisites, and recorded mastery; and PROGRESS renders the
 canonical next action, attempts/retries, assistance, evidence, and history.
 PROJECTS renders canonical project families and exposes the existing bounded
-active-mission link action.
+active-mission link action. Interview Mode exposes the persistent no-help
+question/evaluation flow through the same typed runtime and presentation seams.
 Unavailable API state remains unavailable rather than becoming a fixture. There
 is no second frontend store, session owner, or Career Forge persistence layer.
 The first Stage 14 cinematic projection calls only the existing local journey and

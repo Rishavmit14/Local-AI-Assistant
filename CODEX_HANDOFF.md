@@ -72,6 +72,18 @@ frontend build, and full repository verification with 882 Python tests and
 dependency consistency; the remote integration branch was verified at the exact
 capability commit. The active dependency is Interview Mode.
 
+The governed Interview Mode candidate is implemented in the current worktree.
+It persists a two-question no-help session for the active mission, records
+private assistance-free interview attempts, evaluates through the existing
+local-Qwen lease, creates typed evidence only for correct answers, and resumes a
+pending evaluation after restart. The typed API/client and Astra Interview
+workspace expose this same state without automatic mastery or readiness claims.
+Focused validation passes 41 Python tests, 13 frontend tests, changed-file lint,
+and the production frontend build. Full repository verification passes with 884
+Python tests and dependency consistency; the recovery checkpoint remains
+pending. After acceptance, continue with selected-code and screen-aware
+tutoring.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

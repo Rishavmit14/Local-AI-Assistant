@@ -1,4 +1,4 @@
-export type VisionView = 'home' | 'conversation' | 'learn' | 'map' | 'lab' | 'projects' | 'progress' | 'memory' | 'research' | 'objectives' | 'automations' | 'perception' | 'system';
+export type VisionView = 'home' | 'conversation' | 'learn' | 'map' | 'lab' | 'projects' | 'interview' | 'progress' | 'memory' | 'research' | 'objectives' | 'automations' | 'perception' | 'system';
 export type CognitiveState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'working' | 'waiting' | 'error' | 'focus';
 export interface WorkspaceProps {
   navigate: (view: VisionView) => void;

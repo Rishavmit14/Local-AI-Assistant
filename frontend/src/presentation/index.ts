@@ -8,6 +8,7 @@ export { CanonicalPracticeLab } from "./CanonicalPracticeLab";
 export { CanonicalMap } from "./CanonicalMap";
 export { CanonicalProgress } from "./CanonicalProgress";
 export { CanonicalProjects } from "./CanonicalProjects";
+export { CanonicalInterview } from "./CanonicalInterview";
 export { presentCareerForgeProjects } from "./careerForgeProjects";
 export type { CareerForgeProjectView } from "./careerForgeProjects";
 export type {

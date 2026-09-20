@@ -203,6 +203,44 @@ def test_mission_loop_and_progressive_assistance_preserve_independence_context(t
     assert forge.resume().assistance_level == AssistanceLevel.CONCEPTUAL_HINT
 
 
+def test_interview_mode_runs_bounded_no_help_followups_and_records_only_earned_evidence(tmp_path):
+    path = tmp_path / "learner.sqlite3"
+    forge = CareerForgeService(path)
+    mission = forge.start_mission("se.python", "Verify Python")
+
+    interview = forge.start_interview(mission.mission_id)
+    assert interview.state == "awaiting_answer"
+    assert interview.turn_number == 1
+    assert "mutable default" in interview.prompt.lower()
+    with pytest.raises(ValueError, match="already has an active interview"):
+        forge.start_interview(mission.mission_id)
+
+    first = forge.submit_interview_answer(
+        interview.interview_id, "The same default list is reused between calls.",
+    )
+    assert first.tutor_mode is TutorMode.INTERVIEW
+    assert first.assistance_level is None
+    forge = CareerForgeService(path)
+    assert forge.active_interview(mission.mission_id).state == "awaiting_evaluation"
+    followup, evaluated = forge.evaluate_interview_answer(
+        interview.interview_id, AttemptEvaluation.CORRECT, "Correct mechanism and consequence.",
+    )
+    assert evaluated.evidence_type == "interview_response"
+    assert followup.state == "awaiting_answer"
+    assert followup.turn_number == 2
+    assert followup.question_id == "interview_followup"
+
+    second = forge.submit_interview_answer(interview.interview_id, "I am not sure how to defend it.")
+    completed, evaluated_second = forge.evaluate_interview_answer(
+        interview.interview_id, AttemptEvaluation.UNCERTAIN, "The defense needs a concrete verification.",
+    )
+    assert second.attempt_id == evaluated_second.attempt_id
+    assert evaluated_second.evidence_type is None
+    assert completed.state == "completed"
+    assert forge.active_interview(mission.mission_id) is None
+    assert forge.competencies()[0].mastery is MasteryLevel.UNVERIFIED
+
+
 def test_public_evidence_gate_rejects_fake_or_unsafe_activity():
     rejected = evaluate_publication(
         genuine_work=False, validation_passed=True, secret_scan_passed=False,

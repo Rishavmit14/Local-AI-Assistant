@@ -141,6 +141,14 @@ def _career_progress_payload(progress: object) -> dict[str, object]:
     return payload
 
 
+def _career_attempt_payload(attempt: object) -> dict[str, object]:
+    payload = asdict(attempt)
+    payload.pop("response", None)
+    if payload.get("feedback"):
+        payload["feedback"] = str(payload["feedback"])[:500]
+    return payload
+
+
 def create_presentation_app(
     runtime: FridayRuntime,
     conversation: FridayConversationService,
@@ -593,6 +601,67 @@ def create_presentation_app(
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"mission": asdict(mission), "loop": forge.mission_loop(mission.mission_id)}
+
+    @app.get("/api/v1/career-forge/interviews/current")
+    def career_current_interview(mission_id: str | None = None):
+        interview = owner_career_forge().active_interview(mission_id)
+        return {"interview": asdict(interview) if interview else None}
+
+    @app.post("/api/v1/career-forge/missions/{mission_id}/interviews")
+    def career_start_interview(mission_id: str):
+        try:
+            interview = owner_career_forge().start_interview(mission_id)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"interview": asdict(interview)}
+
+    @app.post("/api/v1/career-forge/interviews/{interview_id}/answers")
+    async def career_submit_interview_answer(interview_id: str, request: Request):
+        try:
+            body = await request.json()
+            response = body["response"]
+            if not isinstance(response, str) or not response.strip() or len(response) > max_prompt_chars:
+                raise ValueError("bounded interview response is required")
+            attempt = owner_career_forge().submit_interview_answer(interview_id, response)
+            interview = owner_career_forge().interview(interview_id)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"interview": asdict(interview), "attempt": _career_attempt_payload(attempt)}
+
+    @app.post("/api/v1/career-forge/interviews/{interview_id}/evaluate")
+    def career_evaluate_interview_answer(interview_id: str):
+        forge = owner_career_forge()
+        try:
+            interview = forge.interview(interview_id)
+            if interview.state != "awaiting_evaluation" or interview.current_attempt_id is None:
+                raise ValueError("interview is not awaiting evaluation")
+            attempt = forge.attempt(interview.current_attempt_id)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        lease = interaction_coordinator.try_acquire("presentation")
+        if lease is None:
+            raise HTTPException(status_code=409, detail="interaction busy")
+        try:
+            if presentation_pause is not None:
+                presentation_pause()
+            system_prompt = (
+                "Evaluate one no-help Career Forge interview answer against the stated question, "
+                "not lexical similarity. First line MUST be exactly ASSESSMENT: correct, "
+                "ASSESSMENT: incorrect, or ASSESSMENT: uncertain. Then give concise interview "
+                "feedback naming the demonstrated reasoning, missing mechanism or tradeoff, and "
+                "what stronger evidence would require. Do not claim readiness or mastery. "
+                f"Competency: {interview.competency_id}. Question: {interview.prompt}"
+            )
+            model_response = "".join(conversation.stream_response(attempt.response, system_prompt=system_prompt))
+            evaluation, feedback = CareerForgeLearningLoop.parse_evaluation(model_response)
+            updated, evaluated = forge.evaluate_interview_answer(interview_id, evaluation, feedback)
+            return {"interview": asdict(updated), "attempt": _career_attempt_payload(evaluated)}
+        finally:
+            try:
+                if presentation_resume is not None:
+                    presentation_resume()
+            finally:
+                lease.release()
 
     @app.post("/api/v1/career-forge/missions/{mission_id}/project")
     def career_link_project(mission_id: str):

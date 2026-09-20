@@ -820,8 +820,15 @@ The canonical PROJECTS workspace is now connected to those same Learner Twin
 records. It renders the four evolving hardware-aware families, recorded mission
 and competency links, and an explicit connect action only for the active
 mission's declared family. Linking remains learning context and grants no
-mastery, execution, repository, GitHub, or publication authority. Interview
-Mode is the next retained Career Forge surface dependency.
+mastery, execution, repository, GitHub, or publication authority.
+
+Interview Mode is now connected as a persistent, two-question no-help flow over
+the active canonical mission. Explicit answers become assistance-free interview
+attempts; the existing local-Qwen assessment boundary returns governed feedback
+and creates typed evidence only for correct responses. Pending evaluation is
+restart-resumable, while completion never changes mastery or claims readiness.
+Selected-code and screen-aware tutoring are the next retained Career Forge
+integration dependency.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

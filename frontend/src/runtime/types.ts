@@ -126,6 +126,19 @@ export interface CareerForgeMissionBrief {
   teach_back: string;
 }
 
+export interface CareerForgeInterview {
+  interview_id: string;
+  mission_id: string;
+  competency_id: string;
+  state: "awaiting_answer" | "awaiting_evaluation" | "completed";
+  question_id: string;
+  prompt: string;
+  turn_number: number;
+  current_attempt_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CareerForgeJourney {
   target: string;
   current_mission: CareerForgeMission | null;
