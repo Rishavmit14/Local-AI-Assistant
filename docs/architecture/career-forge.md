@@ -206,6 +206,14 @@ active whole exercise/current draft to Friday's existing Tutor mode and records
 deliberate hint actions through the existing progressive-assistance authority.
 Selected-code and screen-aware context are intentionally outside this boundary.
 
+The later contextual-tutor boundary adds them without expanding Practice Lab
+execution authority. An explicit editor selection or an already retained screen
+capture supplies at most 12,000 characters of selected code or 6,000 characters
+of local OCR text. Friday treats it as untrusted data and never captures a
+screen implicitly. Contextual explanation alone records no attempt, evidence,
+mastery, or desktop action and does not copy retained screen text into the
+Learner Twin.
+
 ## Mission and tutoring loop
 
 Missions, not passive chapters, follow: why it matters → prerequisite check →

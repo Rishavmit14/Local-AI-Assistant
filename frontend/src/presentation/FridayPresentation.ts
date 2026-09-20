@@ -38,6 +38,12 @@ export class FridayPresentation implements FridayPresentationActions {
   startCareerInterview(missionId: string) { return this.runtime.startCareerInterview(missionId); }
   submitCareerInterviewAnswer(interviewId: string, response: string) { return this.runtime.submitCareerInterviewAnswer(interviewId, response); }
   evaluateCareerInterview(interviewId: string) { return this.runtime.evaluateCareerInterview(interviewId); }
+  contextualCareerTutor(missionId: string, message: string, context: { selected_code: string } | { capture_id: string }) { return this.runtime.contextualCareerTutor(missionId, message, context); }
+  async contextualCareerTutorFromLatestScreen(missionId: string, message: string) {
+    const captures = await this.runtime.getScreenCaptures();
+    if (!captures.length) throw new Error("No retained explicit screen capture is available");
+    return this.runtime.contextualCareerTutor(missionId, message, { capture_id: captures[0].capture_id });
+  }
 
   async openPracticeLab(): Promise<void> {
     await this.runtime.openPracticeLab();

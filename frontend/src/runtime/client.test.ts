@@ -151,4 +151,23 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       "/api/v1/career-forge/interviews/interview%201/evaluate", { method: "POST" },
     );
   });
+
+  it("sends only an explicit selected-code context to the bounded tutor route", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      response: "Explanation", source: { kind: "selected_code", reference: "owner_explicit_selection" }, recorded_assistance: false,
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new FridayRuntimeClient().contextualCareerTutor(
+      "mission 1", "Explain this", { selected_code: "return shared" },
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/career-forge/missions/mission%201/contextual-tutor",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ message: "Explain this", selected_code: "return shared" }),
+      }),
+    );
+  });
 });

@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-20 — Selected-code and screen-aware Career Forge tutoring candidate
+
+Career Forge can now explain an explicit Practice Lab selection or bounded local
+OCR from the latest already-retained screen capture in the context of the active
+mission. The prompt treats displayed text as untrusted data; the UI never takes
+a screenshot implicitly, and the route creates no attempt, evidence, mastery,
+retention copy, or desktop authority. Both paths reuse Friday's existing local
+model and interaction lease.
+Focused validation passes 42 Python tests and 14 frontend tests; changed-file
+lint, the production frontend build, and full repository verification with 885
+Python tests also pass.
+
 ## 2026-09-20 — Governed Career Forge Interview Mode candidate
 
 Friday now runs a persistent two-question, no-help interview for the active

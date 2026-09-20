@@ -17,6 +17,7 @@ export function presentCareerForgeJourney(
   return {
     target: journey.target,
     mission: mission ? {
+      missionId: mission.mission_id,
       title: mission.title,
       competency: mission.competency_id,
       state: mission.state,

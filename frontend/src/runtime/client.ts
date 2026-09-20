@@ -151,6 +151,20 @@ export class FridayRuntimeClient {
     }
   }
 
+  async contextualCareerTutor(
+    missionId: string,
+    message: string,
+    context: { selected_code: string } | { capture_id: string },
+  ): Promise<{ response: string; source: { kind: string; reference: string }; recorded_assistance: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/contextual-tutor`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, ...context }),
+    });
+    if (!response.ok) throw new Error(`Career Forge contextual tutor failed: ${response.status}`);
+    return response.json() as Promise<{ response: string; source: { kind: string; reference: string }; recorded_assistance: boolean }>;
+  }
+
   async openPracticeLab(): Promise<PracticeLab> {
     return this.practiceRequest("open");
   }

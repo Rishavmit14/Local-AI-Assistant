@@ -7,6 +7,7 @@ export type PresentationLoadState = "loading" | "ready" | "unavailable";
 export interface CareerForgeSummaryView {
   target: string;
   mission: {
+    missionId: string;
     title: string;
     competency: string;
     state: string;

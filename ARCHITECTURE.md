@@ -258,6 +258,16 @@ correct/incorrect/uncertain parser. Correct answers may create typed
 mastery or claims job readiness. Pending evaluation survives restart and can be
 resumed without resubmitting the private answer.
 
+Selected-code and screen-aware tutoring are one-shot extensions of the same
+active-mission tutor boundary. Practice Lab sends only the owner's current text
+selection; LEARN may explicitly reuse the newest retained capture but never
+creates a capture implicitly. Screen pixels remain under the perception
+retention policy and only bounded local OCR text enters the prompt. Both sources
+are labelled as untrusted owner context so displayed instructions cannot grant
+authority. The response creates no attempt, evidence, mastery, desktop action,
+or durable context copy; optional progressive assistance remains the only
+governed learning-state write.
+
 ### Astra presentation integration foundation
 
 The Astra visual workspace consumes Friday only through `frontend/src/presentation`:
