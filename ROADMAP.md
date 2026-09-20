@@ -837,9 +837,15 @@ Governed desktop assistance now composes Career Forge with Friday's accepted
 desktop-control boundary. The active mission can prepare an allowlisted exact
 action and retain an audit link; proposal, owner approval, and execution remain
 separate transitions, and local Qwen has none of those authorities. Desktop
-activity never becomes mastery or learning evidence. Project evidence and the
-approval-gated GitHub publication path are the next retained Career Forge
-dependency.
+activity never becomes mastery or learning evidence.
+
+The project-evidence review lifecycle is now durable and interactive. Only a
+project-linked mission with existing evidence can be reviewed; deterministic
+genuine-work, validation, secret, privacy/proprietary, documentation, and quality
+checks yield blocked or qualified state, and explicit owner approval is a
+separate transition. Approval still performs no publication. Binding an approved
+candidate to the existing promotion-ready task and authenticated GitHub gateway
+is the next dependency.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

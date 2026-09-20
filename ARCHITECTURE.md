@@ -276,6 +276,16 @@ transitions; local Qwen has none of those authorities. The link never becomes
 attempt evidence or mastery, and desktop failure changes only the audited action
 state.
 
+Public project evidence now has a durable pre-publication lifecycle in the
+Learner Twin. A candidate requires a canonical project-linked mission and at
+least one existing mission evidence record. The deterministic genuine-work,
+validation, secret-scan, privacy/proprietary, documentation, and quality checks
+produce `blocked` or `qualified`; only a separate explicit owner transition can
+produce `approved`. None of those states runs Git or GitHub. External publication
+must later bind the approved candidate to Friday's existing promotion-ready task
+and authenticated gateway publisher so repository identity, final commit, branch,
+remote reconciliation, and pull-request audit gates remain authoritative.
+
 ### Astra presentation integration foundation
 
 The Astra visual workspace consumes Friday only through `frontend/src/presentation`:

@@ -517,6 +517,42 @@ def test_career_desktop_assistance_links_proposal_but_keeps_approval_and_executi
     assert forge.competencies()[0].mastery.value == "unverified"
 
 
+def test_public_evidence_requires_project_evidence_gate_then_separate_owner_approval(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    with forge._db() as db:
+        db.execute(
+            "UPDATE learner_competencies SET mastery='recognize' WHERE competency_id != 'ml.classical'",
+        )
+    mission = forge.start_mission("ml.classical", "Build FraudShield baseline")
+    forge.record_evidence(mission.mission_id, "validated_project", "Validated local baseline")
+    forge.link_project(mission.mission_id)
+    runtime = FridayRuntime("career-public-evidence-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime), career_forge=forge,
+    ))
+    checks = {
+        "genuine_work": True, "validation_passed": True, "secret_scan_passed": True,
+        "privacy_review_passed": True, "documentation_complete": True,
+        "artifact_quality_passed": True,
+    }
+
+    reviewed = client.post(
+        f"/api/v1/career-forge/missions/{mission.mission_id}/public-evidence",
+        json={"artifact_ref": "artifacts/fraud-report.md", **checks},
+    )
+    assert reviewed.status_code == 200
+    candidate = reviewed.json()["candidate"]
+    assert candidate["state"] == "qualified" and candidate["approved_at"] is None
+    assert client.get(
+        f"/api/v1/career-forge/missions/{mission.mission_id}/public-evidence",
+    ).json()["candidates"][0]["candidate_id"] == candidate["candidate_id"]
+    approved = client.post(
+        f"/api/v1/career-forge/public-evidence/{candidate['candidate_id']}/approve",
+    )
+    assert approved.json()["candidate"]["state"] == "approved"
+    assert "published" not in approved.json()["candidate"]
+
+
 def test_busy_voice_rejects_http_before_runtime_events():
     runtime = FridayRuntime("busy-voice")
     conversation = FridayConversationService(FakeStreamingLLM(["unused"]), runtime)
@@ -969,6 +1005,8 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/missions/{mission_id}/tutor",
         "/api/v1/career-forge/missions/{mission_id}/contextual-tutor",
         "/api/v1/career-forge/missions/{mission_id}/desktop-actions",
+        "/api/v1/career-forge/missions/{mission_id}/public-evidence",
+        "/api/v1/career-forge/public-evidence/{candidate_id}/approve",
         "/api/v1/career-forge/competencies/{competency_id}/advance",
         "/api/v1/career-forge/practice-lab",
         "/api/v1/career-forge/practice-lab/open",

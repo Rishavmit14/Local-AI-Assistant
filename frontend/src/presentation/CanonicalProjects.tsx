@@ -1,18 +1,26 @@
 import { ArrowRight, Boxes, Link2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import type { CareerForgePublicEvidenceCandidate } from "../runtime";
+import { FridayPresentation } from "./FridayPresentation";
 import { presentCareerForgeProjects } from "./careerForgeProjects";
 import { useCareerForgeJourney } from "./useCareerForgeJourney";
 import "./CanonicalProjects.css";
 
 export function CanonicalProjects({ openLearn }: { openLearn: () => void }) {
   const view = useCareerForgeJourney();
+  const presentation = useRef(new FridayPresentation());
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [artifactRef, setArtifactRef] = useState("");
+  const [candidate, setCandidate] = useState<CareerForgePublicEvidenceCandidate | null>(null);
+  const [checks, setChecks] = useState({ genuine_work: false, validation_passed: false, secret_scan_passed: false, privacy_review_passed: false, documentation_complete: false, artifact_quality_passed: false });
   if (view.state !== "ready" || !view.journey) {
     return <section className="learning-canonical-summary"><p>{view.state === "loading" ? "Reading canonical project links…" : "Career Forge projects are unavailable; no specimen links are shown."}</p></section>;
   }
   const projects = presentCareerForgeProjects(view.journey);
+  const activeMissionId = view.journey.current_mission?.mission_id ?? null;
+  const activeMissionLinked = activeMissionId ? view.journey.project_links.some(({ mission_id }) => mission_id === activeMissionId) : false;
   const connect = async (missionId: string) => {
     setBusy(true); setMessage("");
     try {
@@ -21,6 +29,20 @@ export function CanonicalProjects({ openLearn }: { openLearn: () => void }) {
     } catch {
       setMessage("Friday could not connect this mission. Existing project and learning state was preserved.");
     } finally { setBusy(false); }
+  };
+  const reviewEvidence = async () => {
+    if (!activeMissionId || !artifactRef.trim()) return;
+    setBusy(true); setMessage("");
+    try { setCandidate(await presentation.current.createCareerPublicEvidence(activeMissionId, artifactRef, checks)); }
+    catch { setMessage("Friday could not create this evidence review. No publication approval was recorded."); }
+    finally { setBusy(false); }
+  };
+  const approveEvidence = async () => {
+    if (!candidate) return;
+    setBusy(true);
+    try { setCandidate(await presentation.current.approveCareerPublicEvidence(candidate.candidate_id)); }
+    catch { setMessage("Only a fully qualified candidate can receive owner publication approval."); }
+    finally { setBusy(false); }
   };
 
   return <section className="canonical-projection" aria-label="Canonical Career Forge projects">
@@ -32,6 +54,7 @@ export function CanonicalProjects({ openLearn }: { openLearn: () => void }) {
       {project.canLinkActiveMission && project.activeMissionId && <button className="text-link" disabled={busy} onClick={() => { if (project.activeMissionId) void connect(project.activeMissionId); }}><Link2 size={14} />Connect active mission</button>}
       {project.activeMissionId && !project.canLinkActiveMission && <small className="canonical-marker">Active mission already connected</small>}
     </article>)}</div>
+    {activeMissionLinked && activeMissionId && <section className="canonical-review-response"><span className="eyebrow">PUBLIC EVIDENCE REVIEW</span><h3>Qualify a real project artifact</h3><input value={artifactRef} onChange={(event) => setArtifactRef(event.target.value)} aria-label="Project artifact reference" placeholder="Repository-relative artifact or evidence reference" />{Object.entries(checks).map(([name, value]) => <label key={name}><input type="checkbox" checked={value} onChange={(event) => setChecks((old) => ({ ...old, [name]: event.target.checked }))} />{name.replaceAll("_", " ")}</label>)}<button className="text-link" disabled={busy || !artifactRef.trim()} onClick={() => void reviewEvidence()}>Run deterministic evidence gate</button>{candidate && <div><p>State: {candidate.state}</p>{candidate.reasons.length > 0 && <p>{candidate.reasons.join(" · ")}</p>}{candidate.state === "qualified" && <button className="text-link" disabled={busy} onClick={() => void approveEvidence()}>Approve candidate for publication</button>}{candidate.state === "approved" && <p>Owner approval recorded. Nothing has been pushed or published.</p>}</div>}</section>}
     <div className="canonical-project-boundary"><p>Connecting a mission grants no repository, execution, GitHub, publication, or mastery authority. Public evidence still requires validation, privacy and secret review, documentation, quality review, and explicit owner approval.</p></div>
     <button className="text-link" onClick={openLearn}>Return to the current mission <ArrowRight size={14} /></button>
   </section>;

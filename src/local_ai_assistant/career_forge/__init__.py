@@ -31,12 +31,13 @@ from .service import (
     Mission,
     MissionDesktopAction,
     ProjectLink,
+    PublicEvidenceCandidate,
     RetentionReview,
     WeakArea,
 )
 
 __all__ = [
     "AssistanceLevel", "AttemptEvaluation", "CareerForgeLearningLoop", "COMPETENCY_GRAPH_VERSION", "CareerForgeService", "Competency",
-    "AssistanceRecord", "CareerForgeProgress", "EvidenceRecord", "InterviewSession", "LearnerCompetency", "LearningDirective", "LearningHistoryItem", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "MissionDesktopAction", "ProjectLink", "PublicationDecision", "RetentionReview", "WeakArea",
+    "AssistanceRecord", "CareerForgeProgress", "EvidenceRecord", "InterviewSession", "LearnerCompetency", "LearningDirective", "LearningHistoryItem", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "MissionDesktopAction", "ProjectLink", "PublicEvidenceCandidate", "PublicationDecision", "RetentionReview", "WeakArea",
     "TutorMode", "competency_graph", "evaluate_publication", "PracticeAttempt", "PracticeExercise", "PracticeLabProjection", "PracticeLabService", "PracticeRun",
 ]

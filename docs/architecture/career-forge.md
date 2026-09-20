@@ -271,6 +271,13 @@ authority. It requires genuine work, validation, secret scanning, privacy/
 proprietary review, documentation, and artifact quality before an artifact can
 qualify for a later explicit publication decision.
 
+That review is now durable: a candidate is accepted only from a project-linked
+mission with recorded learning evidence, and the six deterministic checks store
+their exact failure reasons as `blocked` or an empty-reason `qualified` result.
+Owner approval is a distinct `approved` transition and still performs no Git or
+GitHub action. Actual publication must reuse the existing promotion-ready Friday
+task/GitHub gateway rather than adding a Career Forge publisher.
+
 V1 can explicitly connect an active mission only to the canonical project family
 declared by its competency. The local Learner Twin records that link and the
 cinematic PROJECTS projection displays it. A project link is learning context,

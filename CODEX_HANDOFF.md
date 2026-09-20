@@ -106,6 +106,18 @@ repository verification passes with 886 Python tests and dependency consistency;
 the remote integration branch was verified at the exact capability commit. The
 active dependency is project evidence and approval-gated GitHub publication.
 
+The durable public-evidence review candidate is implemented in the current
+worktree. A canonical project-linked mission with existing evidence may record
+the six deterministic gate results; blocked reasons remain explicit, qualified
+state has no publication authority, and owner approval is a separate durable
+transition that still performs no Git or GitHub mutation. The typed API/client
+and PROJECTS workspace expose this lifecycle. Focused validation passes 44
+Python tests, 16 frontend tests, changed-file lint, and the production frontend
+build. Full repository verification passes with 887 Python tests and dependency
+consistency. The recovery checkpoint remains pending.
+Next: bind an approved candidate to the existing promotion-ready task and
+authenticated GitHub gateway.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

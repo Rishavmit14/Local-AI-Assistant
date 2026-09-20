@@ -276,11 +276,31 @@ def test_project_link_is_local_and_limited_to_the_missions_canonical_family(tmp_
     evidence = forge.record_evidence(maths.mission_id, "explanation", "Explained gradients")
     forge.advance_mastery("math.ml", MasteryLevel.RECOGNIZE, evidence_id=evidence)
     fraud = forge.start_mission("ml.classical", "Build FraudShield baseline")
+    forge.record_evidence(fraud.mission_id, "validated_project", "Validated a local baseline.")
     linked = forge.link_project(fraud.mission_id)
     assert linked.project_name == "FraudShield"
     assert forge.project_links() == (linked,)
     with pytest.raises(ValueError, match="already linked"):
         forge.link_project(fraud.mission_id)
+    blocked = forge.create_public_evidence_candidate(
+        fraud.mission_id, "artifacts/fraud-report.md",
+        genuine_work=True, validation_passed=True, secret_scan_passed=False,
+        privacy_review_passed=True, documentation_complete=True,
+        artifact_quality_passed=True,
+    )
+    assert blocked.state == "blocked"
+    assert blocked.reasons == ("secret scan has not passed",)
+    with pytest.raises(ValueError, match="only qualified"):
+        forge.approve_public_evidence(blocked.candidate_id)
+    qualified = forge.create_public_evidence_candidate(
+        fraud.mission_id, "artifacts/fraud-report.md",
+        genuine_work=True, validation_passed=True, secret_scan_passed=True,
+        privacy_review_passed=True, documentation_complete=True,
+        artifact_quality_passed=True,
+    )
+    assert qualified.state == "qualified" and qualified.approved_at is None
+    approved = forge.approve_public_evidence(qualified.candidate_id)
+    assert approved.state == "approved" and approved.approved_at is not None
     with forge._db() as db:
         db.execute("UPDATE missions SET state='completed' WHERE mission_id=?", (fraud.mission_id,))
     with pytest.raises(ValueError, match="only an active mission"):

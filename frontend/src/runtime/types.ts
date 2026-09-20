@@ -139,6 +139,17 @@ export interface CareerForgeInterview {
   updated_at: string;
 }
 
+export interface CareerForgePublicEvidenceCandidate {
+  candidate_id: string;
+  mission_id: string;
+  artifact_ref: string;
+  state: "blocked" | "qualified" | "approved";
+  reasons: string[];
+  created_at: string;
+  updated_at: string;
+  approved_at: string | null;
+}
+
 export interface CareerForgeJourney {
   target: string;
   current_mission: CareerForgeMission | null;

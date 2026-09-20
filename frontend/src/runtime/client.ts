@@ -2,6 +2,7 @@ import type {
   CareerForgeJourney,
   CareerForgeInterview,
   CareerForgeMission,
+  CareerForgePublicEvidenceCandidate,
   PracticeLab,
   ConversationRequest,
   FridayRuntimeEvent,
@@ -175,6 +176,25 @@ export class FridayRuntimeClient {
     });
     if (!response.ok) throw new Error(`Career Forge desktop proposal failed: ${response.status}`);
     return (await response.json() as { action: FridayDesktopAction }).action;
+  }
+
+  async createCareerPublicEvidence(
+    missionId: string,
+    artifactRef: string,
+    checks: Record<"genuine_work" | "validation_passed" | "secret_scan_passed" | "privacy_review_passed" | "documentation_complete" | "artifact_quality_passed", boolean>,
+  ): Promise<CareerForgePublicEvidenceCandidate> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/public-evidence`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ artifact_ref: artifactRef, ...checks }),
+    });
+    if (!response.ok) throw new Error(`Career Forge public-evidence review failed: ${response.status}`);
+    return (await response.json() as { candidate: CareerForgePublicEvidenceCandidate }).candidate;
+  }
+
+  async approveCareerPublicEvidence(candidateId: string): Promise<CareerForgePublicEvidenceCandidate> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/public-evidence/${encodeURIComponent(candidateId)}/approve`, { method: "POST" });
+    if (!response.ok) throw new Error(`Career Forge public-evidence approval failed: ${response.status}`);
+    return (await response.json() as { candidate: CareerForgePublicEvidenceCandidate }).candidate;
   }
 
   async openPracticeLab(): Promise<PracticeLab> {

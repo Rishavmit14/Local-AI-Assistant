@@ -190,4 +190,25 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       }),
     );
   });
+
+  it("records public-evidence qualification separately from owner approval", async () => {
+    const candidate = { candidate_id: "candidate 1", mission_id: "m1", artifact_ref: "report.md", state: "qualified", reasons: [], created_at: "now", updated_at: "now", approved_at: null };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ candidate }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ candidate: { ...candidate, state: "approved", approved_at: "later" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+    const checks = { genuine_work: true, validation_passed: true, secret_scan_passed: true, privacy_review_passed: true, documentation_complete: true, artifact_quality_passed: true };
+
+    await client.createCareerPublicEvidence("m1", "report.md", checks);
+    await client.approveCareerPublicEvidence("candidate 1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1,
+      "/api/v1/career-forge/missions/m1/public-evidence",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ artifact_ref: "report.md", ...checks }) }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(2,
+      "/api/v1/career-forge/public-evidence/candidate%201/approve", { method: "POST" },
+    );
+  });
 });

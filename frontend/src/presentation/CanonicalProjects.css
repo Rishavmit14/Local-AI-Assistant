@@ -17,4 +17,7 @@
 .canonical-project dd { margin: 0; font-size: 11px; line-height: 1.5; color: #aab6c9; }
 .canonical-project-boundary { margin: 10px 0 24px; padding: 16px; border-left: 2px solid #5d5260; background: #10151e; }
 .canonical-project-boundary p { margin: 0; font-size: 11px; line-height: 1.7; color: #8d96a7; }
+.canonical-review-response > input[type="text"], .canonical-review-response > input:not([type]) { display: block; width: 100%; box-sizing: border-box; margin: 14px 0; padding: 11px; border: 1px solid var(--learning-line); background: #09111b; color: #dbe2f0; }
+.canonical-review-response > label { display: block; margin: 8px 0; font-size: 11px; color: #9aa8bd; text-transform: capitalize; }
+.canonical-review-response > label input { margin-right: 8px; }
 @media (max-width: 680px) { .canonical-project-grid { grid-template-columns: 1fr; } }

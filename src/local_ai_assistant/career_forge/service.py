@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .curriculum import COMPETENCY_GRAPH_VERSION, competency_graph
+from .evidence import evaluate_publication
 from .missions import MissionBrief, mission_brief
 from .models import (
     AssistanceLevel,
@@ -151,6 +152,18 @@ class MissionDesktopAction:
 
 
 @dataclass(frozen=True, slots=True)
+class PublicEvidenceCandidate:
+    candidate_id: str
+    mission_id: str
+    artifact_ref: str
+    state: str
+    reasons: tuple[str, ...]
+    created_at: str
+    updated_at: str
+    approved_at: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class CareerForgeProgress:
     active_mission: Mission | None
     recent_attempts: tuple[LessonAttempt, ...]
@@ -238,6 +251,12 @@ class CareerForgeService:
                     action_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
                     action TEXT NOT NULL, target TEXT NOT NULL,
                     created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS public_evidence_candidates (
+                    candidate_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
+                    artifact_ref TEXT NOT NULL, state TEXT NOT NULL,
+                    reasons_json TEXT NOT NULL, created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL, approved_at TEXT
                 );
                 """
             )
@@ -823,6 +842,82 @@ class CareerForgeService:
                 (mission_id,),
             ).fetchall()
         return tuple(MissionDesktopAction(*row) for row in rows)
+
+    def create_public_evidence_candidate(
+        self,
+        mission_id: str,
+        artifact_ref: str,
+        *,
+        genuine_work: bool,
+        validation_passed: bool,
+        secret_scan_passed: bool,
+        privacy_review_passed: bool,
+        documentation_complete: bool,
+        artifact_quality_passed: bool,
+    ) -> PublicEvidenceCandidate:
+        """Persist a deterministic review result; this never publishes an artifact."""
+        self.mission(mission_id)
+        if not isinstance(artifact_ref, str) or not artifact_ref.strip() or len(artifact_ref) > 2_000:
+            raise ValueError("bounded artifact reference is required")
+        self.project_link(mission_id)
+        with self._db() as db:
+            has_evidence = db.execute(
+                "SELECT 1 FROM mission_evidence WHERE mission_id=? LIMIT 1", (mission_id,),
+            ).fetchone() is not None
+        decision = evaluate_publication(
+            genuine_work=genuine_work and has_evidence,
+            validation_passed=validation_passed,
+            secret_scan_passed=secret_scan_passed,
+            privacy_review_passed=privacy_review_passed,
+            documentation_complete=documentation_complete,
+            artifact_quality_passed=artifact_quality_passed,
+        )
+        now, candidate_id = _now(), "candidate_" + uuid.uuid4().hex
+        state = "qualified" if decision.approved else "blocked"
+        with self._db() as db:
+            db.execute(
+                "INSERT INTO public_evidence_candidates VALUES(?,?,?,?,?,?,?,?)",
+                (candidate_id, mission_id, artifact_ref.strip(), state,
+                 json.dumps(decision.reasons), now, now, None),
+            )
+        return self.public_evidence_candidate(candidate_id)
+
+    def public_evidence_candidate(self, candidate_id: str) -> PublicEvidenceCandidate:
+        with self._db() as db:
+            row = db.execute(
+                "SELECT candidate_id, mission_id, artifact_ref, state, reasons_json, "
+                "created_at, updated_at, approved_at FROM public_evidence_candidates WHERE candidate_id=?",
+                (candidate_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(candidate_id)
+        return PublicEvidenceCandidate(
+            str(row[0]), str(row[1]), str(row[2]), str(row[3]), tuple(json.loads(row[4])),
+            str(row[5]), str(row[6]), str(row[7]) if row[7] else None,
+        )
+
+    def approve_public_evidence(self, candidate_id: str) -> PublicEvidenceCandidate:
+        """Record explicit owner approval without invoking Git or GitHub."""
+        candidate = self.public_evidence_candidate(candidate_id)
+        if candidate.state != "qualified":
+            raise ValueError("only qualified public evidence can be approved")
+        now = _now()
+        with self._db() as db:
+            db.execute(
+                "UPDATE public_evidence_candidates SET state='approved', approved_at=?, updated_at=? "
+                "WHERE candidate_id=? AND state='qualified'",
+                (now, now, candidate_id),
+            )
+        return self.public_evidence_candidate(candidate_id)
+
+    def public_evidence_candidates(self, mission_id: str) -> tuple[PublicEvidenceCandidate, ...]:
+        self.mission(mission_id)
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT candidate_id FROM public_evidence_candidates WHERE mission_id=? "
+                "ORDER BY created_at DESC", (mission_id,),
+            ).fetchall()
+        return tuple(self.public_evidence_candidate(row[0]) for row in rows)
 
     def offer_assistance(self, mission_id: str, mode: TutorMode, level: AssistanceLevel, content: str) -> str:
         """Record minimum progressive help; substantial help remains visible evidence."""

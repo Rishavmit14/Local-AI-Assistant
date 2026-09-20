@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-20 — Durable Career Forge public-evidence review candidate
+
+Project-linked missions with existing evidence can now create a durable public-
+evidence candidate. Six deterministic genuine-work, validation, secret, privacy,
+documentation, and quality gates preserve exact blocking reasons or produce a
+qualified state; owner approval remains a separate transition. Astra exposes
+the review and approval, while all candidate states deliberately perform no Git
+or GitHub mutation.
+Focused validation passes 44 Python tests and 16 frontend tests; changed-file
+lint, the production frontend build, and full repository verification with 887
+Python tests also pass.
+
 ## 2026-09-20 — Governed Career Forge desktop assistance candidate
 
 Career Forge can now prepare one allowlisted desktop action for its active

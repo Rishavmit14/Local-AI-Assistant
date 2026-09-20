@@ -840,6 +840,40 @@ def create_presentation_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"action": asdict(proposal), "mission_action": asdict(linked)}
 
+    @app.get("/api/v1/career-forge/missions/{mission_id}/public-evidence")
+    def career_public_evidence(mission_id: str):
+        try:
+            candidates = owner_career_forge().public_evidence_candidates(mission_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return {"candidates": [asdict(item) for item in candidates]}
+
+    @app.post("/api/v1/career-forge/missions/{mission_id}/public-evidence")
+    async def career_create_public_evidence(mission_id: str, request: Request):
+        check_names = (
+            "genuine_work", "validation_passed", "secret_scan_passed",
+            "privacy_review_passed", "documentation_complete", "artifact_quality_passed",
+        )
+        try:
+            body = await request.json()
+            checks = {name: body[name] for name in check_names}
+            if any(not isinstance(value, bool) for value in checks.values()):
+                raise ValueError("public-evidence checks must be boolean")
+            candidate = owner_career_forge().create_public_evidence_candidate(
+                mission_id, body["artifact_ref"], **checks,
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"candidate": asdict(candidate)}
+
+    @app.post("/api/v1/career-forge/public-evidence/{candidate_id}/approve")
+    def career_approve_public_evidence(candidate_id: str):
+        try:
+            candidate = owner_career_forge().approve_public_evidence(candidate_id)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"candidate": asdict(candidate)}
+
     @app.post("/api/v1/career-forge/competencies/{competency_id}/advance")
     async def career_advance(competency_id: str, request: Request):
         try:
