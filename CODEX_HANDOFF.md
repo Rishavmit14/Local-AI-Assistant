@@ -84,16 +84,16 @@ Python tests and dependency consistency; the remote integration branch was
 verified at the exact capability commit. The active dependency is selected-code
 and screen-aware tutoring.
 
-The selected-code/screen-aware tutoring candidate is implemented in the current
-worktree. Practice Lab submits only the owner's highlighted code; LEARN can
+Selected-code and screen-aware tutoring are accepted and published at
+`4621e22`. Practice Lab submits only the owner's highlighted code; LEARN can
 explicitly reuse the newest existing retained capture through bounded local OCR
 without initiating capture. Both are one-shot untrusted context for the active
 mission and create no attempt, evidence, mastery, retention copy, or desktop
 authority. Focused validation passes 42 Python tests, 14 frontend tests,
 changed-file lint, and the production frontend build. Full repository
-verification passes with 885 Python tests and dependency consistency; the
-recovery checkpoint remains pending. After acceptance, continue with governed
-desktop assistance.
+verification passes with 885 Python tests and dependency consistency; the remote
+integration branch was verified at the exact capability commit. The active
+dependency is governed desktop assistance.
 
 ## 0. Non-negotiable project rules
 
