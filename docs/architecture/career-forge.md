@@ -198,7 +198,9 @@ the starter code), not synthetic Git history.
 
 Run reports only the isolated program's output and exit state. Test runs the
 trusted bounded exercise contract but does not create evidence. Submit runs that
-same contract, then records a canonical attempt, truthful assistance level,
+same contract unless the retained successful bounded test has the identical
+source digest; in that case it reuses that deterministic result rather than
+repeating unchanged sandbox work. Submit then records a canonical attempt, truthful assistance level,
 evaluation, retry state, and correct-only typed evidence. Neither path advances
 mastery: an explicit matching-evidence decision remains required.
 
@@ -313,5 +315,12 @@ An owner can invoke learning, receive correct prerequisite verification and a
 meaningful mission, attempt and get progressive help, run/test/debug local work,
 provide explanation evidence, persist mastery/progress, resume exactly, connect
 work to projects, and publish only qualifying evidence. Rich decay/confusion,
-many UI modes, and later perception/autonomy/roles are deliberately deferred
-until evidence from the core loop warrants them.
+trusted curriculum-research ingestion and broader cognitive evaluation remain
+later advanced-integration work.
+
+LEARN now routes an explicit tutor-mode choice through Friday's existing
+sequential role orchestrator: Teacher, Coach, Pair Programmer, Reviewer,
+Debugger, Interviewer, and Curriculum Designer are prompt-only contexts over the
+same local Qwen. The shared interaction lease permits one invocation at a time;
+the role cannot write learner state, and assistance is persisted only at the
+level explicitly selected by the owner-facing path.

@@ -425,6 +425,13 @@ agents. They cannot select another model or bypass task, tool, approval,
 validation, isolation, Git, desktop, or audit policy. See
 `docs/architecture/role-orchestration.md` and ADR 0022.
 
+Career Forge now selects sequential prompt-only specialists on that same router:
+Teacher, Coach, Pair Programmer, Reviewer, Debugger, Interviewer, and Curriculum
+Designer map to the mission tutor mode chosen by the owner. Astra exposes the
+choice in LEARN; the shared interaction lease still serializes local-Qwen use,
+and generated help is recorded at the explicitly selected assistance level.
+Roles gain no Learner Twin, tool, execution, desktop, or mastery authority.
+
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as
 UNVERIFIED, and a mission retains exact resume and assistance-bearing evidence.

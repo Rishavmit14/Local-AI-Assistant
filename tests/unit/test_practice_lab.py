@@ -35,8 +35,18 @@ def test_run_test_submit_and_evidence_boundary(lab):
     service.save_draft(mission.mission_id, fixed_code(opened.draft_code))
     passed = service.test(mission.mission_id)
     assert passed.passed is True
+    with service._db() as db:
+        run_count = db.execute(
+            "SELECT count(*) FROM practice_lab_runs WHERE mission_id=?",
+            (mission.mission_id,),
+        ).fetchone()[0]
     submitted = service.submit(mission.mission_id)
     assert submitted.attempt.evidence_type == "practice_lab_bounded_test"
+    with service._db() as db:
+        assert db.execute(
+            "SELECT count(*) FROM practice_lab_runs WHERE mission_id=?",
+            (mission.mission_id,),
+        ).fetchone()[0] == run_count
     assert forge.competencies()[0].mastery is MasteryLevel.UNVERIFIED
 
 

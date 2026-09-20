@@ -20,6 +20,11 @@ class Role(StrEnum):
     DEBUGGER = "debugger"
     TESTER = "tester"
     SECURITY = "security"
+    TEACHER = "teacher"
+    COACH = "coach"
+    PAIR_PROGRAMMER = "pair_programmer"
+    INTERVIEWER = "interviewer"
+    CURRICULUM_DESIGNER = "curriculum_designer"
 
 
 _ROLE_INSTRUCTIONS = {
@@ -34,6 +39,11 @@ _ROLE_INSTRUCTIONS = {
     Role.DEBUGGER: "Diagnose from supplied failures and distinguish evidence from hypotheses.",
     Role.TESTER: "Suggest or assess tests from supplied evidence; do not claim tests ran.",
     Role.SECURITY: "Identify security risk conservatively; do not grant authorization or weaken policy.",
+    Role.TEACHER: "Teach from supplied curriculum evidence with a clear mental model; never claim learner mastery.",
+    Role.COACH: "Give the minimum useful progressive hint and preserve learner ownership of the attempt.",
+    Role.PAIR_PROGRAMMER: "Discuss code collaboratively within supplied scope; do not claim files were changed or tests ran.",
+    Role.INTERVIEWER: "Ask and assess bounded interview questions without supplying the answer or claiming readiness.",
+    Role.CURRICULUM_DESIGNER: "Adapt sequencing only from supplied learner evidence; do not mutate curriculum or mastery.",
 }
 
 

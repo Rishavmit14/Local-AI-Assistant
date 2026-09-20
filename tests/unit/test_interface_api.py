@@ -629,6 +629,36 @@ def test_career_mission_objective_reuses_guarded_autonomy_and_recovers_by_link(t
     assert forge.evidence_history() == ()
 
 
+def test_career_tutor_routes_mode_to_sequential_local_specialist(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Debug a Python state defect")
+    calls = []
+
+    class Specialist:
+        def chat(self, prompt, **kwargs):
+            calls.append((prompt, kwargs))
+            return "Trace the mutation before changing code."
+
+    runtime = FridayRuntime("career-specialist-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(["wrong route"]), runtime),
+        career_forge=forge, career_tutor_clients={TutorMode.DEBUG: Specialist()},
+    ))
+
+    response = client.post(
+        f"/api/v1/career-forge/missions/{mission.mission_id}/tutor",
+        json={"mode": "debug", "message": "Why does this state persist?"},
+    )
+
+    assert response.json() == {
+        "response": "Trace the mutation before changing code.",
+        "recorded_assistance": False,
+    }
+    assert calls[0][0] == "Why does this state persist?"
+    assert "debug mode" in calls[0][1]["system_prompt"]
+    assert forge.assistance_history() == ()
+
+
 def test_busy_voice_rejects_http_before_runtime_events():
     runtime = FridayRuntime("busy-voice")
     conversation = FridayConversationService(FakeStreamingLLM(["unused"]), runtime)

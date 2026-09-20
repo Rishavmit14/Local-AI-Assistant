@@ -158,6 +158,19 @@ also pass; the remote integration branch was verified at the exact capability
 commit. Next:
 sequential specialist-role integration.
 
+Sequential specialist-role integration is implemented in the current worktree.
+Teacher, Coach, Pair Programmer, Reviewer, Debugger, Interviewer, and Curriculum
+Designer tutor modes reuse Friday's existing serialized RoleOrchestrator and sole
+local Qwen. LEARN exposes explicit selection and records help only at its chosen
+assistance level; roles cannot mutate the Learner Twin, grant tools, execute, or
+claim mastery. Focused Python tests, 14 frontend runtime tests, changed-file lint,
+and the production frontend build pass. A full 894-test repository gate exposed
+and verified the repair of a Practice Lab redundant-submit race: only an
+identical-source retained passing sandbox result is reused. Dependency
+consistency and repository verification pass; the recovery checkpoint remains
+pending. Next: trusted curriculum research through
+the existing local research ledger.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

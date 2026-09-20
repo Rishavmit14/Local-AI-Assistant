@@ -231,4 +231,19 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       "/api/v1/career-forge/missions/mission%201/objective",
     );
   });
+
+  it("routes a selected Career Forge specialist mode through the canonical tutor", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ response: "Trace it.", recorded_assistance: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new FridayRuntimeClient().careerTutor("mission 1", "Help debug", "debug", "conceptual_hint");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/career-forge/missions/mission%201/tutor",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ message: "Help debug", mode: "debug", assistance_level: "conceptual_hint" }),
+      }),
+    );
+  });
 });

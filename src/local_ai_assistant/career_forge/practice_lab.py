@@ -8,6 +8,7 @@ read-only exercise directory and denied network namespace.
 from __future__ import annotations
 
 import difflib
+import hashlib
 import sqlite3
 import tempfile
 from collections.abc import Iterator
@@ -15,13 +16,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from local_ai_assistant.isolation.models import CapabilityState, NetworkPolicy, ResourcePolicy
 from local_ai_assistant.isolation.errors import SandboxUnavailableError
+from local_ai_assistant.isolation.models import CapabilityState, NetworkPolicy, ResourcePolicy
 from local_ai_assistant.isolation.sandbox import select_backend
 
 from .models import AssistanceLevel, AttemptEvaluation, TutorMode
 from .service import CareerForgeService, LessonAttempt, _now
-
 
 MAX_CODE_CHARS = 32_000
 LAB_RESOURCES = ResourcePolicy(
@@ -135,11 +135,15 @@ class PracticeLabService:
                     run_id INTEGER PRIMARY KEY AUTOINCREMENT, mission_id TEXT NOT NULL,
                     kind TEXT NOT NULL, return_code INTEGER NOT NULL, stdout TEXT NOT NULL,
                     stderr TEXT NOT NULL, timed_out INTEGER NOT NULL,
-                    duration_seconds REAL NOT NULL, passed INTEGER, created_at TEXT NOT NULL
+                    duration_seconds REAL NOT NULL, passed INTEGER, created_at TEXT NOT NULL,
+                    source_hash TEXT
                 );
                 CREATE INDEX IF NOT EXISTS practice_lab_runs_mission
                     ON practice_lab_runs(mission_id, run_id DESC);
             """)
+            columns = {row[1] for row in db.execute("PRAGMA table_info(practice_lab_runs)")}
+            if "source_hash" not in columns:
+                db.execute("ALTER TABLE practice_lab_runs ADD COLUMN source_hash TEXT")
 
     @contextmanager
     def _db(self) -> Iterator[sqlite3.Connection]:
@@ -204,7 +208,9 @@ class PracticeLabService:
 
     def submit(self, mission_id: str, code: str | None = None) -> PracticeAttempt:
         source = self._source(mission_id, code)
-        result = self._execute(mission_id, "test", source, self.exercise_for(mission_id).test_source)
+        result = self._latest_passing_test(mission_id, source)
+        if result is None:
+            result = self._execute(mission_id, "test", source, self.exercise_for(mission_id).test_source)
         level = self.career_forge.latest_assistance_level(mission_id)
         attempt = self.career_forge.record_attempt(
             mission_id, f"practice:{self.exercise_for(mission_id).exercise_id}", source,
@@ -279,10 +285,22 @@ class PracticeLabService:
         record = PracticeRun(kind, result.return_code, result.stdout, stderr, limited,
                              result.duration_seconds, passed, _now())
         with self._db() as db:
-            db.execute("INSERT INTO practice_lab_runs(mission_id,kind,return_code,stdout,stderr,timed_out,duration_seconds,passed,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+            db.execute("INSERT INTO practice_lab_runs(mission_id,kind,return_code,stdout,stderr,timed_out,duration_seconds,passed,created_at,source_hash) VALUES(?,?,?,?,?,?,?,?,?,?)",
                        (mission_id, kind, record.return_code, record.stdout, record.stderr, int(record.timed_out), record.duration_seconds,
-                        None if passed is None else int(passed), record.created_at))
+                        None if passed is None else int(passed), record.created_at,
+                        hashlib.sha256(source.encode()).hexdigest()))
         return record
+
+    def _latest_passing_test(self, mission_id: str, source: str) -> PracticeRun | None:
+        source_hash = hashlib.sha256(source.encode()).hexdigest()
+        with self._db() as db:
+            row = db.execute(
+                "SELECT kind,return_code,stdout,stderr,timed_out,duration_seconds,passed,created_at "
+                "FROM practice_lab_runs WHERE mission_id=? AND kind='test' AND passed=1 "
+                "AND timed_out=0 AND source_hash=? ORDER BY run_id DESC LIMIT 1",
+                (mission_id, source_hash),
+            ).fetchone()
+        return PracticeRun(*row[:6], bool(row[6]), row[7]) if row else None
 
     def _latest_run(self, mission_id: str) -> PracticeRun | None:
         with self._db() as db:

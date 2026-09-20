@@ -213,6 +213,20 @@ export class FridayRuntimeClient {
     return response.json() as Promise<CareerForgeMissionObjective>;
   }
 
+  async careerTutor(
+    missionId: string,
+    message: string,
+    mode: "explain" | "hint" | "pair" | "review" | "debug" | "challenge",
+    assistanceLevel: "prompt" | "conceptual_hint" | "partial_example" | null,
+  ): Promise<{ response: string; recorded_assistance: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/tutor`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, mode, assistance_level: assistanceLevel }),
+    });
+    if (!response.ok) throw new Error(`Career Forge tutor failed: ${response.status}`);
+    return response.json() as Promise<{ response: string; recorded_assistance: boolean }>;
+  }
+
   async openPracticeLab(): Promise<PracticeLab> {
     return this.practiceRequest("open");
   }

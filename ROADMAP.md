@@ -856,7 +856,13 @@ learning evidence or mastery automatically. Retention/progress automation now
 registers a notify-only proactive watch for the oldest due scheduled review;
 stable event identity deduplicates repeat polls, while delivery, evaluation,
 evidence, mastery, reinforcement, and mission changes remain explicit. The next
-Career Forge dependency is sequential specialist-role integration.
+Career Forge now maps Teacher, Coach, Pair Programmer, Reviewer, Debugger,
+Interviewer, and Curriculum Designer tutor modes onto sequential prompt-only
+clients of the same local Qwen. LEARN exposes the explicit choice, all calls keep
+the shared interaction lease, and only explicitly selected assistance is
+recorded; roles gain no tool, Learner Twin, or mastery authority. The next Career
+Forge dependency is trusted curriculum research through the existing local
+research ledger.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

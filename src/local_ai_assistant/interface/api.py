@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict
 from queue import Empty
 
@@ -173,6 +173,7 @@ def create_presentation_app(
     objective_execution_auth: GatewayAuth | None = None,
     objective_execution_requests_per_minute: int = 30,
     career_publication: GitHubPublicationService | None = None,
+    career_tutor_clients: Mapping[TutorMode, object] | None = None,
     proactive: ProactiveEventEngine | None = None,
     research: ResearchService | None = None,
     capabilities: FridayCapabilityRegistry | None = None,
@@ -744,7 +745,12 @@ def create_presentation_app(
                 f"Verification: {brief.verification}\nAttempt: {brief.owner_attempt}\n"
                 f"Teach-back: {brief.teach_back}"
             )
-            response = "".join(conversation.stream_response(message, system_prompt=system_prompt))
+            specialist = (career_tutor_clients or {}).get(mode)
+            response = (
+                specialist.chat(message, system_prompt=system_prompt)
+                if specialist is not None
+                else "".join(conversation.stream_response(message, system_prompt=system_prompt))
+            )
             if level is not None:
                 owner_career_forge().offer_assistance(mission_id, mode, level, response)
             return {"response": response, "recorded_assistance": level is not None}

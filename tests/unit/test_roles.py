@@ -28,6 +28,11 @@ def test_roles_use_one_model_with_bounded_prompt_only_context():
     assert orchestrator.recent()[0].role is Role.SECURITY
     assert orchestrator.recent()[0].success is True
 
+    assert orchestrator.client(Role.COACH).chat("hint") == "ok"
+    assert "minimum useful progressive hint" in model.calls[-1][1]["system_prompt"]
+    assert orchestrator.client(Role.INTERVIEWER).chat("question") == "ok"
+    assert "without supplying the answer" in model.calls[-1][1]["system_prompt"]
+
 
 def test_stream_failure_is_recorded_and_history_is_bounded():
     model = FakeModel()

@@ -34,6 +34,7 @@ class TutorMode(StrEnum):
     CHALLENGE = "challenge"
     TEACH_BACK = "teach_back"
     INTERVIEW = "interview"
+    DEBUG = "debug"
 
 
 class AttemptEvaluation(StrEnum):

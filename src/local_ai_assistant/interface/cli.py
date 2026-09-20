@@ -13,7 +13,7 @@ from uuid import uuid4
 import uvicorn
 
 from local_ai_assistant.autonomy import ObjectiveService
-from local_ai_assistant.career_forge import CareerForgeService, PracticeLabService
+from local_ai_assistant.career_forge import CareerForgeService, PracticeLabService, TutorMode
 from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.cognition import CognitiveController
 from local_ai_assistant.common.config import AppConfig, get_config
@@ -126,6 +126,17 @@ def build_presentation_components(
 
     llm = LocalLLM(config=resolved_config)
     roles = RoleOrchestrator(llm)
+    career_tutor_clients = {
+        TutorMode.EXPLAIN: roles.client(Role.TEACHER),
+        TutorMode.HINT: roles.client(Role.COACH),
+        TutorMode.GUIDE: roles.client(Role.COACH),
+        TutorMode.PAIR: roles.client(Role.PAIR_PROGRAMMER),
+        TutorMode.REVIEW: roles.client(Role.REVIEWER),
+        TutorMode.DEBUG: roles.client(Role.DEBUGGER),
+        TutorMode.CHALLENGE: roles.client(Role.CURRICULUM_DESIGNER),
+        TutorMode.TEACH_BACK: roles.client(Role.REVIEWER),
+        TutorMode.INTERVIEW: roles.client(Role.INTERVIEWER),
+    }
     cognition = CognitiveController()
     research = ResearchService(resolved_config.paths.research_db)
     memory = FridayMemoryService(
@@ -382,6 +393,7 @@ def build_presentation_components(
         objective_execution_auth=execution_auth,
         objective_execution_requests_per_minute=resolved_config.gateway.request_rate,
         career_publication=career_publication,
+        career_tutor_clients=career_tutor_clients,
         proactive=proactive,
         research=research,
         capabilities=capabilities,

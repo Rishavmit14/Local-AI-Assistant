@@ -1,5 +1,18 @@
 # Project History
 
+## 2026-09-20 — Sequential Career Forge specialist-role candidate
+
+Career Forge tutor modes now route Teacher, Coach, Pair Programmer, Reviewer,
+Debugger, Interviewer, and Curriculum Designer contexts through Friday's
+existing sequential single-Qwen role orchestrator. LEARN exposes the selected
+mode, explicit assistance remains auditable, and no role gains tools, Learner
+Twin mutation, execution, or mastery authority. Focused Python and frontend
+qualification passes with 48 Python tests and 14 frontend runtime tests;
+changed-file lint, the production frontend build, dependency consistency, and
+full repository verification with 894 Python tests also pass. The qualification
+also repaired a Practice Lab race by reusing an identical-source retained
+passing sandbox result instead of redundantly rerunning it during submit.
+
 ## 2026-09-20 — Career Forge retention notification candidate
 
 Friday's existing proactive ledger now emits one deduplicated local notification
