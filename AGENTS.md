@@ -233,3 +233,35 @@ the relevant canonical documentation is stale.
 - Do not stop/restart Friday unless the stage explicitly requires it; when no
   restart occurs, state that Friday remains running/listening.
 <!-- FRIDAY_GOVERNANCE_END -->
+
+## Friday continuous autonomous build directive
+
+Friday is an ongoing product-development mission, not owner-supervised tickets.
+Every Codex/Terra session must recover repository/architecture/roadmap/handoff
+state, implement the exact active dependency immediately, validate and repair
+it, checkpoint it when appropriate, update the durable handoff, and immediately
+begin the next dependency. Commits, successful tests, slices, and milestones are
+not stopping points; progress reports are non-blocking. Continue until the
+execution environment ends or an external technical boundary prevents useful
+work. When a session must end, record the exact continuation state first.
+
+The normal loop is `INSPECT → BUILD → TEST → REPAIR → VALIDATE → CHECKPOINT →
+NEXT DEPENDENCY → BUILD AGAIN`, never `BUILD → REPORT → WAIT FOR OWNER`.
+
+Standing owner authorization covers ordinary Friday development, refactoring,
+local testing, dependencies, service work, configuration, migrations with
+recovery discipline, worktrees, and local checkpoints. Preserve existing safety
+requirements, owner data, secrets, rollback, auditability, and unrelated dirty
+work. Never force-push or expose secrets. The canonical production repository's
+Pocket/Anna TTS work is protected; Pocket + Anna remains the selected backend,
+and Qwen/Codacus, wake, ASR, voice, barge-in, memory, Neural Core, and existing
+production behavior must not regress.
+
+Career Forge is complete only when its retained roadmap/architecture scope is
+implemented and qualified: review/reinforcement/adaptive progression, missions,
+projects/evidence, Learner Twin/graph/mastery/history, interview and tutor
+roles, screen/code context, governed desktop help, bounded autonomy, recovery,
+and truthful integrated frontend/voice paths. Once it is complete, continue to
+the next unfinished Friday capability. `CODEX_HANDOFF.md` must always state the
+worktree, branch/HEAD, status, checkpoints, validation, active dependency,
+known blockers, protected production state, and exact next implementation path.
