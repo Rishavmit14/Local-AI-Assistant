@@ -161,6 +161,13 @@ class PublicEvidenceCandidate:
     created_at: str
     updated_at: str
     approved_at: str | None
+    task_id: str | None = None
+    repository_id: str | None = None
+    base_branch: str | None = None
+    publication_state: str | None = None
+    publication_url: str | None = None
+    publication_error: str | None = None
+    published_at: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -269,6 +276,15 @@ class CareerForgeService:
             ):
                 if name not in columns:
                     db.execute(f"ALTER TABLE retention_reviews ADD COLUMN {name} {declaration}")
+            candidate_columns = {
+                row[1] for row in db.execute("PRAGMA table_info(public_evidence_candidates)")
+            }
+            for name in (
+                "task_id", "repository_id", "base_branch", "publication_state",
+                "publication_url", "publication_error", "published_at",
+            ):
+                if name not in candidate_columns:
+                    db.execute(f"ALTER TABLE public_evidence_candidates ADD COLUMN {name} TEXT")
             for item in self.graph.values():
                 db.execute(
                     "INSERT OR IGNORE INTO learner_competencies VALUES(?,?,?,?)",
@@ -876,7 +892,9 @@ class CareerForgeService:
         state = "qualified" if decision.approved else "blocked"
         with self._db() as db:
             db.execute(
-                "INSERT INTO public_evidence_candidates VALUES(?,?,?,?,?,?,?,?)",
+                "INSERT INTO public_evidence_candidates "
+                "(candidate_id, mission_id, artifact_ref, state, reasons_json, created_at, updated_at, approved_at) "
+                "VALUES(?,?,?,?,?,?,?,?)",
                 (candidate_id, mission_id, artifact_ref.strip(), state,
                  json.dumps(decision.reasons), now, now, None),
             )
@@ -886,7 +904,9 @@ class CareerForgeService:
         with self._db() as db:
             row = db.execute(
                 "SELECT candidate_id, mission_id, artifact_ref, state, reasons_json, "
-                "created_at, updated_at, approved_at FROM public_evidence_candidates WHERE candidate_id=?",
+                "created_at, updated_at, approved_at, task_id, repository_id, base_branch, "
+                "publication_state, publication_url, publication_error, published_at "
+                "FROM public_evidence_candidates WHERE candidate_id=?",
                 (candidate_id,),
             ).fetchone()
         if row is None:
@@ -894,6 +914,7 @@ class CareerForgeService:
         return PublicEvidenceCandidate(
             str(row[0]), str(row[1]), str(row[2]), str(row[3]), tuple(json.loads(row[4])),
             str(row[5]), str(row[6]), str(row[7]) if row[7] else None,
+            *(str(value) if value else None for value in row[8:15]),
         )
 
     def approve_public_evidence(self, candidate_id: str) -> PublicEvidenceCandidate:
@@ -907,6 +928,71 @@ class CareerForgeService:
                 "UPDATE public_evidence_candidates SET state='approved', approved_at=?, updated_at=? "
                 "WHERE candidate_id=? AND state='qualified'",
                 (now, now, candidate_id),
+            )
+        return self.public_evidence_candidate(candidate_id)
+
+    def bind_public_evidence_publication(
+        self, candidate_id: str, task_id: str, repository_id: str, base_branch: str,
+    ) -> PublicEvidenceCandidate:
+        """Bind explicit approved evidence to one already-validated gateway task."""
+        candidate = self.public_evidence_candidate(candidate_id)
+        values = (task_id, repository_id, base_branch)
+        if any(not isinstance(value, str) or not value.strip() for value in values):
+            raise ValueError("publication task, repository, and base branch are required")
+        if any(len(value) > 255 for value in values):
+            raise ValueError("publication binding exceeds the configured bound")
+        binding = (task_id.strip(), repository_id.strip(), base_branch.strip())
+        existing = (candidate.task_id, candidate.repository_id, candidate.base_branch)
+        if candidate.state == "published":
+            if existing != binding:
+                raise ValueError("published evidence cannot be rebound")
+            return candidate
+        if candidate.state != "approved":
+            raise ValueError("only approved public evidence can be bound for publication")
+        if any(existing) and existing != binding:
+            raise ValueError("public evidence is already bound to another publication")
+        with self._db() as db:
+            db.execute(
+                "UPDATE public_evidence_candidates SET task_id=?, repository_id=?, base_branch=?, "
+                "publication_state='ready', publication_error=NULL, updated_at=? WHERE candidate_id=?",
+                (*binding, _now(), candidate_id),
+            )
+        return self.public_evidence_candidate(candidate_id)
+
+    def record_public_evidence_publication(
+        self, candidate_id: str, result: dict[str, object],
+    ) -> PublicEvidenceCandidate:
+        """Record the existing gateway's authoritative publication result."""
+        candidate = self.public_evidence_candidate(candidate_id)
+        if candidate.state not in {"approved", "published"} or not candidate.task_id:
+            raise ValueError("public evidence has no approved publication binding")
+        if result.get("state") != "published":
+            raise ValueError("gateway did not return a published result")
+        url = result.get("pr_url")
+        if url is not None and (not isinstance(url, str) or len(url) > 2_000):
+            raise ValueError("gateway returned an invalid publication URL")
+        now = _now()
+        with self._db() as db:
+            db.execute(
+                "UPDATE public_evidence_candidates SET state='published', publication_state='published', "
+                "publication_url=?, publication_error=NULL, published_at=COALESCE(published_at, ?), "
+                "updated_at=? WHERE candidate_id=?",
+                (url, now, now, candidate_id),
+            )
+        return self.public_evidence_candidate(candidate_id)
+
+    def record_public_evidence_publication_failure(
+        self, candidate_id: str, message: str,
+    ) -> PublicEvidenceCandidate:
+        candidate = self.public_evidence_candidate(candidate_id)
+        if candidate.state != "approved" or not candidate.task_id:
+            raise ValueError("public evidence has no approved publication binding")
+        safe_message = str(message).replace("\x1b", "")[:500] or "publication failed"
+        with self._db() as db:
+            db.execute(
+                "UPDATE public_evidence_candidates SET publication_state='failed', "
+                "publication_error=?, updated_at=? WHERE candidate_id=?",
+                (safe_message, _now(), candidate_id),
             )
         return self.public_evidence_candidate(candidate_id)
 

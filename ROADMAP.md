@@ -843,9 +843,13 @@ The project-evidence review lifecycle is now durable and interactive. Only a
 project-linked mission with existing evidence can be reviewed; deterministic
 genuine-work, validation, secret, privacy/proprietary, documentation, and quality
 checks yield blocked or qualified state, and explicit owner approval is a
-separate transition. Approval still performs no publication. Binding an approved
-candidate to the existing promotion-ready task and authenticated GitHub gateway
-is the next dependency.
+separate transition. Approval still performs no publication. A second bearer-
+authenticated `GITHUB_WRITE` request now binds that approved candidate to an
+eligible promotion-ready Friday task and explicit onboarded GitHub mapping, then
+delegates publication to the existing reconciled gateway publisher. The Learner
+Twin retains the exact task/repository/base binding, published pull-request URL,
+or bounded failure for safe retry. The next Career Forge dependency is bounded
+mission autonomy and recovery through Friday's existing objective/task path.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

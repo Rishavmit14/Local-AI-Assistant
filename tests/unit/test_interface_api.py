@@ -553,6 +553,55 @@ def test_public_evidence_requires_project_evidence_gate_then_separate_owner_appr
     assert "published" not in approved.json()["candidate"]
 
 
+def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    with forge._db() as db:
+        db.execute(
+            "UPDATE learner_competencies SET mastery='recognize' WHERE competency_id != 'ml.classical'",
+        )
+    mission = forge.start_mission("ml.classical", "Build FraudShield baseline")
+    forge.record_evidence(mission.mission_id, "validated_project", "Validated local baseline")
+    forge.link_project(mission.mission_id)
+    candidate = forge.create_public_evidence_candidate(
+        mission.mission_id, "artifacts/fraud-report.md", genuine_work=True,
+        validation_passed=True, secret_scan_passed=True, privacy_review_passed=True,
+        documentation_complete=True, artifact_quality_passed=True,
+    )
+    forge.approve_public_evidence(candidate.candidate_id)
+
+    class Publication:
+        def __init__(self):
+            self.calls = []
+
+        def validate_eligibility(self, task_id, *, repository_id):
+            self.calls.append(("validate", task_id, repository_id))
+
+        def publish(self, task_id, *, repository_id, base):
+            self.calls.append(("publish", task_id, repository_id, base))
+            return {"state": "published", "pr_url": "https://github.com/acme/fraud/pull/7"}
+
+    publication = Publication()
+    token = "career-publication-token"
+    auth = GatewayAuth(hashlib.sha256(token.encode()).hexdigest(), frozenset({GatewayScope.GITHUB_WRITE}))
+    runtime = FridayRuntime("career-publication-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime), career_forge=forge,
+        career_publication=publication, objective_execution_auth=auth,
+    ))
+    path = f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/publish"
+    body = {"task_id": "task_123", "repository_id": "fraud-shield", "base": "main"}
+    assert client.post(path, json=body).status_code == 401
+    response = client.post(path, json=body, headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    assert response.json()["candidate"]["state"] == "published"
+    assert response.json()["candidate"]["task_id"] == "task_123"
+    assert response.json()["candidate"]["publication_url"].endswith("/pull/7")
+    assert publication.calls == [
+        ("validate", "task_123", "fraud-shield"),
+        ("publish", "task_123", "fraud-shield", "main"),
+    ]
+
+
 def test_busy_voice_rejects_http_before_runtime_events():
     runtime = FridayRuntime("busy-voice")
     conversation = FridayConversationService(FakeStreamingLLM(["unused"]), runtime)
@@ -1006,7 +1055,8 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/missions/{mission_id}/contextual-tutor",
         "/api/v1/career-forge/missions/{mission_id}/desktop-actions",
         "/api/v1/career-forge/missions/{mission_id}/public-evidence",
-        "/api/v1/career-forge/public-evidence/{candidate_id}/approve",
+            "/api/v1/career-forge/public-evidence/{candidate_id}/approve",
+            "/api/v1/career-forge/public-evidence/{candidate_id}/publish",
         "/api/v1/career-forge/competencies/{competency_id}/advance",
         "/api/v1/career-forge/practice-lab",
         "/api/v1/career-forge/practice-lab/open",

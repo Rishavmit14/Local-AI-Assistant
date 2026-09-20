@@ -10,8 +10,8 @@ from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.isolation.gitops import git_argv, safe_git_environment
 
-from .github import GitHubTransport, validate_remote
 from .errors import GitHubError
+from .github import GitHubTransport, validate_remote
 from .models import PublicationState, RepositoryMapping
 
 
@@ -34,6 +34,19 @@ class GitHubPublicationService:
     def status(self, task_id: str):
         return self.history.store.publication(task_id)
 
+    def validate_eligibility(self, task_id: str, *, repository_id: str):
+        """Validate local promotion identity without creating external effects."""
+        task = self.history.get(task_id)
+        mapping = next((item for item in self.mappings if item.repository_id == repository_id), None)
+        if task is None or mapping is None or Path(mapping.local_path).resolve() != Path(task.repository).resolve():
+            raise HistoryDatabaseError("Publication repository identity mismatch")
+        if not task.branch.startswith("friday/task/") or not task.final_commit or task.status.value != "succeeded":
+            raise HistoryDatabaseError("Only a promotion-ready Friday task may be published")
+        remote = _remote(Path(task.repository).resolve())
+        if not validate_remote(remote, expected_owner=mapping.github_owner, expected_repo=mapping.github_name):
+            raise HistoryDatabaseError("Configured GitHub remote does not match repository mapping")
+        return task
+
     def publish(self, task_id: str, *, repository_id: str, base: str = "main") -> dict:
         task = self.history.get(task_id)
         mapping = next((item for item in self.mappings if item.repository_id == repository_id), None)
@@ -42,10 +55,8 @@ class GitHubPublicationService:
         if not task.branch.startswith("friday/task/") or not task.final_commit or task.status.value != "succeeded":
             self.history.store.upsert_publication(task_id, repository_id, PublicationState.BLOCKED.value, repository=task.repository, last_error="Task is not promotion-ready")
             raise HistoryDatabaseError("Only a promotion-ready Friday task may be published")
+        task = self.validate_eligibility(task_id, repository_id=repository_id)
         repository = Path(task.repository).resolve()
-        remote = _remote(repository)
-        if not validate_remote(remote, expected_owner=mapping.github_owner, expected_repo=mapping.github_name):
-            raise HistoryDatabaseError("Configured GitHub remote does not match repository mapping")
         claimed_attempt = self.history.store.claim_publication(task_id, repository_id, branch=task.branch, commit_sha=task.final_commit)
         if claimed_attempt is None:
             current = self.history.store.publication(task_id) or {}

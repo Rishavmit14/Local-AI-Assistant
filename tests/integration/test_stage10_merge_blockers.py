@@ -94,6 +94,10 @@ def test_managed_repository_root_is_allowed_but_runtime_paths_are_protected(
     root = make_repo(repos)
     service = RepositoryOnboardingService(config)
     assert service.register("project", root).canonical_root == str(root.resolve())
+    mapped = service.register("project", root, publication_mapping="acme/project")
+    assert mapped.publication_mapping == "acme/project"
+    with pytest.raises(RepositoryOnboardingError, match="OWNER/REPOSITORY"):
+        service.register("project", root, publication_mapping="not a mapping")
 
     protected = make_repo(config.paths.worktree_dir, "unsafe")
     with pytest.raises(RepositoryOnboardingError, match="protected runtime"):

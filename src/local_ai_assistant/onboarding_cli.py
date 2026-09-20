@@ -14,10 +14,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="local-ai-repo")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("list")
-    inspect = sub.add_parser("inspect"); inspect.add_argument("repository_id")
-    scan = sub.add_parser("scan"); scan.add_argument("repository_id"); scan.add_argument("path", type=Path)
-    readiness = sub.add_parser("readiness"); readiness.add_argument("repository_id")
-    dry = sub.add_parser("dry-run"); dry.add_argument("repository_id"); dry.add_argument("task")
+    inspect = sub.add_parser("inspect")
+    inspect.add_argument("repository_id")
+    scan = sub.add_parser("scan")
+    scan.add_argument("repository_id")
+    scan.add_argument("path", type=Path)
+    scan.add_argument(
+        "--publication-mapping", metavar="OWNER/REPOSITORY",
+        help="Record an explicit GitHub publication identity; scanning never publishes",
+    )
+    readiness = sub.add_parser("readiness")
+    readiness.add_argument("repository_id")
+    dry = sub.add_parser("dry-run")
+    dry.add_argument("repository_id")
+    dry.add_argument("task")
     args = parser.parse_args(argv)
     service = RepositoryOnboardingService(get_config())
     try:
@@ -29,7 +39,9 @@ def main(argv: list[str] | None = None) -> int:
                 raise RepositoryOnboardingError("unknown repository")
             value = value.to_dict()
         elif args.command == "scan":
-            value = service.register(args.repository_id, args.path).to_dict()
+            value = service.register(
+                args.repository_id, args.path, publication_mapping=args.publication_mapping,
+            ).to_dict()
         elif args.command == "readiness":
             value = service.readiness(args.repository_id).to_dict()
         else:

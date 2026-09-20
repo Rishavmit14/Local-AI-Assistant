@@ -5,18 +5,15 @@ import argparse
 import hashlib
 import sys
 
-from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.common.config import get_config
 from local_ai_assistant.gateway.api import create_app
 from local_ai_assistant.gateway.auth import GatewayAuth
-from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
-from local_ai_assistant.gateway.models import GatewayScope, RepositoryMapping
-from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.gateway.mcp import MCPGateway
 from local_ai_assistant.gateway.mcp_server import MCPProtocolServer
+from local_ai_assistant.gateway.models import GatewayScope, RepositoryMapping
+from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
-from local_ai_assistant.planning.service import PlannerService
 from local_ai_assistant.onboarding import RepositoryOnboardingService
 
 
@@ -39,13 +36,21 @@ def main(argv=None):
         ) if app_config.paths.code_repo_dir.is_dir() else ()
         history = TaskHistoryService(TaskHistoryStore(app_config.paths.task_history_db))
         onboarding = RepositoryOnboardingService(app_config)
-        execution = CodeAgentExecutionService(app_config, history, onboarding=onboarding)
+        execution = None
+        def execute_task(task):
+            nonlocal execution
+            if execution is None:
+                from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
+                execution = CodeAgentExecutionService(app_config, history, onboarding=onboarding)
+            return execution.execute_task(task)
         def planner_factory(repository):
+            from local_ai_assistant.code_index.repository import CodeRAG
+            from local_ai_assistant.planning.service import PlannerService
             rag = CodeRAG(config=app_config)
             if not rag.load():
                 raise RuntimeError("code index is unavailable")
             return PlannerService(repository, rag.symbol_index, rag.llm, app_config.paths.code_index_dir / "plans", rag.retrieve)
-        service = IntegrationGatewayService(history, mappings, max_events=config.max_events, planner_factory=planner_factory, executor=execution.execute_task)
+        service = IntegrationGatewayService(history, mappings, max_events=config.max_events, planner_factory=planner_factory, executor=execute_task)
         scopes = frozenset(GatewayScope(value) for value in config.scopes)
         try:
             # Stdio is explicitly local-trust; a configured bearer digest is still used

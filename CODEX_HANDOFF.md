@@ -119,6 +119,19 @@ commit.
 The active dependency is binding an approved candidate to the existing
 promotion-ready task and authenticated GitHub gateway.
 
+That publication binding is implemented in the current worktree. The accepted
+candidate schema migrates in place and retains its exact task/repository/base,
+gateway result URL, bounded failure, and publication time. The presentation
+route requires bearer authentication with `GITHUB_WRITE`, validates promotion
+eligibility before binding, and delegates all external work to the existing
+`GitHubPublicationService`. Runtime composition uses only explicit onboarding
+`OWNER/REPOSITORY` mappings plus a protected local GitHub token; Astra never
+handles that credential. Qualification passes 69 focused Python tests, 12 frontend runtime
+tests, changed-file lint, the production frontend build, dependency consistency,
+and full repository verification with 890 Python tests. The recovery checkpoint
+remains pending. Next after qualification: bounded Career Forge mission autonomy
+and recovery through the existing objective/task path.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

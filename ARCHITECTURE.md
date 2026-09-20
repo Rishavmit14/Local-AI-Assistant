@@ -281,10 +281,13 @@ Learner Twin. A candidate requires a canonical project-linked mission and at
 least one existing mission evidence record. The deterministic genuine-work,
 validation, secret-scan, privacy/proprietary, documentation, and quality checks
 produce `blocked` or `qualified`; only a separate explicit owner transition can
-produce `approved`. None of those states runs Git or GitHub. External publication
-must later bind the approved candidate to Friday's existing promotion-ready task
-and authenticated gateway publisher so repository identity, final commit, branch,
-remote reconciliation, and pull-request audit gates remain authoritative.
+produce `approved`. None of those states runs Git or GitHub. An authenticated
+`GITHUB_WRITE` request may then bind that exact approved candidate to one
+promotion-ready Friday task and explicit onboarded repository mapping. The
+existing gateway publisher remains the sole external authority for repository
+identity, final commit, `friday/task/` branch, remote reconciliation, push, and
+pull-request creation; its URL/result is copied back into the Learner Twin. A
+failed external attempt preserves approval and the exact binding for safe retry.
 
 ### Astra presentation integration foundation
 

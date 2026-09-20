@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from collections.abc import Callable
 from pathlib import Path
 from types import FrameType
@@ -19,7 +20,9 @@ from local_ai_assistant.common.logging import configure_logging
 from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
+from local_ai_assistant.gateway.github import GitHubHttpTransport
 from local_ai_assistant.gateway.models import GatewayScope, RepositoryMapping
+from local_ai_assistant.gateway.publication import GitHubPublicationService
 from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
@@ -46,6 +49,28 @@ from .events import FridayEventType
 from .interaction import FridayInteractionCoordinator
 from .runtime import FridayRuntime
 from .wake_bootstrap import build_managed_wake_voice
+
+
+def _repository_mappings(code_repo_dir: Path, profiles: tuple[object, ...]) -> tuple[RepositoryMapping, ...]:
+    """Project explicit onboarding publication identities onto managed repositories."""
+    registered = {Path(item.canonical_root).resolve(): item for item in profiles}
+    mappings: list[RepositoryMapping] = []
+    if not code_repo_dir.is_dir():
+        return ()
+    for path in code_repo_dir.iterdir():
+        if not path.is_dir() or not (path / ".git").exists():
+            continue
+        profile = registered.get(path.resolve())
+        repository_id = str(profile.repository_id) if profile is not None else path.name
+        owner = name = ""
+        publication_mapping = getattr(profile, "publication_mapping", None)
+        if publication_mapping:
+            parts = publication_mapping.strip().split("/")
+            if len(parts) != 2 or any(not part or part in {".", ".."} or any(char.isspace() for char in part) for part in parts):
+                raise ValueError(f"invalid publication mapping for repository {repository_id}")
+            owner, name = parts
+        mappings.append(RepositoryMapping(repository_id, str(path.resolve()), owner, name))
+    return tuple(mappings)
 
 
 class FridayUvicornServer(uvicorn.Server):
@@ -106,14 +131,9 @@ def build_presentation_components(
             resolved_config.paths.task_history_db.parent,
         ),
     )
-    mappings = (
-        tuple(
-            RepositoryMapping(path.name, str(path), "", "")
-            for path in resolved_config.paths.code_repo_dir.iterdir()
-            if path.is_dir() and (path / ".git").is_dir()
-        )
-        if resolved_config.paths.code_repo_dir.is_dir()
-        else ()
+    onboarding = RepositoryOnboardingService(resolved_config)
+    mappings = _repository_mappings(
+        resolved_config.paths.code_repo_dir, onboarding.list_profiles(),
     )
 
     def planner_factory(repository: Path) -> PlannerService:
@@ -132,12 +152,23 @@ def build_presentation_components(
         GatewayAuth(resolved_config.gateway.token_hash, frozenset(GatewayScope(scope) for scope in resolved_config.gateway.scopes))
         if resolved_config.gateway.enabled and resolved_config.gateway.token_hash else None
     )
-    execution = CodeAgentExecutionService(resolved_config, history, RepositoryOnboardingService(resolved_config))
+    execution = CodeAgentExecutionService(resolved_config, history, onboarding)
     gateway = IntegrationGatewayService(
         history,
         mappings,
         planner_factory=planner_factory,
         executor=execution,
+    )
+    github_token = os.environ.get("LOCAL_AI_GITHUB_TOKEN", "").strip()
+    publication_mappings = tuple(item for item in mappings if item.github_owner and item.github_name)
+    career_publication = (
+        GitHubPublicationService(
+            history,
+            publication_mappings,
+            GitHubHttpTransport(github_token, api_host=resolved_config.gateway.github_api_host),
+        )
+        if resolved_config.gateway.github_enabled and github_token and publication_mappings
+        else None
     )
 
     def plan_hash_for_task(task_id: str) -> str | None:
@@ -270,7 +301,7 @@ def build_presentation_components(
         FridayCapability("proactive", "Proactive notifications", CapabilityStatus.IMPLEMENTED, resolved_config.proactive.enabled, True, resolved_config.proactive.enabled, "configured local watches", "notifications only; no action authority"),
         FridayCapability("research", "Local research ledger", CapabilityStatus.IMPLEMENTED, True, True, True, "bounded local research API", "owner-provided sources only; no automatic web research"),
         FridayCapability("code_intelligence", "Repository and code intelligence", CapabilityStatus.IMPLEMENTED, True, True, True, "CLI and guarded engineering paths", "not yet a normal conversation capability"),
-        FridayCapability("github", "GitHub integration", CapabilityStatus.IMPLEMENTED, resolved_config.gateway.enabled, execution_auth is not None, resolved_config.gateway.enabled, "authenticated gateway", "not a general conversation route and publication remains review-gated"),
+        FridayCapability("github", "GitHub integration", CapabilityStatus.INTEGRATED, resolved_config.gateway.enabled, execution_auth is not None, career_publication is not None, "authenticated gateway", "requires an explicit onboarded publication mapping, GITHUB_WRITE scope, and local credential"),
     ), health={"voice": voice_capability_health})
 
     capability_router = FridayConversationCapabilityRouter(capabilities, career_forge=career_forge, memory=memory, practice_lab=practice_lab)
@@ -321,6 +352,7 @@ def build_presentation_components(
         autonomy=autonomy,
         objective_execution_auth=execution_auth,
         objective_execution_requests_per_minute=resolved_config.gateway.request_rate,
+        career_publication=career_publication,
         proactive=proactive,
         research=research,
         capabilities=capabilities,

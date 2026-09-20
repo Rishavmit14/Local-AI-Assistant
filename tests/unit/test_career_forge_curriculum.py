@@ -42,6 +42,26 @@ def test_existing_retention_queue_schema_migrates_for_governed_outcomes(tmp_path
     assert {"response", "evaluation", "feedback", "evaluated_at"} <= columns
 
 
+def test_existing_public_evidence_schema_migrates_for_gateway_binding(tmp_path):
+    path = tmp_path / "learner.sqlite3"
+    with sqlite3.connect(path) as db:
+        db.execute(
+            "CREATE TABLE public_evidence_candidates (candidate_id TEXT PRIMARY KEY, "
+            "mission_id TEXT NOT NULL, artifact_ref TEXT NOT NULL, state TEXT NOT NULL, "
+            "reasons_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, "
+            "approved_at TEXT)"
+        )
+
+    CareerForgeService(path)
+
+    with sqlite3.connect(path) as db:
+        columns = {row[1] for row in db.execute("PRAGMA table_info(public_evidence_candidates)")}
+    assert {
+        "task_id", "repository_id", "base_branch", "publication_state",
+        "publication_url", "publication_error", "published_at",
+    } <= columns
+
+
 def test_learner_twin_starts_unverified_and_resumes_exact_mission_state(tmp_path):
     forge = CareerForgeService(tmp_path / "learner.sqlite3")
     assert all(item.mastery is MasteryLevel.UNVERIFIED for item in forge.competencies())
@@ -301,6 +321,22 @@ def test_project_link_is_local_and_limited_to_the_missions_canonical_family(tmp_
     assert qualified.state == "qualified" and qualified.approved_at is None
     approved = forge.approve_public_evidence(qualified.candidate_id)
     assert approved.state == "approved" and approved.approved_at is not None
+    bound = forge.bind_public_evidence_publication(
+        approved.candidate_id, "task_123", "fraud-shield", "main",
+    )
+    assert (bound.task_id, bound.repository_id, bound.publication_state) == (
+        "task_123", "fraud-shield", "ready",
+    )
+    failed = forge.record_public_evidence_publication_failure(bound.candidate_id, "network unavailable")
+    assert failed.state == "approved" and failed.publication_state == "failed"
+    published = forge.record_public_evidence_publication(
+        bound.candidate_id, {"state": "published", "pr_url": "https://github.com/acme/fraud/pull/7"},
+    )
+    assert published.state == "published"
+    assert published.publication_url == "https://github.com/acme/fraud/pull/7"
+    assert published.published_at is not None
+    with pytest.raises(ValueError, match="cannot be rebound"):
+        forge.bind_public_evidence_publication(published.candidate_id, "task_999", "other", "main")
     with forge._db() as db:
         db.execute("UPDATE missions SET state='completed' WHERE mission_id=?", (fraud.mission_id,))
     with pytest.raises(ValueError, match="only an active mission"):

@@ -13,10 +13,17 @@
 | code retrieval | `LOCAL_AI_CODE_CHUNK_LINES`, `LOCAL_AI_CODE_CHUNK_OVERLAP`, `LOCAL_AI_CODE_VECTOR_TOP_K`, `LOCAL_AI_CODE_BM25_TOP_K`, `LOCAL_AI_CODE_FINAL_TOP_K`, `LOCAL_AI_RRF_K` | 120/20 lines, 12/12 candidates, final 6, RRF 60 |
 | OCR | `LOCAL_AI_OCR_ENABLED`, `LOCAL_AI_OCR_LANGUAGE`, `LOCAL_AI_OCR_MIN_TEXT_LENGTH`, `LOCAL_AI_OCR_DPI` | enabled, English, 80 characters, 200 DPI |
 | runtime/tests | `LOCAL_AI_LOG_LEVEL`, `LOCAL_AI_LOG_FORMAT`, `LOCAL_AI_COMMAND_TIMEOUT`, `LOCAL_AI_TEST_MODE` | INFO, JSON, 900 seconds, false |
+| authenticated gateway/GitHub | `LOCAL_AI_GATEWAY_ENABLED`, `LOCAL_AI_GATEWAY_TOKEN_HASH`, `LOCAL_AI_GATEWAY_SCOPES`, `LOCAL_AI_GITHUB_ENABLED`, `LOCAL_AI_GITHUB_API_HOST`, optional secret `LOCAL_AI_GITHUB_TOKEN` | disabled, loopback-only, no publication credential |
 
 `LOCAL_AI_CONTEXT_SIZE` bounds completion-token requests made through `LocalLLM` so client requests cannot exceed the configured server context. `LOCAL_AI_TEST_MODE=true` suppresses embedding progress bars while retaining the same indexing and retrieval algorithms.
 
 Invalid integers, booleans, or overlapping chunk ranges raise `ConfigurationError` at startup. Prompts and document contents are deliberately omitted from structured logs; only operational metadata such as sizes, counts, paths, commands, and outcomes is logged.
+
+`LOCAL_AI_GITHUB_TOKEN` is read only when constructing the optional publication
+transport and must remain in a protected local EnvironmentFile. It is never
+written to Friday configuration, onboarding state, task history, the Learner
+Twin, logs, or the browser. Publication additionally requires an explicit
+onboarding `OWNER/REPOSITORY` mapping and the `github_write` gateway scope.
 
 ## MSI migration
 

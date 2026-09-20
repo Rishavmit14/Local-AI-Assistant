@@ -143,11 +143,18 @@ export interface CareerForgePublicEvidenceCandidate {
   candidate_id: string;
   mission_id: string;
   artifact_ref: string;
-  state: "blocked" | "qualified" | "approved";
+  state: "blocked" | "qualified" | "approved" | "published";
   reasons: string[];
   created_at: string;
   updated_at: string;
   approved_at: string | null;
+  task_id: string | null;
+  repository_id: string | null;
+  base_branch: string | null;
+  publication_state: "ready" | "failed" | "published" | null;
+  publication_url: string | null;
+  publication_error: string | null;
+  published_at: string | null;
 }
 
 export interface CareerForgeJourney {

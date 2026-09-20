@@ -21,13 +21,13 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from .code_index.repository import CODE_EXTENSIONS
 from .common.config import AppConfig, get_config
 from .common.errors import RepositoryError
 from .common.repository_files import (
     read_repo_bytes_bounded,
     read_repo_file_bounded,
 )
-from .code_index.repository import CODE_EXTENSIONS
 
 
 class ReadinessStatus(StrEnum):
@@ -411,6 +411,11 @@ class RepositoryOnboardingService:
     def register(self, repository_id: str, path: Path, *, expected_fingerprint: str | None = None, publication_mapping: str | None = None) -> RepositoryProfile:
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", repository_id):
             raise RepositoryOnboardingError("Invalid repository ID")
+        if publication_mapping is not None and not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9._-]{0,99}/[A-Za-z0-9][A-Za-z0-9._-]{0,99}",
+            publication_mapping,
+        ):
+            raise RepositoryOnboardingError("Publication mapping must be OWNER/REPOSITORY")
         root = self._resolve_registration_path(path)
         profile = self.scan(repository_id, root, publication_mapping=publication_mapping)
         persisted = self._profiles.get(repository_id)
@@ -592,12 +597,15 @@ class RepositoryOnboardingService:
         commands: list[str] = []
         rationale: list[str] = []
         if "python" in languages:
-            commands.append("pytest"); rationale.append("Python sources detected")
+            commands.append("pytest")
+            rationale.append("Python sources detected")
         if "rust" in languages:
-            commands.extend(("cargo test", "cargo check")); rationale.append("Rust sources detected")
+            commands.extend(("cargo test", "cargo check"))
+            rationale.append("Rust sources detected")
         for item in manifests:
             if Path(item).name == "package.json":
-                commands.append("project-defined test script (policy review required)"); rationale.append("Node manifest detected")
+                commands.append("project-defined test script (policy review required)")
+                rationale.append("Node manifest detected")
         unsafe_scripts: list[str] = []
         for package in [root / item for item in manifests if Path(item).name == "package.json"]:
             package_read = read_repo_file_bounded(

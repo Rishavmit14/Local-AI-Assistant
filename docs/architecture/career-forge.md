@@ -275,8 +275,12 @@ That review is now durable: a candidate is accepted only from a project-linked
 mission with recorded learning evidence, and the six deterministic checks store
 their exact failure reasons as `blocked` or an empty-reason `qualified` result.
 Owner approval is a distinct `approved` transition and still performs no Git or
-GitHub action. Actual publication must reuse the existing promotion-ready Friday
-task/GitHub gateway rather than adding a Career Forge publisher.
+GitHub action. Publication now requires a second authenticated `GITHUB_WRITE`
+request that binds the approved record to a locally validated promotion-ready
+Friday task and explicit onboarded `OWNER/REPOSITORY` mapping. It delegates push,
+remote reconciliation, and pull-request creation to the existing gateway
+publisher, then records the authoritative result or a bounded retryable failure;
+Career Forge has no independent GitHub transport or publisher.
 
 V1 can explicitly connect an active mission only to the canonical project family
 declared by its competency. The local Learner Twin records that link and the

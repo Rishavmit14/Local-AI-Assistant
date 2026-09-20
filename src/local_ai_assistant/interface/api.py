@@ -32,6 +32,8 @@ from local_ai_assistant.gateway.auth import (
     GatewayRateLimiter,
 )
 from local_ai_assistant.gateway.models import GatewayScope
+from local_ai_assistant.gateway.publication import GitHubPublicationService
+from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.isolation.errors import SandboxUnavailableError
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 from local_ai_assistant.onboarding import RepositoryOnboardingError
@@ -170,6 +172,7 @@ def create_presentation_app(
     autonomy: ObjectiveService | None = None,
     objective_execution_auth: GatewayAuth | None = None,
     objective_execution_requests_per_minute: int = 30,
+    career_publication: GitHubPublicationService | None = None,
     proactive: ProactiveEventEngine | None = None,
     research: ResearchService | None = None,
     capabilities: FridayCapabilityRegistry | None = None,
@@ -873,6 +876,47 @@ def create_presentation_app(
         except (KeyError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"candidate": asdict(candidate)}
+
+    @app.post("/api/v1/career-forge/public-evidence/{candidate_id}/publish")
+    async def career_publish_public_evidence(candidate_id: str, request: Request):
+        if objective_execution_auth is None:
+            raise HTTPException(status_code=503, detail="GitHub publication authentication is not configured")
+        if career_publication is None:
+            raise HTTPException(status_code=503, detail="GitHub publication is not configured")
+        authorization = request.headers.get("authorization", "")
+        token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else None
+        try:
+            principal = objective_execution_auth.require(token, GatewayScope.GITHUB_WRITE)
+        except GatewayAuthenticationError as exc:
+            raise HTTPException(status_code=401, detail="authentication required") from exc
+        except GatewayAuthorizationError as exc:
+            raise HTTPException(status_code=403, detail="insufficient gateway scope") from exc
+        if not objective_execution_limiter.allow(principal.name):
+            raise HTTPException(status_code=429, detail="publication request rate limit exceeded")
+        try:
+            body = await request.json()
+            task_id, repository_id = body["task_id"], body["repository_id"]
+            base = body.get("base", "main")
+            if not all(isinstance(value, str) for value in (task_id, repository_id, base)):
+                raise ValueError("publication binding must use string identifiers")
+            await run_in_threadpool(
+                career_publication.validate_eligibility, task_id, repository_id=repository_id,
+            )
+            forge = owner_career_forge()
+            forge.bind_public_evidence_publication(candidate_id, task_id, repository_id, base)
+            result = await run_in_threadpool(
+                career_publication.publish, task_id, repository_id=repository_id, base=base,
+            )
+            candidate = forge.record_public_evidence_publication(candidate_id, result)
+            return {"candidate": asdict(candidate), "publication": result}
+        except (KeyError, TypeError, ValueError, HistoryDatabaseError) as exc:
+            raise HTTPException(status_code=409, detail="publication is not eligible") from exc
+        except Exception as exc:
+            try:
+                owner_career_forge().record_public_evidence_publication_failure(candidate_id, str(exc))
+            except (KeyError, ValueError):
+                pass
+            raise HTTPException(status_code=502, detail="external publication failed") from exc
 
     @app.post("/api/v1/career-forge/competencies/{competency_id}/advance")
     async def career_advance(competency_id: str, request: Request):

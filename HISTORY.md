@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-20 — Authenticated Career Forge publication binding candidate
+
+An approved public-evidence record can now bind to one promotion-ready Friday
+task and explicit onboarded GitHub repository identity. A separately bearer-
+authenticated `GITHUB_WRITE` call reuses the existing reconciled gateway
+publisher, then retains the pull-request URL or bounded failure in the Learner
+Twin. Career Forge adds no second Git/GitHub publisher, and the browser never
+receives or persists the credential. Focused qualification is in progress.
+Focused qualification passes 69 Python tests and 12 frontend runtime tests;
+changed-file lint, the production frontend build, dependency consistency, and
+full repository verification with 890 Python tests also pass.
+
 ## 2026-09-20 — Durable Career Forge public-evidence review candidate
 
 Project-linked missions with existing evidence can now create a durable public-
