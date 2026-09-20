@@ -8,6 +8,7 @@ export type {
 
 export type {
   CareerForgeCompetency,
+  CareerForgeCurriculumResearch,
   CareerForgeJourney,
   CareerForgeInterview,
   CareerForgeMission,

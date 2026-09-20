@@ -432,6 +432,12 @@ choice in LEARN; the shared interaction lease still serializes local-Qwen use,
 and generated help is recorded at the explicitly selected assistance level.
 Roles gain no Learner Twin, tool, execution, desktop, or mastery authority.
 
+Career Forge curriculum research is a read-only projection over Friday's
+existing local provenance ledger. MAP compares canonical competency titles with
+explicit owner-collected, versioned sources and shows evidence/gap counts; source
+content remains in the research boundary. Coverage is advisory and cannot edit
+the competency graph, reorder missions, create evidence, or change mastery.
+
 Stage 14 begins with a local Career Forge SQLite Learner Twin boundary: canonical
 competencies are versioned and dependency ordered, every state is initialized as
 UNVERIFIED, and a mission retains exact resume and assistance-bearing evidence.

@@ -1,5 +1,15 @@
 # Project History
 
+## 2026-09-20 — Trusted Career Forge curriculum-research candidate
+
+MAP now projects canonical-topic coverage from Friday's existing local,
+provenance-bearing research ledger. The boundary returns source identity,
+provenance, and version but not source content; all coverage remains advisory and
+cannot mutate curriculum, missions, evidence, or mastery. Focused validation
+passes 38 Python tests and 15 frontend runtime tests; full qualification is
+complete with changed-file lint, the production frontend build, dependency
+consistency, and full repository verification with 895 Python tests.
+
 ## 2026-09-20 — Sequential Career Forge specialist-role candidate
 
 Career Forge tutor modes now route Teacher, Coach, Pair Programmer, Reviewer,

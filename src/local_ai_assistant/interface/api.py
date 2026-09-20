@@ -519,6 +519,27 @@ def create_presentation_app(
             "progress": progress_payload,
         }
 
+    @app.get("/api/v1/career-forge/curriculum-research")
+    def career_curriculum_research(domain: str):
+        forge = owner_career_forge()
+        competencies = tuple(item for item in forge.graph.values() if item.domain == domain)
+        if not competencies:
+            raise HTTPException(status_code=404, detail="canonical Career Forge domain is unavailable")
+        research_service = owner_research()
+        topics = tuple(item.title for item in competencies)
+        return {
+            "domain": domain,
+            "topics": research_service.curriculum(domain, topics),
+            "sources": [
+                {
+                    "source_id": item.source_id, "title": item.title,
+                    "provenance": item.provenance, "version": item.version,
+                }
+                for item in research_service.sources(domain, limit=100)
+            ],
+            "authority": "advisory_only",
+        }
+
     @app.post("/api/v1/career-forge/retention-reviews/{review_id}/deliver")
     def career_deliver_retention_review(review_id: str):
         try:

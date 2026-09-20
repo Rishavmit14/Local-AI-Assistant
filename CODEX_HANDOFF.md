@@ -171,6 +171,17 @@ consistency and repository verification pass; the remote integration branch was
 verified at the exact capability commit. Next: trusted curriculum research through
 the existing local research ledger.
 
+Trusted curriculum research is implemented in the current worktree. The Career
+Forge API deterministically compares canonical competency titles with explicit
+provenance-bearing sources in Friday's existing local research ledger; MAP shows
+active-domain coverage and source counts. Source content stays behind the
+research boundary, and results cannot mutate the graph, mission ordering,
+evidence, or mastery. Focused validation passes 38 Python tests, 15 frontend
+runtime tests, changed-file lint, and the production frontend build. Full
+repository verification passes with 895 Python tests and dependency consistency;
+the recovery checkpoint remains pending. Next:
+evidence-positive cognitive-improvement evaluation across the completed loop.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

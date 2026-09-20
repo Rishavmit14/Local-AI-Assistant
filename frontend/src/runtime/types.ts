@@ -241,6 +241,13 @@ export interface CareerForgeMissionObjective {
   objective: FridayObjective;
 }
 
+export interface CareerForgeCurriculumResearch {
+  domain: string;
+  topics: Array<{ topic: string; status: "research" | "evidence_available" }>;
+  sources: Array<{ source_id: string; title: string; provenance: string; version: string }>;
+  authority: "advisory_only";
+}
+
 export interface FridayPlanReview {
   task_id: string;
   plan_hash: string;

@@ -52,6 +52,7 @@ export class FridayPresentation implements FridayPresentationActions {
   getCareerMissionObjective(missionId: string) { return this.runtime.getCareerMissionObjective(missionId); }
   createCareerMissionObjective(missionId: string, text: string) { return this.runtime.createCareerMissionObjective(missionId, text); }
   careerTutor(missionId: string, message: string, mode: Parameters<FridayRuntimeClient["careerTutor"]>[2], assistanceLevel: Parameters<FridayRuntimeClient["careerTutor"]>[3]) { return this.runtime.careerTutor(missionId, message, mode, assistanceLevel); }
+  careerCurriculumResearch(domain: string) { return this.runtime.getCareerCurriculumResearch(domain); }
 
   async openPracticeLab(): Promise<void> {
     await this.runtime.openPracticeLab();

@@ -861,8 +861,11 @@ Interviewer, and Curriculum Designer tutor modes onto sequential prompt-only
 clients of the same local Qwen. LEARN exposes the explicit choice, all calls keep
 the shared interaction lease, and only explicitly selected assistance is
 recorded; roles gain no tool, Learner Twin, or mastery authority. The next Career
-Forge dependency is trusted curriculum research through the existing local
-research ledger.
+Forge now projects trusted curriculum research through the existing local
+research ledger: MAP displays provenance-bearing source and canonical-topic
+coverage for the active domain without exposing source content or granting graph,
+mission, evidence, or mastery mutation. The next dependency is evidence-positive
+cognitive-improvement evaluation across the completed Career Forge loop.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

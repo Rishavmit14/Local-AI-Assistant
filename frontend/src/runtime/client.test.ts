@@ -246,4 +246,16 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       }),
     );
   });
+
+  it("reads advisory curriculum coverage from the local research ledger", async () => {
+    const value = { domain: "software_engineering", topics: [], sources: [], authority: "advisory_only" };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(value), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new FridayRuntimeClient().getCareerCurriculumResearch("software engineering");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/career-forge/curriculum-research?domain=software%20engineering",
+    );
+  });
 });

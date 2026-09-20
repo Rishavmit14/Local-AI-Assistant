@@ -1,6 +1,7 @@
 import type {
   CareerForgeJourney,
   CareerForgeInterview,
+  CareerForgeCurriculumResearch,
   CareerForgeMissionObjective,
   CareerForgeMission,
   CareerForgePublicEvidenceCandidate,
@@ -225,6 +226,12 @@ export class FridayRuntimeClient {
     });
     if (!response.ok) throw new Error(`Career Forge tutor failed: ${response.status}`);
     return response.json() as Promise<{ response: string; recorded_assistance: boolean }>;
+  }
+
+  async getCareerCurriculumResearch(domain: string): Promise<CareerForgeCurriculumResearch> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/curriculum-research?domain=${encodeURIComponent(domain)}`);
+    if (!response.ok) throw new Error(`Career Forge curriculum research failed: ${response.status}`);
+    return response.json() as Promise<CareerForgeCurriculumResearch>;
   }
 
   async openPracticeLab(): Promise<PracticeLab> {

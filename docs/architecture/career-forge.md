@@ -324,3 +324,9 @@ Debugger, Interviewer, and Curriculum Designer are prompt-only contexts over the
 same local Qwen. The shared interaction lease permits one invocation at a time;
 the role cannot write learner state, and assistance is persisted only at the
 level explicitly selected by the owner-facing path.
+
+MAP also projects trusted curriculum coverage from Friday's existing local
+research ledger. Canonical competency titles are compared deterministically with
+explicit provenance-bearing sources for the same domain. Only source identity,
+title, provenance, and version leave the research boundary; coverage and gaps
+are advisory and never mutate the graph, mission order, evidence, or mastery.
