@@ -61,7 +61,7 @@ tests and dependency consistency; the remote integration branch was verified at
 the exact capability commit. The active dependency is canonical PROJECTS
 integration.
 
-The canonical PROJECTS candidate is implemented in the current worktree. Astra
+The canonical PROJECTS workspace is accepted and published at `1b43884`. Astra
 now has a first-class PROJECTS route/workspace over the existing journey and
 mission-link authority: all four project families remain visible, stored links
 and competencies are projected without fixtures, and only the active mission's
@@ -69,8 +69,8 @@ declared family offers an explicit connect action. Completed missions are now
 rejected by the service link boundary. Focused validation passes 39 Python
 tests, 12 frontend tests, changed-file lint, the production
 frontend build, and full repository verification with 882 Python tests and
-dependency consistency. The final recovery checkpoint remains pending. The next
-dependency after acceptance is Interview Mode.
+dependency consistency; the remote integration branch was verified at the exact
+capability commit. The active dependency is Interview Mode.
 
 ## 0. Non-negotiable project rules
 
