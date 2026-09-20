@@ -795,11 +795,13 @@ authority or fallback progress fixtures. Retention/review, adaptive progression,
 PROJECTS, Interview Mode, screen-aware tutoring, and governed desktop assistance
 remain the next product work rather than a parallel Career Forge implementation.
 
-The first retention slice now creates a single evidence-linked scheduled review
-when an explicit one-rung mastery advancement succeeds. Its progressive interval
-is deterministic; it does not claim review completion, retention, or a further
-mastery change. Governed review delivery, evaluation, weak-area reinforcement,
-and adaptive curriculum selection remain active work.
+The first retention slice creates a single evidence-linked scheduled review when
+an explicit one-rung mastery advancement succeeds. Its progressive interval is
+deterministic. A due review can now be explicitly delivered through the
+canonical service/API/Progress surface, recording only `delivered` and a
+deterministic verification prompt; it does not claim completion, retention,
+evidence, or a mastery change. Outcome evaluation, weak-area reinforcement, and
+adaptive curriculum selection remain active work.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

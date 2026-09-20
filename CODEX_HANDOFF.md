@@ -14,6 +14,29 @@ and the **Current cross-session handoff and Git policy** section below. Historic
 bootstrap instructions describe completed work; use current recovery refs and
 `ROADMAP.md` to continue automatically after each accepted checkpoint.
 
+## Active unaccepted integration work — 2026-09-20
+
+Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
+`integration/astra-friday`; recovery base: `89f37b1`. The tree was clean before
+this slice. The current uncommitted change implements the next Career Forge
+dependency, **governed retention-review delivery**: only a due `scheduled`
+review can be explicitly delivered through the canonical service/API/typed
+presentation client and Progress surface. Delivery returns the deterministic
+competency verification prompt and records `delivered`; it never creates
+evidence, alters mastery, changes a mission, or claims completion. The next
+dependency remains evaluation/weak-area detection, then adaptive reinforcement.
+
+Focused Python coverage passed (35 tests); the full Python regression passed
+(877 tests); focused frontend tests passed (7 tests), and the production
+frontend build passed. The isolated `.venv` now contains the declared
+dev/gateway/coding-agent/RAG test extras. The repository-wide frontend lint gate
+currently fails on five
+pre-existing, unrelated violations in `CanonicalPracticeLab.tsx`,
+`NeuralPresence.tsx`, `Vision.tsx`, and `vision/ui.tsx`; do not classify them as
+this slice's regressions. Next: finish changed-file/frontend validation, review
+the final diff, checkpoint the qualified delivery slice, then begin governed
+review evaluation and weak-area detection.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

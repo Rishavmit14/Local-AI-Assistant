@@ -366,6 +366,14 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
         json={"mastery": "recognize", "evidence_id": evidence.json()["evidence_id"]},
     )
     assert advanced.json()["mastery"] == "recognize"
+    review = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
+    delivered = client.post(f"/api/v1/career-forge/retention-reviews/{review.review_id}/deliver")
+    assert delivered.status_code == 200
+    assert delivered.json()["review"]["state"] == "delivered"
+    assert "mutable default" in delivered.json()["prompt"].lower()
+    assert client.post(f"/api/v1/career-forge/retention-reviews/{review.review_id}/deliver").status_code == 409
     assert client.post(f"/api/v1/career-forge/missions/{mission_id}/project").status_code == 409
 
 
@@ -806,6 +814,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/perception/screen/captures/{capture_id}/ui-state",
         "/api/v1/perception/screen/captures/{capture_id}/visual-labels",
         "/api/v1/career-forge/journey",
+        "/api/v1/career-forge/retention-reviews/{review_id}/deliver",
         "/api/v1/career-forge/missions",
         "/api/v1/career-forge/missions/{mission_id}/project",
         "/api/v1/career-forge/missions/{mission_id}/resume",

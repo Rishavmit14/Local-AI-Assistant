@@ -367,7 +367,7 @@ class CareerForgeService:
         retries = tuple(item for item in attempts if item.retry_needed)
         reviews = self.retention_reviews(limit=limit)
         evidenced = tuple(item for item in self.competencies() if item.mastery is not MasteryLevel.UNVERIFIED)
-        due_review = next((item for item in reviews if item.due_at <= _now()), None)
+        due_review = next((item for item in reviews if item.state == "scheduled" and item.due_at <= _now()), None)
         if due_review:
             next_action = f"Complete the scheduled retention review for '{self.graph[due_review.competency_id].title}'."
         elif active and any(item.mission_id == active.mission_id for item in retries):
@@ -400,9 +400,37 @@ class CareerForgeService:
         with self._db() as db:
             rows = db.execute(
                 "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at "
-                "FROM retention_reviews WHERE state='scheduled' ORDER BY due_at LIMIT ?", (limit,)
+                "FROM retention_reviews WHERE state IN ('scheduled', 'delivered') ORDER BY due_at LIMIT ?", (limit,)
             ).fetchall()
         return tuple(RetentionReview(row[0], row[1], row[2], MasteryLevel(row[3]), row[4], row[5], row[6]) for row in rows)
+
+    def deliver_retention_review(self, review_id: str) -> tuple[RetentionReview, str]:
+        """Deliver one due review without creating evidence or changing mastery."""
+        if not isinstance(review_id, str) or not review_id.strip():
+            raise ValueError("review ID is required")
+        now = _now()
+        with self._db() as db:
+            row = db.execute(
+                "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at "
+                "FROM retention_reviews WHERE review_id=?", (review_id,)
+            ).fetchone()
+            if row is None:
+                raise KeyError(review_id)
+            review = RetentionReview(row[0], row[1], row[2], MasteryLevel(row[3]), row[4], row[5], row[6])
+            if review.state != "scheduled":
+                raise ValueError("retention review has already been delivered")
+            if review.due_at > now:
+                raise ValueError("retention review is not due")
+            changed = db.execute(
+                "UPDATE retention_reviews SET state='delivered' WHERE review_id=? AND state='scheduled'",
+                (review.review_id,),
+            ).rowcount
+            if changed != 1:  # defensive against a competing local delivery
+                raise ValueError("retention review is no longer available")
+        delivered = RetentionReview(review.review_id, review.competency_id, review.evidence_id,
+                                    review.mastery, review.due_at, "delivered", review.created_at)
+        prompt = mission_brief(self.graph[review.competency_id]).verification
+        return delivered, prompt
 
     def evaluate_attempt(self, attempt_id: str, evaluation: AttemptEvaluation, feedback: str, *,
                          evidence_type: str | None = None) -> LessonAttempt:

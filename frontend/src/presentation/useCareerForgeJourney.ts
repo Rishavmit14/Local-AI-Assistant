@@ -9,6 +9,7 @@ export interface CareerForgeJourneyState {
   journey: CareerForgeJourney | null;
   error: string | null;
   reload(): void;
+  deliverReview(reviewId: string): Promise<string>;
 }
 
 /** Reads the one Career Forge projection; it never substitutes fixtures. */
@@ -34,5 +35,10 @@ export function useCareerForgeJourney(): CareerForgeJourneyState {
   }, [revision]);
 
   const reload = useCallback(() => { setState("loading"); setError(null); setRevision((value) => value + 1); }, []);
-  return { state, journey, error, reload };
+  const deliverReview = useCallback(async (reviewId: string) => {
+    const delivered = await presentation.current.deliverRetentionReview(reviewId);
+    reload();
+    return delivered.prompt;
+  }, [reload]);
+  return { state, journey, error, reload, deliverReview };
 }

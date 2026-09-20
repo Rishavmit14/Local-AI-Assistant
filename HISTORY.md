@@ -1,5 +1,15 @@
 # Project History
 
+## 2026-09-20 — Governed Career Forge retention-review delivery candidate
+
+Due evidence-linked reviews can now be delivered exactly once through the local
+Career Forge service, presentation API, typed frontend client, and canonical
+Progress surface. Delivery records `delivered` and returns a deterministic
+competency verification prompt; it cannot create evidence, alter mastery, alter
+mission state, or claim review completion. Focused Python coverage (35 tests),
+focused frontend coverage (7 tests), and the production frontend build passed.
+Outcome evaluation, weak-area detection, and adaptive reinforcement remain next.
+
 ## 2026-09-20 — Career Forge evidence-linked retention queue candidate
 
 The Learner Twin now schedules one local review only after an explicit,

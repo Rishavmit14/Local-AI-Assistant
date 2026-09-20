@@ -59,6 +59,25 @@ def test_retention_review_is_evidence_backed_and_does_not_claim_completion(tmp_p
     assert review.due_at > review.created_at
 
 
+def test_due_retention_review_is_delivered_once_without_changing_mastery_or_evidence(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    review = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
+
+    delivered, prompt = forge.deliver_retention_review(review.review_id)
+
+    assert delivered.state == "delivered"
+    assert "mutable default" in prompt.lower()
+    assert forge.competencies()[0].mastery is MasteryLevel.RECOGNIZE
+    assert forge.evidence_history()[0].evidence_id == evidence
+    with pytest.raises(ValueError, match="already been delivered"):
+        forge.deliver_retention_review(review.review_id)
+
+
 def test_mission_loop_and_progressive_assistance_preserve_independence_context(tmp_path):
     forge = CareerForgeService(tmp_path / "learner.sqlite3")
     mission = forge.start_mission("se.python", "Verify Python")

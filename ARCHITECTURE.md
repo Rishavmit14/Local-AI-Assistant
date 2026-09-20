@@ -216,8 +216,11 @@ only governed Career Forge records are durable learning history.
 
 Evidence-backed mastery advancement also schedules one bounded local retention
 review. The due interval is deterministic by the newly recorded mastery rung;
-the review stays scheduled until later governed review work evaluates it. Queue
-state has no authority to complete a review or advance mastery.
+the review stays scheduled until the owner explicitly delivers it through the
+canonical local service/API/Progress surface. Delivery returns the deterministic
+competency verification prompt and records only `delivered`. Queue and delivery
+state have no authority to create evidence, complete a review, or advance
+mastery; evaluation and weak-area detection remain separate governed work.
 
 ### Astra presentation integration foundation
 

@@ -137,10 +137,13 @@ the temporary conversation; the Learner Twin retains the active mission,
 ordered attempts, assistance, feedback, evidence, and resume point.
 
 Each explicit one-rung mastery advancement now creates one evidence-linked local
-retention review. The deterministic interval increases with the recorded rung;
-the scheduled review remains `scheduled` until a later governed review flow
-records its outcome. Queueing a review cannot advance mastery, imply retention,
-or replace a new evidence-bearing assessment.
+retention review. The deterministic interval increases with the recorded rung.
+When due, the owner can explicitly deliver it through the same local Career
+Forge boundary; delivery records only `delivered` and returns the deterministic
+competency verification prompt. Neither queueing nor delivery can advance
+mastery, create evidence, imply retention, or replace a new evidence-bearing
+assessment. Outcome evaluation, weak-area detection, and reinforcement remain
+separate active work.
 
 ## Conversation capability handoff
 

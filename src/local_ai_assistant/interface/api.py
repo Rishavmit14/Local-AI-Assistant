@@ -502,6 +502,14 @@ def create_presentation_app(
             "progress": _career_progress_payload(progress),
         }
 
+    @app.post("/api/v1/career-forge/retention-reviews/{review_id}/deliver")
+    def career_deliver_retention_review(review_id: str):
+        try:
+            review, prompt = owner_career_forge().deliver_retention_review(review_id)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"review": asdict(review), "prompt": prompt}
+
     @app.post("/api/v1/career-forge/missions")
     async def career_start_mission(request: Request):
         try:

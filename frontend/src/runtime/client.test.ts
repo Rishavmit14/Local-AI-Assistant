@@ -79,4 +79,20 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       body: "{}",
     }));
   });
+
+  it("delivers an explicit retention review through the bounded endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      review: { review_id: "review 1", competency_id: "se.python", evidence_id: "e1", mastery: "recognize", due_at: "2000-01-01T00:00:00Z", state: "delivered", created_at: "now" },
+      prompt: "Explain the mutable-default behavior.",
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new FridayRuntimeClient().deliverRetentionReview("review 1")).resolves.toMatchObject({
+      review: { state: "delivered" },
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/career-forge/retention-reviews/review%201/deliver",
+      { method: "POST" },
+    );
+  });
 });
