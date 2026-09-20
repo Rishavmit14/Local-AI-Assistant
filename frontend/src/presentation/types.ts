@@ -55,5 +55,6 @@ export interface FridayPresentationActions {
   refreshCareerForge(): Promise<void>;
   beginDependencyReadyMission(): Promise<void>;
   startCareerReinforcement(competencyId: string): Promise<unknown>;
+  linkCareerMissionProject(missionId: string): Promise<void>;
   openPracticeLab(): Promise<void>;
 }

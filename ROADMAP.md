@@ -814,8 +814,14 @@ mission, teaches the weak competency through the existing mission/tutor/evidence
 loop, and resumes the preserved mission after an explicit evidence-backed rung
 advancement completes reinforcement. The action never lowers or advances
 mastery by itself, and a newer correct retention outcome clears historical
-retention weakness. PROJECTS integration is the next retained Career Forge
-surface dependency.
+retention weakness.
+
+The canonical PROJECTS workspace is now connected to those same Learner Twin
+records. It renders the four evolving hardware-aware families, recorded mission
+and competency links, and an explicit connect action only for the active
+mission's declared family. Linking remains learning context and grants no
+mastery, execution, repository, GitHub, or publication authority. Interview
+Mode is the next retained Career Forge surface dependency.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

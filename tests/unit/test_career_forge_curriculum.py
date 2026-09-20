@@ -243,3 +243,7 @@ def test_project_link_is_local_and_limited_to_the_missions_canonical_family(tmp_
     assert forge.project_links() == (linked,)
     with pytest.raises(ValueError, match="already linked"):
         forge.link_project(fraud.mission_id)
+    with forge._db() as db:
+        db.execute("UPDATE missions SET state='completed' WHERE mission_id=?", (fraud.mission_id,))
+    with pytest.raises(ValueError, match="only an active mission"):
+        forge.link_project(fraud.mission_id)

@@ -1,0 +1,20 @@
+.canonical-project-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 28px 0;
+}
+.canonical-project {
+  padding: 22px;
+  border: 1px solid var(--learning-line);
+  background: #0d141f;
+}
+.canonical-project h3 { margin: 9px 0; font-size: 18px; font-weight: 450; color: #dbe2f0; }
+.canonical-project > p { min-height: 48px; font-size: 12px; line-height: 1.7; color: #8796ad; }
+.canonical-project dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0 8px; }
+.canonical-project dl > div { display: grid; gap: 5px; }
+.canonical-project dt { font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: #66758e; }
+.canonical-project dd { margin: 0; font-size: 11px; line-height: 1.5; color: #aab6c9; }
+.canonical-project-boundary { margin: 10px 0 24px; padding: 16px; border-left: 2px solid #5d5260; background: #10151e; }
+.canonical-project-boundary p { margin: 0; font-size: 11px; line-height: 1.7; color: #8d96a7; }
+@media (max-width: 680px) { .canonical-project-grid { grid-template-columns: 1fr; } }

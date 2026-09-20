@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-20 — Canonical Career Forge PROJECTS workspace candidate
+
+Astra now exposes PROJECTS as a connected Career Forge workspace rather than a
+prototype count. It renders the four canonical hardware-aware project families,
+their recorded mission and competency links, and an explicit connect action only
+for the active mission's declared family. The service now rejects project links
+for completed missions. Linking remains local learning context with no mastery,
+execution, repository, GitHub, or publication authority.
+Focused validation passes 39 Python tests and 12 frontend tests; changed-file
+lint, the production frontend build, and full repository verification with 882
+Python tests also pass.
+
 ## 2026-09-20 — Career Forge adaptive reinforcement candidate
 
 Friday can now turn a currently evidence-backed weak competency into an explicit

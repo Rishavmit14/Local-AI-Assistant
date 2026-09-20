@@ -646,6 +646,8 @@ class CareerForgeService:
     def link_project(self, mission_id: str) -> ProjectLink:
         """Attach a mission only to its canonical evolving project family."""
         mission = self.mission(mission_id)
+        if mission.state != "active":
+            raise ValueError("only an active mission can be linked to a project")
         project_name = self.graph[mission.competency_id].project_family
         if project_name is None:
             raise ValueError("mission has no canonical project family")

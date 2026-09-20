@@ -254,6 +254,12 @@ not proof of mastery, a Git operation, an execution request, or publication
 authority; mission families without a canonical project cannot be attached
 arbitrarily.
 
+The Astra PROJECTS workspace consumes the same journey projection. It shows all
+four canonical families even before any work is linked, derives counts and
+competencies only from stored mission links, and offers a connect action only
+for the active mission's declared family. Completed missions cannot be linked
+after the fact through this boundary.
+
 ## V1 success
 
 An owner can invoke learning, receive correct prerequisite verification and a

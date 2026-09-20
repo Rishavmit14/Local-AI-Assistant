@@ -214,6 +214,13 @@ progress/history questions deterministically rather than asking Qwen to invent
 learning state. Current-session questions remain temporary conversation context;
 only governed Career Forge records are durable learning history.
 
+The canonical PROJECTS workspace is another projection of this same journey.
+It always shows the four hardware-aware project families and their recorded
+mission/competency links. Only the active mission may be explicitly connected,
+and only to the project family declared by its competency. The action records
+learning context; it grants no execution, repository, GitHub, publication, or
+mastery authority.
+
 Evidence-backed mastery advancement also schedules one bounded local retention
 review. The due interval is deterministic by the newly recorded mastery rung;
 the review stays scheduled until the owner explicitly delivers it through the
@@ -251,6 +258,8 @@ next action, and evidence/assistance counts; Practice Lab uses the existing
 draft, Run/Test/Submit, hint, and attempt endpoints; MAP renders the canonical
 competency graph, prerequisites, and recorded mastery; and PROGRESS renders the
 canonical next action, attempts/retries, assistance, evidence, and history.
+PROJECTS renders canonical project families and exposes the existing bounded
+active-mission link action.
 Unavailable API state remains unavailable rather than becoming a fixture. There
 is no second frontend store, session owner, or Career Forge persistence layer.
 The first Stage 14 cinematic projection calls only the existing local journey and
