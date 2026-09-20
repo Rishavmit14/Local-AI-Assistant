@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`4f00720`. The
+`57f2ea8`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -171,7 +171,7 @@ consistency and repository verification pass; the remote integration branch was
 verified at the exact capability commit. Next: trusted curriculum research through
 the existing local research ledger.
 
-Trusted curriculum research is implemented in the current worktree. The Career
+Trusted curriculum research is accepted and published at `57f2ea8`. The Career
 Forge API deterministically compares canonical competency titles with explicit
 provenance-bearing sources in Friday's existing local research ledger; MAP shows
 active-domain coverage and source counts. Source content stays behind the
@@ -179,7 +179,7 @@ research boundary, and results cannot mutate the graph, mission ordering,
 evidence, or mastery. Focused validation passes 38 Python tests, 15 frontend
 runtime tests, changed-file lint, and the production frontend build. Full
 repository verification passes with 895 Python tests and dependency consistency;
-the recovery checkpoint remains pending. Next:
+the remote integration branch was verified at the exact capability commit. Next:
 evidence-positive cognitive-improvement evaluation across the completed loop.
 
 ## 0. Non-negotiable project rules
