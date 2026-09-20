@@ -1,5 +1,15 @@
 # Project History
 
+## 2026-09-20 — Career Forge evidence-linked retention queue candidate
+
+The Learner Twin now schedules one local review only after an explicit,
+evidence-backed mastery-rung advancement. The interval is deterministic by rung
+and the record stays scheduled; no queue entry marks retention complete or
+changes mastery. Deterministic Career Forge/API coverage passed alongside the
+focused frontend projection test and production build. This is an isolated
+candidate: governed review completion, weak-area reinforcement, and adaptive
+progression remain to be integrated.
+
 ## 2026-09-20 — Astra canonical MAP and PROGRESS integration candidate
 
 The isolated `integration/astra-friday` candidate now renders Career Forge MAP

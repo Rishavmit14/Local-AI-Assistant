@@ -1933,3 +1933,14 @@ live Friday service's persisted map and progress. No canonical production files,
 including its Pocket/Anna TTS work, were changed. Next dependency: retention and
 review scheduling over the existing Learner Twin; preserve this branch isolation
 until a deliberate reconciliation is qualified.
+
+## Career Forge retention queue candidate (2026-09-20)
+
+`CareerForgeService` now stores a single evidence-linked scheduled retention
+review on each explicit one-rung mastery advancement. The due time uses a
+deterministic progressive interval and is exposed through the existing journey
+progress projection. A scheduled queue item has no completion or mastery
+authority. Python Career Forge/API tests passed, as did the focused Astra test
+and production build. The production service was not restarted because this
+remains an isolated integration branch; next work is governed review delivery,
+evaluation, weak-area detection, and adaptive selection.

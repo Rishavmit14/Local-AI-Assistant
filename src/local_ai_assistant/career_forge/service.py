@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from .curriculum import COMPETENCY_GRAPH_VERSION, competency_graph
@@ -103,6 +103,17 @@ class LearningHistoryItem:
 
 
 @dataclass(frozen=True, slots=True)
+class RetentionReview:
+    review_id: str
+    competency_id: str
+    evidence_id: str
+    mastery: MasteryLevel
+    due_at: str
+    state: str
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
 class CareerForgeProgress:
     active_mission: Mission | None
     recent_attempts: tuple[LessonAttempt, ...]
@@ -110,6 +121,7 @@ class CareerForgeProgress:
     evidence: tuple[EvidenceRecord, ...]
     evidenced_competencies: tuple[LearnerCompetency, ...]
     unresolved_retries: tuple[LessonAttempt, ...]
+    retention_reviews: tuple[RetentionReview, ...]
     next_action: str
     history: tuple[LearningHistoryItem, ...]
 
@@ -167,6 +179,13 @@ class CareerForgeService:
                 );
                 CREATE INDEX IF NOT EXISTS lesson_attempts_mission_order
                     ON lesson_attempts(mission_id, attempt_order);
+                CREATE TABLE IF NOT EXISTS retention_reviews (
+                    review_id TEXT PRIMARY KEY, competency_id TEXT NOT NULL,
+                    evidence_id TEXT NOT NULL UNIQUE, mastery TEXT NOT NULL,
+                    due_at TEXT NOT NULL, state TEXT NOT NULL, created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS retention_reviews_due
+                    ON retention_reviews(state, due_at);
                 """
             )
             for item in self.graph.values():
@@ -346,8 +365,12 @@ class CareerForgeService:
         evidence = self.evidence_history(limit=limit)
         active = self.resume()
         retries = tuple(item for item in attempts if item.retry_needed)
+        reviews = self.retention_reviews(limit=limit)
         evidenced = tuple(item for item in self.competencies() if item.mastery is not MasteryLevel.UNVERIFIED)
-        if active and any(item.mission_id == active.mission_id for item in retries):
+        due_review = next((item for item in reviews if item.due_at <= _now()), None)
+        if due_review:
+            next_action = f"Complete the scheduled retention review for '{self.graph[due_review.competency_id].title}'."
+        elif active and any(item.mission_id == active.mission_id for item in retries):
             next_action = f"Retry the active mission '{active.title}' using its recorded feedback."
         elif active:
             next_action = f"Continue the active mission '{active.title}' from its recorded resume point."
@@ -369,7 +392,17 @@ class CareerForgeService:
             for item in evidence
         ]
         history.sort(key=lambda item: item.occurred_at, reverse=True)
-        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, next_action, tuple(history[:limit]))
+        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, next_action, tuple(history[:limit]))
+
+    def retention_reviews(self, *, limit: int = 20) -> tuple[RetentionReview, ...]:
+        if not 1 <= limit <= 100:
+            raise ValueError("review limit must be between 1 and 100")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at "
+                "FROM retention_reviews WHERE state='scheduled' ORDER BY due_at LIMIT ?", (limit,)
+            ).fetchall()
+        return tuple(RetentionReview(row[0], row[1], row[2], MasteryLevel(row[3]), row[4], row[5], row[6]) for row in rows)
 
     def evaluate_attempt(self, attempt_id: str, evaluation: AttemptEvaluation, feedback: str, *,
                          evidence_type: str | None = None) -> LessonAttempt:
@@ -464,7 +497,7 @@ class CareerForgeService:
             raise KeyError(competency_id)
         with self._db() as db:
             row = db.execute(
-                "SELECT learner_competencies.mastery, missions.competency_id FROM mission_evidence "
+                "SELECT learner_competencies.mastery, missions.competency_id, mission_evidence.created_at FROM mission_evidence "
                 "JOIN missions ON missions.mission_id=mission_evidence.mission_id "
                 "JOIN learner_competencies ON learner_competencies.competency_id=missions.competency_id "
                 "WHERE mission_evidence.evidence_id=?",
@@ -479,6 +512,13 @@ class CareerForgeService:
             db.execute(
                 "UPDATE learner_competencies SET mastery=?, updated_at=? WHERE competency_id=?",
                 (level, _now(), competency_id),
+            )
+            evidence_at = datetime.fromisoformat(row[2]).astimezone(UTC)
+            interval_days = (1, 3, 7, 14, 30, 60, 90)[tuple(MasteryLevel).index(level)]
+            db.execute(
+                "INSERT OR IGNORE INTO retention_reviews VALUES(?,?,?,?,?,?,?)",
+                ("review_" + uuid.uuid4().hex, competency_id, evidence_id, level,
+                 (evidence_at + timedelta(days=interval_days)).isoformat(), "scheduled", _now()),
             )
             db.execute(
                 "UPDATE missions SET state='completed', updated_at=? WHERE mission_id=("

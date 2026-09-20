@@ -214,6 +214,11 @@ progress/history questions deterministically rather than asking Qwen to invent
 learning state. Current-session questions remain temporary conversation context;
 only governed Career Forge records are durable learning history.
 
+Evidence-backed mastery advancement also schedules one bounded local retention
+review. The due interval is deterministic by the newly recorded mastery rung;
+the review stays scheduled until later governed review work evaluates it. Queue
+state has no authority to complete a review or advance mastery.
+
 ### Astra presentation integration foundation
 
 The Astra visual workspace consumes Friday only through `frontend/src/presentation`:

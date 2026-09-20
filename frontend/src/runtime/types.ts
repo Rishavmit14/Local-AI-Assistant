@@ -157,6 +157,7 @@ export interface CareerForgeJourney {
     evidence: Array<{ evidence_type: string; competency_id: string; assistance_level: string | null; created_at: string }>;
     evidenced_competencies: CareerForgeCompetency[];
     unresolved_retries: Array<{ question_id: string; feedback: string | null }>;
+    retention_reviews: Array<{ review_id: string; competency_id: string; evidence_id: string; mastery: string; due_at: string; state: string; created_at: string }>;
     next_action: string;
     history: Array<{ occurred_at: string; kind: string; summary: string; retry_needed: boolean }>;
   };

@@ -39,6 +39,24 @@ def test_learner_twin_starts_unverified_and_resumes_exact_mission_state(tmp_path
     assert updated.resume_point["phase"] == "independent_attempt"
     promoted = forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
     assert promoted.mastery is MasteryLevel.RECOGNIZE
+    reviews = forge.retention_reviews()
+    assert len(reviews) == 1
+    assert reviews[0].competency_id == "se.python"
+    assert reviews[0].evidence_id == evidence
+    assert reviews[0].mastery is MasteryLevel.RECOGNIZE
+    assert reviews[0].state == "scheduled"
+
+
+def test_retention_review_is_evidence_backed_and_does_not_claim_completion(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+
+    review = forge.progress().retention_reviews[0]
+    assert review.evidence_id == evidence
+    assert review.state == "scheduled"
+    assert review.due_at > review.created_at
 
 
 def test_mission_loop_and_progressive_assistance_preserve_independence_context(tmp_path):

@@ -136,6 +136,12 @@ existing explicit one-rung matching-evidence decision. Stop/restart clears only
 the temporary conversation; the Learner Twin retains the active mission,
 ordered attempts, assistance, feedback, evidence, and resume point.
 
+Each explicit one-rung mastery advancement now creates one evidence-linked local
+retention review. The deterministic interval increases with the recorded rung;
+the scheduled review remains `scheduled` until a later governed review flow
+records its outcome. Queueing a review cannot advance mastery, imply retention,
+or replace a new evidence-bearing assessment.
+
 ## Conversation capability handoff
 
 Stage 22 Slice 2 places one deterministic, typed conversation-capability router
