@@ -35,7 +35,7 @@ pre-existing, unrelated violations in `CanonicalPracticeLab.tsx`,
 this slice's regressions. The active dependency is governed review evaluation
 and weak-area detection, followed by adaptive reinforcement/progression.
 
-Active uncommitted work now implements that review-evaluation/weak-area slice:
+The review-evaluation/weak-area slice is accepted and published at `36db030`:
 SQLite migrates existing review queues with private response/outcome fields;
 the existing local-Qwen conversation lease performs bounded assessment; journey
 state excludes private answers; current weaknesses derive only from failed or
@@ -44,8 +44,8 @@ resume a delivered prompt after refresh, submit the explicit answer, and show
 the evidence reasons. Qualification passes 53 affected Python tests, 9 focused
 frontend tests, changed-file lint, the frontend production build, and full
 repository verification with 879 Python tests plus dependency consistency.
-Next: checkpoint this slice, then implement adaptive reinforcement/progression
-without automatic mastery mutation.
+The active dependency is adaptive reinforcement/progression without automatic
+mastery mutation.
 
 ## 0. Non-negotiable project rules
 
