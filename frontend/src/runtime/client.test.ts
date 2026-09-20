@@ -109,4 +109,26 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       expect.objectContaining({ method: "POST", body: JSON.stringify({ response: "My answer" }) }),
     );
   });
+
+  it("starts reinforcement only for the selected evidence-backed weakness", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      mission: {
+        mission_id: "mission_reinforce",
+        competency_id: "se.python",
+        title: "Reinforce Python foundations",
+        state: "active",
+        resume_point: { reinforcement: true },
+        assistance_level: null,
+      },
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new FridayRuntimeClient().startCareerReinforcement("se.python")).resolves.toMatchObject({
+      resume_point: { reinforcement: true },
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/career-forge/reinforcement",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ competency_id: "se.python" }) }),
+    );
+  });
 });

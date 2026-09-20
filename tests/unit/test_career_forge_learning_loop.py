@@ -4,6 +4,7 @@ from local_ai_assistant.career_forge import (
     CareerForgeLearningLoop,
     CareerForgeService,
     LessonPhase,
+    MasteryLevel,
     TutorMode,
 )
 
@@ -103,6 +104,17 @@ def test_short_conversational_aside_is_not_an_assessed_attempt(tmp_path):
 
     assert loop.prepare("Guess what?", mode=f"career_forge:explain:{mission.mission_id}") is None
     assert not forge.attempts(mission.mission_id)
+
+
+def test_completed_mission_cannot_reenter_learning_loop(tmp_path):
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(mission.mission_id, "teach_back", "Explained shared defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+
+    assert CareerForgeLearningLoop(forge).prepare(
+        "Give me a hint", mode=f"career_forge:hint:{mission.mission_id}",
+    ) is None
 
 
 def test_progress_projection_is_canonical_bounded_and_survives_restart(tmp_path):

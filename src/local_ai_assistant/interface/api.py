@@ -32,15 +32,15 @@ from local_ai_assistant.gateway.auth import (
     GatewayRateLimiter,
 )
 from local_ai_assistant.gateway.models import GatewayScope
+from local_ai_assistant.isolation.errors import SandboxUnavailableError
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
 from local_ai_assistant.proactive import ProactiveEventEngine
 from local_ai_assistant.research import ResearchService
-from local_ai_assistant.isolation.errors import SandboxUnavailableError
 
-from .conversation import FridayConversationService
 from .capabilities import FridayCapabilityRegistry
+from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
 from .runtime import FridayRuntime
 
@@ -581,6 +581,19 @@ def create_presentation_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"mission": asdict(mission), "loop": forge.mission_loop(mission.mission_id)}
 
+    @app.post("/api/v1/career-forge/reinforcement")
+    async def career_start_reinforcement(request: Request):
+        try:
+            body = await request.json()
+            competency_id = body.get("competency_id")
+            if competency_id is not None and not isinstance(competency_id, str):
+                raise ValueError("competency ID must be a string")
+            forge = owner_career_forge()
+            mission = forge.start_reinforcement(competency_id)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"mission": asdict(mission), "loop": forge.mission_loop(mission.mission_id)}
+
     @app.post("/api/v1/career-forge/missions/{mission_id}/project")
     def career_link_project(mission_id: str):
         try:
@@ -643,9 +656,9 @@ def create_presentation_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         if not isinstance(message, str) or not message.strip() or len(message) > max_prompt_chars:
             raise HTTPException(status_code=400, detail="bounded tutor message is required")
-        brief = owner_career_forge().next_mission_brief()
-        if brief is None or brief.competency_id != mission.competency_id:
+        if mission.state != "active":
             raise HTTPException(status_code=409, detail="mission is not currently teachable")
+        brief = owner_career_forge().mission_brief_for(mission.competency_id)
         lease = interaction_coordinator.try_acquire("presentation")
         if lease is None:
             raise HTTPException(status_code=409, detail="interaction busy")

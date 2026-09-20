@@ -807,6 +807,16 @@ remain local and unprojected; mastery never decreases automatically. The
 canonical next action prioritizes due/delivered reviews and evidence-backed weak
 areas. Adaptive reinforcement mission construction remains next.
 
+Adaptive reinforcement is now connected through the canonical service, API,
+typed presentation adapter, and PROGRESS surface. Only a currently derived weak
+competency can start reinforcement. Friday preserves any interrupted advanced
+mission, teaches the weak competency through the existing mission/tutor/evidence
+loop, and resumes the preserved mission after an explicit evidence-backed rung
+advancement completes reinforcement. The action never lowers or advances
+mastery by itself, and a newer correct retention outcome clears historical
+retention weakness. PROJECTS integration is the next retained Career Forge
+surface dependency.
+
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and
 advanced organization-hierarchy visualization remain deferred unless the owner

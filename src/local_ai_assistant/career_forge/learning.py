@@ -30,6 +30,8 @@ class CareerForgeLearningLoop:
             return None
         _, mode_name, mission_id = mode.split(":", 2)
         mission = self.service.mission(mission_id)
+        if mission.state != "active":
+            return None
         tutor_mode = TutorMode(mode_name)
         text = prompt.strip().lower()
         phase = str(mission.resume_point.get("phase", "why_it_matters"))
@@ -123,8 +125,8 @@ class CareerForgeLearningLoop:
         return levels[0] if current is None else levels[min(levels.index(current) + 1, len(levels) - 1)]
 
     def _assistance_response(self, mission: Mission, level: AssistanceLevel, *, withhold_answer: bool) -> str:
-        brief = self.service.next_mission_brief()
-        mental_model = brief.mental_model if brief and brief.competency_id == mission.competency_id else "Return to the concept's mechanism before choosing an answer."
+        brief = self.service.mission_brief_for(mission.competency_id)
+        mental_model = brief.mental_model
         responses = {
             AssistanceLevel.PROMPT: "Hint: make a prediction before changing anything. What object exists before either function call?",
             AssistanceLevel.CONCEPTUAL_HINT: f"Conceptual hint: {mental_model}",

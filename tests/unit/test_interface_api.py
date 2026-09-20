@@ -1,18 +1,22 @@
 import asyncio
+import hashlib
 import json
 import threading
-import hashlib
 
 from fastapi.testclient import TestClient
 
 from local_ai_assistant.autonomy import ObjectiveService
-from local_ai_assistant.career_forge import CareerForgeService, PracticeLabService, TutorMode
+from local_ai_assistant.career_forge import CareerForgeService, TutorMode
 from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
 from local_ai_assistant.interface.api import create_presentation_app
+from local_ai_assistant.interface.capabilities import (
+    CapabilityStatus,
+    FridayCapability,
+    FridayCapabilityRegistry,
+)
 from local_ai_assistant.interface.conversation import FridayConversationService
-from local_ai_assistant.interface.capabilities import CapabilityStatus, FridayCapability, FridayCapabilityRegistry
 from local_ai_assistant.interface.events import FridayEventType
 from local_ai_assistant.interface.interaction import FridayInteractionCoordinator
 from local_ai_assistant.interface.runtime import FridayRuntime
@@ -61,8 +65,6 @@ def test_objective_planning_keeps_health_and_cancellation_responsive(tmp_path):
     entered = threading.Event()
     cancelled = threading.Event()
     observed_cancellation = []
-    task_id = "task_" + "a" * 20
-
     def plan(_task_id):
         entered.set()
         observed_cancellation.append(cancelled.wait(3))
@@ -385,6 +387,17 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     assert evaluated.json()["review"]["evaluation"] == "uncertain"
     assert evaluated.json()["weak_areas"][0]["competency_id"] == "se.python"
     assert "response" not in evaluated.json()["review"]
+    reinforced = client.post(
+        "/api/v1/career-forge/reinforcement",
+        json={"competency_id": "se.python"},
+    )
+    assert reinforced.status_code == 200
+    assert reinforced.json()["mission"]["title"] == "Reinforce Python foundations"
+    assert reinforced.json()["mission"]["resume_point"]["reinforcement"] is True
+    assert client.get("/api/v1/career-forge/journey").json()["current_mission"]["mission_id"] == reinforced.json()["mission"]["mission_id"]
+    assert client.post(
+        "/api/v1/career-forge/reinforcement", json={"competency_id": "se.python"},
+    ).status_code == 409
     assert client.post(f"/api/v1/career-forge/missions/{mission_id}/project").status_code == 409
 
 
@@ -827,6 +840,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/journey",
         "/api/v1/career-forge/retention-reviews/{review_id}/deliver",
         "/api/v1/career-forge/retention-reviews/{review_id}/evaluate",
+        "/api/v1/career-forge/reinforcement",
         "/api/v1/career-forge/missions",
         "/api/v1/career-forge/missions/{mission_id}/project",
         "/api/v1/career-forge/missions/{mission_id}/resume",

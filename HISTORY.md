@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-20 — Career Forge adaptive reinforcement candidate
+
+Friday can now turn a currently evidence-backed weak competency into an explicit
+canonical reinforcement mission without changing mastery. The mission records
+its reasons and interrupted mission, reuses the existing tutor/evidence gates,
+and returns to the preserved advanced mission after an explicit evidence-backed
+rung advancement completes reinforcement. Historical failed reviews cease to be
+current weakness after a later correct retention outcome. The canonical API,
+typed frontend client, and PROGRESS action share this boundary; focused Python
+tests, changed-file lint, focused frontend tests, the production build, and full
+repository verification with 882 Python tests pass.
+
 ## 2026-09-20 — Career Forge review evaluation and weak-area candidate
 
 Friday can now evaluate an explicitly delivered retention answer through the

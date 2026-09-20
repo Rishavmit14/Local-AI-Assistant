@@ -142,8 +142,12 @@ When due, the owner can explicitly deliver it through the same local Career
 Forge boundary; delivery records only `delivered` and returns the deterministic
 competency verification prompt. Neither queueing nor delivery can advance
 mastery, create evidence, imply retention, or replace a new evidence-bearing
-assessment. Outcome evaluation, weak-area detection, and reinforcement remain
-separate active work.
+assessment. Outcome evaluation and weak-area detection remain governed inputs.
+An explicit reinforcement action may create a canonical mission only for a
+currently evidence-backed weak competency. Its resume state records the reasons
+and the interrupted mission, while mastery remains unchanged. Reinforcement
+reuses the existing tutor/evidence/one-rung advancement gates; completing it
+restores the preserved newer-topic mission as the current resume target.
 
 The next governed slice evaluates an explicit delivered answer through Friday's
 existing local-Qwen conversation and interaction boundary. Only a bounded
@@ -153,6 +157,9 @@ derived from incorrect/uncertain completed retention reviews and the latest
 still-failing attempt for a mission question. Historical retries resolved by a
 later correct attempt are not current weakness. Recorded assistance is visible
 context but cannot independently label a competency weak or change mastery.
+Only the latest completed retention outcome determines whether historical
+retention failures remain a current weakness; unresolved latest mission attempts
+remain independently actionable.
 
 ## Conversation capability handoff
 

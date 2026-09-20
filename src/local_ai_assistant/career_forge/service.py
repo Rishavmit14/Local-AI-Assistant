@@ -252,6 +252,13 @@ class CareerForgeService:
         item = self.next_competency()
         return mission_brief(item) if item else None
 
+    def mission_brief_for(self, competency_id: str) -> MissionBrief:
+        """Return canonical teaching material for an explicitly selected competency."""
+        try:
+            return mission_brief(self.graph[competency_id])
+        except KeyError:
+            raise KeyError(competency_id) from None
+
     def start_mission(self, competency_id: str, title: str, *, resume_point: dict[str, object] | None = None) -> Mission:
         if competency_id not in self.graph:
             raise KeyError(competency_id)
@@ -260,6 +267,46 @@ class CareerForgeService:
         next_item = self.next_competency()
         if next_item is not None and competency_id != next_item.competency_id:
             raise ValueError("mission is not dependency-appropriate")
+        return self._create_mission(competency_id, title, resume_point=resume_point)
+
+    def start_reinforcement(self, competency_id: str | None = None) -> Mission:
+        """Start a bounded mission only for a currently evidenced weak area.
+
+        This deliberately leaves any newer-topic mission active. Completing the
+        reinforcement therefore makes the interrupted mission resumable again.
+        """
+        areas = self.weak_areas()
+        selected = next(
+            (area for area in areas if competency_id is None or area.competency_id == competency_id),
+            None,
+        )
+        if selected is None:
+            raise ValueError("competency is not a current evidence-backed weak area")
+        active = self.resume()
+        if active is not None and active.competency_id == selected.competency_id:
+            raise ValueError("the weak competency already has an active mission")
+        return self._create_mission(
+            selected.competency_id,
+            f"Reinforce {selected.title}",
+            resume_point={
+                "phase": "prerequisite_verification",
+                "reinforcement": True,
+                "reasons": list(selected.reasons),
+                "interrupted_mission_id": active.mission_id if active else None,
+            },
+        )
+
+    def _create_mission(
+        self,
+        competency_id: str,
+        title: str,
+        *,
+        resume_point: dict[str, object] | None = None,
+    ) -> Mission:
+        if competency_id not in self.graph:
+            raise KeyError(competency_id)
+        if not isinstance(title, str) or not title.strip():
+            raise ValueError("mission title must not be empty")
         now, mission_id = _now(), "mission_" + uuid.uuid4().hex
         with self._db() as db:
             try:
@@ -538,8 +585,17 @@ class CareerForgeService:
             last_seen[item.competency_id] = max(last_seen.get(item.competency_id, ""), item.evaluated_at or item.created_at)
         with self._db() as db:
             review_rows = db.execute(
-                "SELECT competency_id, COUNT(*), MAX(evaluated_at) FROM retention_reviews "
-                "WHERE state='completed' AND evaluation IN ('incorrect', 'uncertain') GROUP BY competency_id"
+                "WITH ranked AS ("
+                "SELECT competency_id, evaluation, evaluated_at, "
+                "ROW_NUMBER() OVER (PARTITION BY competency_id ORDER BY evaluated_at DESC, created_at DESC) AS rank "
+                "FROM retention_reviews WHERE state='completed'"
+                "), failures AS ("
+                "SELECT competency_id, COUNT(*) AS failure_count, MAX(evaluated_at) AS last_failure "
+                "FROM retention_reviews WHERE state='completed' AND evaluation IN ('incorrect', 'uncertain') "
+                "GROUP BY competency_id"
+                ") SELECT failures.competency_id, failures.failure_count, failures.last_failure "
+                "FROM failures JOIN ranked ON ranked.competency_id=failures.competency_id "
+                "WHERE ranked.rank=1 AND ranked.evaluation IN ('incorrect', 'uncertain')"
             ).fetchall()
             assistance_counts = dict(db.execute(
                 "SELECT m.competency_id, COUNT(*) FROM mission_assistance a "

@@ -85,6 +85,17 @@ export class FridayRuntimeClient {
     return body.mission;
   }
 
+  async startCareerReinforcement(competencyId: string): Promise<CareerForgeMission> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/reinforcement`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ competency_id: competencyId }),
+    });
+    if (!response.ok) throw new Error(`Career Forge reinforcement request failed: ${response.status}`);
+    const body = await response.json() as { mission: CareerForgeMission };
+    return body.mission;
+  }
+
   async deliverRetentionReview(reviewId: string): Promise<{ review: CareerForgeJourney["progress"]["retention_reviews"][number]; prompt: string }> {
     const response = await fetch(`${this.baseUrl}/api/v1/career-forge/retention-reviews/${encodeURIComponent(reviewId)}/deliver`, { method: "POST" });
     if (!response.ok) throw new Error(`Retention review delivery failed: ${response.status}`);

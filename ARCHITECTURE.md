@@ -231,6 +231,15 @@ latest still-failing attempt per mission question derive a read-only weak-area
 projection. Assistance is supporting context, never enough by itself to label a
 weakness. The canonical next action prioritizes due/delivered reviews and then
 the strongest evidence-backed weak area without automatically lowering mastery.
+The owner may explicitly start reinforcement only from that current weak-area
+projection. Friday creates a canonical mission for the selected competency,
+records its evidence reasons and any interrupted mission in the resume point,
+and teaches it through the existing mission brief/tutor loop. A newer-topic
+mission remains active but is no longer the newest resume target; after an
+explicit evidence-backed mastery rung completes the reinforcement, resume falls
+back to the preserved mission. No weakness, reinforcement start, or correct
+answer mutates mastery automatically, and a later correct retention outcome
+clears historical retention weakness from the current projection.
 
 ### Astra presentation integration foundation
 

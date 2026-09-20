@@ -47,6 +47,19 @@ repository verification with 879 Python tests plus dependency consistency.
 The active dependency is adaptive reinforcement/progression without automatic
 mastery mutation.
 
+The adaptive reinforcement candidate is implemented in the current worktree.
+Only a currently derived weak competency can create a reinforcement mission;
+its durable resume point records evidence reasons and the interrupted mission.
+The existing tutor, evidence, and explicit one-rung mastery gates remain the
+only progression authority. Completing reinforcement restores the preserved
+newer-topic mission, while a later correct retention outcome clears historical
+retention weakness. The service/API/typed frontend/PROGRESS path is covered by
+47 focused Python tests, 10 focused frontend tests, changed-file lint, and a
+production frontend build. Full repository verification passes with 882 Python
+tests and dependency consistency. The accepted recovery commit remains pending;
+after acceptance, continue immediately with the canonical PROJECTS integration
+dependency.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

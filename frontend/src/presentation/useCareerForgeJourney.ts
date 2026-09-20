@@ -11,6 +11,7 @@ export interface CareerForgeJourneyState {
   reload(): void;
   deliverReview(reviewId: string): Promise<string>;
   evaluateReview(reviewId: string, response: string): Promise<void>;
+  startReinforcement(competencyId: string): Promise<void>;
 }
 
 /** Reads the one Career Forge projection; it never substitutes fixtures. */
@@ -45,5 +46,9 @@ export function useCareerForgeJourney(): CareerForgeJourneyState {
     await presentation.current.evaluateRetentionReview(reviewId, response);
     reload();
   }, [reload]);
-  return { state, journey, error, reload, deliverReview, evaluateReview };
+  const startReinforcement = useCallback(async (competencyId: string) => {
+    await presentation.current.startCareerReinforcement(competencyId);
+    reload();
+  }, [reload]);
+  return { state, journey, error, reload, deliverReview, evaluateReview, startReinforcement };
 }

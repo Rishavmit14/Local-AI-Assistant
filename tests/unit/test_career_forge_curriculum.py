@@ -128,6 +128,70 @@ def test_retention_outcome_derives_weak_area_without_changing_mastery(tmp_path):
         )
 
 
+def test_reinforcement_interrupts_then_resumes_newer_mission_without_automatic_mastery(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    foundation = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(foundation.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    interrupted = forge.start_mission("se.engineering", "Continue software engineering")
+    review = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
+    forge.deliver_retention_review(review.review_id)
+    forge.evaluate_retention_review(
+        review.review_id, "A new default is created each call.",
+        AttemptEvaluation.INCORRECT, "Revisit object creation time.",
+    )
+
+    reinforcement = forge.start_reinforcement("se.python")
+
+    assert reinforcement.title == "Reinforce Python foundations"
+    assert reinforcement.resume_point == {
+        "phase": "prerequisite_verification",
+        "reinforcement": True,
+        "reasons": ["1 failed retention review"],
+        "interrupted_mission_id": interrupted.mission_id,
+    }
+    assert forge.resume() == reinforcement
+    assert forge.competencies()[0].mastery is MasteryLevel.RECOGNIZE
+    with pytest.raises(ValueError, match="already has an active mission"):
+        forge.start_reinforcement("se.python")
+
+    reinforcement_evidence = forge.record_evidence(
+        reinforcement.mission_id, "teach_back", "Explained default object lifetime independently.",
+    )
+    forge.advance_mastery("se.python", MasteryLevel.EXPLAIN, evidence_id=reinforcement_evidence)
+
+    assert forge.mission(reinforcement.mission_id).state == "completed"
+    assert forge.resume().mission_id == interrupted.mission_id
+
+
+def test_latest_correct_retention_outcome_clears_historical_retention_weakness(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    first = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (first.review_id,))
+    forge.deliver_retention_review(first.review_id)
+    forge.evaluate_retention_review(first.review_id, "Wrong", AttemptEvaluation.INCORRECT, "Retry.")
+    assert forge.weak_areas()[0].retention_failures == 1
+
+    with forge._db() as db:
+        db.execute(
+            "INSERT INTO retention_reviews "
+            "(review_id, competency_id, evidence_id, mastery, due_at, state, created_at, response, evaluation, feedback, evaluated_at) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            ("review_followup", "se.python", "evidence_followup", "recognize", "2001-01-01T00:00:00+00:00", "completed",
+             "2001-01-01T00:00:00+00:00", "Correct", "correct", "Recovered.", "2099-01-01T00:00:00+00:00"),
+        )
+
+    assert forge.weak_areas() == ()
+    with pytest.raises(ValueError, match="not a current evidence-backed weak area"):
+        forge.start_reinforcement("se.python")
+
+
 def test_mission_loop_and_progressive_assistance_preserve_independence_context(tmp_path):
     forge = CareerForgeService(tmp_path / "learner.sqlite3")
     mission = forge.start_mission("se.python", "Verify Python")
