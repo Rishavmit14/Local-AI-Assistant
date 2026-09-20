@@ -95,16 +95,16 @@ verification passes with 885 Python tests and dependency consistency; the remote
 integration branch was verified at the exact capability commit. The active
 dependency is governed desktop assistance.
 
-The governed desktop-assistance candidate is implemented in the current
-worktree. An explicit active-mission request creates only an allowlisted
+Governed desktop assistance is accepted and published at `3d9b376`. An explicit
+active-mission request creates only an allowlisted
 `proposed` desktop record plus a durable mission audit link. Astra shows the
 exact action/target and requires separate owner approval and execution actions;
 Qwen has no authority over either transition, and desktop state never becomes
 learning evidence or mastery. Focused validation passes 43 Python tests, 15
 frontend tests, changed-file lint, and the production frontend build. Full
 repository verification passes with 886 Python tests and dependency consistency;
-the recovery checkpoint remains pending. After acceptance, continue with project
-evidence and approval-gated GitHub publication.
+the remote integration branch was verified at the exact capability commit. The
+active dependency is project evidence and approval-gated GitHub publication.
 
 ## 0. Non-negotiable project rules
 
