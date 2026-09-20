@@ -786,11 +786,14 @@ owner visual workspace/CLOSE review, and live Run/Test/Hint/Submit/restart-resum
 flow passed. A Career Forge SQLite descriptor leak exposed during live Lab
 projection was repaired by deterministic short-lived connection closure.
 
-The Astra integration foundation now supplies a separate development candidate
-on localhost:5191. Its LEARN workspace renders a read-only canonical Career
-Forge summary through typed presentation adapters; all remaining Astra learning
-surfaces remain explicit representative specimens. The next bounded product
-slice is the LEARN owner journey, not a parallel Career Forge implementation.
+The Astra integration candidate on localhost:5191 now projects canonical Career
+Forge state through typed presentation adapters: LEARN and Practice Lab use
+their existing governed command boundaries, while MAP and PROGRESS render the
+same Learner Twin competency, mastery, attempt/retry, assistance, evidence, and
+history records returned by `/api/v1/career-forge/journey`. It has no browser
+authority or fallback progress fixtures. Retention/review, adaptive progression,
+PROJECTS, Interview Mode, screen-aware tutoring, and governed desktop assistance
+remain the next product work rather than a parallel Career Forge implementation.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

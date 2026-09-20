@@ -1,5 +1,18 @@
 # Project History
 
+## 2026-09-20 — Astra canonical MAP and PROGRESS integration candidate
+
+The isolated `integration/astra-friday` candidate now renders Career Forge MAP
+and PROGRESS directly from the existing local `CareerForgeJourney`: competency
+domains, prerequisites, recorded mastery, current/recommended mission markers,
+next action, attempts/retries, assistance, evidence, and history. It exposes no
+percentage, inferred mastery, browser-local learner state, or unavailable-data
+fixture. Focused adapter tests and production build passed; browser validation
+against the live local Friday service showed its persisted graph and learning
+records. This remains an isolated local integration checkpoint, not a production
+merge or a claim that retention/review or other advanced Career Forge work is
+complete.
+
 ## 2026-09-14 — Astra Vision presentation integration foundation
 
 The Astra cinematic frontend now has a typed presentation seam over Friday's

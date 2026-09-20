@@ -1,4 +1,5 @@
 import { FridayRuntimeClient } from "../runtime";
+import type { CareerForgeJourney } from "../runtime";
 import type { CareerForgeSummaryView, FridayPresentationActions } from "./types";
 import { presentCareerForgeJourney } from "./careerForge";
 
@@ -15,6 +16,10 @@ export class FridayPresentation implements FridayPresentationActions {
 
   async careerForgeSummary(signal?: AbortSignal): Promise<CareerForgeSummaryView> {
     return presentCareerForgeJourney(await this.runtime.getCareerJourney(signal));
+  }
+
+  careerForgeJourney(signal?: AbortSignal): Promise<CareerForgeJourney> {
+    return this.runtime.getCareerJourney(signal);
   }
 
   async refreshCareerForge(): Promise<void> {

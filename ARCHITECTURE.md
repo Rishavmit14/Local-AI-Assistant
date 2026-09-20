@@ -218,14 +218,14 @@ only governed Career Forge records are durable learning history.
 
 The Astra visual workspace consumes Friday only through `frontend/src/presentation`:
 a typed presentation adapter maps the existing `CareerForgeJourney` read model
-into an Astra summary view, while explicit action methods retain the existing
-canonical command boundary. The first connected surface is LEARN, which renders
-the active/resumable mission, dependency-aware next action, and evidence and
-assistance counts directly from the Learner Twin. Session/conversation,
-Practice Lab, and system-workspace presentation contracts are intentionally
-typed but not yet connected. Astra specimens remain isolated fixtures and are
-never substituted for unavailable canonical data; no second frontend store,
-session owner, or Career Forge persistence exists.
+into Astra views, while explicit action methods retain the existing canonical
+command boundary. LEARN renders the active/resumable mission, dependency-aware
+next action, and evidence/assistance counts; Practice Lab uses the existing
+draft, Run/Test/Submit, hint, and attempt endpoints; MAP renders the canonical
+competency graph, prerequisites, and recorded mastery; and PROGRESS renders the
+canonical next action, attempts/retries, assistance, evidence, and history.
+Unavailable API state remains unavailable rather than becoming a fixture. There
+is no second frontend store, session owner, or Career Forge persistence layer.
 The first Stage 14 cinematic projection calls only the existing local journey and
 dependency-gated mission-start endpoints. It renders unknown progress honestly;
 the frontend has no Learner Twin advancement, publishing, tool, or desktop

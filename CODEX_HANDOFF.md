@@ -1919,3 +1919,17 @@ to localhost:5191 and proxies `/api` to the existing localhost:8765 Friday
 presentation service. Browser verification showed both live Learner Twin data
 and unchanged Neural Core/Astra home. Next boundary only: Career Forge LEARN
 owner journey; do not implement its whole lifecycle as part of this foundation.
+
+## Astra Career Forge MAP + PROGRESS integration candidate (2026-09-20)
+
+The isolated `integration/astra-friday` branch extends the typed presentation
+boundary to all current connected Career Forge workspaces: LEARN, Practice Lab,
+MAP, and PROGRESS. MAP and PROGRESS query the existing `CareerForgeJourney`
+directly, never a browser store or specimen: graph/prerequisite/mastery values,
+mission markers, attempts/retries, assistance, evidence, history, and next
+action are exact canonical projections. Focused frontend adapter tests and the
+production build passed, and browser validation at localhost:5191 showed the
+live Friday service's persisted map and progress. No canonical production files,
+including its Pocket/Anna TTS work, were changed. Next dependency: retention and
+review scheduling over the existing Learner Twin; preserve this branch isolation
+until a deliberate reconciliation is qualified.
