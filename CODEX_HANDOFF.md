@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`df2d41e`. The
+`b65e7a1`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -147,14 +147,15 @@ verification with 892 Python tests pass; the remote integration branch was
 verified at the exact capability commit.
 Next: retention/progress automation through Friday's proactive event boundary.
 
-Retention/progress automation is implemented in the current worktree. The
+Retention/progress automation is accepted and published at `b65e7a1`. The
 existing proactive engine registers a notify-only Career Forge watch and emits
 one deduplicated notification for the oldest due scheduled review. Stable
 metadata contains only review/competency identity and due time; polling never
 delivers or evaluates a review and never changes evidence, mastery,
 reinforcement, or mission state. Twelve focused proactive/interface tests pass;
 dependency consistency and full repository verification with 893 Python tests
-also pass. The recovery checkpoint remains pending. Next:
+also pass; the remote integration branch was verified at the exact capability
+commit. Next:
 sequential specialist-role integration.
 
 ## 0. Non-negotiable project rules
