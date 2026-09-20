@@ -1,6 +1,7 @@
 import type {
   CareerForgeJourney,
   CareerForgeInterview,
+  CareerForgeMissionObjective,
   CareerForgeMission,
   CareerForgePublicEvidenceCandidate,
   PracticeLab,
@@ -195,6 +196,21 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/career-forge/public-evidence/${encodeURIComponent(candidateId)}/approve`, { method: "POST" });
     if (!response.ok) throw new Error(`Career Forge public-evidence approval failed: ${response.status}`);
     return (await response.json() as { candidate: CareerForgePublicEvidenceCandidate }).candidate;
+  }
+
+  async getCareerMissionObjective(missionId: string): Promise<CareerForgeMissionObjective | null> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/objective`);
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`Career Forge objective request failed: ${response.status}`);
+    return response.json() as Promise<CareerForgeMissionObjective>;
+  }
+
+  async createCareerMissionObjective(missionId: string, text: string): Promise<CareerForgeMissionObjective> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/objective`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+    });
+    if (!response.ok) throw new Error(`Career Forge objective creation failed: ${response.status}`);
+    return response.json() as Promise<CareerForgeMissionObjective>;
   }
 
   async openPracticeLab(): Promise<PracticeLab> {

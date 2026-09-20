@@ -211,4 +211,24 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       "/api/v1/career-forge/public-evidence/candidate%201/approve", { method: "POST" },
     );
   });
+
+  it("prepares and recovers one mission objective through the governed objective path", async () => {
+    const value = { link: { mission_id: "mission 1", objective_id: "o1", created_at: "now" }, objective: { objective_id: "o1", state: "planning" } };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(value), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(value), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+
+    await client.createCareerMissionObjective("mission 1", "Implement the artifact");
+    await client.getCareerMissionObjective("mission 1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1,
+      "/api/v1/career-forge/missions/mission%201/objective",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ text: "Implement the artifact" }) }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(2,
+      "/api/v1/career-forge/missions/mission%201/objective",
+    );
+  });
 });

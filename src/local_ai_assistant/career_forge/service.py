@@ -152,6 +152,13 @@ class MissionDesktopAction:
 
 
 @dataclass(frozen=True, slots=True)
+class MissionObjectiveLink:
+    mission_id: str
+    objective_id: str
+    created_at: str
+
+
+@dataclass(frozen=True, slots=True)
 class PublicEvidenceCandidate:
     candidate_id: str
     mission_id: str
@@ -257,6 +264,10 @@ class CareerForgeService:
                 CREATE TABLE IF NOT EXISTS mission_desktop_actions (
                     action_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
                     action TEXT NOT NULL, target TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS mission_objectives (
+                    mission_id TEXT PRIMARY KEY, objective_id TEXT NOT NULL UNIQUE,
                     created_at TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS public_evidence_candidates (
@@ -858,6 +869,40 @@ class CareerForgeService:
                 (mission_id,),
             ).fetchall()
         return tuple(MissionDesktopAction(*row) for row in rows)
+
+    def link_mission_objective(self, mission_id: str, objective_id: str) -> MissionObjectiveLink:
+        """Audit-link one active mission to an objective owned by Friday autonomy."""
+        mission = self.mission(mission_id)
+        if mission.state != "active":
+            raise ValueError("mission autonomy requires an active mission")
+        if not isinstance(objective_id, str) or len(objective_id) != 32 or any(
+            char not in "0123456789abcdef" for char in objective_id
+        ):
+            raise ValueError("canonical objective ID is required")
+        existing = self.mission_objective(mission_id)
+        if existing is not None:
+            if existing.objective_id != objective_id:
+                raise ValueError("mission is already linked to another objective")
+            return existing
+        now = _now()
+        try:
+            with self._db() as db:
+                db.execute(
+                    "INSERT INTO mission_objectives VALUES(?,?,?)",
+                    (mission_id, objective_id, now),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("objective is already linked to another mission") from exc
+        return MissionObjectiveLink(mission_id, objective_id, now)
+
+    def mission_objective(self, mission_id: str) -> MissionObjectiveLink | None:
+        self.mission(mission_id)
+        with self._db() as db:
+            row = db.execute(
+                "SELECT mission_id, objective_id, created_at FROM mission_objectives WHERE mission_id=?",
+                (mission_id,),
+            ).fetchone()
+        return MissionObjectiveLink(*row) if row is not None else None
 
     def create_public_evidence_candidate(
         self,

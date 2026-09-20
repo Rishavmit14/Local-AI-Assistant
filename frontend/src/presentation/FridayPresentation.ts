@@ -49,6 +49,8 @@ export class FridayPresentation implements FridayPresentationActions {
   executeDesktopAction(actionId: string) { return this.runtime.executeDesktopAction(actionId); }
   createCareerPublicEvidence(missionId: string, artifactRef: string, checks: Parameters<FridayRuntimeClient["createCareerPublicEvidence"]>[2]) { return this.runtime.createCareerPublicEvidence(missionId, artifactRef, checks); }
   approveCareerPublicEvidence(candidateId: string) { return this.runtime.approveCareerPublicEvidence(candidateId); }
+  getCareerMissionObjective(missionId: string) { return this.runtime.getCareerMissionObjective(missionId); }
+  createCareerMissionObjective(missionId: string, text: string) { return this.runtime.createCareerMissionObjective(missionId, text); }
 
   async openPracticeLab(): Promise<void> {
     await this.runtime.openPracticeLab();

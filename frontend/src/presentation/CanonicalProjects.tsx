@@ -1,7 +1,7 @@
 import { ArrowRight, Boxes, Link2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import type { CareerForgePublicEvidenceCandidate } from "../runtime";
+import type { CareerForgeMissionObjective, CareerForgePublicEvidenceCandidate } from "../runtime";
 import { FridayPresentation } from "./FridayPresentation";
 import { presentCareerForgeProjects } from "./careerForgeProjects";
 import { useCareerForgeJourney } from "./useCareerForgeJourney";
@@ -14,13 +14,24 @@ export function CanonicalProjects({ openLearn }: { openLearn: () => void }) {
   const [message, setMessage] = useState("");
   const [artifactRef, setArtifactRef] = useState("");
   const [candidate, setCandidate] = useState<CareerForgePublicEvidenceCandidate | null>(null);
+  const [missionObjective, setMissionObjective] = useState<CareerForgeMissionObjective | null>(null);
+  const [objectiveText, setObjectiveText] = useState("");
   const [checks, setChecks] = useState({ genuine_work: false, validation_passed: false, secret_scan_passed: false, privacy_review_passed: false, documentation_complete: false, artifact_quality_passed: false });
+  const activeMissionId = view.state === "ready" ? view.journey?.current_mission?.mission_id ?? null : null;
+  useEffect(() => {
+    let active = true;
+    if (!activeMissionId) return () => { active = false; };
+    void presentation.current.getCareerMissionObjective(activeMissionId)
+      .then((value) => { if (active) setMissionObjective(value); })
+      .catch(() => { if (active) setMissionObjective(null); });
+    return () => { active = false; };
+  }, [activeMissionId]);
   if (view.state !== "ready" || !view.journey) {
     return <section className="learning-canonical-summary"><p>{view.state === "loading" ? "Reading canonical project links…" : "Career Forge projects are unavailable; no specimen links are shown."}</p></section>;
   }
   const projects = presentCareerForgeProjects(view.journey);
-  const activeMissionId = view.journey.current_mission?.mission_id ?? null;
   const activeMissionLinked = activeMissionId ? view.journey.project_links.some(({ mission_id }) => mission_id === activeMissionId) : false;
+  const currentMissionObjective = missionObjective?.link.mission_id === activeMissionId ? missionObjective : null;
   const connect = async (missionId: string) => {
     setBusy(true); setMessage("");
     try {
@@ -44,6 +55,15 @@ export function CanonicalProjects({ openLearn }: { openLearn: () => void }) {
     catch { setMessage("Only a fully qualified candidate can receive owner publication approval."); }
     finally { setBusy(false); }
   };
+  const createMissionObjective = async () => {
+    if (!activeMissionId || !objectiveText.trim()) return;
+    setBusy(true); setMessage("");
+    try {
+      setMissionObjective(await presentation.current.createCareerMissionObjective(activeMissionId, objectiveText));
+      setMessage("Governed objective prepared. Planning, exact-plan approval, isolated execution, and cancellation remain in Friday Objectives.");
+    } catch { setMessage("Friday could not prepare the governed objective. No execution authority was granted."); }
+    finally { setBusy(false); }
+  };
 
   return <section className="canonical-projection" aria-label="Canonical Career Forge projects">
     <div className="canonical-projection-heading"><div><span className="eyebrow">CAREER FORGE / CANONICAL PROJECTS</span><h2>Work that grows with your skills</h2><p>Mission links come from Friday’s Learner Twin. They are learning context, never invented portfolio evidence.</p></div><Boxes size={22} aria-hidden="true" /></div>
@@ -55,6 +75,7 @@ export function CanonicalProjects({ openLearn }: { openLearn: () => void }) {
       {project.activeMissionId && !project.canLinkActiveMission && <small className="canonical-marker">Active mission already connected</small>}
     </article>)}</div>
     {activeMissionLinked && activeMissionId && <section className="canonical-review-response"><span className="eyebrow">PUBLIC EVIDENCE REVIEW</span><h3>Qualify a real project artifact</h3><input value={artifactRef} onChange={(event) => setArtifactRef(event.target.value)} aria-label="Project artifact reference" placeholder="Repository-relative artifact or evidence reference" />{Object.entries(checks).map(([name, value]) => <label key={name}><input type="checkbox" checked={value} onChange={(event) => setChecks((old) => ({ ...old, [name]: event.target.checked }))} />{name.replaceAll("_", " ")}</label>)}<button className="text-link" disabled={busy || !artifactRef.trim()} onClick={() => void reviewEvidence()}>Run deterministic evidence gate</button>{candidate && <div><p>State: {candidate.state}</p>{candidate.reasons.length > 0 && <p>{candidate.reasons.join(" · ")}</p>}{candidate.state === "qualified" && <button className="text-link" disabled={busy} onClick={() => void approveEvidence()}>Approve candidate for publication</button>}{candidate.state === "approved" && <p>Owner approval recorded. Nothing has been pushed or published.</p>}</div>}</section>}
+    {activeMissionLinked && activeMissionId && <section className="canonical-review-response"><span className="eyebrow">BOUNDED MISSION AUTONOMY</span><h3>Prepare governed implementation work</h3>{currentMissionObjective ? <div><p>Objective: {currentMissionObjective.objective.text}</p><p>State: {currentMissionObjective.objective.state}{currentMissionObjective.objective.task_state ? ` · task ${currentMissionObjective.objective.task_state}` : " · no task dispatched"}</p><small>Resume planning, exact-plan review, approval, execution, cancellation, and recovery in Friday Objectives. Completion never becomes learning evidence automatically.</small></div> : <><input value={objectiveText} onChange={(event) => setObjectiveText(event.target.value)} aria-label="Mission implementation objective" placeholder="Concrete repository work for this mission" /><button className="text-link" disabled={busy || !objectiveText.trim()} onClick={() => void createMissionObjective()}>Prepare governed objective</button></>}</section>}
     <div className="canonical-project-boundary"><p>Connecting a mission grants no repository, execution, GitHub, publication, or mastery authority. Public evidence still requires validation, privacy and secret review, documentation, quality review, and explicit owner approval.</p></div>
     <button className="text-link" onClick={openLearn}>Return to the current mission <ArrowRight size={14} /></button>
   </section>;

@@ -233,6 +233,12 @@ export interface FridayObjective {
   task_id: string | null;
   task_state: string | null;
   task_outcome: string | null;
+  repository_id: string | null;
+}
+
+export interface CareerForgeMissionObjective {
+  link: { mission_id: string; objective_id: string; created_at: string };
+  objective: FridayObjective;
 }
 
 export interface FridayPlanReview {

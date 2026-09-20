@@ -282,6 +282,13 @@ remote reconciliation, and pull-request creation to the existing gateway
 publisher, then records the authoritative result or a bounded retryable failure;
 Career Forge has no independent GitHub transport or publisher.
 
+Mission autonomy similarly composes the existing guarded objective lifecycle.
+One active mission may prepare one explicit owner-authored objective and retain
+its ID for restart recovery. Repository selection and every later planning,
+approval, isolated execution, cancellation, and task-history transition remain
+owned by Friday's canonical objective/gateway path. An objective outcome is
+implementation context only until the owner records qualifying mission evidence.
+
 V1 can explicitly connect an active mission only to the canonical project family
 declared by its competency. The local Learner Twin records that link and the
 cinematic PROJECTS projection displays it. A project link is learning context,

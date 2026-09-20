@@ -602,6 +602,33 @@ def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_
     ]
 
 
+def test_career_mission_objective_reuses_guarded_autonomy_and_recovers_by_link(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Build a verified Python artifact")
+    autonomy = ObjectiveService(tmp_path / "objectives.sqlite3")
+    runtime = FridayRuntime("career-objective-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        career_forge=forge, autonomy=autonomy,
+    ))
+    path = f"/api/v1/career-forge/missions/{mission.mission_id}/objective"
+
+    created = client.post(path, json={"text": "Implement and test the mission artifact"})
+
+    assert created.status_code == 200
+    body = created.json()
+    assert body["link"]["mission_id"] == mission.mission_id
+    assert body["objective"]["state"] == "planning"
+    assert body["objective"]["task_id"] is None
+    recovered = client.get(path)
+    assert recovered.status_code == 200
+    assert recovered.json()["objective"]["objective_id"] == body["objective"]["objective_id"]
+    repeated = client.post(path, json={"text": "must not replace the existing objective"})
+    assert repeated.json()["objective"]["objective_id"] == body["objective"]["objective_id"]
+    assert len(autonomy.recent()) == 1
+    assert forge.evidence_history() == ()
+
+
 def test_busy_voice_rejects_http_before_runtime_events():
     runtime = FridayRuntime("busy-voice")
     conversation = FridayConversationService(FakeStreamingLLM(["unused"]), runtime)
@@ -1053,7 +1080,8 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/missions/{mission_id}/evidence",
         "/api/v1/career-forge/missions/{mission_id}/tutor",
         "/api/v1/career-forge/missions/{mission_id}/contextual-tutor",
-        "/api/v1/career-forge/missions/{mission_id}/desktop-actions",
+            "/api/v1/career-forge/missions/{mission_id}/desktop-actions",
+            "/api/v1/career-forge/missions/{mission_id}/objective",
         "/api/v1/career-forge/missions/{mission_id}/public-evidence",
             "/api/v1/career-forge/public-evidence/{candidate_id}/approve",
             "/api/v1/career-forge/public-evidence/{candidate_id}/publish",

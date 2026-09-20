@@ -843,6 +843,40 @@ def create_presentation_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"action": asdict(proposal), "mission_action": asdict(linked)}
 
+    @app.get("/api/v1/career-forge/missions/{mission_id}/objective")
+    def career_mission_objective(mission_id: str):
+        try:
+            link = owner_career_forge().mission_objective(mission_id)
+            if link is None:
+                raise HTTPException(status_code=404, detail="mission has no governed objective")
+            return {"link": asdict(link), "objective": asdict(owner_autonomy().get(link.objective_id))}
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/career-forge/missions/{mission_id}/objective")
+    async def career_create_mission_objective(mission_id: str, request: Request):
+        try:
+            forge = owner_career_forge()
+            existing = forge.mission_objective(mission_id)
+            if existing is not None:
+                return {"link": asdict(existing), "objective": asdict(owner_autonomy().get(existing.objective_id))}
+            body = await request.json()
+            text = body.get("text")
+            if not isinstance(text, str):
+                raise ValueError("bounded mission objective text is required")
+            created = owner_autonomy().create(text)
+            objective = owner_autonomy().resume(created.objective_id)
+            try:
+                link = forge.link_mission_objective(mission_id, objective.objective_id)
+            except (KeyError, ValueError):
+                owner_autonomy().cancel(objective.objective_id)
+                raise
+            return {"link": asdict(link), "objective": asdict(objective)}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.get("/api/v1/career-forge/missions/{mission_id}/public-evidence")
     def career_public_evidence(mission_id: str):
         try:

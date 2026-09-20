@@ -289,6 +289,15 @@ identity, final commit, `friday/task/` branch, remote reconciliation, push, and
 pull-request creation; its URL/result is copied back into the Learner Twin. A
 failed external attempt preserves approval and the exact binding for safe retry.
 
+Bounded Career Forge mission autonomy is an audit link, not a second executor.
+An active project-linked mission may prepare exactly one durable Friday
+objective from explicit owner text. Career Forge records only the mission and
+objective IDs; the existing objective/task services remain authoritative for
+repository selection, planning, exact-plan approval, isolated execution,
+cancellation, terminal outcome, and restart recovery. Task success never creates
+learning evidence, advances mastery, completes a mission, or qualifies public
+evidence automatically.
+
 ### Astra presentation integration foundation
 
 The Astra visual workspace consumes Friday only through `frontend/src/presentation`:

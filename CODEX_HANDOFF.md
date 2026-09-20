@@ -133,6 +133,19 @@ was verified on the remote integration branch. The active dependency is bounded
 Career Forge mission autonomy and recovery through the existing objective/task
 path.
 
+Bounded mission autonomy is implemented in the current worktree. An active
+mission may prepare exactly one owner-authored Friday objective; its durable
+mission/objective link recovers live objective and canonical task state after
+restart. Planning, repository selection, exact-plan approval, isolated execution,
+cancellation, and outcome remain entirely in the existing objective/task path.
+Neither link nor task success creates learning evidence, mastery, mission
+completion, or publication qualification. The typed client and PROJECTS
+workspace expose prepare/recovery state. Focused Python and frontend validation
+passes with 48 Python tests and 13 frontend runtime tests; changed-file lint,
+the production frontend build, dependency consistency, and full repository
+verification with 892 Python tests pass. The recovery checkpoint remains pending.
+Next: retention/progress automation through Friday's proactive event boundary.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

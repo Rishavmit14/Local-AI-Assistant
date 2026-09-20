@@ -341,3 +341,16 @@ def test_project_link_is_local_and_limited_to_the_missions_canonical_family(tmp_
         db.execute("UPDATE missions SET state='completed' WHERE mission_id=?", (fraud.mission_id,))
     with pytest.raises(ValueError, match="only an active mission"):
         forge.link_project(fraud.mission_id)
+
+
+def test_active_mission_links_exactly_one_governed_objective(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Build a verified Python artifact")
+    objective_id = "a" * 32
+
+    linked = forge.link_mission_objective(mission.mission_id, objective_id)
+
+    assert forge.mission_objective(mission.mission_id) == linked
+    assert forge.link_mission_objective(mission.mission_id, objective_id) == linked
+    with pytest.raises(ValueError, match="another objective"):
+        forge.link_mission_objective(mission.mission_id, "b" * 32)

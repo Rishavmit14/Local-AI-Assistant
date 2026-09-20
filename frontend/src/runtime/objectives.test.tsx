@@ -7,7 +7,7 @@ import type { FridayObjective } from "./types";
 function objective(state: string, taskState: string | null): FridayObjective {
   return { objective_id: "o1", text: "Bounded objective", state, task_state: taskState,
     task_id: taskState ? "task_example" : null, task_outcome: taskState === "failed" ? "Canonical failure detail" : null,
-    plan_hash: null, created_at: "", updated_at: "" };
+    plan_hash: null, repository_id: null, created_at: "", updated_at: "" };
 }
 
 describe("objective outcome projection", () => {

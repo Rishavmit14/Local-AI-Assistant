@@ -11,6 +11,7 @@ export type {
   CareerForgeJourney,
   CareerForgeInterview,
   CareerForgeMission,
+  CareerForgeMissionObjective,
   CareerForgeMissionBrief,
   CareerForgePublicEvidenceCandidate,
   PracticeLab,

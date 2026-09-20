@@ -1,5 +1,17 @@
 # Project History
 
+## 2026-09-20 — Bounded Career Forge mission autonomy candidate
+
+An active canonical mission can now prepare and recover exactly one explicit
+Friday objective. The Learner Twin stores only an audit link; the existing
+objective/task services continue to own repository selection, planning,
+exact-plan approval, isolated execution, cancellation, and terminal recovery.
+The PROJECTS workspace exposes the link without converting task success into
+evidence, mastery, mission completion, or publication readiness. Qualification
+passes 48 focused Python tests and 13 frontend runtime tests; changed-file lint,
+the production frontend build, dependency consistency, and full repository
+verification with 892 Python tests also pass.
+
 ## 2026-09-20 — Authenticated Career Forge publication binding candidate
 
 An approved public-evidence record can now bind to one promotion-ready Friday
