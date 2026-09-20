@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`b65e7a1`. The
+`4f00720`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -158,7 +158,7 @@ also pass; the remote integration branch was verified at the exact capability
 commit. Next:
 sequential specialist-role integration.
 
-Sequential specialist-role integration is implemented in the current worktree.
+Sequential specialist-role integration is accepted and published at `4f00720`.
 Teacher, Coach, Pair Programmer, Reviewer, Debugger, Interviewer, and Curriculum
 Designer tutor modes reuse Friday's existing serialized RoleOrchestrator and sole
 local Qwen. LEARN exposes explicit selection and records help only at its chosen
@@ -167,8 +167,8 @@ claim mastery. Focused Python tests, 14 frontend runtime tests, changed-file lin
 and the production frontend build pass. A full 894-test repository gate exposed
 and verified the repair of a Practice Lab redundant-submit race: only an
 identical-source retained passing sandbox result is reused. Dependency
-consistency and repository verification pass; the recovery checkpoint remains
-pending. Next: trusted curriculum research through
+consistency and repository verification pass; the remote integration branch was
+verified at the exact capability commit. Next: trusted curriculum research through
 the existing local research ledger.
 
 ## 0. Non-negotiable project rules
