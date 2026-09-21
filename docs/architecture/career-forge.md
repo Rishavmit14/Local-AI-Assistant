@@ -298,6 +298,10 @@ its ID for restart recovery. Repository selection and every later planning,
 approval, isolated execution, cancellation, and task-history transition remain
 owned by Friday's canonical objective/gateway path. An objective outcome is
 implementation context only until the owner records qualifying mission evidence.
+When a mission with such an objective publishes approved evidence, the API
+requires the exact linked task and repository and a canonical `succeeded` task
+state before invoking the existing promotion gateway. This prevents an unrelated
+successful task from laundering an artifact into the mission's evidence chain.
 
 V1 can explicitly connect an active mission only to the canonical project family
 declared by its competency. The local Learner Twin records that link and the

@@ -1,5 +1,16 @@
 # Project History
 
+## 2026-09-21 — Mission-bound Career Forge publication candidate
+
+When a project-linked Career Forge mission has a governed Friday objective, its
+approved artifact can now reach the existing GitHub promotion gateway only
+through that objective's exact canonical task and repository after task state is
+`succeeded`. Unrelated, mismatched, pending, failed, or unavailable task bindings
+fail before eligibility validation or publication. Missions without an objective
+retain the existing authenticated publication path for externally produced
+artifacts. Focused API coverage and full repository verification pass with 907
+Python tests plus dependency consistency.
+
 ## 2026-09-21 — Syntax-highlighted Career Forge Practice Lab candidate
 
 The canonical Practice Lab now uses the repository's existing CodeMirror 6

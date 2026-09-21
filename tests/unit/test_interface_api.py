@@ -674,6 +674,81 @@ def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_
     ]
 
 
+def test_project_publication_must_match_linked_successful_objective_task(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    with forge._db() as db:
+        db.execute(
+            "UPDATE learner_competencies SET mastery='recognize' WHERE competency_id != 'ml.classical'",
+        )
+    mission = forge.start_mission("ml.classical", "Build a verified ML artifact")
+    forge.record_evidence(mission.mission_id, "validated_project", "Validated implementation")
+    forge.link_project(mission.mission_id)
+    candidate = forge.create_public_evidence_candidate(
+        mission.mission_id, "artifacts/python-project.md", genuine_work=True,
+        validation_passed=True, secret_scan_passed=True, privacy_review_passed=True,
+        documentation_complete=True, artifact_quality_passed=True,
+    )
+    forge.approve_public_evidence(candidate.candidate_id)
+    plan_hashes: dict[str, str] = {}
+    task_states: dict[str, str] = {}
+
+    def create_task(_text, _repository_id, task_id):
+        return task_id
+
+    def request_plan(task_id):
+        plan_hashes[task_id] = "a" * 64
+
+    autonomy = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        create_task_for_objective=create_task,
+        request_plan_for_task=request_plan,
+        plan_hash_for_task=plan_hashes.get,
+        task_state_for_task=task_states.get,
+    )
+    objective = autonomy.resume(autonomy.create("Implement and validate the artifact").objective_id)
+    forge.link_mission_objective(mission.mission_id, objective.objective_id)
+    objective = autonomy.request_plan(objective.objective_id, "python-project")
+    assert objective.task_id is not None
+
+    class Publication:
+        def __init__(self):
+            self.calls = []
+
+        def validate_eligibility(self, task_id, *, repository_id):
+            self.calls.append(("validate", task_id, repository_id))
+
+        def publish(self, task_id, *, repository_id, base):
+            self.calls.append(("publish", task_id, repository_id, base))
+            return {"state": "published", "pr_url": "https://github.com/acme/python/pull/9"}
+
+    publication = Publication()
+    token = "career-linked-publication-token"
+    auth = GatewayAuth(hashlib.sha256(token.encode()).hexdigest(), frozenset({GatewayScope.GITHUB_WRITE}))
+    client = TestClient(create_presentation_app(
+        FridayRuntime("career-linked-publication"),
+        FridayConversationService(FakeStreamingLLM(), FridayRuntime("career-linked-conversation")),
+        career_forge=forge, autonomy=autonomy, career_publication=publication,
+        objective_execution_auth=auth,
+    ))
+    path = f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/publish"
+    headers = {"Authorization": f"Bearer {token}"}
+    wrong = {"task_id": "task_" + "b" * 20, "repository_id": "python-project", "base": "main"}
+    assert client.post(path, json=wrong, headers=headers).status_code == 409
+    assert publication.calls == []
+    body = {"task_id": objective.task_id, "repository_id": "python-project", "base": "main"}
+    assert client.post(path, json=body, headers=headers).status_code == 409
+    assert publication.calls == []
+
+    task_states[objective.task_id] = "succeeded"
+    response = client.post(path, json=body, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["candidate"]["state"] == "published"
+    assert publication.calls == [
+        ("validate", objective.task_id, "python-project"),
+        ("publish", objective.task_id, "python-project", "main"),
+    ]
+
+
 def test_career_mission_objective_reuses_guarded_autonomy_and_recovers_by_link(tmp_path):
     forge = CareerForgeService(tmp_path / "learner.sqlite3")
     mission = forge.start_mission("se.python", "Build a verified Python artifact")

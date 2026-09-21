@@ -260,6 +260,17 @@ qualify and close the remaining real project build/validate/review owner path,
 then the owner-visible authenticated publication result without weakening its
 existing approval or gateway boundaries.
 
+The project/publication acceptance path then exposed an integrity gap: a mission
+artifact could be submitted with an eligible but unrelated canonical task. The
+candidate now requires any mission-linked objective to match the publication's
+exact task and repository and to project canonical `succeeded` task state before
+the existing eligibility validator or publisher is called. Mismatched and
+nonterminal controls fail without a gateway call; the successful path retains
+explicit owner approval and `GITHUB_WRITE` authentication. Focused API tests pass
+and full repository verification passes with 907 Python tests plus dependency
+consistency. Next: publish this checkpoint, then continue the remaining
+owner-visible publication-result and real project lifecycle qualification gap.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

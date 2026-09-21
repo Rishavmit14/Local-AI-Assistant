@@ -1015,10 +1015,22 @@ def create_presentation_app(
             base = body.get("base", "main")
             if not all(isinstance(value, str) for value in (task_id, repository_id, base)):
                 raise ValueError("publication binding must use string identifiers")
+            forge = owner_career_forge()
+            candidate = forge.public_evidence_candidate(candidate_id)
+            objective_link = forge.mission_objective(candidate.mission_id)
+            if objective_link is not None:
+                if autonomy is None:
+                    raise ValueError("linked mission objective is unavailable")
+                objective = autonomy.get(objective_link.objective_id)
+                if (
+                    objective.task_id != task_id
+                    or objective.repository_id != repository_id
+                    or objective.task_state != "succeeded"
+                ):
+                    raise ValueError("publication must use the linked successful project task")
             await run_in_threadpool(
                 career_publication.validate_eligibility, task_id, repository_id=repository_id,
             )
-            forge = owner_career_forge()
             forge.bind_public_evidence_publication(candidate_id, task_id, repository_id, base)
             result = await run_in_threadpool(
                 career_publication.publish, task_id, repository_id=repository_id, base=base,

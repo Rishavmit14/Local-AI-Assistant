@@ -854,7 +854,10 @@ or bounded failure for safe retry. Bounded mission autonomy now lets one active
 project-linked mission prepare and recover one explicit Friday objective while
 the existing objective/task path exclusively owns repository selection, planning,
 approval, isolated execution, cancellation, and outcome. No task state becomes
-learning evidence or mastery automatically. Retention/progress automation now
+learning evidence or mastery automatically. If that mission later publishes an
+approved artifact, the publication binding must use the linked objective's exact
+canonical task and repository in successful terminal state; an unrelated task
+cannot be substituted. Retention/progress automation now
 registers a notify-only proactive watch for the oldest due scheduled review;
 stable event identity deduplicates repeat polls, while delivery, evaluation,
 evidence, mastery, reinforcement, and mission changes remain explicit. The next
