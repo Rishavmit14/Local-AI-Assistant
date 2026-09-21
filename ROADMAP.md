@@ -850,7 +850,9 @@ authenticated `GITHUB_WRITE` request now binds that approved candidate to an
 eligible promotion-ready Friday task and explicit onboarded GitHub mapping, then
 delegates publication to the existing reconciled gateway publisher. The Learner
 Twin retains the exact task/repository/base binding, published pull-request URL,
-or bounded failure for safe retry. Bounded mission autonomy now lets one active
+or bounded failure for safe retry. PROJECTS now recovers and displays those
+durable review/publication outcomes and the published link after refresh without
+receiving publication credentials or authority. Bounded mission autonomy now lets one active
 project-linked mission prepare and recover one explicit Friday objective while
 the existing objective/task path exclusively owns repository selection, planning,
 approval, isolated execution, cancellation, and outcome. No task state becomes

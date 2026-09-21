@@ -291,6 +291,9 @@ Friday task and explicit onboarded `OWNER/REPOSITORY` mapping. It delegates push
 remote reconciliation, and pull-request creation to the existing gateway
 publisher, then records the authoritative result or a bounded retryable failure;
 Career Forge has no independent GitHub transport or publisher.
+The PROJECTS workspace reads those durable candidate records after refresh and
+shows their qualification, approval, failure, or published URL. It exposes no
+publish mutation and never receives the gateway bearer credential.
 
 Mission autonomy similarly composes the existing guarded objective lifecycle.
 One active mission may prepare one explicit owner-authored objective and retain

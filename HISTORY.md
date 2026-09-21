@@ -1,5 +1,16 @@
 # Project History
 
+## 2026-09-21 — Durable Career Forge publication outcome candidate
+
+PROJECTS now reloads every persisted artifact review for the active mission and
+shows blocked, qualified, approved, failed-publication, and published outcomes,
+including the authoritative published evidence link. The browser remains
+read-only with respect to publication and receives no `GITHUB_WRITE` bearer
+credential; publishing still belongs exclusively to the authenticated promotion
+gateway. Changed-file lint, all 46 frontend tests, and the production build pass;
+the unchanged backend remains qualified by the current 907-test repository
+verification.
+
 ## 2026-09-21 — Mission-bound Career Forge publication candidate
 
 When a project-linked Career Forge mission has a governed Friday objective, its

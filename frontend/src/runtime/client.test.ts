@@ -244,6 +244,21 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
     );
   });
 
+  it("recovers persisted publication outcomes without sending a gateway credential", async () => {
+    const candidate = {
+      candidate_id: "candidate 1", mission_id: "mission 1", artifact_ref: "report.md",
+      state: "published", reasons: [], publication_state: "published",
+      publication_url: "https://github.com/acme/project/pull/9",
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [candidate] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new FridayRuntimeClient().getCareerPublicEvidence("mission 1")).resolves.toEqual([candidate]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/career-forge/missions/mission%201/public-evidence",
+    );
+  });
+
   it("prepares and recovers one mission objective through the governed objective path", async () => {
     const value = { link: { mission_id: "mission 1", objective_id: "o1", created_at: "now" }, objective: { objective_id: "o1", state: "planning" } };
     const fetchMock = vi.fn()

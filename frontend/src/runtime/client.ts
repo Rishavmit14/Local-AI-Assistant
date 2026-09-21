@@ -219,6 +219,12 @@ export class FridayRuntimeClient {
     return (await response.json() as { candidate: CareerForgePublicEvidenceCandidate }).candidate;
   }
 
+  async getCareerPublicEvidence(missionId: string): Promise<CareerForgePublicEvidenceCandidate[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/public-evidence`);
+    if (!response.ok) throw new Error(`Career Forge public-evidence recovery failed: ${response.status}`);
+    return (await response.json() as { candidates: CareerForgePublicEvidenceCandidate[] }).candidates;
+  }
+
   async getCareerMissionObjective(missionId: string): Promise<CareerForgeMissionObjective | null> {
     const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/objective`);
     if (response.status === 404) return null;

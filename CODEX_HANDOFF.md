@@ -272,6 +272,15 @@ consistency. Next: expose the persisted publication result in PROJECTS without
 moving `GITHUB_WRITE` credentials into the browser, then continue real project
 lifecycle qualification.
 
+PROJECTS now recovers all durable public-evidence candidates for the active
+mission and displays qualification/approval state, bounded publication failure,
+or the authoritative published URL after refresh. The client makes only the
+existing read request; it has no publish method and receives no `GITHUB_WRITE`
+credential. Changed-file lint, all 46 frontend tests, and the production build
+pass; backend truth remains qualified by the unchanged 907-test repository
+verification. Next: publish this checkpoint, then execute the remaining bounded
+project lifecycle qualification and audit any other baseline owner-path gaps.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.
