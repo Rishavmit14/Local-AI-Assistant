@@ -219,8 +219,8 @@ dependency consistency, and full repository verification with 900 Python tests
 pass. Next: governed interleaving of older concepts into newer missions and
 repeated independent performance.
 
-Governed interleaving with repeated independent performance is qualified in the
-current candidate. Only evidenced direct/transitive prerequisites can be chosen,
+Governed interleaving with repeated independent performance is accepted and
+published at `c679c85`. Only evidenced direct/transitive prerequisites can be chosen,
 using weak/stale confidence or fewer than two independent successes. The durable
 record binds source evidence, reason, relationship, fresh question, newer
 mission, answer, evaluation, cross-context evidence, and renewed retention.
