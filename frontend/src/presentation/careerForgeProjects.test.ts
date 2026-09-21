@@ -11,7 +11,7 @@ function journey(linked = false): CareerForgeJourney {
     recommended_mission: null,
     project_links: linked ? [{ project_name: "FraudShield", mission_id: "m1", competency_id: "ml.classical", created_at: "now" }] : [],
     competencies: [{ competency: { competency_id: "ml.classical", domain: "classical_ml", title: "Classical ML", prerequisites: [], project_family: "FraudShield" }, mastery: "unverified" }],
-    progress: { active_mission: null, recent_attempts: [], assistance: [], evidence: [], evidenced_competencies: [], unresolved_retries: [], retention_reviews: [], weak_areas: [], cognitive_improvements: [], learner_confidence: [], interleavings: [], next_action: "Continue.", history: [] },
+    progress: { active_mission: null, recent_attempts: [], assistance: [], evidence: [], evidenced_competencies: [], unresolved_retries: [], retention_reviews: [], weak_areas: [], cognitive_improvements: [], learner_confidence: [], interleavings: [], readiness: { status: "foundation_building", interview_status: "not_started", portfolio_status: "not_started", evidenced_competencies: 0, independent_competencies: 0, total_competencies: 16, completed_interviews: 0, correct_interview_responses: 0, project_families: [], qualified_artifacts: 0, approved_artifacts: 0, published_artifacts: 0, blockers: [] }, next_action: "Continue.", history: [] },
   };
 }
 

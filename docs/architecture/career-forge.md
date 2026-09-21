@@ -374,3 +374,15 @@ remain auditable, exact-answer replay is rejected, and a later fresh successful
 retry may resolve the gate without erasing the failure. Successful transfer
 supersedes outstanding due reviews and schedules the next review; it never
 changes mastery automatically.
+
+PROGRESS also derives a read-only readiness projection from those same
+authorities. Career readiness has no percentage or duplicate score: it reports
+categorical overall, interview, and portfolio states plus explicit evidence
+counts and blockers. Interview evidence is supported only when both no-help
+answers bound to one completed bounded interview are correct; correct answers
+from separate sessions cannot be aggregated. Portfolio state follows the
+existing project linkage and qualified → owner-approved → published governance
+states. Overall evidence support requires every canonical competency at least at
+APPLY INDEPENDENTLY, no weak/stale confidence, a supported interview, and one
+published artifact. This projection cannot promote mastery, approve or publish
+an artifact, or manufacture a resume/job-readiness claim.

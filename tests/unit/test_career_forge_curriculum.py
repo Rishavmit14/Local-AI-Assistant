@@ -165,6 +165,64 @@ def test_confidence_becomes_stale_then_weak_without_demoting_mastery(tmp_path):
     assert weak.status == "weak" and weak.mastery is MasteryLevel.RECOGNIZE
 
 
+def test_readiness_uses_mastery_interview_and_portfolio_evidence_without_scores(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    initial = forge.career_readiness()
+    assert initial.status == "foundation_building"
+    assert initial.interview_status == "not_started"
+    assert initial.portfolio_status == "not_started"
+    assert "16 competencies lack independent-application mastery" in initial.blockers
+
+    mission = forge.start_mission("se.python", "Verify Python")
+    forge.record_evidence(mission.mission_id, "self_report", "I feel ready")
+    assert forge.career_readiness().independent_competencies == 0
+    interview = forge.start_interview(mission.mission_id)
+    first = forge.submit_interview_answer(interview.interview_id, "Independent first answer")
+    assert first.assistance_level is None
+    interview, _ = forge.evaluate_interview_answer(interview.interview_id, AttemptEvaluation.CORRECT, "Correct.")
+    forge.submit_interview_answer(interview.interview_id, "Independent defense answer")
+    forge.evaluate_interview_answer(interview.interview_id, AttemptEvaluation.CORRECT, "Correct defense.")
+    with forge._db() as db:
+        db.execute(
+            "INSERT INTO mission_projects VALUES(?,?,?,?)",
+            (mission.mission_id, "Evidence Project", "se.python", "2026-01-01T00:00:00+00:00"),
+        )
+        db.execute(
+            "INSERT INTO public_evidence_candidates "
+            "(candidate_id,mission_id,artifact_ref,state,reasons_json,created_at,updated_at,approved_at) "
+            "VALUES(?,?,?,?,?,?,?,?)",
+            ("candidate_ready", mission.mission_id, "artifact.md", "qualified", "[]",
+             "2026-01-01T00:00:00+00:00", "2026-01-01T00:00:00+00:00", None),
+        )
+
+    readiness = CareerForgeService(forge.path).career_readiness()
+    assert readiness.interview_status == "evidence_supported"
+    assert readiness.correct_interview_responses == 2
+    assert readiness.portfolio_status == "review_ready"
+    assert readiness.status == "foundation_building"
+    assert "Evidence Project" in readiness.project_families
+
+
+def test_readiness_requires_two_correct_responses_in_the_same_completed_interview(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    for _ in range(2):
+        interview = forge.start_interview(mission.mission_id)
+        forge.submit_interview_answer(interview.interview_id, "Independent answer")
+        forge.evaluate_interview_answer(
+            interview.interview_id, AttemptEvaluation.CORRECT, "Correct.",
+        )
+        forge.submit_interview_answer(interview.interview_id, "Incorrect defense")
+        forge.evaluate_interview_answer(
+            interview.interview_id, AttemptEvaluation.INCORRECT, "Needs repair.",
+        )
+
+    readiness = forge.career_readiness()
+    assert readiness.completed_interviews == 2
+    assert readiness.correct_interview_responses == 2
+    assert readiness.interview_status == "developing"
+
+
 def test_reinforcement_interrupts_then_resumes_newer_mission_without_automatic_mastery(tmp_path):
     forge = CareerForgeService(tmp_path / "learner.sqlite3")
     foundation = forge.start_mission("se.python", "Verify Python")

@@ -232,6 +232,21 @@ dependency consistency, and full repository verification with 904 Python tests
 pass. Next: evidence-backed interview/job-readiness and portfolio-readiness
 projection in PROGRESS without fabricated percentages or claims.
 
+Evidence-backed readiness projection is qualified locally. PROGRESS now derives
+categorical career, interview, and portfolio states from canonical mastery,
+confidence, bounded interviews, linked projects, and governed public-evidence
+records. Two correct no-help answers must belong to the same completed
+interview; overall evidence support also requires every competency at
+APPLY INDEPENDENTLY, no weak/stale confidence, and at least one published
+artifact. The projection lists counts and explicit blockers without a score,
+mastery mutation, publication authority, or resume claim. Focused validation
+passes 57 Python tests; frontend changed-file lint, 4 focused tests, and the
+production build remain valid, and full repository verification passes with 906
+Python tests plus dependency consistency. The exact published capability SHA
+must replace this qualification note after commit. Next: final retained-scope
+and owner-path acceptance audit across the product baseline, architecture,
+roadmap, and deterministic E2E coverage.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

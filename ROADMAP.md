@@ -898,6 +898,18 @@ The next retained gap is an evidence-backed interview/job-readiness and portfoli
 readiness projection; current evidence must not be converted into invented
 percentages or resume claims.
 
+That readiness projection is now integrated. PROGRESS derives categorical
+career, interview, and portfolio states from the existing mastery, confidence,
+interview, project, and governed-publication authorities. Interview support
+requires both correct no-help responses from one completed bounded interview;
+career readiness additionally requires all competencies at independent
+application, no weak/stale confidence, and a published governed artifact. The
+projection lists its evidence counts and blockers without a synthetic score,
+automatic learner-state mutation, or generated resume claim. The next
+dependency is a final retained-scope and owner-path acceptance audit across the
+Career Forge product baseline, architecture, roadmap, and deterministic E2E
+coverage.
+
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and
 advanced organization-hierarchy visualization remain deferred unless the owner

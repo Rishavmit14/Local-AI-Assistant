@@ -184,6 +184,23 @@ class InterleavedAssessment:
 
 
 @dataclass(frozen=True, slots=True)
+class CareerReadiness:
+    status: str
+    interview_status: str
+    portfolio_status: str
+    evidenced_competencies: int
+    independent_competencies: int
+    total_competencies: int
+    completed_interviews: int
+    correct_interview_responses: int
+    project_families: tuple[str, ...]
+    qualified_artifacts: int
+    approved_artifacts: int
+    published_artifacts: int
+    blockers: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class InterviewSession:
     interview_id: str
     mission_id: str
@@ -245,6 +262,7 @@ class CareerForgeProgress:
     cognitive_improvements: tuple[CognitiveImprovementEvaluation, ...]
     learner_confidence: tuple[LearnerConfidence, ...]
     interleavings: tuple[InterleavedAssessment, ...]
+    readiness: CareerReadiness
     next_action: str
     history: tuple[LearningHistoryItem, ...]
 
@@ -319,6 +337,10 @@ class CareerForgeService:
                 CREATE UNIQUE INDEX IF NOT EXISTS active_interview_per_mission
                     ON career_interviews(mission_id)
                     WHERE state IN ('awaiting_answer', 'awaiting_evaluation');
+                CREATE TABLE IF NOT EXISTS career_interview_attempts (
+                    interview_id TEXT NOT NULL, attempt_id TEXT NOT NULL UNIQUE,
+                    PRIMARY KEY(interview_id, attempt_id)
+                );
                 CREATE TABLE IF NOT EXISTS mission_desktop_actions (
                     action_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
                     action TEXT NOT NULL, target TEXT NOT NULL,
@@ -667,6 +689,7 @@ class CareerForgeService:
         cognitive_improvements = self.cognitive_improvement_evaluations(limit=limit)
         learner_confidence = self.learner_confidence()
         interleavings = self.interleavings(limit=limit)
+        readiness = self.career_readiness()
         evidenced = tuple(item for item in self.competencies() if item.mastery is not MasteryLevel.UNVERIFIED)
         due_review = next((item for item in reviews if item.state == "scheduled" and item.due_at <= _now()), None)
         delivered_review = next((item for item in reviews if item.state == "delivered"), None)
@@ -698,7 +721,68 @@ class CareerForgeService:
             for item in evidence
         ]
         history.sort(key=lambda item: item.occurred_at, reverse=True)
-        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, weak_areas, cognitive_improvements, learner_confidence, interleavings, next_action, tuple(history[:limit]))
+        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, weak_areas, cognitive_improvements, learner_confidence, interleavings, readiness, next_action, tuple(history[:limit]))
+
+    def career_readiness(self) -> CareerReadiness:
+        """Project evidence-backed readiness states without scores or claims."""
+        competencies = self.competencies()
+        confidence = self.learner_confidence()
+        ladder = tuple(MasteryLevel)
+        evidenced = sum(item.mastery is not MasteryLevel.UNVERIFIED for item in competencies)
+        independent = sum(
+            ladder.index(item.mastery) >= ladder.index(MasteryLevel.APPLY_INDEPENDENTLY)
+            for item in competencies
+        )
+        with self._db() as db:
+            completed_interviews = int(db.execute(
+                "SELECT COUNT(*) FROM career_interviews WHERE state='completed'"
+            ).fetchone()[0])
+            correct_interviews = int(db.execute(
+                "SELECT COUNT(*) FROM career_interview_attempts AS binding "
+                "JOIN career_interviews AS interview USING(interview_id) "
+                "JOIN lesson_attempts AS attempt USING(attempt_id) "
+                "WHERE interview.state='completed' AND attempt.tutor_mode='interview' "
+                "AND attempt.evaluation='correct' AND attempt.assistance_level IS NULL"
+            ).fetchone()[0])
+            supported_interviews = int(db.execute(
+                "SELECT COUNT(*) FROM ("
+                "SELECT interview.interview_id FROM career_interviews AS interview "
+                "JOIN career_interview_attempts AS binding USING(interview_id) "
+                "JOIN lesson_attempts AS attempt USING(attempt_id) "
+                "WHERE interview.state='completed' AND attempt.tutor_mode='interview' "
+                "AND attempt.assistance_level IS NULL GROUP BY interview.interview_id "
+                "HAVING COUNT(*)=2 AND SUM(attempt.evaluation='correct')=2)"
+            ).fetchone()[0])
+            project_families = tuple(row[0] for row in db.execute(
+                "SELECT DISTINCT project_name FROM mission_projects ORDER BY project_name"
+            ))
+            candidate_counts = dict(db.execute(
+                "SELECT state,COUNT(*) FROM public_evidence_candidates GROUP BY state"
+            ))
+        qualified = int(candidate_counts.get("qualified", 0))
+        approved = int(candidate_counts.get("approved", 0))
+        published = int(candidate_counts.get("published", 0))
+        risky_confidence = sum(item.status in {"weak", "stale"} for item in confidence)
+        interview_status = (
+            "evidence_supported" if supported_interviews >= 1
+            else "developing" if completed_interviews or correct_interviews else "not_started"
+        )
+        portfolio_status = (
+            "published" if published else "owner_approved" if approved else
+            "review_ready" if qualified else "building" if project_families else "not_started"
+        )
+        blockers = tuple(filter(None, (
+            f"{len(competencies) - independent} competencies lack independent-application mastery" if independent < len(competencies) else "",
+            f"{risky_confidence} competencies have weak or stale confidence" if risky_confidence else "",
+            "a completed two-response no-help interview is required" if interview_status != "evidence_supported" else "",
+            "at least one governed portfolio artifact must be published" if not published else "",
+        )))
+        status = "evidence_supported" if not blockers else "evidence_building" if evidenced else "foundation_building"
+        return CareerReadiness(
+            status, interview_status, portfolio_status, evidenced, independent,
+            len(competencies), completed_interviews, correct_interviews,
+            project_families, qualified, approved, published, blockers,
+        )
 
     def learner_confidence(self) -> tuple[LearnerConfidence, ...]:
         """Derive categorical confidence without changing canonical mastery."""
@@ -1201,6 +1285,10 @@ class CareerForgeService:
             mode=TutorMode.INTERVIEW, assistance_level=None,
         )
         with self._db() as db:
+            db.execute(
+                "INSERT INTO career_interview_attempts VALUES(?,?)",
+                (interview_id, attempt.attempt_id),
+            )
             changed = db.execute(
                 "UPDATE career_interviews SET state='awaiting_evaluation', current_attempt_id=?, updated_at=? "
                 "WHERE interview_id=? AND state='awaiting_answer'",

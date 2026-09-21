@@ -1,5 +1,20 @@
 # Project History
 
+## 2026-09-21 — Evidence-backed Career Forge readiness candidate
+
+PROGRESS now derives categorical career, interview, and portfolio readiness from
+the canonical mastery ladder, evidence-derived confidence, completed bounded
+interviews, linked project families, and governed public-evidence states. A
+supported interview requires two correct no-help responses bound to the same
+completed interview; responses from different sessions cannot be combined.
+Overall readiness additionally requires every competency at independent
+application, no weak/stale confidence, and at least one published governed
+artifact. The projection exposes explicit blockers and counts without a score,
+automatic mastery, publication, or resume claim. Focused validation passes 57
+Python tests; the previously current 4 frontend tests, changed-file lint, and
+production build remain valid, while dependency consistency and full repository
+verification pass with 906 Python tests.
+
 ## 2026-09-21 — Governed Career Forge interleaving candidate
 
 Career Forge can now select an older learned concept only when it is a real
