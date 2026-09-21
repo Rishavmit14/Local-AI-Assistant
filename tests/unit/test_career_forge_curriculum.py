@@ -171,6 +171,11 @@ def test_reinforcement_interrupts_then_resumes_newer_mission_without_automatic_m
         "reinforcement": True,
         "reasons": ["1 failed retention review"],
         "interrupted_mission_id": interrupted.mission_id,
+        "baseline": {
+            "mastery": "recognize",
+            "retention_review_ids": [review.review_id],
+            "attempt_ids": [],
+        },
     }
     assert forge.resume() == reinforcement
     assert forge.competencies()[0].mastery is MasteryLevel.RECOGNIZE

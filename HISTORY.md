@@ -1,5 +1,20 @@
 # Project History
 
+## 2026-09-21 — Evidence-positive Career Forge cognitive evaluation candidate
+
+Career Forge now reconstructs a deterministic, restart-safe provenance chain
+from an objective failed retention baseline through evidence-backed weak-area
+selection, governed reinforcement, recorded specialist assistance, a correct
+assessed Practice Lab attempt, explicit mastery advancement, and a fresh
+retention reassessment. Only a correct fresh reassessment that raises the
+authoritative mastery rung and resolves the original weak area is reported as
+evidence-positive; an incorrect reassessment remains a negative control even
+after intervention and never claims improvement. The projection grants no new
+mastery authority and stores no duplicate learner score. Focused validation
+passes 78 Python tests and 19 frontend tests; changed-file Python/frontend lint,
+the production frontend build, dependency consistency, and full repository
+verification with 897 Python tests also pass.
+
 ## 2026-09-20 — Trusted Career Forge curriculum-research candidate
 
 MAP now projects canonical-topic coverage from Friday's existing local,

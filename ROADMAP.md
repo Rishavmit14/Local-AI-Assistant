@@ -864,8 +864,16 @@ recorded; roles gain no tool, Learner Twin, or mastery authority. The next Caree
 Forge now projects trusted curriculum research through the existing local
 research ledger: MAP displays provenance-bearing source and canonical-topic
 coverage for the active domain without exposing source content or granting graph,
-mission, evidence, or mastery mutation. The next dependency is evidence-positive
-cognitive-improvement evaluation across the completed Career Forge loop.
+mission, evidence, or mastery mutation. Evidence-positive cognitive-improvement
+evaluation now reconstructs the governed loop from persisted provenance: a
+failed objective retention baseline, evidence-backed weakness, reinforcement
+mission, assessed intervention evidence, explicit mastery advancement, and a
+fresh retention reassessment. Only a higher canonical mastery rung plus a
+correct fresh reassessment that clears the original weak area is positive; an
+incorrect reassessment is a deterministic negative control. The projection is
+read-only and restart-safe. The next dependency is the final authoritative
+Career Forge gap audit across MAP, PROGRESS, product baseline, tests, and
+retained scope.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and
@@ -873,7 +881,7 @@ advanced organization-hierarchy visualization remain deferred unless the owner
 explicitly changes priority. The current Qwen remains the sole general-purpose
 local model and role contexts remain sequential.
 
-## Stage 22 — Friday Career Forge Advanced Integration (**Planned; Priority B of active product integration**)
+## Stage 22 — Friday Career Forge Advanced Integration (**Integrated candidate; final gap audit pending**)
 
 Integrate the accepted Stage 15–21 general capabilities into the mature Career
 Forge: screen-aware tutoring, policy-governed desktop assistance, bounded

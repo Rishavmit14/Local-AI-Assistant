@@ -315,8 +315,9 @@ An owner can invoke learning, receive correct prerequisite verification and a
 meaningful mission, attempt and get progressive help, run/test/debug local work,
 provide explanation evidence, persist mastery/progress, resume exactly, connect
 work to projects, and publish only qualifying evidence. Rich decay/confusion,
-trusted curriculum-research ingestion and broader cognitive evaluation remain
-later advanced-integration work.
+and broader longitudinal analytics remain later work; trusted curriculum-
+research projection and bounded cognitive-improvement evaluation are now
+integrated through the existing evidence authorities.
 
 LEARN now routes an explicit tutor-mode choice through Friday's existing
 sequential role orchestrator: Teacher, Coach, Pair Programmer, Reviewer,
@@ -330,3 +331,16 @@ research ledger. Canonical competency titles are compared deterministically with
 explicit provenance-bearing sources for the same domain. Only source identity,
 title, provenance, and version leave the research boundary; coverage and gaps
 are advisory and never mutate the graph, mission order, evidence, or mastery.
+
+PROGRESS now includes a deterministic cognitive-improvement projection over the
+same Learner Twin records. Starting reinforcement snapshots the objective weak-
+area causes and mastery rung into durable mission provenance. Correct assessed
+attempts link their generated evidence back to the source attempt; later mission
+phase updates preserve that provenance. An evaluation is evidence-positive only
+when a failed retention baseline led to reinforcement, the intervention produced
+correct assessed evidence, an explicit owner-path mastery decision advanced at
+least one canonical rung, and a fresh correct retention reassessment resolved
+the original weak area. Incorrect or uncertain reassessment remains non-positive
+even if practice ran or mastery changed. The projection is read-only, survives
+restart by reconstruction from SQLite, and introduces no automatic mastery,
+model-weight change, duplicated scoring store, or nondeterministic model oracle.

@@ -182,6 +182,21 @@ repository verification passes with 895 Python tests and dependency consistency;
 the remote integration branch was verified at the exact capability commit. Next:
 evidence-positive cognitive-improvement evaluation across the completed loop.
 
+Evidence-positive cognitive-improvement evaluation is qualified in the current
+candidate. Reinforcement missions durably retain the failed objective baseline,
+mastery rung, reasons, and interrupted mission; correct assessed evidence links
+back to its source attempt, and ordinary resume updates no longer erase this
+provenance. PROGRESS reconstructs the causal chain without a duplicate score or
+new mutation authority. It reports positive improvement only after a fresh
+correct retention reassessment, a higher canonical mastery rung, and resolution
+of the original weak area. The integration qualification uses the real Practice
+Lab and proves restart recovery; its incorrect-reassessment control remains
+non-positive. Focused validation passes 78 Python tests and 19 frontend tests,
+changed-file Python/frontend lint and the production frontend build pass, and
+full repository verification passes with 897 Python tests plus dependency
+consistency. The next dependency is the final authoritative Career Forge gap
+audit, followed immediately by any remaining retained scope.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

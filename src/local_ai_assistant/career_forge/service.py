@@ -129,6 +129,31 @@ class WeakArea:
 
 
 @dataclass(frozen=True, slots=True)
+class CognitiveImprovementEvaluation:
+    """Deterministic evidence chain for one governed reinforcement cycle."""
+
+    competency_id: str
+    title: str
+    status: str
+    reinforcement_mission_id: str
+    baseline_mastery: MasteryLevel
+    baseline_review_ids: tuple[str, ...]
+    baseline_attempt_ids: tuple[str, ...]
+    intervention_reasons: tuple[str, ...]
+    assistance_ids: tuple[str, ...]
+    practice_attempt_id: str | None
+    practice_evidence_id: str | None
+    practice_evidence_type: str | None
+    reassessment_review_id: str | None
+    reassessment_evaluation: AttemptEvaluation | None
+    current_mastery: MasteryLevel
+    objective_score_delta: int
+    mastery_rung_delta: int
+    weak_area_resolved: bool
+    evidence_positive: bool
+
+
+@dataclass(frozen=True, slots=True)
 class InterviewSession:
     interview_id: str
     mission_id: str
@@ -187,6 +212,7 @@ class CareerForgeProgress:
     unresolved_retries: tuple[LessonAttempt, ...]
     retention_reviews: tuple[RetentionReview, ...]
     weak_areas: tuple[WeakArea, ...]
+    cognitive_improvements: tuple[CognitiveImprovementEvaluation, ...]
     next_action: str
     history: tuple[LearningHistoryItem, ...]
 
@@ -287,6 +313,9 @@ class CareerForgeService:
             ):
                 if name not in columns:
                     db.execute(f"ALTER TABLE retention_reviews ADD COLUMN {name} {declaration}")
+            evidence_columns = {row[1] for row in db.execute("PRAGMA table_info(mission_evidence)")}
+            if "source_attempt_id" not in evidence_columns:
+                db.execute("ALTER TABLE mission_evidence ADD COLUMN source_attempt_id TEXT")
             candidate_columns = {
                 row[1] for row in db.execute("PRAGMA table_info(public_evidence_candidates)")
             }
@@ -369,6 +398,27 @@ class CareerForgeService:
         active = self.resume()
         if active is not None and active.competency_id == selected.competency_id:
             raise ValueError("the weak competency already has an active mission")
+        unresolved_attempts = self.unresolved_attempts(limit=100)
+        baseline_attempts = tuple(
+            item.attempt_id for item in unresolved_attempts
+            if item.competency_id == selected.competency_id
+        )
+        with self._db() as db:
+            latest_review = db.execute(
+                "SELECT review_id, evaluation FROM retention_reviews "
+                "WHERE competency_id=? AND state='completed' "
+                "ORDER BY evaluated_at DESC, created_at DESC LIMIT 1",
+                (selected.competency_id,),
+            ).fetchone()
+            baseline_reviews = (
+                (str(latest_review[0]),)
+                if latest_review and latest_review[1] in {AttemptEvaluation.INCORRECT, AttemptEvaluation.UNCERTAIN}
+                else ()
+            )
+            baseline_mastery = MasteryLevel(db.execute(
+                "SELECT mastery FROM learner_competencies WHERE competency_id=?",
+                (selected.competency_id,),
+            ).fetchone()[0])
         return self._create_mission(
             selected.competency_id,
             f"Reinforce {selected.title}",
@@ -377,6 +427,11 @@ class CareerForgeService:
                 "reinforcement": True,
                 "reasons": list(selected.reasons),
                 "interrupted_mission_id": active.mission_id if active else None,
+                "baseline": {
+                    "mastery": baseline_mastery,
+                    "retention_review_ids": list(baseline_reviews),
+                    "attempt_ids": list(baseline_attempts),
+                },
             },
         )
 
@@ -417,6 +472,11 @@ class CareerForgeService:
     def update_resume(self, mission_id: str, resume_point: dict[str, object], *, assistance_level: str | None = None) -> Mission:
         if not isinstance(resume_point, dict):
             raise ValueError("mission resume point must be an object")
+        current = self.mission(mission_id)
+        resume_point = dict(resume_point)
+        for key in ("reinforcement", "reasons", "interrupted_mission_id", "baseline"):
+            if key in current.resume_point and key not in resume_point:
+                resume_point[key] = current.resume_point[key]
         with self._db() as db:
             changed = db.execute(
                 "UPDATE missions SET resume_json=?, assistance_level=?, updated_at=? WHERE mission_id=? AND state='active'",
@@ -426,15 +486,21 @@ class CareerForgeService:
             raise ValueError("mission is not active")
         return self.mission(mission_id)
 
-    def record_evidence(self, mission_id: str, evidence_type: str, content: str, *, assistance_level: str | None = None, artifact_ref: str | None = None) -> str:
+    def record_evidence(self, mission_id: str, evidence_type: str, content: str, *, assistance_level: str | None = None, artifact_ref: str | None = None, source_attempt_id: str | None = None) -> str:
         if not all(isinstance(value, str) and value.strip() for value in (evidence_type, content)):
             raise ValueError("evidence type and content must not be empty")
         self.mission(mission_id)
+        if source_attempt_id is not None:
+            attempt = self.attempt(source_attempt_id)
+            if attempt.mission_id != mission_id or attempt.evaluation is not AttemptEvaluation.CORRECT:
+                raise ValueError("evidence source must be a correct attempt from the same mission")
         evidence_id = "evidence_" + uuid.uuid4().hex
         with self._db() as db:
             db.execute(
-                "INSERT INTO mission_evidence VALUES(?,?,?,?,?,?,?)",
-                (evidence_id, mission_id, evidence_type.strip(), content.strip(), assistance_level, artifact_ref, _now()),
+                "INSERT INTO mission_evidence "
+                "(evidence_id, mission_id, evidence_type, content, assistance_level, artifact_ref, created_at, source_attempt_id) "
+                "VALUES(?,?,?,?,?,?,?,?)",
+                (evidence_id, mission_id, evidence_type.strip(), content.strip(), assistance_level, artifact_ref, _now(), source_attempt_id),
             )
         return evidence_id
 
@@ -522,6 +588,7 @@ class CareerForgeService:
         retries = self.unresolved_attempts(limit=limit)
         reviews = self.retention_reviews(limit=limit)
         weak_areas = self.weak_areas(limit=limit)
+        cognitive_improvements = self.cognitive_improvement_evaluations(limit=limit)
         evidenced = tuple(item for item in self.competencies() if item.mastery is not MasteryLevel.UNVERIFIED)
         due_review = next((item for item in reviews if item.state == "scheduled" and item.due_at <= _now()), None)
         delivered_review = next((item for item in reviews if item.state == "delivered"), None)
@@ -553,7 +620,90 @@ class CareerForgeService:
             for item in evidence
         ]
         history.sort(key=lambda item: item.occurred_at, reverse=True)
-        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, weak_areas, next_action, tuple(history[:limit]))
+        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, weak_areas, cognitive_improvements, next_action, tuple(history[:limit]))
+
+    def cognitive_improvement_evaluations(self, *, limit: int = 20) -> tuple[CognitiveImprovementEvaluation, ...]:
+        """Project objective improvement only from the persisted governed loop.
+
+        A positive result requires a failed objective baseline, a reinforcement
+        mission, a correct assessed attempt linked to its evidence, an explicit
+        one-or-more-rung mastery decision, and a fresh correct retention review
+        that resolves the original weak area. The projection never mutates state.
+        """
+        if not 1 <= limit <= 100:
+            raise ValueError("cognitive-improvement limit must be between 1 and 100")
+        weak_ids = {item.competency_id for item in self.weak_areas(limit=100)}
+        mastery_by_id = {
+            item.competency.competency_id: item.mastery for item in self.competencies()
+        }
+        ladder = tuple(MasteryLevel)
+        evaluations: list[CognitiveImprovementEvaluation] = []
+        with self._db() as db:
+            missions = db.execute(
+                "SELECT mission_id, competency_id, resume_json FROM missions ORDER BY created_at DESC"
+            ).fetchall()
+            for mission_id, competency_id, resume_json in missions:
+                resume = json.loads(resume_json)
+                if resume.get("reinforcement") is not True:
+                    continue
+                baseline = resume.get("baseline")
+                if not isinstance(baseline, dict):
+                    continue
+                baseline_reviews = tuple(str(item) for item in baseline.get("retention_review_ids", ()))
+                baseline_attempts = tuple(str(item) for item in baseline.get("attempt_ids", ()))
+                if not baseline_reviews and not baseline_attempts:
+                    continue
+                baseline_mastery = MasteryLevel(str(baseline.get("mastery", MasteryLevel.UNVERIFIED)))
+                assistance_ids = tuple(row[0] for row in db.execute(
+                    "SELECT assistance_id FROM mission_assistance WHERE mission_id=? ORDER BY created_at",
+                    (mission_id,),
+                ))
+                evidence = db.execute(
+                    "SELECT e.evidence_id, e.evidence_type, e.source_attempt_id "
+                    "FROM mission_evidence e JOIN lesson_attempts a ON a.attempt_id=e.source_attempt_id "
+                    "WHERE e.mission_id=? AND a.evaluation='correct' "
+                    "ORDER BY e.created_at DESC LIMIT 1",
+                    (mission_id,),
+                ).fetchone()
+                reassessment = None
+                if evidence is not None:
+                    reassessment = db.execute(
+                        "SELECT review_id, evaluation, mastery FROM retention_reviews "
+                        "WHERE evidence_id=? AND state='completed' ORDER BY evaluated_at DESC LIMIT 1",
+                        (evidence[0],),
+                    ).fetchone()
+                current_mastery = mastery_by_id[str(competency_id)]
+                reassessment_evaluation = (
+                    AttemptEvaluation(str(reassessment[1])) if reassessment and reassessment[1] else None
+                )
+                mastery_delta = ladder.index(current_mastery) - ladder.index(baseline_mastery)
+                weak_resolved = str(competency_id) not in weak_ids
+                evidence_positive = bool(
+                    baseline_reviews
+                    and evidence
+                    and reassessment_evaluation is AttemptEvaluation.CORRECT
+                    and mastery_delta > 0
+                    and weak_resolved
+                )
+                status = (
+                    "evidence_positive" if evidence_positive else
+                    "reassessment_failed" if reassessment_evaluation in {AttemptEvaluation.INCORRECT, AttemptEvaluation.UNCERTAIN} else
+                    "awaiting_reassessment" if evidence else
+                    "intervention_active"
+                )
+                evaluations.append(CognitiveImprovementEvaluation(
+                    str(competency_id), self.graph[str(competency_id)].title, status,
+                    str(mission_id), baseline_mastery, baseline_reviews, baseline_attempts,
+                    tuple(str(item) for item in resume.get("reasons", ())), assistance_ids,
+                    str(evidence[2]) if evidence else None, str(evidence[0]) if evidence else None,
+                    str(evidence[1]) if evidence else None,
+                    str(reassessment[0]) if reassessment else None, reassessment_evaluation,
+                    current_mastery, int(reassessment_evaluation is AttemptEvaluation.CORRECT),
+                    mastery_delta, weak_resolved, evidence_positive,
+                ))
+                if len(evaluations) == limit:
+                    break
+        return tuple(evaluations)
 
     def unresolved_attempts(self, *, limit: int = 20) -> tuple[LessonAttempt, ...]:
         """Return only the latest still-failing attempt for each mission question."""
@@ -717,7 +867,8 @@ class CareerForgeService:
             ))
         if evidence_type:
             self.record_evidence(attempt.mission_id, evidence_type, attempt.response,
-                                 assistance_level=attempt.assistance_level)
+                                 assistance_level=attempt.assistance_level,
+                                 source_attempt_id=attempt.attempt_id)
         phase = LessonPhase.TEACH_BACK if evaluation is AttemptEvaluation.CORRECT else LessonPhase.QUESTION
         self.update_resume(attempt.mission_id, {"phase": phase, "question_id": attempt.question_id, "attempt_id": attempt_id},
                            assistance_level=attempt.assistance_level)
