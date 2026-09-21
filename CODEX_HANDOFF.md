@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`57f2ea8`. The
+`d9eaa84`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -232,7 +232,8 @@ dependency consistency, and full repository verification with 904 Python tests
 pass. Next: evidence-backed interview/job-readiness and portfolio-readiness
 projection in PROGRESS without fabricated percentages or claims.
 
-Evidence-backed readiness projection is qualified locally. PROGRESS now derives
+Evidence-backed readiness projection is accepted and published at `d9eaa84`.
+PROGRESS now derives
 categorical career, interview, and portfolio states from canonical mastery,
 confidence, bounded interviews, linked projects, and governed public-evidence
 records. Two correct no-help answers must belong to the same completed
@@ -242,10 +243,9 @@ artifact. The projection lists counts and explicit blockers without a score,
 mastery mutation, publication authority, or resume claim. Focused validation
 passes 57 Python tests; frontend changed-file lint, 4 focused tests, and the
 production build remain valid, and full repository verification passes with 906
-Python tests plus dependency consistency. The exact published capability SHA
-must replace this qualification note after commit. Next: final retained-scope
-and owner-path acceptance audit across the product baseline, architecture,
-roadmap, and deterministic E2E coverage.
+Python tests plus dependency consistency. Next: final retained-scope and
+owner-path acceptance audit across the product baseline, architecture, roadmap,
+and deterministic E2E coverage.
 
 ## 0. Non-negotiable project rules
 
