@@ -1,4 +1,9 @@
-from local_ai_assistant.career_forge import AttemptEvaluation, CareerForgeService, PracticeLabService, TutorMode
+from local_ai_assistant.career_forge import (
+    AttemptEvaluation,
+    CareerForgeService,
+    PracticeLabService,
+    TutorMode,
+)
 from local_ai_assistant.interface.capabilities import (
     CapabilityStatus,
     FridayCapability,
@@ -99,6 +104,7 @@ def test_information_and_invocation_intents_remain_distinct(tmp_path):
     invoke = capability_router.route("Teach me machine learning")
 
     assert info is not None and info.intent is ConversationIntent.INFORMATION and info.response
+    assert "explicit arbitrary code selection" in info.response
     assert invoke is not None and invoke.intent is ConversationIntent.INVOCATION and invoke.system_context
 
 

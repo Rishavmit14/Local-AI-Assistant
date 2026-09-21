@@ -305,6 +305,9 @@ When a mission with such an objective publishes approved evidence, the API
 requires the exact linked task and repository and a canonical `succeeded` task
 state before invoking the existing promotion gateway. This prevents an unrelated
 successful task from laundering an artifact into the mission's evidence chain.
+Objective task reservation assigns the deterministic `friday/task/<task-id>`
+branch required by the isolation and publication authorities; it never stages
+project work on `main`.
 
 V1 can explicitly connect an active mission only to the canonical project family
 declared by its competency. The local Learner Twin records that link and the

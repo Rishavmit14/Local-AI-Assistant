@@ -1,5 +1,24 @@
 # Project History
 
+## 2026-09-21 — Qualified bounded Career Forge project lifecycle
+
+One deterministic real local lifecycle now traverses failed and repaired Practice
+Lab work, dependency-aware evidence/mastery, FraudShield project linkage,
+objective reservation, canonical planning, exact approval, isolated execution,
+validation/review, succeeded task history, project evidence, blocked then
+qualified artifact review, separate owner approval, authenticated mission-bound
+publication, replay idempotency, and restart recovery. Qualification exposed and
+repaired an impossible seam: objective tasks now reserve their deterministic
+`friday/task/...` isolation branch instead of `main`, satisfying the existing
+publication authority. Runtime capability descriptions were also reconciled
+with the installed selected-code, retained-screen, Interview, MAP, PROJECTS, and
+PROGRESS surfaces. Real GitHub publication and the remaining physical owner
+flows remain exact external qualifications, not autonomous engineering gaps.
+Focused lifecycle, reservation, publication-transport, and capability-routing
+regressions pass; full repository verification passes with 909 Python tests and
+dependency consistency. The unchanged frontend retains its current 46-test,
+changed-file-lint, and production-build qualification evidence.
+
 ## 2026-09-21 — Durable Career Forge publication outcome candidate
 
 PROJECTS now reloads every persisted artifact review for the active mission and

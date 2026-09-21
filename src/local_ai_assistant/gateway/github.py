@@ -9,8 +9,19 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
+from .errors import (
+    GitHubAuthenticationError,
+    GitHubConflictError,
+    GitHubError,
+    GitHubMalformedResponseError,
+    GitHubNotFoundError,
+    GitHubOversizedResponseError,
+    GitHubPermissionError,
+    GitHubRateLimitError,
+    GitHubTransientError,
+    GitHubValidationError,
+)
 from .models import CIStatus, RepositoryMapping
-from .errors import (GitHubAuthenticationError, GitHubConflictError, GitHubError, GitHubMalformedResponseError, GitHubNotFoundError, GitHubOversizedResponseError, GitHubPermissionError, GitHubRateLimitError, GitHubTransientError, GitHubValidationError)
 
 
 class GitHubTransport(Protocol):
@@ -103,7 +114,17 @@ class FakeGitHubTransport:
         for pr in self.pull_requests:
             if pr["head"] == head and pr["repo"] == (owner, repo):
                 return dict(pr)
-        value = {"number": len(self.pull_requests) + 1, "head": head, "base": base, "title": title, "body": body, "repo": (owner, repo)}
+        number = len(self.pull_requests) + 1
+        value = {
+            "id": number,
+            "number": number,
+            "html_url": f"https://github.com/{owner}/{repo}/pull/{number}",
+            "head": head,
+            "base": base,
+            "title": title,
+            "body": body,
+            "repo": (owner, repo),
+        }
         self.pull_requests.append(value)
         return dict(value)
 

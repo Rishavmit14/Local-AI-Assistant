@@ -1,15 +1,15 @@
 """Thin gateway service delegating task state to Stage 7 history."""
 from __future__ import annotations
 
-import subprocess
 import re
+import subprocess
 from dataclasses import asdict
 from pathlib import Path
 from threading import Event, Thread
 
+from local_ai_assistant.execution.history import redact
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
-from local_ai_assistant.execution.history import redact
 from local_ai_assistant.isolation.gitops import git_argv, safe_git_environment
 
 from .events import BoundedEventBus
@@ -70,7 +70,7 @@ class IntegrationGatewayService:
             raise ValueError("bounded objective request is required")
         repository = self._repo(repository_id)
         task = self.history.create_external_task(
-            request, repository, _git_head(repository), "main",
+            request, repository, _git_head(repository), f"friday/task/{task_id}",
             source="friday-objective", event_id=task_id, task_id=task_id,
             metadata={"plan_only": True, "objective_reservation": task_id},
         )
@@ -117,7 +117,6 @@ class IntegrationGatewayService:
 
     def _emit(self, task_id: str, event_type: str, summary: str, *, critical: bool = False) -> None:
         persisted = self.history.store.add_event(task_id, "gateway", event_type.lower(), summary, status=event_type)
-        timeline = self.history.timeline(task_id)
         self.events.publish(GatewayEvent(persisted.event_id, self.history.store.event_rowid(persisted.event_id), task_id, event_type, persisted.timestamp, summary, critical=critical))
 
     def _history_bridge(self) -> None:

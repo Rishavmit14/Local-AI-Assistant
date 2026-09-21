@@ -10,7 +10,12 @@ import re
 from dataclasses import dataclass
 from enum import StrEnum
 
-from local_ai_assistant.career_forge import CareerForgeService, LessonPhase, PracticeLabService, TutorMode
+from local_ai_assistant.career_forge import (
+    CareerForgeService,
+    LessonPhase,
+    PracticeLabService,
+    TutorMode,
+)
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 from .capabilities import CapabilityStatus, FridayCapabilityRegistry
@@ -175,7 +180,8 @@ class CareerForgeConversationAdapter:
         return (
             "Career Forge is Friday's integrated local ML/AI Engineer apprenticeship. "
             "It uses the persisted Learner Twin, dependency graph, canonical missions, and evidence-backed mastery boundary. "
-            + self._mission_status(mission) + " Practice Lab is available for its current bounded Python exercise; selected-code and screen-aware tutoring are not available."
+            + self._mission_status(mission)
+            + " Practice Lab supports its bounded Python exercise, explicit arbitrary code selection, Friday-initiated code questions, and explicit retained-screen tutoring."
         )
 
     def _mission_status(self, mission) -> str:

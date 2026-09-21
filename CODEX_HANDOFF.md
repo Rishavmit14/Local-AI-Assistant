@@ -281,6 +281,35 @@ pass; backend truth remains qualified by the unchanged 907-test repository
 verification. Next: execute the remaining bounded project lifecycle
 qualification and audit any other baseline owner-path gaps.
 
+Bounded project lifecycle qualification is complete locally. The new production-
+boundary integration test proves failed/repaired Practice Lab work, legitimate
+dependency evidence, FraudShield linkage, durable objective reservation,
+canonical planning and exact approval, isolated task execution, validation and
+review, successful task history, artifact evidence, blocked/qualified review,
+separate approval, authenticated exact-task publication, replay idempotency, and
+restart reconstruction. It exposed and repaired objective reservations using
+`main`; they now use deterministic `friday/task/<task-id>` branches compatible
+with existing isolation and publication policy. The runtime capability registry
+and deterministic Career Forge overview now truthfully report the installed
+advanced surfaces. Focused lifecycle, reservation, publication-transport, and
+capability-routing regressions pass; full repository verification passes with
+909 Python tests plus dependency consistency. The unchanged frontend remains
+covered by its current 46-test, changed-file-lint, and production-build evidence.
+The exact published recovery SHA will be recorded after this qualified candidate
+is committed and remotely verified.
+
+Owner-path audit result: no autonomous Career Forge engineering item remains.
+Exact external qualifications are (1) the owner physically selects arbitrary
+code and asks Friday to explain it, (2) completes a due retention review, (3)
+completes the two-turn no-help interview, and (4) explicitly authorizes a real
+GitHub publication using the already-configured local credential and onboarded
+repository. Codex cannot manufacture the owner's speech/code reasoning or
+publish under an unavailable identity; all supporting engineering and negative
+controls are complete. After those actions, Friday will persist and display the
+result through the already-qualified paths. Other whole-Friday work may continue
+without waiting, but this task must publish the Career Forge final recovery
+checkpoint first.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

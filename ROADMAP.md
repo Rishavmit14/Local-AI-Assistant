@@ -923,7 +923,7 @@ advanced organization-hierarchy visualization remain deferred unless the owner
 explicitly changes priority. The current Qwen remains the sole general-purpose
 local model and role contexts remain sequential.
 
-## Stage 22 — Friday Career Forge Advanced Integration (**Integrated candidate; final gap audit pending**)
+## Stage 22 — Friday Career Forge Advanced Integration (**Qualified locally; owner/external E2E remains**)
 
 Integrate the accepted Stage 15–21 general capabilities into the mature Career
 Forge: screen-aware tutoring, policy-governed desktop assistance, bounded
@@ -933,6 +933,19 @@ ML/AI curriculum research, and evidence-positive cognitive improvements. This
 stage extends—not replaces—the bounded Stage 14 core loop and must preserve local
 sovereignty, learner-evidence provenance, owner pace, and review-gated public
 artifacts.
+
+The final bounded project lifecycle qualification uses the production Learner
+Twin, Practice Lab, project/objective link, canonical plan/approval/execution/
+validation/review history, evidence gates, authenticated publication boundary,
+and restart recovery. Objective reservations now use their deterministic
+`friday/task/...` branch, so the exact successful mission task is publication-
+eligible without bypassing isolation. Wrong-task and pre-evidence controls never
+reach publication, repeated publication creates no duplicate pull request, and
+reconstructed services recover the same objective, evidence, readiness, task,
+and published URL. No autonomous Career Forge engineering gap remains. Exact
+owner/external qualification remains for physical selected-code, retention and
+interview flows, plus a real GitHub publication using the owner's configured
+credential and onboarded repository.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 

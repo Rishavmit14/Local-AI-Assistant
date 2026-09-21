@@ -59,11 +59,11 @@ not applicable because the capability is absent/deferred.
 | 23. Shared selected-screen/editor context | no selection adapter | No | No | — | privacy/consent required | none | none | ABSENT | arbitrary selection unavailable | explicit selection/context protocol | 20, 22 | E2E-010/CF-003 |
 | 24. Document/private RAG | local document RAG package/CLI | No normal route | No | local indexes | local/private | CLI/API-adjacent | prior backend evidence only | IMPLEMENTED | unavailable in Friday conversation/UI | retrieval source chooser + citations | 3, 7 | supplied-document lesson |
 | 25. Video/audio/transcript knowledge ingestion | no product ingestion pipeline found | No | No | — | provenance/privacy needed | none | none | ABSENT | required media knowledge flow absent | local transcript/ingest boundary | 24 | supplied-media E2E |
-| 26. Career Forge core | `CareerForgeService`, graph/missions/evidence/attempts | typed information/invocation adapter and active-session handoff | journey panel | CF SQLite | deterministic Learner Twin writes; model cannot mutate or advance mastery | ask Friday to teach/resume/status | physical lesson/attempt/help/evaluation/teach-back/restart/stop flow passed | QUALIFIED | Practice Lab and advanced workspaces remain absent | retain bounded evidence-led loop | 9, 10 | E2E-011/012 |
-| 27. Career Forge LEARN | mission brief/loop and lesson-attempt boundary | normal Friday teaching, question, attempt, feedback and teach-back | mission start/resume text | CF SQLite | explicit lesson context; owner pace; no model mastery writes | ask Friday to teach ML | physical teaching and conversational continuity passed | QUALIFIED | no Practice Lab/attempt workspace | Practice Lab later submits into this evidence contract | 26 | E2E-012 |
-| 28. Career Forge MAP | competency graph | No | five-item display | CF SQLite | read-only projection | view panel | frontend tests | PARTIAL | incomplete graph/learning navigation | full navigable evidence map | 26 | map and mastery flow |
-| 29. Career Forge PROJECTS | mission-project link | No | hard-coded project names + link | CF SQLite | deterministic canonical family | connect button | API/frontend test | PARTIAL | no actual project workspace/artifacts | project workspace and repository link | 16, 26 | E2E-014 |
-| 30. Career Forge PROGRESS | canonical bounded progress projection over mission/attempt/assistance/evidence/mastery records | normal Friday progress/history questions | existing PROGRESS panel shows live evidence/retry/help/history/next action | CF SQLite | read-only evidence-derived projection; no percentage or inferred mastery | ask Friday or view panel | real local text progression/history and controlled restart passed | QUALIFIED | retention analytics remain absent | retention view later consumes the same contract | 35 | progress restart E2E |
+| 26. Career Forge core | full Learner Twin, missions, evidence, retention, readiness and project lifecycle | typed information/invocation adapter and active-session handoff | connected canonical workspaces | CF SQLite | deterministic writes; model cannot mutate mastery/publication | ask Friday to teach/resume/status | physical lesson flow plus bounded project lifecycle/restart qualification | QUALIFIED | no autonomous gap | retain bounded evidence-led loop | 9, 10 | E2E-011/012 |
+| 27. Career Forge LEARN | mission/lesson loop, Practice Lab and contextual tutoring | normal Friday teaching, attempt, feedback and teach-back | interactive mission, tutor, screen and Lab routes | CF SQLite | explicit context; owner pace; no model mastery writes | ask Friday to teach ML | physical teaching plus deterministic Lab/selection/screen coverage | QUALIFIED | physical selected-code requalification is owner action | retain current boundary | 26 | E2E-012/CF-E2E-003 |
+| 28. Career Forge MAP | complete versioned graph, prerequisites, mastery and research coverage | status available through Friday | navigable full canonical map | CF/research SQLite | read-only projection; research advisory only | MAP workspace | frontend/service coverage | INTEGRATED | no autonomous gap | retain graph authority | 26 | map and mastery flow |
+| 29. Career Forge PROJECTS | links, objectives, evidence review and durable publication outcomes | objective state remains canonical | interactive project/objective/evidence workspace | CF + autonomy/task stores | exact task/repository, approval and publication gates | PROJECTS then Objectives | bounded full lifecycle and restart recovery | QUALIFIED | real GitHub publication is owner/external action | retain exact binding | 16, 26 | CF-E2E-007/008 |
+| 30. Career Forge PROGRESS | attempts, assistance, evidence, mastery, retention, weak areas, interleaving and readiness | normal Friday progress/history questions | complete evidence-derived projection | CF SQLite | read-only; no percentage or inferred mastery | ask Friday or view PROGRESS | deterministic restart and lifecycle qualification | QUALIFIED | physical retention requalification is owner action | retain canonical projection | 35 | progress restart E2E |
 | 31. Career Forge mission resume | `resume`, ordered attempts and exact resume point | natural voice/text resume handoff | panel reads current mission | CF SQLite | owner-controlled pace; session text is non-durable | ask Friday to resume Career Forge | controlled restart then physical resume recovered canonical mission/evidence state without old transcript | QUALIFIED | broader progress projection remains absent | retain canonical resume boundary | 26 | CF-E2E-001 |
 | 32. Career Forge progressive assistance | ordered assistance levels/service | normal Friday hint/help route | No assistance UI | CF SQLite | deterministic minimum next level; complete answer withheld unless final level | ask Friday for a hint | physical prompt then conceptual help passed, including bounded wake-ASR variant | QUALIFIED | richer learning UI remains absent | retain bounded escalation | 27 | CF-E2E-005 |
 | 33. Automatic assistance tracking | lesson directive calls `offer_assistance` | normal Friday help route and history question | PROGRESS shows latest recorded help | CF SQLite | deterministic write only, exact content/level retained | ask Friday for a hint | physical hint was spoken and persisted; Slice 4 projection/restart passed | QUALIFIED | richer assistance workspace absent | retain truthful bounded history | 32 | assistance evidence flow |
@@ -94,6 +94,29 @@ not applicable because the capability is absent/deferred.
 | 58. Offline operation | local Qwen/memory/RAG design | core path local | UI local | local state | ADR 0014 | normal local use | partial historic evidence | PARTIAL | no integrated offline product proof | execute baseline offline scenario | 7, 24, 57 | E2E-018 |
 | 59. Local Intelligence Sovereignty | ADR 0014, local services | yes | yes | owner local | no paid/cloud core | normal runtime | architecture/accepted stages | IMPLEMENTED | product-level offline proof still missing | preserve; qualify end-to-end | 58 | E2E-018 |
 | 60. Frontend workspace/navigation completeness | React cinematic root and five fixed consoles | composer only | single-page fixed panels, no navigation | browser state + APIs | presentation has no authority | browser | build/tests only | PARTIAL | decorative/narrow panels; missing connected workspaces | connected navigable workspaces with truthful state | 26, 36, 50, 53 | UI flow qualification |
+
+## Career Forge owner-path closure audit — 2026-09-21
+
+- **COMPLETE:** CF-E2E-001/002/004/005/007/008/010; canonical LEARN, MAP,
+  Practice Lab, PROJECTS, Interview, and PROGRESS engineering; evidence/mastery,
+  retention/weak-area/reinforcement/interleaving, readiness, roles/research,
+  selected-code and retained-screen boundaries; bounded project execution,
+  exact-task publication integrity, replay/idempotency, and restart recovery.
+- **OWNER / EXTERNAL DEPENDENCY:** CF-E2E-003 requires the owner to physically
+  select arbitrary code and ask the real Friday runtime; CF-E2E-006 requires a
+  due review and the owner's genuine answer; CF-E2E-009 requires the owner's two
+  genuine no-help interview answers; real CF-E2E-008 publication requires the
+  owner's configured GitHub credential, onboarded repository, and explicit
+  publication authorization. Engineering and deterministic negative controls
+  are already complete; no browser credential is requested or stored.
+- **INTENTIONALLY DEFERRED OUTSIDE CURRENT CAREER FORGE SCOPE:** additional
+  curriculum versions beyond the canonical 16-node V1, additional Practice Lab
+  languages requiring equivalent isolation, and advanced organization-hierarchy
+  visualization. These are expansion work, not gaps in the qualified current
+  apprenticeship.
+- **ACTIONABLE ENGINEERING WORK:** none remains inside current Career Forge
+  scope. Whole-Friday product integration items elsewhere in this matrix retain
+  their existing statuses and are not reclassified by this audit.
 
 ## Reproduction of owner-observed gaps
 
