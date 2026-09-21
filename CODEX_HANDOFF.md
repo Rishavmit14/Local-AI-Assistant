@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`d9eaa84`. The
+`2b8726f`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -250,14 +250,15 @@ and deterministic E2E coverage.
 The retained-scope audit found that Practice Lab still rendered its canonical
 Python draft in a plain textarea despite the baseline's syntax-highlighting
 contract and the repository's already-declared CodeMirror dependencies. The
-candidate now uses CodeMirror's Python language support, line numbers,
+accepted and published repair at `2b8726f` uses CodeMirror's Python language support, line numbers,
 selection, history, indentation, and accessible content semantics while keeping
 all Run/Test/Submit execution in the existing fail-closed Bubblewrap service.
 Arbitrary owner selection still reaches only the bounded contextual-tutor route.
 Changed-file lint, all 45 frontend tests, and the production build pass; backend
 truth remains covered by the unchanged 906-test repository verification. Next:
-reconcile the product-integration matrix with the accepted Career Forge paths,
-then continue the first actual remaining owner-path gap it exposes.
+qualify and close the remaining real project build/validate/review owner path,
+then the owner-visible authenticated publication result without weakening its
+existing approval or gateway boundaries.
 
 ## 0. Non-negotiable project rules
 
