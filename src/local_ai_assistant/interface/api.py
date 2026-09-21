@@ -684,7 +684,13 @@ def create_presentation_app(
 
     @app.get("/api/v1/career-forge/interviews/current")
     def career_current_interview(mission_id: str | None = None):
-        interview = owner_career_forge().active_interview(mission_id)
+        forge = owner_career_forge()
+        interview = forge.active_interview(mission_id)
+        if interview is None and mission_id is not None:
+            try:
+                interview = forge.latest_interview(mission_id)
+            except KeyError as exc:
+                raise HTTPException(status_code=404, detail="mission is unavailable") from exc
         return {"interview": asdict(interview) if interview else None}
 
     @app.post("/api/v1/career-forge/missions/{mission_id}/interviews")

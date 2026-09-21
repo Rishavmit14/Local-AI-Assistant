@@ -1,5 +1,22 @@
 # Project History
 
+## 2026-09-21 — Real Career Forge owner-path qualification candidate
+
+The owner physically selected arbitrary Practice Lab code, completed an actual
+due retention review, and completed both turns of a no-help interview. The
+selected-code interaction was exact and mutation-free. The review and both
+interview answers were truthfully evaluated incorrect: the private answers stay
+out of journey projections, no unearned evidence or mastery was created, and
+readiness remains developing. Retention derived a weak area and the canonical
+reinforcement mission. Mid-interview restart recovery passed. Completed-
+interview restart exposed a real UI recovery defect; the current endpoint now
+recovers the newest durable completed session for the exact mission without
+changing `active_interview` semantics or allowing a duplicate owner claim.
+Publication preflight found no real project candidate, GitHub mapping, token, or
+write scope, so no external mutation or authorization request was made.
+The affected backend suite passes 55 tests; the canonical repository gate passes
+all 909 Python tests with dependency consistency.
+
 ## 2026-09-21 — Qualified bounded Career Forge project lifecycle
 
 One deterministic real local lifecycle now traverses failed and repaired Practice

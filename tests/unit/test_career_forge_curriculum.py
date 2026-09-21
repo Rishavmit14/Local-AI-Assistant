@@ -338,6 +338,7 @@ def test_interview_mode_runs_bounded_no_help_followups_and_records_only_earned_e
     assert evaluated_second.evidence_type is None
     assert completed.state == "completed"
     assert forge.active_interview(mission.mission_id) is None
+    assert forge.latest_interview(mission.mission_id) == completed
     assert forge.competencies()[0].mastery is MasteryLevel.UNVERIFIED
 
 

@@ -948,6 +948,17 @@ interview flows, plus a real GitHub publication using the owner's configured
 credential and onboarded repository. The qualified engineering checkpoint is
 published at `9aaef7460cd6c7fa22425f488ab8a9ab858b2073`.
 
+Real owner qualification has now accepted arbitrary selected-code tutoring, a
+truthful incorrect due-review outcome with weak-area/reinforcement projection,
+and a truthful two-answer no-help interview with zero earned interview evidence.
+The interview passed mid-session recovery; completed-session recovery exposed a
+UI omission and is repaired in the current candidate. Real publication remains
+blocked before authorization because current owner state contains no project-
+linked mission/task/artifact candidate, the onboarded repository lacks a GitHub
+owner/name mapping, and no protected GitHub publication credential or
+`GITHUB_WRITE` scope is configured. These are owner/project/external state
+dependencies, not permission to fabricate a portfolio artifact.
+
 ## Cross-stage product capabilities (**Planned unless noted**)
 
 - Explicit ask/explain, repo overview, architecture trace, review, bug investigation, traceback/log debugging, feature, test generation, refactor, security, docs, migration, and PR-review modes.

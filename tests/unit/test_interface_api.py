@@ -413,6 +413,7 @@ def test_career_interview_uses_no_help_attempt_and_governed_local_evaluation(tmp
         runtime,
         FridayConversationService(FakeStreamingLLM([
             "ASSESSMENT: correct\nThe answer names the shared object and cross-call consequence.",
+            "ASSESSMENT: incorrect\nThe defense does not name a concrete regression test.",
         ]), runtime),
         career_forge=forge,
     ))
@@ -438,6 +439,20 @@ def test_career_interview_uses_no_help_attempt_and_governed_local_evaluation(tmp
     assert evaluated.json()["attempt"]["evidence_type"] == "interview_response"
     assert evaluated.json()["interview"]["state"] == "awaiting_answer"
     assert evaluated.json()["interview"]["turn_number"] == 2
+    second = client.post(
+        f"/api/v1/career-forge/interviews/{interview_id}/answers",
+        json={"response": "I would push the branch and see whether it works."},
+    )
+    assert second.status_code == 200
+    completed = client.post(f"/api/v1/career-forge/interviews/{interview_id}/evaluate")
+    assert completed.status_code == 200
+    assert completed.json()["interview"]["state"] == "completed"
+    recovered = client.get(
+        "/api/v1/career-forge/interviews/current", params={"mission_id": mission.mission_id},
+    )
+    assert recovered.status_code == 200
+    assert recovered.json()["interview"]["interview_id"] == interview_id
+    assert recovered.json()["interview"]["state"] == "completed"
 
 
 def test_contextual_tutor_uses_only_explicit_bounded_code_or_retained_screen_text(tmp_path):

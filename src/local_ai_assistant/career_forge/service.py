@@ -1276,6 +1276,17 @@ class CareerForgeService:
             row = db.execute(query, params).fetchone()
         return self.interview(row[0]) if row else None
 
+    def latest_interview(self, mission_id: str) -> InterviewSession | None:
+        """Recover the newest durable interview outcome for one exact mission."""
+        self.mission(mission_id)
+        with self._db() as db:
+            row = db.execute(
+                "SELECT interview_id FROM career_interviews WHERE mission_id=? "
+                "ORDER BY updated_at DESC LIMIT 1",
+                (mission_id,),
+            ).fetchone()
+        return self.interview(row[0]) if row else None
+
     def submit_interview_answer(self, interview_id: str, response: str) -> LessonAttempt:
         session = self.interview(interview_id)
         if session.state != "awaiting_answer":

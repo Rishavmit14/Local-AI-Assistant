@@ -298,18 +298,27 @@ covered by its current 46-test, changed-file-lint, and production-build evidence
 The qualified capability is committed, published, fetched, and remote-verified
 at `9aaef7460cd6c7fa22425f488ab8a9ab858b2073`.
 
-Owner-path audit result: no autonomous Career Forge engineering item remains.
-Exact external qualifications are (1) the owner physically selects arbitrary
-code and asks Friday to explain it, (2) completes a due retention review, (3)
-completes the two-turn no-help interview, and (4) explicitly authorizes a real
-GitHub publication using the already-configured local credential and onboarded
-repository. Codex cannot manufacture the owner's speech/code reasoning or
-publish under an unavailable identity; all supporting engineering and negative
-controls are complete. After those actions, Friday will persist and display the
-result through the already-qualified paths. The active dependency is therefore
-owner/external Career Forge qualification, not another autonomous implementation
-slice. Other whole-Friday work may continue without waiting after this final
-Career Forge recovery checkpoint is published.
+Real owner qualification on 2026-09-21 accepted arbitrary selected-code context,
+an evidence-derived due retention review, and a two-turn no-help interview. The
+selected-code explanation was exact, mission-scoped, transient, and mutation-
+free. The owner's retention answer was evaluated `incorrect`, remained private,
+left mastery at `recognize`, and produced the truthful failed-retention weak area
+and reinforcement mission. Both no-help interview answers were evaluated
+`incorrect`; they created no evidence, assistance, mastery, or readiness claim.
+Mid-session restart recovery passed. Completed-session restart exposed and this
+candidate repairs the owner UI dropping its durable completed result while the
+backend/readiness retained it. The affected backend suite passes 55 tests; full
+repository verification passes all 909 Python tests with dependency consistency.
+
+Real publication preflight found no canonical project link, mission objective,
+public-evidence candidate, or publication row in current owner state. The only
+onboarded repository (`friday`) has no GitHub owner/name mapping, and the
+protected local environment has no GitHub token or `GITHUB_WRITE` scope. There
+is therefore no exact artifact/task/candidate or credential-backed GitHub action
+to authorize, and no external mutation has occurred. The active dependency is
+owner/external state: complete a genuine project-producing Career Forge path,
+onboard its real GitHub mapping, and securely configure the owner credential;
+then repeat the exact publication preflight before requesting authorization.
 
 ## 0. Non-negotiable project rules
 
