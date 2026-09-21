@@ -6,7 +6,12 @@ import threading
 from fastapi.testclient import TestClient
 
 from local_ai_assistant.autonomy import ObjectiveService
-from local_ai_assistant.career_forge import CareerForgeService, PracticeLabService, TutorMode
+from local_ai_assistant.career_forge import (
+    CareerForgeService,
+    MasteryLevel,
+    PracticeLabService,
+    TutorMode,
+)
 from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
@@ -514,6 +519,39 @@ def test_friday_initiated_code_question_records_assessed_understanding_evidence(
     assert answered.json()["attempt"]["evidence_type"] == "code_explanation"
     assert forge.evidence_history()[0].evidence_type == "code_explanation"
     assert forge.competencies()[0].mastery.value == "unverified"
+
+
+def test_api_runs_governed_interleaved_prerequisite_assessment(tmp_path):
+    class Evaluator:
+        def stream_chat(self, prompt, system_prompt="", **_kwargs):
+            assert "independent Career Forge transfer" in system_prompt
+            assert "allocated once" in prompt
+            yield "ASSESSMENT: correct\nCorrect transfer without assistance."
+
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    foundation = forge.start_mission("se.python", "Learn Python")
+    evidence = forge.record_evidence(foundation.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    newer = forge.start_mission("se.engineering", "Learn engineering")
+    runtime = FridayRuntime("career-interleave-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(Evaluator(), runtime), career_forge=forge,
+    ))
+
+    prepared = client.post(f"/api/v1/career-forge/missions/{newer.mission_id}/interleaving")
+    assert prepared.status_code == 200
+    item = prepared.json()["interleaving"]
+    assert item["competency_id"] == "se.python"
+    answered = client.post(
+        f"/api/v1/career-forge/interleavings/{item['interleave_id']}/answers",
+        json={"response": "The default is allocated once, so state otherwise leaks across calls."},
+    )
+    assert answered.json()["interleaving"]["state"] == "awaiting_evaluation"
+    evaluated = client.post(
+        f"/api/v1/career-forge/interleavings/{item['interleave_id']}/evaluate",
+    )
+    assert evaluated.json()["interleaving"]["evaluation"] == "correct"
+    assert forge.evidence_history()[0].competency_id == "se.python"
 
 
 def test_career_desktop_assistance_links_proposal_but_keeps_approval_and_execution_separate(tmp_path):
@@ -1133,7 +1171,10 @@ def test_presentation_api_has_no_unbounded_execution_routes():
             "/api/v1/career-forge/curriculum-research",
         "/api/v1/career-forge/retention-reviews/{review_id}/deliver",
         "/api/v1/career-forge/retention-reviews/{review_id}/evaluate",
-        "/api/v1/career-forge/reinforcement",
+            "/api/v1/career-forge/reinforcement",
+            "/api/v1/career-forge/missions/{mission_id}/interleaving",
+            "/api/v1/career-forge/interleavings/{interleave_id}/answers",
+            "/api/v1/career-forge/interleavings/{interleave_id}/evaluate",
         "/api/v1/career-forge/interviews/current",
         "/api/v1/career-forge/missions/{mission_id}/interviews",
         "/api/v1/career-forge/interviews/{interview_id}/answers",

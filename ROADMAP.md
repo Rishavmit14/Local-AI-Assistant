@@ -888,6 +888,16 @@ automatic mastery demotion. The next retained gap is interleaving older concepts
 into newer missions and requiring repeated independent performance where the
 canonical policy supports it.
 
+Governed interleaving is now integrated. Eligibility is limited to evidenced
+curriculum prerequisites and prioritizes weak/stale confidence or fewer than two
+independent demonstrations. Cross-context attempts/evidence retain the older
+competency identity inside the newer mission. Direct-prerequisite failure blocks
+that mission until fresh repair evidence; transitive retention failure does not
+block unrelated progression. PROGRESS exposes the complete provenance chain.
+The next retained gap is an evidence-backed interview/job-readiness and portfolio
+readiness projection; current evidence must not be converted into invented
+percentages or resume claims.
+
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and
 advanced organization-hierarchy visualization remain deferred unless the owner

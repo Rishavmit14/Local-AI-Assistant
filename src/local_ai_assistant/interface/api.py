@@ -628,6 +628,60 @@ def create_presentation_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"mission": asdict(mission), "loop": forge.mission_loop(mission.mission_id)}
 
+    @app.post("/api/v1/career-forge/missions/{mission_id}/interleaving")
+    def career_prepare_interleaving(mission_id: str):
+        try:
+            item = owner_career_forge().interleaving_candidate(mission_id)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if item is None:
+            raise HTTPException(status_code=409, detail="no older concept currently qualifies for interleaving")
+        return {"interleaving": asdict(item)}
+
+    @app.post("/api/v1/career-forge/interleavings/{interleave_id}/answers")
+    async def career_submit_interleaving(interleave_id: str, request: Request):
+        try:
+            body = await request.json()
+            response = body["response"]
+            if not isinstance(response, str) or not response.strip() or len(response) > max_prompt_chars:
+                raise ValueError("a bounded interleaved response is required")
+            item = owner_career_forge().submit_interleaving(interleave_id, response)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"interleaving": asdict(item)}
+
+    @app.post("/api/v1/career-forge/interleavings/{interleave_id}/evaluate")
+    def career_evaluate_interleaving(interleave_id: str):
+        forge = owner_career_forge()
+        try:
+            item = forge.interleaving(interleave_id)
+            if item.state != "awaiting_evaluation" or item.attempt_id is None:
+                raise ValueError("interleaved assessment is not awaiting evaluation")
+            attempt = forge.attempt(item.attempt_id)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        lease = interaction_coordinator.try_acquire("presentation")
+        if lease is None:
+            raise HTTPException(status_code=409, detail="interaction busy")
+        try:
+            if presentation_pause is not None:
+                presentation_pause()
+            system_prompt = (
+                "Evaluate one independent Career Forge transfer answer for the named older concept. "
+                "First line MUST be exactly ASSESSMENT: correct, ASSESSMENT: incorrect, or "
+                "ASSESSMENT: uncertain. Then give concise feedback. Do not claim or change mastery. "
+                f"Competency: {item.competency_id}. Question: {item.prompt}"
+            )
+            model_response = "".join(conversation.stream_response(attempt.response, system_prompt=system_prompt))
+            evaluation, feedback = CareerForgeLearningLoop.parse_evaluation(model_response)
+            return {"interleaving": asdict(forge.evaluate_interleaving(interleave_id, evaluation, feedback))}
+        finally:
+            try:
+                if presentation_resume is not None:
+                    presentation_resume()
+            finally:
+                lease.release()
+
     @app.get("/api/v1/career-forge/interviews/current")
     def career_current_interview(mission_id: str | None = None):
         interview = owner_career_forge().active_interview(mission_id)

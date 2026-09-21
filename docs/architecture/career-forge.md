@@ -361,3 +361,16 @@ retention state, current weak-area evidence, and independent correct-attempt
 count. A due review makes confidence stale and failed objective evidence makes
 it weak, but only the existing matching-evidence advancement authority can alter
 mastery.
+
+Governed interleaving reuses the competency graph rather than adding semantic
+similarity or a second curriculum. Only an evidenced direct/transitive
+prerequisite of the active newer mission can qualify, prioritized by weak/stale
+confidence and then fewer than two independent correct demonstrations. One
+persisted record binds the earlier evidence, deterministic reason, relationship,
+fresh transfer question, newer mission, assessed attempt, result, cross-context
+evidence, and renewed retention schedule. Direct prerequisites are progression-
+critical; transitive prerequisites are retention-monitoring only. Failed checks
+remain auditable, exact-answer replay is rejected, and a later fresh successful
+retry may resolve the gate without erasing the failure. Successful transfer
+supersedes outstanding due reviews and schedules the next review; it never
+changes mastery automatically.

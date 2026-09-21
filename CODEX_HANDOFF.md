@@ -219,6 +219,19 @@ dependency consistency, and full repository verification with 900 Python tests
 pass. Next: governed interleaving of older concepts into newer missions and
 repeated independent performance.
 
+Governed interleaving with repeated independent performance is qualified in the
+current candidate. Only evidenced direct/transitive prerequisites can be chosen,
+using weak/stale confidence or fewer than two independent successes. The durable
+record binds source evidence, reason, relationship, fresh question, newer
+mission, answer, evaluation, cross-context evidence, and renewed retention.
+Direct failure blocks only the dependent mission; transitive failure remains
+retention-only. Fresh retry can repair the gate, while identical-answer replay
+is rejected and prior failure stays in history. Focused validation passes 55
+Python tests and 21 frontend tests; changed-file lint, production build,
+dependency consistency, and full repository verification with 904 Python tests
+pass. Next: evidence-backed interview/job-readiness and portfolio-readiness
+projection in PROGRESS without fabricated percentages or claims.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

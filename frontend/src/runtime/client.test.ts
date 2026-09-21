@@ -132,6 +132,24 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
     );
   });
 
+  it("runs the bounded interleaved assessment lifecycle", async () => {
+    const base = { interleave_id: "i 1", mission_id: "m1", competency_id: "se.python", relationship: "prerequisite_critical", reason: "stale", source_evidence_id: "e1", question_id: "q1", prompt: "Apply Python.", state: "awaiting_answer", attempt_id: null, evidence_id: null, evaluation: null, created_at: "now", evaluated_at: null };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ interleaving: base }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ interleaving: { ...base, state: "awaiting_evaluation" } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ interleaving: { ...base, state: "completed", evaluation: "correct" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+
+    await client.prepareCareerInterleaving("m1");
+    await client.answerCareerInterleaving("i 1", "Independent answer");
+    await client.evaluateCareerInterleaving("i 1");
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/career-forge/missions/m1/interleaving", { method: "POST" });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/career-forge/interleavings/i%201/answers", expect.objectContaining({ body: JSON.stringify({ response: "Independent answer" }) }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/v1/career-forge/interleavings/i%201/evaluate", { method: "POST" });
+  });
+
   it("asks and answers Friday's bounded selected-code question", async () => {
     const question = { question_id: "code_attention:1", mission_id: "m1", selected_code: "def f(): pass", start_line: 1, end_line: 1, prompt: "Why?", evaluation_criteria: "Explain it." };
     const fetchMock = vi.fn()

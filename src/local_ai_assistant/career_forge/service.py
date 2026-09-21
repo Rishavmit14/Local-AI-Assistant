@@ -166,6 +166,24 @@ class LearnerConfidence:
 
 
 @dataclass(frozen=True, slots=True)
+class InterleavedAssessment:
+    interleave_id: str
+    mission_id: str
+    competency_id: str
+    relationship: str
+    reason: str
+    source_evidence_id: str
+    question_id: str
+    prompt: str
+    state: str
+    attempt_id: str | None
+    evidence_id: str | None
+    evaluation: AttemptEvaluation | None
+    created_at: str
+    evaluated_at: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class InterviewSession:
     interview_id: str
     mission_id: str
@@ -226,6 +244,7 @@ class CareerForgeProgress:
     weak_areas: tuple[WeakArea, ...]
     cognitive_improvements: tuple[CognitiveImprovementEvaluation, ...]
     learner_confidence: tuple[LearnerConfidence, ...]
+    interleavings: tuple[InterleavedAssessment, ...]
     next_action: str
     history: tuple[LearningHistoryItem, ...]
 
@@ -315,7 +334,21 @@ class CareerForgeService:
                     reasons_json TEXT NOT NULL, created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL, approved_at TEXT
                 );
+                CREATE TABLE IF NOT EXISTS mission_interleaves (
+                    interleave_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
+                    competency_id TEXT NOT NULL, relationship TEXT NOT NULL,
+                    reason TEXT NOT NULL, source_evidence_id TEXT NOT NULL,
+                    question_id TEXT NOT NULL, prompt TEXT NOT NULL,
+                    state TEXT NOT NULL, attempt_id TEXT, evidence_id TEXT,
+                    evaluation TEXT, created_at TEXT NOT NULL, evaluated_at TEXT
+                );
                 """
+            )
+            db.execute("DROP INDEX IF EXISTS one_interleave_per_mission_competency")
+            db.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS active_interleave_per_mission_competency "
+                "ON mission_interleaves(mission_id, competency_id) "
+                "WHERE state IN ('awaiting_answer','awaiting_evaluation')"
             )
             columns = {row[1] for row in db.execute("PRAGMA table_info(retention_reviews)")}
             for name, declaration in (
@@ -329,6 +362,16 @@ class CareerForgeService:
             evidence_columns = {row[1] for row in db.execute("PRAGMA table_info(mission_evidence)")}
             if "source_attempt_id" not in evidence_columns:
                 db.execute("ALTER TABLE mission_evidence ADD COLUMN source_attempt_id TEXT")
+            if "competency_id" not in evidence_columns:
+                db.execute("ALTER TABLE mission_evidence ADD COLUMN competency_id TEXT")
+                db.execute(
+                    "UPDATE mission_evidence SET competency_id=(SELECT competency_id FROM missions "
+                    "WHERE missions.mission_id=mission_evidence.mission_id)"
+                )
+            attempt_columns = {row[1] for row in db.execute("PRAGMA table_info(lesson_attempts)")}
+            if "assessed_competency_id" not in attempt_columns:
+                db.execute("ALTER TABLE lesson_attempts ADD COLUMN assessed_competency_id TEXT")
+                db.execute("UPDATE lesson_attempts SET assessed_competency_id=competency_id")
             candidate_columns = {
                 row[1] for row in db.execute("PRAGMA table_info(public_evidence_candidates)")
             }
@@ -384,6 +427,16 @@ class CareerForgeService:
             return mission_brief(self.graph[competency_id])
         except KeyError:
             raise KeyError(competency_id) from None
+
+    def _prerequisites(self, competency_id: str) -> set[str]:
+        result, pending = set(), list(self.graph[competency_id].prerequisites)
+        while pending:
+            item = pending.pop()
+            if item in result:
+                continue
+            result.add(item)
+            pending.extend(self.graph[item].prerequisites)
+        return result
 
     def start_mission(self, competency_id: str, title: str, *, resume_point: dict[str, object] | None = None) -> Mission:
         if competency_id not in self.graph:
@@ -499,10 +552,13 @@ class CareerForgeService:
             raise ValueError("mission is not active")
         return self.mission(mission_id)
 
-    def record_evidence(self, mission_id: str, evidence_type: str, content: str, *, assistance_level: str | None = None, artifact_ref: str | None = None, source_attempt_id: str | None = None) -> str:
+    def record_evidence(self, mission_id: str, evidence_type: str, content: str, *, assistance_level: str | None = None, artifact_ref: str | None = None, source_attempt_id: str | None = None, competency_id: str | None = None) -> str:
         if not all(isinstance(value, str) and value.strip() for value in (evidence_type, content)):
             raise ValueError("evidence type and content must not be empty")
-        self.mission(mission_id)
+        mission = self.mission(mission_id)
+        competency_id = competency_id or mission.competency_id
+        if competency_id != mission.competency_id and competency_id not in self._prerequisites(mission.competency_id):
+            raise ValueError("cross-context evidence requires a mission prerequisite")
         if source_attempt_id is not None:
             attempt = self.attempt(source_attempt_id)
             if attempt.mission_id != mission_id or attempt.evaluation is not AttemptEvaluation.CORRECT:
@@ -511,24 +567,31 @@ class CareerForgeService:
         with self._db() as db:
             db.execute(
                 "INSERT INTO mission_evidence "
-                "(evidence_id, mission_id, evidence_type, content, assistance_level, artifact_ref, created_at, source_attempt_id) "
-                "VALUES(?,?,?,?,?,?,?,?)",
-                (evidence_id, mission_id, evidence_type.strip(), content.strip(), assistance_level, artifact_ref, _now(), source_attempt_id),
+                "(evidence_id, mission_id, evidence_type, content, assistance_level, artifact_ref, created_at, source_attempt_id, competency_id) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (evidence_id, mission_id, evidence_type.strip(), content.strip(), assistance_level, artifact_ref, _now(), source_attempt_id, competency_id),
             )
         return evidence_id
 
     def record_attempt(self, mission_id: str, question_id: str, response: str, *, mode: TutorMode,
-                       assistance_level: AssistanceLevel | None = None) -> LessonAttempt:
+                       assistance_level: AssistanceLevel | None = None,
+                       assessed_competency_id: str | None = None) -> LessonAttempt:
         """Persist an owner answer only inside a named learning question context."""
         mission = self.mission(mission_id)
+        assessed_competency_id = assessed_competency_id or mission.competency_id
+        if assessed_competency_id != mission.competency_id and assessed_competency_id not in self._prerequisites(mission.competency_id):
+            raise ValueError("assessed competency must belong to the mission or its prerequisites")
         if not all(isinstance(value, str) and value.strip() for value in (question_id, response)):
             raise ValueError("attempt question and response must not be empty")
         with self._db() as db:
             order = db.execute("SELECT COALESCE(MAX(attempt_order), 0) + 1 FROM lesson_attempts WHERE mission_id=?", (mission_id,)).fetchone()[0]
             attempt_id, now = "attempt_" + uuid.uuid4().hex, _now()
-            db.execute("INSERT INTO lesson_attempts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            db.execute("INSERT INTO lesson_attempts "
+                       "(attempt_id,mission_id,competency_id,question_id,response,attempt_order,tutor_mode,assistance_level,evaluation,evidence_type,feedback,retry_needed,created_at,evaluated_at,assessed_competency_id) "
+                       "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
                 attempt_id, mission_id, mission.competency_id, question_id.strip(), response.strip(), order,
                 mode, assistance_level, AttemptEvaluation.PENDING, None, None, 0, now, None,
+                assessed_competency_id,
             ))
         self.update_resume(mission_id, {"phase": LessonPhase.EVALUATION, "question_id": question_id.strip(), "attempt_id": attempt_id},
                            assistance_level=assistance_level)
@@ -539,7 +602,7 @@ class CareerForgeService:
             row = db.execute("SELECT * FROM lesson_attempts WHERE attempt_id=?", (attempt_id,)).fetchone()
         if row is None:
             raise KeyError(attempt_id)
-        return LessonAttempt(row[0], row[1], row[2], row[3], row[4], row[5], TutorMode(row[6]),
+        return LessonAttempt(row[0], row[1], row[14] or row[2], row[3], row[4], row[5], TutorMode(row[6]),
                              AssistanceLevel(row[7]) if row[7] else None, AttemptEvaluation(row[8]), row[9], row[10],
                              bool(row[11]), row[12], row[13])
 
@@ -585,7 +648,7 @@ class CareerForgeService:
             raise ValueError("evidence limit must be between 1 and 100")
         with self._db() as db:
             rows = db.execute(
-                "SELECT e.evidence_id, e.mission_id, m.competency_id, e.evidence_type, e.assistance_level, e.artifact_ref, e.created_at "
+                "SELECT e.evidence_id, e.mission_id, COALESCE(e.competency_id,m.competency_id), e.evidence_type, e.assistance_level, e.artifact_ref, e.created_at "
                 "FROM mission_evidence e JOIN missions m ON m.mission_id=e.mission_id "
                 "ORDER BY e.created_at DESC LIMIT ?",
                 (limit,),
@@ -603,6 +666,7 @@ class CareerForgeService:
         weak_areas = self.weak_areas(limit=limit)
         cognitive_improvements = self.cognitive_improvement_evaluations(limit=limit)
         learner_confidence = self.learner_confidence()
+        interleavings = self.interleavings(limit=limit)
         evidenced = tuple(item for item in self.competencies() if item.mastery is not MasteryLevel.UNVERIFIED)
         due_review = next((item for item in reviews if item.state == "scheduled" and item.due_at <= _now()), None)
         delivered_review = next((item for item in reviews if item.state == "delivered"), None)
@@ -634,7 +698,7 @@ class CareerForgeService:
             for item in evidence
         ]
         history.sort(key=lambda item: item.occurred_at, reverse=True)
-        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, weak_areas, cognitive_improvements, learner_confidence, next_action, tuple(history[:limit]))
+        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, weak_areas, cognitive_improvements, learner_confidence, interleavings, next_action, tuple(history[:limit]))
 
     def learner_confidence(self) -> tuple[LearnerConfidence, ...]:
         """Derive categorical confidence without changing canonical mastery."""
@@ -646,13 +710,17 @@ class CareerForgeService:
                 "JOIN missions m ON m.mission_id=e.mission_id GROUP BY m.competency_id"
             ))
             independent_counts = dict(db.execute(
-                "SELECT competency_id, COUNT(*) FROM lesson_attempts "
-                "WHERE evaluation='correct' AND assistance_level IS NULL GROUP BY competency_id"
+                "SELECT COALESCE(assessed_competency_id,competency_id), COUNT(*) FROM lesson_attempts "
+                "WHERE evaluation='correct' AND assistance_level IS NULL GROUP BY COALESCE(assessed_competency_id,competency_id)"
             ))
             review_rows = db.execute(
                 "SELECT competency_id, state, evaluation, due_at FROM retention_reviews "
                 "ORDER BY COALESCE(evaluated_at, due_at) DESC, created_at DESC"
             ).fetchall()
+            due_competencies = {str(row[0]) for row in db.execute(
+                "SELECT DISTINCT competency_id FROM retention_reviews "
+                "WHERE state IN ('scheduled','delivered') AND due_at<=?", (now,),
+            )}
         latest_reviews: dict[str, tuple[str, str | None, str]] = {}
         for competency_id, state, evaluation, due_at in review_rows:
             latest_reviews.setdefault(str(competency_id), (str(state), str(evaluation) if evaluation else None, str(due_at)))
@@ -664,7 +732,7 @@ class CareerForgeService:
                 status, retention, reason = "unverified", "not_scheduled", "No evidence-backed mastery rung is recorded."
             elif competency_id in weak_ids:
                 status, retention, reason = "weak", "failed", "Current objective evidence identifies a weak area."
-            elif review and review[0] in {"scheduled", "delivered"} and review[2] <= now:
+            elif competency_id in due_competencies:
                 status, retention, reason = "stale", "due", "The evidence-backed retention review is due."
             elif review and review[0] == "completed" and review[1] == AttemptEvaluation.CORRECT:
                 status, retention, reason = "reinforced", "passed", "The latest retention reassessment is correct."
@@ -676,6 +744,148 @@ class CareerForgeService:
                 int(independent_counts.get(competency_id, 0)), reason,
             ))
         return tuple(result)
+
+    @staticmethod
+    def _interleaved_assessment(row: tuple[object, ...]) -> InterleavedAssessment:
+        return InterleavedAssessment(
+            str(row[0]), str(row[1]), str(row[2]), str(row[3]), str(row[4]),
+            str(row[5]), str(row[6]), str(row[7]), str(row[8]),
+            str(row[9]) if row[9] else None, str(row[10]) if row[10] else None,
+            AttemptEvaluation(str(row[11])) if row[11] else None,
+            str(row[12]), str(row[13]) if row[13] else None,
+        )
+
+    def interleaving_candidate(self, mission_id: str) -> InterleavedAssessment | None:
+        """Prepare at most one evidence-driven older-concept check per mission."""
+        mission = self.mission(mission_id)
+        if mission.state != "active":
+            raise ValueError("interleaving requires an active mission")
+        direct = set(self.graph[mission.competency_id].prerequisites)
+        prerequisites = self._prerequisites(mission.competency_id)
+        confidence = {item.competency_id: item for item in self.learner_confidence()}
+        candidates = []
+        with self._db() as db:
+            existing = {row[0] for row in db.execute(
+                "SELECT competency_id FROM mission_interleaves WHERE mission_id=? "
+                "AND (state!='completed' OR evaluation='correct')", (mission_id,),
+            )}
+            for competency_id in prerequisites - existing:
+                projection = confidence[competency_id]
+                if projection.mastery is MasteryLevel.UNVERIFIED:
+                    continue
+                source = db.execute(
+                    "SELECT evidence_id FROM mission_evidence WHERE competency_id=? "
+                    "ORDER BY created_at DESC LIMIT 1", (competency_id,),
+                ).fetchone()
+                if source is None:
+                    continue
+                priority = 0 if projection.status in {"weak", "stale"} else 1 if projection.independent_correct_attempts < 2 else 2
+                if priority == 2:
+                    continue
+                candidates.append((priority, competency_id, projection, str(source[0])))
+            if not candidates:
+                return None
+            _, competency_id, projection, source_evidence_id = min(candidates, key=lambda item: (item[0], item[1]))
+            relationship = "prerequisite_critical" if competency_id in direct else "retention_monitoring"
+            reason = (
+                f"{relationship.replace('_', ' ')}; confidence is {projection.status}; "
+                f"{projection.independent_correct_attempts} independent correct demonstrations"
+            )
+            prior_count = db.execute(
+                "SELECT COUNT(*) FROM mission_interleaves WHERE mission_id=? AND competency_id=?",
+                (mission_id, competency_id),
+            ).fetchone()[0]
+            question_id = "interleave:" + uuid.uuid4().hex
+            prompt = (
+                f"Independent transfer check {prior_count + 1}: apply {self.graph[competency_id].title} "
+                f"while working on {mission.title}, using a fresh example. "
+                + self.mission_brief_for(competency_id).verification
+            )
+            now, interleave_id = _now(), "interleave_" + uuid.uuid4().hex
+            db.execute(
+                "INSERT INTO mission_interleaves VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (interleave_id, mission_id, competency_id, relationship, reason,
+                 source_evidence_id, question_id, prompt, "awaiting_answer",
+                 None, None, None, now, None),
+            )
+        return self.interleaving(interleave_id)
+
+    def interleaving(self, interleave_id: str) -> InterleavedAssessment:
+        with self._db() as db:
+            row = db.execute("SELECT * FROM mission_interleaves WHERE interleave_id=?", (interleave_id,)).fetchone()
+        if row is None:
+            raise KeyError(interleave_id)
+        return self._interleaved_assessment(row)
+
+    def interleavings(self, *, limit: int = 20) -> tuple[InterleavedAssessment, ...]:
+        if not 1 <= limit <= 100:
+            raise ValueError("interleaving limit must be between 1 and 100")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT * FROM mission_interleaves ORDER BY created_at DESC LIMIT ?", (limit,),
+            ).fetchall()
+        return tuple(self._interleaved_assessment(row) for row in rows)
+
+    def submit_interleaving(self, interleave_id: str, response: str) -> InterleavedAssessment:
+        item = self.interleaving(interleave_id)
+        if item.state != "awaiting_answer":
+            raise ValueError("interleaved assessment is not awaiting an answer")
+        if not isinstance(response, str) or not response.strip():
+            raise ValueError("a bounded interleaved response is required")
+        with self._db() as db:
+            duplicate = db.execute(
+                "SELECT 1 FROM mission_interleaves i JOIN lesson_attempts a ON a.attempt_id=i.attempt_id "
+                "WHERE i.mission_id=? AND i.competency_id=? AND a.response=? LIMIT 1",
+                (item.mission_id, item.competency_id, response.strip()),
+            ).fetchone()
+        if duplicate:
+            raise ValueError("interleaved evidence must use a fresh independent response")
+        attempt = self.record_attempt(
+            item.mission_id, item.question_id, response, mode=TutorMode.CHALLENGE,
+            assessed_competency_id=item.competency_id,
+        )
+        with self._db() as db:
+            db.execute(
+                "UPDATE mission_interleaves SET state='awaiting_evaluation', attempt_id=? WHERE interleave_id=?",
+                (attempt.attempt_id, interleave_id),
+            )
+        return self.interleaving(interleave_id)
+
+    def evaluate_interleaving(self, interleave_id: str, evaluation: AttemptEvaluation, feedback: str) -> InterleavedAssessment:
+        item = self.interleaving(interleave_id)
+        if item.state != "awaiting_evaluation" or item.attempt_id is None:
+            raise ValueError("interleaved assessment is not awaiting evaluation")
+        attempt = self.evaluate_attempt(item.attempt_id, evaluation, feedback)
+        evidence_id = None
+        if evaluation is AttemptEvaluation.CORRECT:
+            evidence_id = self.record_evidence(
+                item.mission_id, "interleaved_transfer", attempt.response,
+                source_attempt_id=attempt.attempt_id, competency_id=item.competency_id,
+            )
+            mastery = next(
+                value.mastery for value in self.competencies()
+                if value.competency.competency_id == item.competency_id
+            )
+            interval_days = (1, 3, 7, 14, 30, 60, 90)[tuple(MasteryLevel).index(mastery)]
+            now = _now()
+            with self._db() as db:
+                db.execute(
+                    "UPDATE retention_reviews SET state='superseded' WHERE competency_id=? "
+                    "AND state IN ('scheduled','delivered')",
+                    (item.competency_id,),
+                )
+                db.execute(
+                    "INSERT INTO retention_reviews "
+                    "(review_id,competency_id,evidence_id,mastery,due_at,state,created_at) VALUES(?,?,?,?,?,?,?)",
+                    ("review_" + uuid.uuid4().hex, item.competency_id, evidence_id, mastery,
+                     (datetime.fromisoformat(now) + timedelta(days=interval_days)).isoformat(), "scheduled", now),
+                )
+        with self._db() as db:
+            db.execute(
+                "UPDATE mission_interleaves SET state=?,evidence_id=?,evaluation=?,evaluated_at=? WHERE interleave_id=?",
+                ("completed", evidence_id, evaluation, _now(), interleave_id),
+            )
+        return self.interleaving(interleave_id)
 
     def cognitive_improvement_evaluations(self, *, limit: int = 20) -> tuple[CognitiveImprovementEvaluation, ...]:
         """Project objective improvement only from the persisted governed loop.
@@ -773,7 +983,20 @@ class CareerForgeService:
                 "AND latest.latest_order=a.attempt_order WHERE a.retry_needed=1 "
                 "ORDER BY a.created_at DESC LIMIT ?", (limit,),
             ).fetchall()
-        return tuple(self.attempt(row[0]) for row in rows)
+        attempts = tuple(self.attempt(row[0]) for row in rows)
+        unresolved = []
+        with self._db() as db:
+            for attempt in attempts:
+                if attempt.question_id.startswith("interleave:"):
+                    latest = db.execute(
+                        "SELECT evaluation FROM mission_interleaves WHERE mission_id=? AND competency_id=? "
+                        "ORDER BY created_at DESC LIMIT 1",
+                        (attempt.mission_id, attempt.competency_id),
+                    ).fetchone()
+                    if latest and latest[0] == AttemptEvaluation.CORRECT:
+                        continue
+                unresolved.append(attempt)
+        return tuple(unresolved)
 
     def retention_reviews(self, *, limit: int = 20) -> tuple[RetentionReview, ...]:
         if not 1 <= limit <= 100:
@@ -1288,14 +1511,26 @@ class CareerForgeService:
             raise KeyError(competency_id)
         with self._db() as db:
             row = db.execute(
-                "SELECT learner_competencies.mastery, missions.competency_id, mission_evidence.created_at FROM mission_evidence "
+                "SELECT learner_competencies.mastery, mission_evidence.competency_id, mission_evidence.created_at, "
+                "missions.mission_id, missions.competency_id FROM mission_evidence "
                 "JOIN missions ON missions.mission_id=mission_evidence.mission_id "
-                "JOIN learner_competencies ON learner_competencies.competency_id=missions.competency_id "
+                "JOIN learner_competencies ON learner_competencies.competency_id=mission_evidence.competency_id "
                 "WHERE mission_evidence.evidence_id=?",
                 (evidence_id,),
             ).fetchone()
             if row is None or row[1] != competency_id:
                 raise ValueError("mastery advancement requires matching mission evidence")
+            if row[4] == competency_id:
+                failed_critical = db.execute(
+                    "WITH ranked AS (SELECT relationship,evaluation,ROW_NUMBER() OVER ("
+                    "PARTITION BY competency_id ORDER BY created_at DESC) AS rank "
+                    "FROM mission_interleaves WHERE mission_id=?) "
+                    "SELECT 1 FROM ranked WHERE rank=1 AND relationship='prerequisite_critical' "
+                    "AND evaluation IN ('incorrect','uncertain') LIMIT 1",
+                    (row[3],),
+                ).fetchone()
+                if failed_critical:
+                    raise ValueError("a failed critical interleaved prerequisite must be reinforced first")
             current = MasteryLevel(row[0])
             ladder = tuple(MasteryLevel)
             if ladder.index(level) != ladder.index(current) + 1:
@@ -1313,9 +1548,9 @@ class CareerForgeService:
                 ("review_" + uuid.uuid4().hex, competency_id, evidence_id, level,
                  (evidence_at + timedelta(days=interval_days)).isoformat(), "scheduled", _now()),
             )
-            db.execute(
-                "UPDATE missions SET state='completed', updated_at=? WHERE mission_id=("
-                "SELECT mission_id FROM mission_evidence WHERE evidence_id=?)",
-                (_now(), evidence_id),
-            )
+            if row[4] == competency_id:
+                db.execute(
+                    "UPDATE missions SET state='completed', updated_at=? WHERE mission_id=?",
+                    (_now(), row[3]),
+                )
         return next(item for item in self.competencies() if item.competency.competency_id == competency_id)

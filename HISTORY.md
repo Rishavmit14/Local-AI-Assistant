@@ -1,5 +1,19 @@
 # Project History
 
+## 2026-09-21 — Governed Career Forge interleaving candidate
+
+Career Forge can now select an older learned concept only when it is a real
+direct or transitive prerequisite of the active newer mission and objective
+confidence/retention or fewer than two independent demonstrations justify a
+check. The persisted audit chain binds source evidence, selection reason,
+relationship, fresh question, owner attempt, evaluation, transfer evidence, and
+new retention schedule. Direct-prerequisite failure blocks only that mission's
+progression; transitive retention failure marks the older concept weak without
+blocking unrelated advancement. Fresh retries retain prior failure history and
+exact-response replay is rejected. Focused validation passes 55 Python tests and
+21 frontend tests; changed-file lint, production build, dependency consistency,
+and full repository verification with 904 Python tests pass.
+
 ## 2026-09-21 — Evidence-derived confidence and retention candidate
 
 PROGRESS now derives categorical learner confidence from canonical mastery,

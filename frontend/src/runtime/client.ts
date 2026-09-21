@@ -1,5 +1,6 @@
 import type {
   CareerForgeJourney,
+  CareerForgeInterleaving,
   CareerForgeInterview,
   CareerForgeCurriculumResearch,
   CareerForgeMissionObjective,
@@ -99,6 +100,24 @@ export class FridayRuntimeClient {
     if (!response.ok) throw new Error(`Career Forge reinforcement request failed: ${response.status}`);
     const body = await response.json() as { mission: CareerForgeMission };
     return body.mission;
+  }
+
+  async prepareCareerInterleaving(missionId: string): Promise<CareerForgeInterleaving> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/interleaving`, { method: "POST" });
+    if (!response.ok) throw new Error(`Career Forge interleaving request failed: ${response.status}`);
+    return (await response.json() as { interleaving: CareerForgeInterleaving }).interleaving;
+  }
+
+  async answerCareerInterleaving(interleaveId: string, responseText: string): Promise<CareerForgeInterleaving> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/interleavings/${encodeURIComponent(interleaveId)}/answers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ response: responseText }) });
+    if (!response.ok) throw new Error(`Career Forge interleaving answer failed: ${response.status}`);
+    return (await response.json() as { interleaving: CareerForgeInterleaving }).interleaving;
+  }
+
+  async evaluateCareerInterleaving(interleaveId: string): Promise<CareerForgeInterleaving> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/interleavings/${encodeURIComponent(interleaveId)}/evaluate`, { method: "POST" });
+    if (!response.ok) throw new Error(`Career Forge interleaving evaluation failed: ${response.status}`);
+    return (await response.json() as { interleaving: CareerForgeInterleaving }).interleaving;
   }
 
   async getCurrentCareerInterview(missionId?: string): Promise<CareerForgeInterview | null> {

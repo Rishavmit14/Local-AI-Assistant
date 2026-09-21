@@ -33,6 +33,9 @@ export class FridayPresentation implements FridayPresentationActions {
   deliverRetentionReview(reviewId: string) { return this.runtime.deliverRetentionReview(reviewId); }
   evaluateRetentionReview(reviewId: string, response: string) { return this.runtime.evaluateRetentionReview(reviewId, response); }
   startCareerReinforcement(competencyId: string) { return this.runtime.startCareerReinforcement(competencyId); }
+  prepareCareerInterleaving(missionId: string) { return this.runtime.prepareCareerInterleaving(missionId); }
+  answerCareerInterleaving(interleaveId: string, response: string) { return this.runtime.answerCareerInterleaving(interleaveId, response); }
+  evaluateCareerInterleaving(interleaveId: string) { return this.runtime.evaluateCareerInterleaving(interleaveId); }
   linkCareerMissionProject(missionId: string) { return this.runtime.linkCareerMissionProject(missionId); }
   getCurrentCareerInterview(missionId?: string) { return this.runtime.getCurrentCareerInterview(missionId); }
   startCareerInterview(missionId: string) { return this.runtime.startCareerInterview(missionId); }
