@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`6f07d14`. The
+`84ee5ad`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -272,14 +272,14 @@ consistency. Next: expose the persisted publication result in PROJECTS without
 moving `GITHUB_WRITE` credentials into the browser, then continue real project
 lifecycle qualification.
 
-PROJECTS now recovers all durable public-evidence candidates for the active
+The accepted and published PROJECTS recovery at `84ee5ad` loads all durable public-evidence candidates for the active
 mission and displays qualification/approval state, bounded publication failure,
 or the authoritative published URL after refresh. The client makes only the
 existing read request; it has no publish method and receives no `GITHUB_WRITE`
 credential. Changed-file lint, all 46 frontend tests, and the production build
 pass; backend truth remains qualified by the unchanged 907-test repository
-verification. Next: publish this checkpoint, then execute the remaining bounded
-project lifecycle qualification and audit any other baseline owner-path gaps.
+verification. Next: execute the remaining bounded project lifecycle
+qualification and audit any other baseline owner-path gaps.
 
 ## 0. Non-negotiable project rules
 
