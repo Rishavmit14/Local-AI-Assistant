@@ -1,6 +1,6 @@
 # Project History
 
-## 2026-09-21 — Real Career Forge owner-path qualification candidate
+## 2026-09-21 — Real Career Forge owner-path qualification and recovery
 
 The owner physically selected arbitrary Practice Lab code, completed an actual
 due retention review, and completed both turns of a no-help interview. The

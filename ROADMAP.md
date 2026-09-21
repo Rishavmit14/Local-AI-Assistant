@@ -952,7 +952,8 @@ Real owner qualification has now accepted arbitrary selected-code tutoring, a
 truthful incorrect due-review outcome with weak-area/reinforcement projection,
 and a truthful two-answer no-help interview with zero earned interview evidence.
 The interview passed mid-session recovery; completed-session recovery exposed a
-UI omission and is repaired in the current candidate. Real publication remains
+UI omission and is repaired at `5cd3d87ca2161a80f88d20fcadc75575508bc806`.
+Real publication remains
 blocked before authorization because current owner state contains no project-
 linked mission/task/artifact candidate, the onboarded repository lacks a GitHub
 owner/name mapping, and no protected GitHub publication credential or

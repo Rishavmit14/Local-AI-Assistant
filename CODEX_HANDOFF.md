@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`9aaef7460cd6c7fa22425f488ab8a9ab858b2073`. The
+`5cd3d87ca2161a80f88d20fcadc75575508bc806`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -305,10 +305,11 @@ free. The owner's retention answer was evaluated `incorrect`, remained private,
 left mastery at `recognize`, and produced the truthful failed-retention weak area
 and reinforcement mission. Both no-help interview answers were evaluated
 `incorrect`; they created no evidence, assistance, mastery, or readiness claim.
-Mid-session restart recovery passed. Completed-session restart exposed and this
-candidate repairs the owner UI dropping its durable completed result while the
-backend/readiness retained it. The affected backend suite passes 55 tests; full
-repository verification passes all 909 Python tests with dependency consistency.
+Mid-session restart recovery passed. Completed-session restart exposed and the
+published repair at `5cd3d87ca2161a80f88d20fcadc75575508bc806`
+fixes the owner UI dropping its durable completed result while backend/readiness
+retained it. The affected backend suite passes 55 tests; full repository
+verification passes all 909 Python tests with dependency consistency.
 
 Real publication preflight found no canonical project link, mission objective,
 public-evidence candidate, or publication row in current owner state. The only
