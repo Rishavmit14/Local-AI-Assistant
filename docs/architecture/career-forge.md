@@ -190,6 +190,9 @@ or resume learning.
 The Practice Lab is a bounded Career Forge workspace, not an IDE or shell. Its
 typed exercise contract carries the assignment, starter code, runtime, bounded
 test contract, evaluation criteria, mission/competency linkage, and hint context.
+The owner-facing Python editor uses the already-declared CodeMirror language
+stack for syntax highlighting, selection, keyboard history, and indentation;
+the browser remains presentation-only and never executes learner code.
 The initial exercise is Python and is attached only to the active dependency-ready
 mission. A draft and bounded run/test metadata persist in the existing Career
 Forge SQLite database; submitted code is an existing governed lesson attempt.

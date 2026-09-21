@@ -780,8 +780,10 @@ attempt/evidence projection, and deterministic submitted-code diffs. Learner
 code runs only through fail-closed Bubblewrap with denied networking and strict
 resource bounds; it has no shell, repository, credential, or production-store
 access. Test success remains evidence rather than automatic mastery. The first
-Lab is intentionally Python-only and passes whole active exercise/draft context,
-not arbitrary selected-code or screen-aware context. The real Friday voice route,
+Lab is intentionally Python-only. Its owner editor now uses the existing
+CodeMirror Python language stack for real syntax highlighting, editing history,
+and arbitrary selected-code context while execution remains exclusively behind
+the same sandboxed service. The real Friday voice route,
 owner visual workspace/CLOSE review, and live Run/Test/Hint/Submit/restart-resume
 flow passed. A Career Forge SQLite descriptor leak exposed during live Lab
 projection was repaired by deterministic short-lived connection closure.

@@ -247,6 +247,18 @@ Python tests plus dependency consistency. Next: final retained-scope and
 owner-path acceptance audit across the product baseline, architecture, roadmap,
 and deterministic E2E coverage.
 
+The retained-scope audit found that Practice Lab still rendered its canonical
+Python draft in a plain textarea despite the baseline's syntax-highlighting
+contract and the repository's already-declared CodeMirror dependencies. The
+candidate now uses CodeMirror's Python language support, line numbers,
+selection, history, indentation, and accessible content semantics while keeping
+all Run/Test/Submit execution in the existing fail-closed Bubblewrap service.
+Arbitrary owner selection still reaches only the bounded contextual-tutor route.
+Changed-file lint, all 45 frontend tests, and the production build pass; backend
+truth remains covered by the unchanged 906-test repository verification. Next:
+reconcile the product-integration matrix with the accepted Career Forge paths,
+then continue the first actual remaining owner-path gap it exposes.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

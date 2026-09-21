@@ -1,5 +1,16 @@
 # Project History
 
+## 2026-09-21 — Syntax-highlighted Career Forge Practice Lab candidate
+
+The canonical Practice Lab now uses the repository's existing CodeMirror 6
+Python language stack instead of a plain textarea. The owner retains arbitrary
+selection for contextual tutoring, normal keyboard history/indentation,
+accessible editor semantics, saved drafts, and the existing governed
+Run/Test/Submit boundary. No browser-side execution or new learner-state
+authority was introduced. Changed-file lint, all 45 frontend tests, and the
+production build pass; the unchanged backend remains qualified by the current
+906-test repository verification.
+
 ## 2026-09-21 — Evidence-backed Career Forge readiness candidate
 
 PROGRESS now derives categorical career, interview, and portfolio readiness from
