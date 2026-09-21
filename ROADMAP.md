@@ -881,7 +881,12 @@ the owner wrote it that way, recover the exact question after restart, and turn
 only a correct assessed explanation into typed evidence without automatic
 mastery. The next retained gap is evidence-backed confidence and stale-retention
 projection in the Learner Twin/PROGRESS boundary; no automatic mastery demotion
-is implied.
+is implied. That projection is now integrated: PROGRESS shows categorical
+confidence, retention state, evidence count, and independent correct attempts;
+due reviews become stale and failed objective evidence becomes weak without
+automatic mastery demotion. The next retained gap is interleaving older concepts
+into newer missions and requiring repeated independent performance where the
+canonical policy supports it.
 
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and

@@ -209,6 +209,16 @@ and full repository verification with 899 Python tests pass. The next retained
 Career Forge gap is an evidence-backed confidence and stale-retention projection
 in Learner Twin/PROGRESS, preserving explicit mastery authority.
 
+Evidence-derived confidence and stale-retention projection is qualified in the
+current candidate. PROGRESS categorizes each competency as unverified, current,
+stale, weak, or reinforced from canonical mastery, review, weak-area, evidence,
+and independent-attempt records. A due review lowers confidence to stale and a
+failed objective review to weak, without changing mastery. Focused validation
+passes 51 Python tests and 4 frontend tests; changed-file lint, production build,
+dependency consistency, and full repository verification with 900 Python tests
+pass. Next: governed interleaving of older concepts into newer missions and
+repeated independent performance.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

@@ -154,6 +154,18 @@ class CognitiveImprovementEvaluation:
 
 
 @dataclass(frozen=True, slots=True)
+class LearnerConfidence:
+    competency_id: str
+    title: str
+    mastery: MasteryLevel
+    status: str
+    retention_state: str
+    evidence_count: int
+    independent_correct_attempts: int
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class InterviewSession:
     interview_id: str
     mission_id: str
@@ -213,6 +225,7 @@ class CareerForgeProgress:
     retention_reviews: tuple[RetentionReview, ...]
     weak_areas: tuple[WeakArea, ...]
     cognitive_improvements: tuple[CognitiveImprovementEvaluation, ...]
+    learner_confidence: tuple[LearnerConfidence, ...]
     next_action: str
     history: tuple[LearningHistoryItem, ...]
 
@@ -589,6 +602,7 @@ class CareerForgeService:
         reviews = self.retention_reviews(limit=limit)
         weak_areas = self.weak_areas(limit=limit)
         cognitive_improvements = self.cognitive_improvement_evaluations(limit=limit)
+        learner_confidence = self.learner_confidence()
         evidenced = tuple(item for item in self.competencies() if item.mastery is not MasteryLevel.UNVERIFIED)
         due_review = next((item for item in reviews if item.state == "scheduled" and item.due_at <= _now()), None)
         delivered_review = next((item for item in reviews if item.state == "delivered"), None)
@@ -620,7 +634,48 @@ class CareerForgeService:
             for item in evidence
         ]
         history.sort(key=lambda item: item.occurred_at, reverse=True)
-        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, weak_areas, cognitive_improvements, next_action, tuple(history[:limit]))
+        return CareerForgeProgress(active, attempts, assistance, evidence, evidenced, retries, reviews, weak_areas, cognitive_improvements, learner_confidence, next_action, tuple(history[:limit]))
+
+    def learner_confidence(self) -> tuple[LearnerConfidence, ...]:
+        """Derive categorical confidence without changing canonical mastery."""
+        now = _now()
+        weak_ids = {item.competency_id for item in self.weak_areas(limit=100)}
+        with self._db() as db:
+            evidence_counts = dict(db.execute(
+                "SELECT m.competency_id, COUNT(*) FROM mission_evidence e "
+                "JOIN missions m ON m.mission_id=e.mission_id GROUP BY m.competency_id"
+            ))
+            independent_counts = dict(db.execute(
+                "SELECT competency_id, COUNT(*) FROM lesson_attempts "
+                "WHERE evaluation='correct' AND assistance_level IS NULL GROUP BY competency_id"
+            ))
+            review_rows = db.execute(
+                "SELECT competency_id, state, evaluation, due_at FROM retention_reviews "
+                "ORDER BY COALESCE(evaluated_at, due_at) DESC, created_at DESC"
+            ).fetchall()
+        latest_reviews: dict[str, tuple[str, str | None, str]] = {}
+        for competency_id, state, evaluation, due_at in review_rows:
+            latest_reviews.setdefault(str(competency_id), (str(state), str(evaluation) if evaluation else None, str(due_at)))
+        result = []
+        for item in self.competencies():
+            competency_id = item.competency.competency_id
+            review = latest_reviews.get(competency_id)
+            if item.mastery is MasteryLevel.UNVERIFIED:
+                status, retention, reason = "unverified", "not_scheduled", "No evidence-backed mastery rung is recorded."
+            elif competency_id in weak_ids:
+                status, retention, reason = "weak", "failed", "Current objective evidence identifies a weak area."
+            elif review and review[0] in {"scheduled", "delivered"} and review[2] <= now:
+                status, retention, reason = "stale", "due", "The evidence-backed retention review is due."
+            elif review and review[0] == "completed" and review[1] == AttemptEvaluation.CORRECT:
+                status, retention, reason = "reinforced", "passed", "The latest retention reassessment is correct."
+            else:
+                status, retention, reason = "current", "scheduled", "Mastery evidence is current and its review is not due."
+            result.append(LearnerConfidence(
+                competency_id, item.competency.title, item.mastery, status, retention,
+                int(evidence_counts.get(competency_id, 0)),
+                int(independent_counts.get(competency_id, 0)), reason,
+            ))
+        return tuple(result)
 
     def cognitive_improvement_evaluations(self, *, limit: int = 20) -> tuple[CognitiveImprovementEvaluation, ...]:
         """Project objective improvement only from the persisted governed loop.

@@ -1,5 +1,16 @@
 # Project History
 
+## 2026-09-21 — Evidence-derived confidence and retention candidate
+
+PROGRESS now derives categorical learner confidence from canonical mastery,
+objective weak-area evidence, review due state, and independent correct attempts.
+Confidence becomes stale when a retention review is due and weak after failed
+objective evidence, while the explicit mastery rung remains unchanged. The
+owner-facing workspace displays the reason and retention state without invented
+percentages. Focused validation passes 51 Python tests and 4 frontend tests;
+changed-file lint, the production frontend build, dependency consistency, and
+full repository verification with 900 Python tests pass.
+
 ## 2026-09-21 — Friday-initiated Practice Lab code question candidate
 
 Friday can now deterministically select the relevant function from the owner's

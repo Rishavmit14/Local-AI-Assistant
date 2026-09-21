@@ -353,3 +353,11 @@ assistance-free challenge attempt evaluated through the existing bounded local-
 model assessment parser. Only a correct assessment records typed
 `code_explanation` evidence; the route cannot advance mastery, execute new code,
 or treat Friday's own question as learner evidence.
+
+Learner confidence is a read-only categorical projection, never a second mastery
+store or a fabricated percentage. Each competency is `unverified`, `current`,
+`stale`, `weak`, or `reinforced` according to its explicit mastery rung, latest
+retention state, current weak-area evidence, and independent correct-attempt
+count. A due review makes confidence stale and failed objective evidence makes
+it weak, but only the existing matching-evidence advancement authority can alter
+mastery.

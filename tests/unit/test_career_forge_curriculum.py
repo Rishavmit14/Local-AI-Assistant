@@ -148,6 +148,23 @@ def test_retention_outcome_derives_weak_area_without_changing_mastery(tmp_path):
         )
 
 
+def test_confidence_becomes_stale_then_weak_without_demoting_mastery(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    review = forge.retention_reviews()[0]
+    assert forge.learner_confidence()[0].status == "current"
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
+    stale = forge.learner_confidence()[0]
+    assert stale.status == "stale" and stale.retention_state == "due"
+    forge.deliver_retention_review(review.review_id)
+    forge.evaluate_retention_review(review.review_id, "Wrong", AttemptEvaluation.INCORRECT, "Retry.")
+    weak = forge.learner_confidence()[0]
+    assert weak.status == "weak" and weak.mastery is MasteryLevel.RECOGNIZE
+
+
 def test_reinforcement_interrupts_then_resumes_newer_mission_without_automatic_mastery(tmp_path):
     forge = CareerForgeService(tmp_path / "learner.sqlite3")
     foundation = forge.start_mission("se.python", "Verify Python")

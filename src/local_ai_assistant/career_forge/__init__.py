@@ -28,6 +28,7 @@ from .service import (
     EvidenceRecord,
     InterviewSession,
     LearnerCompetency,
+    LearnerConfidence,
     LearningHistoryItem,
     LessonAttempt,
     Mission,
@@ -41,6 +42,6 @@ from .service import (
 
 __all__ = [
     "AssistanceLevel", "AttemptEvaluation", "CareerForgeLearningLoop", "COMPETENCY_GRAPH_VERSION", "CareerForgeService", "Competency",
-    "AssistanceRecord", "CareerForgeProgress", "CognitiveImprovementEvaluation", "EvidenceRecord", "InterviewSession", "LearnerCompetency", "LearningDirective", "LearningHistoryItem", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "MissionDesktopAction", "MissionObjectiveLink", "ProjectLink", "PublicEvidenceCandidate", "PublicationDecision", "RetentionReview", "WeakArea",
+    "AssistanceRecord", "CareerForgeProgress", "CognitiveImprovementEvaluation", "EvidenceRecord", "InterviewSession", "LearnerCompetency", "LearnerConfidence", "LearningDirective", "LearningHistoryItem", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "MissionDesktopAction", "MissionObjectiveLink", "ProjectLink", "PublicEvidenceCandidate", "PublicationDecision", "RetentionReview", "WeakArea",
     "TutorMode", "competency_graph", "evaluate_publication", "CodeAttentionQuestion", "PracticeAttempt", "PracticeExercise", "PracticeLabProjection", "PracticeLabService", "PracticeRun",
 ]
