@@ -15,6 +15,7 @@ export type {
   CareerForgeMissionObjective,
   CareerForgeMissionBrief,
   CareerForgePublicEvidenceCandidate,
+  CodeAttentionQuestion,
   PracticeLab,
   ConversationRequest,
   FridayConversationMessage,

@@ -5,6 +5,7 @@ import type {
   CareerForgeMissionObjective,
   CareerForgeMission,
   CareerForgePublicEvidenceCandidate,
+  CodeAttentionQuestion,
   PracticeLab,
   ConversationRequest,
   FridayRuntimeEvent,
@@ -260,6 +261,18 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/hint`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }) });
     if (!response.ok) throw new Error(`Practice Lab hint failed: ${response.status}`);
     return response.json() as Promise<{ response: string; assistance_level: string }>;
+  }
+
+  async askPracticeCodeQuestion(): Promise<CodeAttentionQuestion> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/code-question`, { method: "POST" });
+    if (!response.ok) throw new Error(`Practice Lab code question failed: ${response.status}`);
+    return (await response.json() as { question: CodeAttentionQuestion }).question;
+  }
+
+  async answerPracticeCodeQuestion(responseText: string): Promise<{ question: CodeAttentionQuestion; attempt: { evaluation: string; feedback: string | null; evidence_type: string | null } }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/code-question/answer`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ response: responseText }) });
+    if (!response.ok) throw new Error(`Practice Lab code answer failed: ${response.status}`);
+    return response.json() as Promise<{ question: CodeAttentionQuestion; attempt: { evaluation: string; feedback: string | null; evidence_type: string | null } }>;
   }
 
   private async practiceRequest(action: "open"): Promise<PracticeLab> {

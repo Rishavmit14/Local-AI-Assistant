@@ -1,5 +1,18 @@
 # Project History
 
+## 2026-09-21 — Friday-initiated Practice Lab code question candidate
+
+Friday can now deterministically select the relevant function from the owner's
+saved Practice Lab draft, present its exact line range, and ask the owner to
+explain the design choice. The question and selected code survive restart in the
+canonical mission resume state. The bounded local model evaluates the explicit
+answer through the existing assessment parser; only a correct result creates
+`code_explanation` evidence, and no result advances mastery automatically. This
+closes Career Forge acceptance flow `CF-E2E-004`. Focused validation passes 43
+Python tests and 16 frontend runtime tests; changed-file lint, the production
+frontend build, dependency consistency, and full repository verification with
+899 Python tests pass.
+
 ## 2026-09-21 — Evidence-positive Career Forge cognitive evaluation candidate
 
 Career Forge now reconstructs a deterministic, restart-safe provenance chain

@@ -63,6 +63,17 @@ class PracticeAttempt:
 
 
 @dataclass(frozen=True, slots=True)
+class CodeAttentionQuestion:
+    question_id: str
+    mission_id: str
+    selected_code: str
+    start_line: int
+    end_line: int
+    prompt: str
+    evaluation_criteria: str
+
+
+@dataclass(frozen=True, slots=True)
 class PracticeLabProjection:
     mission_id: str
     exercise: PracticeExercise
@@ -226,6 +237,52 @@ class PracticeLabService:
             evidence_type = None
         attempt = self.career_forge.evaluate_attempt(attempt.attempt_id, evaluation, feedback, evidence_type=evidence_type)
         return PracticeAttempt(attempt, self._attempt_diff(attempt))
+
+    def ask_about_code(self, mission_id: str) -> CodeAttentionQuestion:
+        """Select one bounded function and ask for owner understanding evidence."""
+        projection = self.projection(mission_id)
+        lines = projection.draft_code.splitlines()
+        start = next((index for index, line in enumerate(lines) if line.startswith("def ")), None)
+        if start is None:
+            raise ValueError("the current draft has no function Friday can ask about")
+        end = start + 1
+        while end < len(lines) and (not lines[end].strip() or lines[end].startswith((" ", "\t"))):
+            end += 1
+        selected = "\n".join(lines[start:end]).strip()
+        question_id = "code_attention:" + hashlib.sha256(selected.encode()).hexdigest()[:16]
+        question = CodeAttentionQuestion(
+            question_id, mission_id, selected, start + 1, end,
+            "Why did you choose this default-argument and initialization pattern, and what failure does it prevent?",
+            projection.exercise.evaluation_criteria,
+        )
+        mission = self.career_forge.mission(mission_id)
+        self.career_forge.update_resume(
+            mission_id,
+            {
+                "phase": "question",
+                "question_id": question.question_id,
+                "code_attention": {
+                    "selected_code": question.selected_code,
+                    "start_line": question.start_line,
+                    "end_line": question.end_line,
+                    "prompt": question.prompt,
+                    "evaluation_criteria": question.evaluation_criteria,
+                },
+            },
+            assistance_level=mission.assistance_level,
+        )
+        return question
+
+    def current_code_question(self, mission_id: str) -> CodeAttentionQuestion:
+        mission = self.career_forge.mission(mission_id)
+        details = mission.resume_point.get("code_attention")
+        question_id = mission.resume_point.get("question_id")
+        if not isinstance(details, dict) or not isinstance(question_id, str):
+            raise ValueError("Friday has not selected code for an explanation question")
+        return CodeAttentionQuestion(
+            question_id, mission_id, str(details["selected_code"]), int(details["start_line"]),
+            int(details["end_line"]), str(details["prompt"]), str(details["evaluation_criteria"]),
+        )
 
     def projection(self, mission_id: str, *, draft_code: str | None = None) -> PracticeLabProjection:
         exercise = self.exercise_for(mission_id)

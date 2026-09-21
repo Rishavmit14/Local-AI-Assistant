@@ -344,3 +344,12 @@ the original weak area. Incorrect or uncertain reassessment remains non-positive
 even if practice ran or mastery changed. The projection is read-only, survives
 restart by reconstruction from SQLite, and introduces no automatic mastery,
 model-weight change, duplicated scoring store, or nondeterministic model oracle.
+
+Practice Lab also implements Friday-initiated shared code attention. Friday
+selects the first bounded function from the canonical saved draft, persists the
+exact code, line range, question, and evaluation criterion in mission resume
+state, and presents that selection to the owner. The answer is a normal
+assistance-free challenge attempt evaluated through the existing bounded local-
+model assessment parser. Only a correct assessment records typed
+`code_explanation` evidence; the route cannot advance mastery, execute new code,
+or treat Friday's own question as learner evidence.

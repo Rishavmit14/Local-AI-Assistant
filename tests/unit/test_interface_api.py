@@ -6,7 +6,7 @@ import threading
 from fastapi.testclient import TestClient
 
 from local_ai_assistant.autonomy import ObjectiveService
-from local_ai_assistant.career_forge import CareerForgeService, TutorMode
+from local_ai_assistant.career_forge import CareerForgeService, PracticeLabService, TutorMode
 from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
@@ -480,6 +480,40 @@ def test_contextual_tutor_uses_only_explicit_bounded_code_or_retained_screen_tex
         f"/api/v1/career-forge/missions/{mission.mission_id}/contextual-tutor",
         json={"message": "Ambiguous", "capture_id": "screen_kept", "selected_code": "x"},
     ).status_code == 400
+
+
+def test_friday_initiated_code_question_records_assessed_understanding_evidence(tmp_path):
+    class Evaluator:
+        def stream_chat(self, prompt, system_prompt="", **_kwargs):
+            assert "exact selected code" in system_prompt
+            assert "bucket=[]" in system_prompt
+            assert "allocated once" in prompt
+            yield "ASSESSMENT: correct\nCorrectly explained shared default state and the safe alternative."
+
+    runtime = FridayRuntime("career-code-question-api")
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    lab = PracticeLabService(forge, tmp_path / "lab")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(Evaluator(), runtime),
+        career_forge=forge, practice_lab=lab,
+    ))
+
+    asked = client.post("/api/v1/career-forge/practice-lab/code-question")
+    assert asked.status_code == 200
+    question = asked.json()["question"]
+    assert question["mission_id"] == mission.mission_id
+    assert "def append_item" in question["selected_code"]
+
+    answered = client.post(
+        "/api/v1/career-forge/practice-lab/code-question/answer",
+        json={"response": "The mutable default is allocated once, so calls share it; use None and allocate inside."},
+    )
+    assert answered.status_code == 200
+    assert answered.json()["attempt"]["evaluation"] == "correct"
+    assert answered.json()["attempt"]["evidence_type"] == "code_explanation"
+    assert forge.evidence_history()[0].evidence_type == "code_explanation"
+    assert forge.competencies()[0].mastery.value == "unverified"
 
 
 def test_career_desktop_assistance_links_proposal_but_keeps_approval_and_execution_separate(tmp_path):
@@ -1123,7 +1157,9 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/practice-lab/run",
         "/api/v1/career-forge/practice-lab/test",
         "/api/v1/career-forge/practice-lab/submit",
-        "/api/v1/career-forge/practice-lab/hint",
+            "/api/v1/career-forge/practice-lab/hint",
+            "/api/v1/career-forge/practice-lab/code-question",
+            "/api/v1/career-forge/practice-lab/code-question/answer",
         "/api/v1/memory/recall",
         "/api/v1/memory/remember",
         "/api/v1/runtime/events",

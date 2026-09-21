@@ -875,6 +875,14 @@ read-only and restart-safe. The next dependency is the final authoritative
 Career Forge gap audit across MAP, PROGRESS, product baseline, tests, and
 retained scope.
 
+That audit closed the explicit `CF-E2E-004` shared-code-attention gap: Friday can
+select a bounded function from the canonical saved Practice Lab draft, ask why
+the owner wrote it that way, recover the exact question after restart, and turn
+only a correct assessed explanation into typed evidence without automatic
+mastery. The next retained gap is evidence-backed confidence and stale-retention
+projection in the Learner Twin/PROGRESS boundary; no automatic mastery demotion
+is implied.
+
 Market/trading, creator/media, multiple heavyweight general-purpose models,
 parallel LLM orchestration, paid inference, cloud-GPU core cognition, and
 advanced organization-hierarchy visualization remain deferred unless the owner

@@ -206,6 +206,16 @@ export interface PracticeLab {
   availability_detail: string | null;
 }
 
+export interface CodeAttentionQuestion {
+  question_id: string;
+  mission_id: string;
+  selected_code: string;
+  start_line: number;
+  end_line: number;
+  prompt: string;
+  evaluation_criteria: string;
+}
+
 export interface FridayScreenCapture {
   capture_id: string;
   captured_at: string;

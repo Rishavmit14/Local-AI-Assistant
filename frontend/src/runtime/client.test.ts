@@ -132,6 +132,20 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
     );
   });
 
+  it("asks and answers Friday's bounded selected-code question", async () => {
+    const question = { question_id: "code_attention:1", mission_id: "m1", selected_code: "def f(): pass", start_line: 1, end_line: 1, prompt: "Why?", evaluation_criteria: "Explain it." };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ question }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ question, attempt: { evaluation: "correct", feedback: "Good.", evidence_type: "code_explanation" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+
+    await expect(client.askPracticeCodeQuestion()).resolves.toMatchObject({ question_id: "code_attention:1" });
+    await expect(client.answerPracticeCodeQuestion("Because it is isolated.")).resolves.toMatchObject({ attempt: { evidence_type: "code_explanation" } });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/career-forge/practice-lab/code-question", { method: "POST" });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/career-forge/practice-lab/code-question/answer", expect.objectContaining({ body: JSON.stringify({ response: "Because it is isolated." }) }));
+  });
+
   it("persists and evaluates a bounded Career Forge interview answer", async () => {
     const session = { interview_id: "interview 1", mission_id: "m1", competency_id: "se.python", state: "awaiting_evaluation", question_id: "q1", prompt: "Explain defaults", turn_number: 1, current_attempt_id: "a1", created_at: "now", updated_at: "now" };
     const fetchMock = vi.fn()

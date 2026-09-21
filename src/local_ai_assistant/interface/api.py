@@ -18,6 +18,7 @@ except ImportError:  # optional dependency; validated when app creation is reque
 from local_ai_assistant.autonomy import ObjectiveService
 from local_ai_assistant.career_forge import (
     AssistanceLevel,
+    AttemptEvaluation,
     CareerForgeLearningLoop,
     CareerForgeService,
     MasteryLevel,
@@ -1074,6 +1075,60 @@ def create_presentation_app(
             level = lab.next_assistance_level(mission.mission_id)
             assistance_id = owner_career_forge().offer_assistance(mission.mission_id, TutorMode.GUIDE, level, response)
             return {"response": response, "assistance_id": assistance_id, "assistance_level": level}
+        finally:
+            try:
+                if presentation_resume is not None:
+                    presentation_resume()
+            finally:
+                lease.release()
+
+    @app.post("/api/v1/career-forge/practice-lab/code-question")
+    def practice_lab_code_question():
+        mission = owner_career_forge().resume()
+        if mission is None:
+            raise HTTPException(status_code=409, detail="an active Career Forge mission is required")
+        try:
+            return {"question": asdict(owner_practice_lab().ask_about_code(mission.mission_id))}
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/career-forge/practice-lab/code-question/answer")
+    async def practice_lab_code_question_answer(request: Request):
+        try:
+            body = await request.json()
+            response = body["response"]
+            if not isinstance(response, str) or not response.strip() or len(response) > max_prompt_chars:
+                raise ValueError("a bounded code explanation is required")
+            mission = owner_career_forge().resume()
+            if mission is None:
+                raise ValueError("an active Career Forge mission is required")
+            question = owner_practice_lab().current_code_question(mission.mission_id)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        lease = interaction_coordinator.try_acquire("presentation")
+        if lease is None:
+            raise HTTPException(status_code=409, detail="interaction busy")
+        try:
+            if presentation_pause is not None:
+                presentation_pause()
+            attempt = owner_career_forge().record_attempt(
+                mission.mission_id, question.question_id, response,
+                mode=TutorMode.CHALLENGE,
+            )
+            system_prompt = (
+                "Evaluate the owner's explanation of the exact selected code. First line MUST be "
+                "ASSESSMENT: correct, ASSESSMENT: incorrect, or ASSESSMENT: uncertain. Then give "
+                "concise feedback. Do not claim mastery. Selected code:\n"
+                f"{question.selected_code}\nQuestion: {question.prompt}\n"
+                f"Criterion: {question.evaluation_criteria}"
+            )
+            model_response = "".join(conversation.stream_response(response, system_prompt=system_prompt))
+            evaluation, feedback = CareerForgeLearningLoop.parse_evaluation(model_response)
+            evaluated = owner_career_forge().evaluate_attempt(
+                attempt.attempt_id, evaluation, feedback,
+                evidence_type="code_explanation" if evaluation is AttemptEvaluation.CORRECT else None,
+            )
+            return {"question": asdict(question), "attempt": _career_attempt_payload(evaluated)}
         finally:
             try:
                 if presentation_resume is not None:

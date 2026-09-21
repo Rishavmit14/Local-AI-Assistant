@@ -61,6 +61,23 @@ def test_draft_resume_and_attempt_diff(lab):
     assert "bucket=None" in resumed.attempts[0].diff
 
 
+def test_friday_code_question_selects_exact_region_and_survives_restart(lab):
+    forge, mission, service = lab
+    fixed = fixed_code(service.open(mission.mission_id).draft_code)
+    service.save_draft(mission.mission_id, fixed)
+
+    question = service.ask_about_code(mission.mission_id)
+
+    assert question.question_id.startswith("code_attention:")
+    assert question.start_line == 1
+    assert "def append_item" in question.selected_code
+    assert "if __name__" not in question.selected_code
+    restored = PracticeLabService(
+        CareerForgeService(forge.path), service.workspace_root,
+    ).current_code_question(mission.mission_id)
+    assert restored == question
+
+
 def test_untrusted_code_cannot_read_host_etc(lab):
     _, mission, service = lab
     hostile = "print(open('/etc/passwd').read())"

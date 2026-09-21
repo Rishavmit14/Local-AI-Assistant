@@ -197,6 +197,18 @@ full repository verification passes with 897 Python tests plus dependency
 consistency. The next dependency is the final authoritative Career Forge gap
 audit, followed immediately by any remaining retained scope.
 
+The final scope audit found and repaired the missing `CF-E2E-004` Friday-
+initiated code-question flow. Friday now selects the relevant function from the
+saved canonical Practice Lab draft, persists the exact line range/question,
+accepts the owner's explanation as a normal challenge attempt, and creates
+`code_explanation` evidence only after a correct bounded assessment. Incorrect
+or uncertain answers require retry and no result advances mastery. Focused
+validation passes 43 Python tests and 16 frontend runtime tests; changed-file
+Python/frontend lint, the production frontend build, dependency consistency,
+and full repository verification with 899 Python tests pass. The next retained
+Career Forge gap is an evidence-backed confidence and stale-retention projection
+in Learner Twin/PROGRESS, preserving explicit mastery authority.
+
 ## 0. Non-negotiable project rules
 
 1. Bootstrap from the actual working MSI files before refactoring; do not recreate existing code from memory when the source exists.

@@ -13,6 +13,7 @@ from .models import (
     TutorMode,
 )
 from .practice_lab import (
+    CodeAttentionQuestion,
     PracticeAttempt,
     PracticeExercise,
     PracticeLabProjection,
@@ -41,5 +42,5 @@ from .service import (
 __all__ = [
     "AssistanceLevel", "AttemptEvaluation", "CareerForgeLearningLoop", "COMPETENCY_GRAPH_VERSION", "CareerForgeService", "Competency",
     "AssistanceRecord", "CareerForgeProgress", "CognitiveImprovementEvaluation", "EvidenceRecord", "InterviewSession", "LearnerCompetency", "LearningDirective", "LearningHistoryItem", "LessonAttempt", "LessonPhase", "MasteryLevel", "Mission", "MissionBrief", "MissionDesktopAction", "MissionObjectiveLink", "ProjectLink", "PublicEvidenceCandidate", "PublicationDecision", "RetentionReview", "WeakArea",
-    "TutorMode", "competency_graph", "evaluate_publication", "PracticeAttempt", "PracticeExercise", "PracticeLabProjection", "PracticeLabService", "PracticeRun",
+    "TutorMode", "competency_graph", "evaluate_publication", "CodeAttentionQuestion", "PracticeAttempt", "PracticeExercise", "PracticeLabProjection", "PracticeLabService", "PracticeRun",
 ]

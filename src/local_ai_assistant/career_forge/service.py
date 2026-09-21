@@ -474,7 +474,7 @@ class CareerForgeService:
             raise ValueError("mission resume point must be an object")
         current = self.mission(mission_id)
         resume_point = dict(resume_point)
-        for key in ("reinforcement", "reasons", "interrupted_mission_id", "baseline"):
+        for key in ("reinforcement", "reasons", "interrupted_mission_id", "baseline", "code_attention"):
             if key in current.resume_point and key not in resume_point:
                 resume_point[key] = current.resume_point[key]
         with self._db() as db:

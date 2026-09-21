@@ -66,4 +66,6 @@ export class FridayPresentation implements FridayPresentationActions {
   saveCanonicalDraft(code: string) { return this.runtime.savePracticeDraft(code); }
   runCanonicalPractice(action: "run" | "test" | "submit", code: string) { return this.runtime.practiceAction(action, code); }
   requestCanonicalPracticeHint(message: string) { return this.runtime.practiceHint(message); }
+  askCanonicalPracticeCodeQuestion() { return this.runtime.askPracticeCodeQuestion(); }
+  answerCanonicalPracticeCodeQuestion(response: string) { return this.runtime.answerPracticeCodeQuestion(response); }
 }
