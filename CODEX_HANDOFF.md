@@ -182,8 +182,8 @@ repository verification passes with 895 Python tests and dependency consistency;
 the remote integration branch was verified at the exact capability commit. Next:
 evidence-positive cognitive-improvement evaluation across the completed loop.
 
-Evidence-positive cognitive-improvement evaluation is qualified in the current
-candidate. Reinforcement missions durably retain the failed objective baseline,
+Evidence-positive cognitive-improvement evaluation is accepted and published at
+`d808dc6`. Reinforcement missions durably retain the failed objective baseline,
 mastery rung, reasons, and interrupted mission; correct assessed evidence links
 back to its source attempt, and ordinary resume updates no longer erase this
 provenance. PROGRESS reconstructs the causal chain without a duplicate score or
