@@ -14,11 +14,11 @@ and the **Current cross-session handoff and Git policy** section below. Historic
 bootstrap instructions describe completed work; use current recovery refs and
 `ROADMAP.md` to continue automatically after each accepted checkpoint.
 
-## Current integration recovery state — 2026-09-20
+## Current integration recovery state — 2026-09-21
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`84ee5ad`. The
+`9aaef7460cd6c7fa22425f488ab8a9ab858b2073`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -295,8 +295,8 @@ advanced surfaces. Focused lifecycle, reservation, publication-transport, and
 capability-routing regressions pass; full repository verification passes with
 909 Python tests plus dependency consistency. The unchanged frontend remains
 covered by its current 46-test, changed-file-lint, and production-build evidence.
-The exact published recovery SHA will be recorded after this qualified candidate
-is committed and remotely verified.
+The qualified capability is committed, published, fetched, and remote-verified
+at `9aaef7460cd6c7fa22425f488ab8a9ab858b2073`.
 
 Owner-path audit result: no autonomous Career Forge engineering item remains.
 Exact external qualifications are (1) the owner physically selects arbitrary
@@ -306,9 +306,10 @@ GitHub publication using the already-configured local credential and onboarded
 repository. Codex cannot manufacture the owner's speech/code reasoning or
 publish under an unavailable identity; all supporting engineering and negative
 controls are complete. After those actions, Friday will persist and display the
-result through the already-qualified paths. Other whole-Friday work may continue
-without waiting, but this task must publish the Career Forge final recovery
-checkpoint first.
+result through the already-qualified paths. The active dependency is therefore
+owner/external Career Forge qualification, not another autonomous implementation
+slice. Other whole-Friday work may continue without waiting after this final
+Career Forge recovery checkpoint is published.
 
 ## 0. Non-negotiable project rules
 

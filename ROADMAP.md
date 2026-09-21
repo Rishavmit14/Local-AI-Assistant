@@ -923,7 +923,7 @@ advanced organization-hierarchy visualization remain deferred unless the owner
 explicitly changes priority. The current Qwen remains the sole general-purpose
 local model and role contexts remain sequential.
 
-## Stage 22 — Friday Career Forge Advanced Integration (**Qualified locally; owner/external E2E remains**)
+## Stage 22 — Friday Career Forge Advanced Integration (**Engineering qualified; owner/external E2E remains**)
 
 Integrate the accepted Stage 15–21 general capabilities into the mature Career
 Forge: screen-aware tutoring, policy-governed desktop assistance, bounded
@@ -945,7 +945,8 @@ reconstructed services recover the same objective, evidence, readiness, task,
 and published URL. No autonomous Career Forge engineering gap remains. Exact
 owner/external qualification remains for physical selected-code, retention and
 interview flows, plus a real GitHub publication using the owner's configured
-credential and onboarded repository.
+credential and onboarded repository. The qualified engineering checkpoint is
+published at `9aaef7460cd6c7fa22425f488ab8a9ab858b2073`.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 
