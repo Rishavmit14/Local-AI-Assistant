@@ -209,8 +209,8 @@ and full repository verification with 899 Python tests pass. The next retained
 Career Forge gap is an evidence-backed confidence and stale-retention projection
 in Learner Twin/PROGRESS, preserving explicit mastery authority.
 
-Evidence-derived confidence and stale-retention projection is qualified in the
-current candidate. PROGRESS categorizes each competency as unverified, current,
+Evidence-derived confidence and stale-retention projection is accepted and
+published at `211fbab`. PROGRESS categorizes each competency as unverified, current,
 stale, weak, or reinforced from canonical mastery, review, weak-area, evidence,
 and independent-attempt records. A due review lowers confidence to stale and a
 failed objective review to weak, without changing mastery. Focused validation
