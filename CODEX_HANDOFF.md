@@ -18,7 +18,7 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
-`2b8726f`. The
+`6f07d14`. The
 governed retention-review delivery slice is committed and published to
 `origin/integration/astra-friday`: only a due `scheduled`
 review can be explicitly delivered through the canonical service/API/typed
@@ -262,14 +262,15 @@ existing approval or gateway boundaries.
 
 The project/publication acceptance path then exposed an integrity gap: a mission
 artifact could be submitted with an eligible but unrelated canonical task. The
-candidate now requires any mission-linked objective to match the publication's
+accepted and published repair at `6f07d14` requires any mission-linked objective to match the publication's
 exact task and repository and to project canonical `succeeded` task state before
 the existing eligibility validator or publisher is called. Mismatched and
 nonterminal controls fail without a gateway call; the successful path retains
 explicit owner approval and `GITHUB_WRITE` authentication. Focused API tests pass
 and full repository verification passes with 907 Python tests plus dependency
-consistency. Next: publish this checkpoint, then continue the remaining
-owner-visible publication-result and real project lifecycle qualification gap.
+consistency. Next: expose the persisted publication result in PROJECTS without
+moving `GITHUB_WRITE` credentials into the browser, then continue real project
+lifecycle qualification.
 
 ## 0. Non-negotiable project rules
 
