@@ -198,7 +198,7 @@ consistency. The next dependency is the final authoritative Career Forge gap
 audit, followed immediately by any remaining retained scope.
 
 The final scope audit found and repaired the missing `CF-E2E-004` Friday-
-initiated code-question flow. Friday now selects the relevant function from the
+initiated code-question flow, accepted and published at `58c624d`. Friday now selects the relevant function from the
 saved canonical Practice Lab draft, persists the exact line range/question,
 accepts the owner's explanation as a normal challenge attempt, and creates
 `code_explanation` evidence only after a correct bounded assessment. Incorrect
