@@ -14,7 +14,7 @@ and the **Current cross-session handoff and Git policy** section below. Historic
 bootstrap instructions describe completed work; use current recovery refs and
 `ROADMAP.md` to continue automatically after each accepted checkpoint.
 
-## Current integration recovery state — 2026-09-21
+## Current integration recovery state — 2026-09-22
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; accepted Career Forge capability checkpoint:
@@ -320,6 +320,54 @@ to authorize, and no external mutation has occurred. The active dependency is
 owner/external state: complete a genuine project-producing Career Forge path,
 onboard its real GitHub mapping, and securely configure the owner credential;
 then repeat the exact publication preflight before requesting authorization.
+
+Quota-bound owner recovery on 2026-09-22 starts from clean accepted branch
+`integration/astra-friday` at
+`87f0034082857547b6acda3223e22a41225e3373`; the handoff-only recovery commit is
+the commit containing this paragraph. The canonical Learner Twin advanced
+`se.python` exactly one authorized rung from `recognize` to `explain` using
+independent `code_explanation` evidence
+`evidence_82ab303128124128a18bc7dd88498311`, sourced from correct no-assistance
+attempt `attempt_4203697679e54ebd883756d186b136e8`. Passing Practice Lab evidence
+`evidence_e8de665569be468a93ad99660da85d4b` remains preserved and truthfully
+records `full_demonstration` assistance. Reinforcement mission
+`mission_6e616a8b29e4452792b6759693d5b4c7` is completed; no active mission remains
+and mastery was not advanced beyond `explain`.
+
+The advancement scheduled evidence-linked review
+`review_d73f412786404f1ca9d9d7ab12fa4b23` for
+`2026-09-29T17:43:38.237311+00:00`. Confidence remains truthfully `weak` and the
+older failed-retention weak area remains until a fresh correct reassessment; do
+not manufacture an early outcome or loop immediately into duplicate
+reinforcement. The exact next owner action is to answer that review independently
+once it becomes due. After a correct canonical reassessment clears the weakness,
+start dependency-ready `se.engineering`. The shortest graph path to the first
+project-bearing mission is then `se.engineering -> se.delivery -> math.data ->
+math.ml -> ml.classical`, whose authoritative project family is `FraudShield`.
+Continue through real evidence and explicit one-rung decisions only.
+
+Owner-path qualifications now completed are selected-code context, the real due
+retention review and truthful incorrect outcome, the completed two-answer
+no-help interview and restart recovery, a passing reinforcement Practice Lab
+submission, and a correct independent code explanation. The remaining closure
+path is still a legitimate project-bearing mission -> canonical project link ->
+owner-approved objective -> exact-plan approval -> isolated successful
+`friday/task/<task-id>` execution -> reviewed artifact -> qualified public-
+evidence candidate -> exact GitHub publication preflight -> explicit owner
+authorization -> real idempotent publication and recovery. No project link,
+objective, successful task, candidate, GitHub mapping, protected publication
+credential, or `GITHUB_WRITE` authority has been fabricated or added.
+
+Known validation remains the accepted `5cd3d87` repair's 55 affected tests and
+the complete 909-test repository verification, with recovery/docs published at
+`87f0034`; no broad suite was repeated for this runtime-only owner advancement
+and handoff update. The integration checkout had no uncommitted work before this
+handoff edit. `/AI/projects/Local-AI-Assistant` remains the protected production
+checkout with unrelated Pocket/Anna work and must not be reset, cleaned,
+overwritten, or otherwise modified. The next Codex session must recover Git and
+this handoff, verify the Learner Twin records above, avoid repeating accepted
+qualifications, and resume autonomously from the due-review boundary and then
+the exact dependency/project path.
 
 ## 0. Non-negotiable project rules
 
