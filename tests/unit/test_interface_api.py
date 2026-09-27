@@ -29,6 +29,7 @@ from local_ai_assistant.interface.interaction import FridayInteractionCoordinato
 from local_ai_assistant.interface.runtime import FridayRuntime
 from local_ai_assistant.interface.states import FridayRuntimeState
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
+from local_ai_assistant.perception import ActiveWindowContext, ScreenCaptureService, VisualLabel
 
 
 class FakeStreamingLLM:
@@ -53,6 +54,60 @@ def make_client(chunks=None):
     )
     app = create_presentation_app(runtime, conversation)
     return TestClient(app), runtime
+
+
+def test_perception_presentation_projects_canonical_metadata_and_explicit_local_observations(tmp_path):
+    class UnavailableWindow:
+        @staticmethod
+        def current():
+            return ActiveWindowContext("unavailable")
+
+    class LocalLabels:
+        @staticmethod
+        def classify(_path, *, top_k):
+            assert top_k == 3
+            return (VisualLabel("monitor", 0.8),)
+
+    source = tmp_path / "owner.png"
+    source.write_bytes(b"private-pixels")
+    perception = ScreenCaptureService(tmp_path / "private", ocr=lambda _path: "Traceback: failed")
+    perception.set_vision_classifier(LocalLabels())
+    capture = perception.ingest_owner_file(source)
+    runtime = FridayRuntime("perception-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        perception=perception, active_window=UnavailableWindow(),
+    ))
+
+    listed = client.get("/api/v1/perception/screen/captures").json()["captures"]
+    assert len(listed) == 1
+    assert listed[0]["capture_id"] == capture.capture_id
+    assert listed[0]["source"] == "owner-selected-local-file"
+    assert listed[0]["expires_at"]
+    assert "path" not in listed[0] and "pixels" not in listed[0]
+    assert client.get("/api/v1/perception/active-window").json()["context"]["status"] == "unavailable"
+    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/ocr").json()["ocr"]["text"] == "Traceback: failed"
+    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/ui-state").json()["ui_state"]["evidence"] == ["traceback", "failed"]
+    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/visual-labels").json()["labels"] == [{"label": "monitor", "confidence": 0.8}]
+
+
+def test_perception_capture_api_surfaces_desktop_privacy_denial_without_fallback(tmp_path):
+    from types import SimpleNamespace
+
+    def denied(_command, **_kwargs):
+        return SimpleNamespace(returncode=1, stderr="org.freedesktop.DBus.Error.AccessDenied")
+
+    runtime = FridayRuntime("perception-denied-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        perception=ScreenCaptureService(tmp_path / "private", runner=denied),
+    ))
+
+    result = client.post("/api/v1/perception/screen/capture")
+
+    assert result.status_code == 503
+    assert result.json() == {"detail": "desktop privacy permission is required for screen capture"}
+    assert client.get("/api/v1/perception/screen/captures").json() == {"captures": []}
 
 
 def test_health_identifies_presentation_service():

@@ -2651,3 +2651,65 @@ remains paused with the scheduled review untouched. Protected
 has started. Fetch/verify the documentation-only recovery commit that updates
 this handoff, then report the Phase 5 checkpoint and identify the next dependency
 from repository evidence.
+
+## Current recovery — Astra Perception Phase 6 qualified candidate (2026-09-27)
+
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; Phase 5 base and fetched
+`origin/integration/astra-friday` are both
+`b9432255cd5ff5b7a577f985b78b470fb460b0f1`. Phase 6 implementation and owner UI
+qualification are complete; final diff review, commit, push, fetch verification,
+and clean-worktree verification are the remaining checkpoint operations. Do not
+begin the next slice before reporting Phase 6.
+
+Astra `PerceptionWorkspace` replaces the browser-local specimen with a typed
+projection over Friday's existing Perception routes. The UI shows canonical
+capture metadata/provenance/expiry but never pixels or local paths. Explicit
+capture, OCR, deterministic UI-state hints, optional cached CPU ViT labels, and
+fixed active-window reads use backend routes. OCR, hints, and labels remain
+view-only ephemeral state. There is no upload, file scan, conversation
+attachment, or action authority. Owner-selected screenshot ingestion remains
+CLI-only. Capture, listing, and processing requests purge expired data; the
+service has no background purge timer.
+
+Owner qualification on 2026-09-27 used a synthetic text-only image selected and
+saved by the owner, then ingested using the canonical CLI into isolated
+candidate state root `var/astra-objectives-phase4-qualification`. Astra listed
+the canonical `owner-selected-local-file` metadata; OCR showed the three benign
+lines as untrusted local Tesseract observation; deterministic UI-state reported
+literal `text present`; and the cached CPU ViT returned ranked labels explicitly
+identified as estimates. After navigation, the capture row reconstructed and
+ephemeral processing results cleared. Direct screen capture returned
+`desktop privacy permission is required for screen capture` under host GNOME
+privacy policy and created no capture. Active-window status was `unavailable`.
+The owner confirmed these behaviors and the absence of approval/execution
+controls. This qualifies the CLI ingestion and available read-only observation
+path; direct capture and active-window availability remain unavailable on this
+host. There is no general Conversation attachment route.
+
+Candidate API `127.0.0.1:8766`, Astra Vite `127.0.0.1:5191`, and production API
+`127.0.0.1:8765` returned HTTP 200 during final qualification. Only isolated
+candidate state received the selected image. Both qualification tasks remain
+`awaiting_approval` with null outcome. Read-only verification against Friday's
+authoritative Career Forge database confirms `se.python=explain`, the existing
+mission remains completed, and its review remains scheduled for
+`2026-09-29T17:43:38.237311+00:00`. No Memory, Research, Objective/task,
+approval/execution, learner, or Pocket/Anna mutation occurred. Protected
+`/AI/projects/Local-AI-Assistant` retains its pre-existing Pocket/Anna changes
+and was not modified.
+
+Reuse the completed stabilized candidate validation: focused Perception API
+tests 17 pass; focused frontend tests 31 pass; full frontend 78 pass; frontend
+lint, TypeScript build, production build pass; repository verification 918
+Python tests pass with the established Starlette/AnyIO deprecation warning. The
+existing frontend large-chunk advisory remains. No Python or frontend source
+behavior changed after those successful full gates. A final Perception copy
+clarification was covered by the focused workspace test (5 pass) and a fresh
+frontend lint run. Run `git diff --check` after this documentation update and
+verify the complete final staged scope before publication.
+
+The next dependency identified by the integration matrix is Astra System /
+Capabilities: a truthful typed projection over current capability and health
+routes. History / Recovery and approval/action remain distinct later surfaces.
+Do not begin that dependency before publishing and reporting the Phase 6
+checkpoint.

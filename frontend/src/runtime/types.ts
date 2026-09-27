@@ -302,6 +302,34 @@ export interface FridayScreenCapture {
   sha256: string;
   byte_size: number;
   source: string;
+  expires_at: string;
+}
+
+export interface FridayActiveWindowContext {
+  status: "available" | "unavailable" | "no_active_window";
+  title?: string | null;
+  app_id?: string | null;
+  source?: string;
+}
+
+export interface FridayScreenText {
+  capture_id: string;
+  text: string;
+  character_count: number;
+  source: string;
+}
+
+export interface FridayScreenUiState {
+  capture_id: string;
+  state: "no_readable_text" | "text_present" | "code_like" | "error_like";
+  character_count: number;
+  evidence: string[];
+  source: string;
+}
+
+export interface FridayVisualLabel {
+  label: string;
+  confidence: number;
 }
 
 export interface FridayDesktopAction {

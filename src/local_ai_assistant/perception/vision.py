@@ -37,7 +37,9 @@ class LocalVisionClassifier:
             )
             if not candidates:
                 raise OSError("model snapshot is missing")
-            self._model = AutoModelForImageClassification.from_pretrained(str(candidates[-1]))
+            self._model = AutoModelForImageClassification.from_pretrained(
+                str(candidates[-1]), local_files_only=True,
+            )
             self._model.eval()
         except OSError as exc:
             raise RuntimeError("local vision model is unavailable") from exc

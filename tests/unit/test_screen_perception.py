@@ -49,6 +49,46 @@ def test_screen_capture_keeps_metadata_private_and_purges_expired_pixels(tmp_pat
     assert not (tmp_path / f"{capture.capture_id}.png").exists()
 
 
+def test_screen_metadata_listing_enforces_retention_and_reports_expiry(tmp_path):
+    def runner(command, **_kwargs):
+        Path(command[-1]).write_bytes(b"private-screen")
+        return SimpleNamespace(returncode=0)
+
+    service = ScreenCaptureService(tmp_path, retention_seconds=900, runner=runner)
+    capture = service.capture()
+    assert datetime.fromisoformat(capture.expires_at) - datetime.fromisoformat(capture.captured_at) == timedelta(seconds=900)
+    with service._db() as db:
+        db.execute("UPDATE captures SET captured_at=? WHERE capture_id=?", (
+            (datetime.now(UTC) - timedelta(seconds=901)).isoformat(), capture.capture_id,
+        ))
+    assert service.recent() == ()
+    assert not (tmp_path / f"{capture.capture_id}.png").exists()
+
+
+def test_ocr_and_visual_labels_reject_expired_capture_without_waiting_for_new_capture(tmp_path):
+    def runner(command, **_kwargs):
+        Path(command[-1]).write_bytes(b"private-screen")
+        return SimpleNamespace(returncode=0)
+
+    service = ScreenCaptureService(tmp_path, runner=runner, ocr=lambda _path: "observed text")
+    capture = service.capture()
+    with service._db() as db:
+        db.execute("UPDATE captures SET captured_at=? WHERE capture_id=?", (
+            (datetime.now(UTC) - timedelta(seconds=901)).isoformat(), capture.capture_id,
+        ))
+    with pytest.raises(ValueError, match="unavailable"):
+        service.ocr(capture.capture_id)
+    assert not (tmp_path / f"{capture.capture_id}.png").exists()
+
+    class FakeVision:
+        def classify(self, *_args, **_kwargs):
+            raise AssertionError("expired pixels must not reach the classifier")
+
+    service.set_vision_classifier(FakeVision())
+    with pytest.raises(ValueError, match="unavailable"):
+        service.visual_labels(capture.capture_id)
+
+
 def test_screen_capture_ocr_is_local_bounded_and_requires_a_retained_capture(tmp_path):
     def runner(command, **_kwargs):
         Path(command[-1]).write_bytes(b"screen")

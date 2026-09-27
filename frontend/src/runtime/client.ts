@@ -16,6 +16,10 @@ import type {
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
   FridayScreenCapture,
+  FridayActiveWindowContext,
+  FridayScreenText,
+  FridayScreenUiState,
+  FridayVisualLabel,
   FridayDesktopAction,
   FridayObjective,
   FridayPlanReview,
@@ -391,15 +395,50 @@ export class FridayRuntimeClient {
   }
 
   async getScreenCaptures(signal?: AbortSignal): Promise<FridayScreenCapture[]> {
-    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures`, { signal });
-    if (!response.ok) throw new Error(`screen metadata request failed: ${response.status}`);
+    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures?limit=100`, { signal });
+    if (!response.ok) throw await this.perceptionError("screen metadata request failed", response);
     return (await response.json() as { captures: FridayScreenCapture[] }).captures;
   }
 
   async captureScreen(): Promise<FridayScreenCapture> {
     const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/capture`, { method: "POST" });
-    if (!response.ok) throw new Error(`screen capture request failed: ${response.status}`);
+    if (!response.ok) throw await this.perceptionError("screen capture request failed", response);
     return (await response.json() as { capture: FridayScreenCapture }).capture;
+  }
+
+  async getActiveWindowContext(signal?: AbortSignal): Promise<FridayActiveWindowContext> {
+    const response = await fetch(`${this.baseUrl}/api/v1/perception/active-window`, { signal });
+    if (!response.ok) throw await this.perceptionError("active-window request failed", response);
+    return (await response.json() as { context: FridayActiveWindowContext }).context;
+  }
+
+  async getScreenText(captureId: string): Promise<FridayScreenText> {
+    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures/${encodeURIComponent(captureId)}/ocr`, { method: "POST" });
+    if (!response.ok) throw await this.perceptionError("screen OCR request failed", response);
+    return (await response.json() as { ocr: FridayScreenText }).ocr;
+  }
+
+  async getScreenUiState(captureId: string): Promise<FridayScreenUiState> {
+    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures/${encodeURIComponent(captureId)}/ui-state`, { method: "POST" });
+    if (!response.ok) throw await this.perceptionError("screen UI-state request failed", response);
+    return (await response.json() as { ui_state: FridayScreenUiState }).ui_state;
+  }
+
+  async getScreenVisualLabels(captureId: string): Promise<FridayVisualLabel[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures/${encodeURIComponent(captureId)}/visual-labels`, { method: "POST" });
+    if (!response.ok) throw await this.perceptionError("visual-label request failed", response);
+    return (await response.json() as { labels: FridayVisualLabel[] }).labels;
+  }
+
+  private async perceptionError(prefix: string, response: Response): Promise<Error> {
+    let detail = "";
+    try {
+      const body = await response.json() as { detail?: unknown };
+      if (typeof body.detail === "string") detail = body.detail;
+    } catch {
+      // Keep the bounded HTTP status when the response is not JSON.
+    }
+    return new Error(`${prefix}: ${detail || response.status}`);
   }
 
   async getDesktopActions(signal?: AbortSignal): Promise<FridayDesktopAction[]> {

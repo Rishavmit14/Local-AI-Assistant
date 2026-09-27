@@ -161,12 +161,13 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ captures: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ capture: {
         capture_id: "screen_1", captured_at: "now", sha256: "a", byte_size: 1,
-        source: "gnome-shell-screenshot",
+        source: "gnome-shell-screenshot", expires_at: "later",
       } }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const client = new FridayRuntimeClient();
 
     await expect(client.getScreenCaptures()).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/perception/screen/captures?limit=100", { signal: undefined });
     await expect(client.captureScreen()).resolves.toMatchObject({ capture_id: "screen_1" });
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/perception/screen/capture", { method: "POST" });
   });

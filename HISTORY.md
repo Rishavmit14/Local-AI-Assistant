@@ -1381,3 +1381,34 @@ existing Phase 4 task remains awaiting approval with null outcome; Career Forge
 owner state remains unchanged. Capability commit
 `4cd83fc7bca9d4c70239321a442c74019476ef65` was published to
 `origin/integration/astra-friday` and verified as the remote branch head.
+
+## 2026-09-27 — Astra Perception Phase 6 qualified
+
+Astra now reads canonical retained-capture metadata and exposes explicit
+read-only OCR, deterministic OCR-derived UI-state hints, optional offline CPU
+visual-label inference, and fixed active-window status through the typed Friday
+client. The workspace has no seeded captures, browser persistence, image/path
+projection, upload, conversation attachment, or action authority. Owner-selected
+image ingestion remains CLI-only. Capture expiry is returned in canonical
+metadata and capture, listing, and processing requests purge expired data; this
+service has no background purge timer.
+
+Physical owner qualification on 2026-09-27 used an explicitly selected
+synthetic text-only image in isolated state. Astra reconstructed its canonical
+`owner-selected-local-file` capture after navigation. Local Tesseract returned
+the three synthetic lines as untrusted, view-only OCR; deterministic UI-state
+reported `text present`; the pre-cached CPU ViT returned ranked labels clearly
+marked as inference. Processing results were not persisted across navigation.
+The GNOME screen-capture request was denied by desktop privacy policy and
+created no capture; Astra surfaced that denial. Active-window awareness was
+unavailable on this host. The CLI owner-ingestion path, capture listing,
+metadata reconstruction, OCR, deterministic hints, visual inference, and honest
+unavailable states were qualified. No pixels or OCR were attached to ordinary
+Conversation, and no Memory, Research, Objective, task, learner, approval, or
+execution mutation occurred. Production Friday at 8765 was not restarted.
+
+Focused perception tests and the complete repository validation passed: 918
+Python tests, 78 frontend tests, frontend lint/typecheck/production build, and
+repository verification. The existing large frontend bundle advisory and
+Starlette/AnyIO deprecation warning remain. Phase 6 capability is published at
+the recovery commit recorded in `CODEX_HANDOFF.md`.

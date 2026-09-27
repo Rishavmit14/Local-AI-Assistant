@@ -476,6 +476,17 @@ management, action proposal, approval, or execution route. Arbitrary event
 metadata stays backend-only. The runtime notification event remains ephemeral
 session telemetry, separate from durable Memory and conversational history.
 
+Astra Phase 6 adds a typed, read-only Perception projection over the existing
+Perception services. Capture rows expose bounded metadata, provenance, and
+expiry only; pixels and local paths stay private. Capture, OCR, deterministic
+OCR-derived UI-state hints, optional cached local visual labels, and active
+window status are explicit backend requests. OCR and inference results remain
+ephemeral in the view and are not written to Memory, Research, or normal
+Conversation context. Owner-selected image ingestion remains CLI-only. GNOME
+capture privacy denial and unavailable active-window status are presented as
+such; no fallback or desktop/action authority is added. Perception stays
+independent from the governed Stage 16 desktop-control service.
+
 Stage 19 adds a typed, prompt-only local role router over the existing sole Qwen
 client. Conversation, planning, coding, debugging, testing, review, retrieval,
 vision, reasoning, and security roles are sequential contexts, never privileged

@@ -7,7 +7,7 @@ import shutil
 import sqlite3
 import subprocess
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -21,6 +21,7 @@ class ScreenCapture:
     sha256: str
     byte_size: int
     source: str = "gnome-shell-screenshot"
+    expires_at: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,8 +85,12 @@ class ScreenCaptureService:
         if not payload:
             image_path.unlink(missing_ok=True)
             raise RuntimeError("local screen capture was empty")
-        capture = ScreenCapture(capture_id, datetime.now(UTC).isoformat(),
-                                hashlib.sha256(payload).hexdigest(), len(payload), source)
+        captured_at = datetime.now(UTC)
+        capture = ScreenCapture(
+            capture_id, captured_at.isoformat(), hashlib.sha256(payload).hexdigest(),
+            len(payload), source,
+            (captured_at + timedelta(seconds=self.retention_seconds)).isoformat(),
+        )
         with self._db() as db:
             db.execute("INSERT INTO captures VALUES(?,?,?,?,?)", (
                 capture.capture_id, capture.captured_at, capture.sha256, capture.byte_size, capture.source,
@@ -128,18 +133,23 @@ class ScreenCaptureService:
     def recent(self, limit: int = 20) -> tuple[ScreenCapture, ...]:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")
+        self.purge_expired()
         with self._db() as db:
             rows = db.execute(
                 "SELECT capture_id, captured_at, sha256, byte_size, source FROM captures "
                 "ORDER BY captured_at DESC LIMIT ?", (limit,)
             ).fetchall()
-        return tuple(ScreenCapture(*row) for row in rows)
+        return tuple(ScreenCapture(
+            *row,
+            (datetime.fromisoformat(row[1]) + timedelta(seconds=self.retention_seconds)).isoformat(),
+        ) for row in rows)
 
     def ocr(self, capture_id: str, *, max_characters: int = 12_000) -> ScreenText:
         if not capture_id.startswith("screen_"):
             raise ValueError("invalid capture id")
         if not 1 <= max_characters <= 12_000:
             raise ValueError("max_characters must be between 1 and 12000")
+        self.purge_expired()
         with self._db() as db:
             exists = db.execute("SELECT 1 FROM captures WHERE capture_id=?", (capture_id,)).fetchone()
         image_path = self.capture_dir / f"{capture_id}.png"
@@ -164,6 +174,9 @@ class ScreenCaptureService:
         return ScreenUiState(capture_id, "text_present", text.character_count, ())
 
     def visual_labels(self, capture_id: str, *, top_k: int = 3) -> tuple[VisualLabel, ...]:
+        if not capture_id.startswith("screen_"):
+            raise ValueError("invalid capture id")
+        self.purge_expired()
         if self._vision is None:
             raise RuntimeError("local vision classifier is unavailable")
         image_path = self.capture_dir / f"{capture_id}.png"

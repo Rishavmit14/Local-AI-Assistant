@@ -1088,6 +1088,34 @@ proactive trigger-injection route was added. Capability commit
 `origin/integration/astra-friday`; the current recovery handoff records the
 final recovery SHA and clean worktree.
 
+## Astra Canonical Product Integration — Phase 6: Perception (**Qualified**)
+
+Astra Perception now projects Friday's canonical retained-capture metadata and
+explicit read-only processing routes through the typed runtime client. Capture
+metadata includes provenance, size, and expiry; pixels and filesystem paths are
+not exposed. Capture listing, OCR, deterministic OCR-derived UI-state hints,
+optional offline CPU ViT labels, and fixed active-window status all come from
+Friday services. Processing outputs remain ephemeral in the view. Owner-selected
+image ingestion remains an explicit local CLI path; Astra does not upload or
+scan files. Direct GNOME capture and active-window awareness were physically
+unavailable on the qualification host, and Astra reported both truthfully. No
+Perception route gains desktop/action, conversation attachment, Memory,
+Research, Objective, or learner mutation authority.
+
+On 2026-09-27 the owner selected and saved a synthetic text-only screenshot,
+ingested it through the CLI into the isolated candidate, then observed its
+canonical capture metadata in Astra. OCR returned bounded Tesseract text as an
+untrusted observation; UI-state returned the literal `text present` hint; the
+cached local ViT returned model-estimated labels. Navigation reconstructed the
+capture while view-only results cleared. Direct capture returned the desktop
+privacy permission denial and created no capture. Active-window status remained
+unavailable. Focused and full deterministic validation passed; evidence and
+limits are recorded in the product matrix and handoff.
+
+The next Astra dependency from the product matrix is System / Capabilities: a
+truthful typed projection over existing capability and health APIs. History /
+Recovery and approval/action remain later distinct surfaces.
+
 ## Cross-stage product capabilities (**Planned unless noted**)
 
 - Explicit ask/explain, repo overview, architecture trace, review, bug investigation, traceback/log debugging, feature, test generation, refactor, security, docs, migration, and PR-review modes.
