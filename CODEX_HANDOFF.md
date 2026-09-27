@@ -2581,3 +2581,71 @@ Career Forge remains paused at `se.python=explain`; mission
 it already has unrelated Pocket/Anna dirty files and remains on its previous
 HEAD/status. Pocket/Anna production behavior remains protected. Phase 4 is
 qualified and published; no next product slice has been started in this session.
+
+## Current recovery — Astra Notifications / Watch status Phase 5 candidate (2026-09-27)
+
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; implementation base/current published recovery
+`0e8f94869d48ebe5adc98c81de1d6dd9a05f4846` equals fetched
+`origin/integration/astra-friday`, descendant of Phase 4 capability commit
+`e867bd4114cce6b40440a0362f72c04565154093`. The Phase 5 candidate is
+uncommitted; only Notifications/proactive presentation, its tests, and
+qualification/architecture docs are modified. Do not commit or push until the
+real owner UI qualification gate completes.
+
+The read-only authority audit classified notifications/events as canonical but
+missing an Astra adapter; watches/conditions and interval schedules as internal
+backend-only; recurring owner-configurable action automation as absent;
+acknowledgement as canonical and owner-routable through the existing POST route;
+and proactive execution/action authority as absent. There is no owner watch
+create/update/enable API or calendar schedule model. Acknowledgement timestamps
+and hides the item from default unacknowledged reads, but does not delete its
+event. Notification rows are retained (no purge job), deduplicated by watch and
+event payload, and hourly rate limited. `relevance` is a backend policy score,
+not severity or urgency. The bounded runtime event stream carries the same
+notification identity, but the conversation prompt does not consume it and
+notifications are not written to durable Memory.
+
+The candidate removes the browser-local routine, event, acknowledgement, and
+preview simulation. Astra now reads canonical notices with event kind/source
+and watch-label provenance, acknowledges only through Friday's existing route,
+and displays safe read-only watch status. Watch enabled state, observer
+availability, and live polling-worker state remain distinct. No watch/rule/
+schedule mutation, action, approval, or execution route was added. Tests prove
+empty/error behavior, no fixture fallback or localStorage access, canonical
+acknowledgement persistence across remount, and no action request.
+
+Focused backend tests: 53 pass. Focused Notifications UI tests: 6 pass. Full
+frontend suite: 73 pass; frontend lint, TypeScript build, and production build
+pass. Full Python suite and `scripts/maintenance/verify-repository.sh`: 913
+pass, repository checks pass. The existing Vite large-bundle advisory and
+Starlette/AnyIO deprecation warning remain. `git diff --check` passes.
+
+The isolated candidate API is healthy at `http://127.0.0.1:8766`, with state
+root `var/astra-objectives-phase4-qualification`; only this candidate has
+`LOCAL_AI_PROACTIVE_ENABLED=true`, wake/gateway disabled. The Astra Vite server
+is healthy at `http://127.0.0.1:5191` and points to candidate API 8766. The
+Owner UI qualification completed on 2026-09-27. The owner saw the genuinely
+empty list and the two configured read-only notify watches, then created
+synthetic objective `76403f1080c949efb09e4aa1a3b1351e` in the isolated sample.
+Its canonical plan produced task `task_90be0b53d357423885aa`, still
+`awaiting_approval` with null outcome. Notification
+`6488c9e7593c42e08e6cc65d6cc72301` represented a real `task.changed` event from
+source `task` and watch `Friday task lifecycle`; its persisted acknowledgement
+time is `2026-09-27T14:14:52.535291+00:00`. The owner reported the flow worked,
+including navigation/reconstruction. A separate real task-history notice
+remains unacknowledged. No approval or execution was invoked. Production Friday
+at 8765 is healthy and was not restarted. Phase 4 task
+`task_290e6c92cefe4902b62b` remains `awaiting_approval`, with no outcome.
+Career Forge owner state remains `se.python=explain`; do not deliver its
+scheduled review, create reinforcement, start `se.engineering`, or mutate the
+learner. Protected `/AI/projects/Local-AI-Assistant` still has only its
+pre-existing Pocket/Anna changes and was not modified.
+
+Phase 5 is qualified and ready for its capability checkpoint. The isolated API
+and Astra frontend remain available at ports 8766 and 5191; production 8765 was
+not restarted. Do not approve/execute either awaiting-approval qualification
+task. Career Forge remains paused with the scheduled review untouched. Protected
+`/AI/projects/Local-AI-Assistant` was not modified. No subsequent product slice
+has started; finish documentation review, commit/push this Phase 5 capability,
+and verify remote recovery before reporting the checkpoint.

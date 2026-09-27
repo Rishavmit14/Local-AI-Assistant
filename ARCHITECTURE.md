@@ -467,6 +467,15 @@ is notification: no watch can plan, approve, execute, mutate Git/files, drive
 the desktop, or grant authority. See `docs/architecture/proactive-events.md`
 and ADR 0021.
 
+Astra Phase 5 adds a typed Notifications projection over that same journal:
+notification rows are joined to safe event kind/source and watch-label fields;
+the owner can acknowledge through the canonical timestamp transition. A
+read-only watch projection separates persisted enabled state, observer
+availability, and live worker state. It exposes no watch authoring, schedule
+management, action proposal, approval, or execution route. Arbitrary event
+metadata stays backend-only. The runtime notification event remains ephemeral
+session telemetry, separate from durable Memory and conversational history.
+
 Stage 19 adds a typed, prompt-only local role router over the existing sole Qwen
 client. Conversation, planning, coding, debugging, testing, review, retrieval,
 vision, reasoning, and security roles are sequential contexts, never privileged

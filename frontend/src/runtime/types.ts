@@ -338,6 +338,46 @@ export interface FridayActivityItem {
   objective_text: string | null;
 }
 
+export interface FridayProactiveNotification {
+  notification_id: string;
+  event_id: string;
+  watch_id: string;
+  watch_label: string | null;
+  source: string | null;
+  event_kind: string | null;
+  summary: string;
+  relevance: number;
+  event_occurred_at: string | null;
+  created_at: string;
+  acknowledged_at: string | null;
+}
+
+export interface FridayProactiveAcknowledgement {
+  notification_id: string;
+  event_id: string;
+  watch_id: string;
+  summary: string;
+  relevance: number;
+  created_at: string;
+  acknowledged_at: string;
+}
+
+export interface FridayProactiveWatch {
+  watch_id: string;
+  source: string;
+  label: string;
+  permission: "notify";
+  interval_seconds: number;
+  enabled: boolean;
+  schedule: boolean;
+  observer_available: boolean;
+}
+
+export interface FridayProactiveWatchSnapshot {
+  worker_running: boolean;
+  watches: FridayProactiveWatch[];
+}
+
 export interface CareerForgeMissionObjective {
   link: { mission_id: string; objective_id: string; created_at: string };
   objective: FridayObjective;

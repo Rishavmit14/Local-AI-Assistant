@@ -1351,3 +1351,32 @@ approval and execution remain explicitly outside this slice. Capability commit
 `e867bd4114cce6b40440a0362f72c04565154093` is published to
 `origin/integration/astra-friday`; its final recovery
 handoff records full validation and production-worktree protection.
+
+## 2026-09-27 — Astra Notifications / Watch status Phase 5 qualified
+
+The read-only authority audit found that Friday's proactive SQLite engine
+already owns notification events, delivery/acknowledgement timestamps, and
+application-configured watches. The only notification API routes were bounded
+list and acknowledge; there was no watch management API, calendar schedule
+model, or event-triggered action authority. Astra's previous routines,
+notifications, acknowledgement state, previews, and activity were browser
+local demonstrations.
+
+The Phase 5 candidate removes that browser authority and adds a typed Astra
+Notifications view, canonical read/ack projection, safe event/watch provenance,
+and read-only watch status separating enabled state, observer attachment, and
+live poller state. It adds no watch authoring, scheduling, action, approval, or
+execution routes. Focused backend tests (53), frontend tests (73), frontend
+lint/typecheck/build, full Python tests (913), and repository verification pass.
+Physical owner qualification on 2026-09-27 saw a real canonical
+`task.changed` notice from the isolated synthetic objective/task, verified
+watch/event provenance, acknowledged notification
+`6488c9e7593c42e08e6cc65d6cc72301`, and navigated away/back to reconstruct its
+persisted acknowledgement. Its timestamp is `2026-09-27T14:14:52.535291+00:00`;
+a separate task-history notice remains unacknowledged. Objective
+`76403f1080c949efb09e4aa1a3b1351e` links to task
+`task_90be0b53d357423885aa`, which remains `awaiting_approval` with null outcome.
+No approval/execution, event injection, or SQLite fabrication occurred. The
+existing Phase 4 task remains awaiting approval with null outcome; Career Forge
+owner state remains unchanged. The capability is qualified; publication is
+pending.

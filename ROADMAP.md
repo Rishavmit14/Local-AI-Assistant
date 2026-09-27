@@ -956,9 +956,10 @@ whole-Friday product integration. Astra surface reality is audited in
 `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md` (2026-09-27). Existing LEARN,
 MAP, Practice Lab, PROJECTS, Interview, and PROGRESS components use canonical
 Career Forge adapters. Memory, Research/Knowledge, and Objectives / Activity
-are qualified on the Astra integration branch. Automations/Notifications,
-Perception, System/Capabilities, History/Recovery, and approval/action remain
-prototype or missing as classified there.
+are qualified on the Astra integration branch. Notifications / Watch status is
+qualified on the Astra integration branch; owner-configurable watch and schedule
+management, Perception, System/Capabilities, History/Recovery, and
+approval/action remain prototype or missing as classified there.
 
 Phase 1 connects Astra Home and Conversation text input to Friday's existing
 typed runtime client/store and canonical conversation stream plus runtime event
@@ -1064,6 +1065,25 @@ reconstruction and appear in Activity. The isolated evidence is recorded in
 `e867bd4114cce6b40440a0362f72c04565154093` is remotely recoverable from
 `origin/integration/astra-friday`. No next product slice was started in this
 session.
+
+## Astra Canonical Product Integration — Phase 5: Notifications / Watch status (**Qualified; publication pending**)
+
+The candidate replaces browser-local routine and notification state with the
+canonical proactive notification journal. Astra reads a bounded list joined to
+safe event kind/source and watch-label provenance, acknowledges through the
+existing canonical route, and reconstructs acknowledgement timestamps from
+SQLite. A read-only registry reports persisted watch enabled state, attached
+observer availability, and whether the local polling worker is running. Astra
+does not create or edit watches/schedules, change enabled state, or execute
+actions. The engine supports internal interval polling/schedules and has no
+owner-configurable calendar schedule or arbitrary automation engine. Notification
+relevance is shown as the engine's score, not severity or urgency. Focused and
+full deterministic checks pass. Owner UI qualification on 2026-09-27 confirmed
+the genuine empty state, configured read-only watches, a real canonical
+`task.changed` notification, persisted acknowledgement after navigating away and
+back, and no approval or task execution. The isolated candidate objective remains
+`planned`; its linked task remains `awaiting_approval` with no outcome. No
+proactive trigger-injection route was added. Publication checkpoint is pending.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 

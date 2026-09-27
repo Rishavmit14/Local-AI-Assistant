@@ -5,6 +5,9 @@ import type {
   CareerForgeCurriculumResearch,
   CareerForgeMissionObjective,
   FridayActivityItem,
+  FridayProactiveAcknowledgement,
+  FridayProactiveNotification,
+  FridayProactiveWatchSnapshot,
   CareerForgeMission,
   CareerForgePublicEvidenceCandidate,
   CodeAttentionQuestion,
@@ -415,6 +418,30 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/activity`, { signal });
     if (!response.ok) throw new Error(`activity request failed: ${response.status}`);
     return (await response.json() as { activity: FridayActivityItem[] }).activity;
+  }
+
+  async getProactiveNotifications(signal?: AbortSignal): Promise<FridayProactiveNotification[]> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/proactive/notifications?limit=100&include_acknowledged=true`,
+      { signal },
+    );
+    if (!response.ok) throw new Error(`notification request failed: ${response.status}`);
+    return (await response.json() as { notifications: FridayProactiveNotification[] }).notifications;
+  }
+
+  async acknowledgeProactiveNotification(notificationId: string): Promise<FridayProactiveAcknowledgement> {
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/proactive/notifications/${encodeURIComponent(notificationId)}/acknowledge`,
+      { method: "POST" },
+    );
+    if (!response.ok) throw new Error(`notification acknowledgement failed: ${response.status}`);
+    return await response.json() as FridayProactiveAcknowledgement;
+  }
+
+  async getProactiveWatches(signal?: AbortSignal): Promise<FridayProactiveWatchSnapshot> {
+    const response = await fetch(`${this.baseUrl}/api/v1/proactive/watches`, { signal });
+    if (!response.ok) throw new Error(`watch status request failed: ${response.status}`);
+    return await response.json() as FridayProactiveWatchSnapshot;
   }
 
   async createObjective(text: string): Promise<FridayObjective> {

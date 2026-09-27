@@ -395,6 +395,7 @@ def build_presentation_components(
         career_publication=career_publication,
         career_tutor_clients=career_tutor_clients,
         proactive=proactive,
+        proactive_worker_running=lambda: proactive_runtime.is_running,
         research=research,
         capabilities=capabilities,
         task_history=history,

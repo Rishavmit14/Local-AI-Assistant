@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, AudioLines, Bell, BookOpen, Braces, Check, ChevronDown, CircleDot, Command, Eye, Fingerprint, GitBranch, Layers3, Library, LoaderCircle, MessageSquare, MoreHorizontal, Orbit, Search, ShieldCheck, Sparkles, Workflow, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, AudioLines, Bell, BookOpen, Braces, Check, ChevronDown, Command, Eye, Fingerprint, GitBranch, Layers3, Library, LoaderCircle, MessageSquare, MoreHorizontal, Orbit, Search, ShieldCheck, Sparkles, Workflow, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CognitiveState, VisionView } from './types';
 import { useStoredState } from './useStoredState';
@@ -22,7 +22,7 @@ const destinations: {id:VisionView;label:string;description:string;icon:LucideIc
  {id:'research',label:'Research',description:'Follow a question to its sources',icon:Library,group:'Understand'},
  {id:'memory',label:'Memory',description:'The things worth remembering',icon:Fingerprint,group:'Understand'},
  {id:'objectives',label:'Objectives',description:'Work with a clear intention',icon:Workflow,group:'Act'},
- {id:'automations',label:'Rhythms',description:'Thoughtful routines and events',icon:CircleDot,group:'Act'},
+ {id:'automations',label:'Notifications',description:'Canonical events and watch status',icon:Bell,group:'Act'},
  {id:'perception',label:'Perception',description:'Give Friday a closer look',icon:Eye,group:'Act'},
  {id:'system',label:'Local intelligence',description:'Your machine. Your control.',icon:ShieldCheck,group:'Control'},
 ];

@@ -27,6 +27,11 @@ class ProactiveRuntime:
             self._thread.join(timeout=self.interval_seconds + 1)
             self._thread = None
 
+    @property
+    def is_running(self) -> bool:
+        """Whether the local polling worker currently owns a live thread."""
+        return self._thread is not None and self._thread.is_alive() and not self._stop.is_set()
+
     def _run(self) -> None:
         while not self._stop.is_set():
             try:

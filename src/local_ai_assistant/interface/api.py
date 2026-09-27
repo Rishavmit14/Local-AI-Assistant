@@ -187,6 +187,7 @@ def create_presentation_app(
     career_publication: GitHubPublicationService | None = None,
     career_tutor_clients: Mapping[TutorMode, object] | None = None,
     proactive: ProactiveEventEngine | None = None,
+    proactive_worker_running: Callable[[], bool] | None = None,
     research: ResearchService | None = None,
     capabilities: FridayCapabilityRegistry | None = None,
     task_history: TaskHistoryService | None = None,
@@ -344,9 +345,20 @@ def create_presentation_app(
     @app.get("/api/v1/proactive/notifications")
     def proactive_notifications(limit: int = 20, include_acknowledged: bool = False):
         try:
-            return {"notifications": [asdict(item) for item in owner_proactive().notifications(limit=limit, include_acknowledged=include_acknowledged)]}
+            return {"notifications": [
+                asdict(item) for item in owner_proactive().notification_projections(
+                    limit=limit, include_acknowledged=include_acknowledged,
+                )
+            ]}
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/api/v1/proactive/watches")
+    def proactive_watches():
+        return {
+            "worker_running": bool(proactive_worker_running and proactive_worker_running()),
+            "watches": [asdict(item) for item in owner_proactive().watch_statuses()],
+        }
 
     @app.post("/api/v1/proactive/notifications/{notification_id}/acknowledge")
     def acknowledge_proactive_notification(notification_id: str):

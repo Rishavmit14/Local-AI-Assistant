@@ -82,6 +82,37 @@ class Notification:
     acknowledged_at: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class NotificationProjection:
+    """Safe presentation fields joined from the persisted notification graph."""
+
+    notification_id: str
+    event_id: str
+    watch_id: str
+    watch_label: str | None
+    source: EventSource | None
+    event_kind: str | None
+    summary: str
+    relevance: int
+    event_occurred_at: str | None
+    created_at: str
+    acknowledged_at: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class WatchStatus:
+    """Read-only watch status without watch metadata or observer internals."""
+
+    watch_id: str
+    source: EventSource
+    label: str
+    permission: WatchPermission
+    interval_seconds: int
+    enabled: bool
+    schedule: bool
+    observer_available: bool
+
+
 class ProactiveEventEngine:
     """SQLite-backed event policy with bounded polling and notification delivery."""
 
@@ -213,6 +244,46 @@ class ProactiveEventEngine:
         with self._db() as db:
             rows = db.execute(f"SELECT * FROM proactive_notifications {clause} ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
         return tuple(Notification(*tuple(row)) for row in rows)
+
+    def notification_projections(
+        self, *, limit: int = 100, include_acknowledged: bool = True,
+    ) -> tuple[NotificationProjection, ...]:
+        if not 1 <= limit <= 1000:
+            raise ValueError("notification limit must be between 1 and 1000")
+        clause = "" if include_acknowledged else "WHERE n.acknowledged_at IS NULL"
+        with self._db() as db:
+            rows = db.execute(
+                f"""SELECT n.notification_id, n.event_id, n.watch_id,
+                           w.label AS watch_label, e.source, e.kind AS event_kind,
+                           n.summary, n.relevance, e.occurred_at AS event_occurred_at,
+                           n.created_at, n.acknowledged_at
+                    FROM proactive_notifications AS n
+                    LEFT JOIN proactive_events AS e ON e.event_id=n.event_id
+                    LEFT JOIN proactive_watches AS w ON w.watch_id=n.watch_id
+                    {clause}
+                    ORDER BY n.created_at DESC, n.notification_id DESC LIMIT ?""",
+                (limit,),
+            ).fetchall()
+        return tuple(NotificationProjection(
+            row["notification_id"], row["event_id"], row["watch_id"],
+            row["watch_label"], EventSource(row["source"]) if row["source"] else None,
+            row["event_kind"], row["summary"], int(row["relevance"]),
+            row["event_occurred_at"], row["created_at"], row["acknowledged_at"],
+        ) for row in rows)
+
+    def watch_statuses(self) -> tuple[WatchStatus, ...]:
+        with self._lock, self._db() as db:
+            rows = db.execute(
+                """SELECT watch_id, source, label, permission, interval_seconds,
+                          enabled, schedule
+                   FROM proactive_watches ORDER BY label COLLATE NOCASE, watch_id"""
+            ).fetchall()
+            return tuple(WatchStatus(
+                row["watch_id"], EventSource(row["source"]), row["label"],
+                WatchPermission(row["permission"]), int(row["interval_seconds"]),
+                bool(row["enabled"]), bool(row["schedule"]),
+                bool(row["schedule"]) or row["watch_id"] in self._observers,
+            ) for row in rows)
 
     def acknowledge(self, notification_id: str) -> Notification:
         now = datetime.now(UTC).isoformat()

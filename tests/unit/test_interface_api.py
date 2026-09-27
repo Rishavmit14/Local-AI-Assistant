@@ -1300,6 +1300,17 @@ def test_presentation_api_has_no_unbounded_execution_routes():
 
     schema = client.get("/openapi.json").json()
     paths = set(schema["paths"])
+    proactive_methods = {
+        (method.upper(), path)
+        for path, operations in schema["paths"].items()
+        if path.startswith("/api/v1/proactive/")
+        for method in operations
+    }
+    assert proactive_methods == {
+        ("GET", "/api/v1/proactive/notifications"),
+        ("POST", "/api/v1/proactive/notifications/{notification_id}/acknowledge"),
+        ("GET", "/api/v1/proactive/watches"),
+    }
 
     assert "/api/v1/tasks/{task_id}/execute" not in paths
     assert "/api/v1/tasks/{task_id}/approval" not in paths
@@ -1317,6 +1328,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/research/synthesis",
         "/api/v1/proactive/notifications",
         "/api/v1/proactive/notifications/{notification_id}/acknowledge",
+        "/api/v1/proactive/watches",
         "/api/v1/objectives",
         "/api/v1/activity",
         "/api/v1/objectives/{objective_id}",

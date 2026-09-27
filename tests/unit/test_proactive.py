@@ -106,14 +106,54 @@ def test_event_metadata_is_redacted_and_bounded_before_persistence(tmp_path):
 
 def test_presentation_projects_only_bounded_notification_read_and_ack(tmp_path):
     engine = ProactiveEventEngine(tmp_path / "events.sqlite3")
-    engine.register(watch())
+    engine.register(watch(metadata={"path": "/private/owner/files"}), lambda: None)
     notification = engine.ingest("watch-1", "system.changed", "Local service needs attention", 90)
     runtime = FridayRuntime("proactive-api")
-    app = create_presentation_app(runtime, FridayConversationService(_SilentLLM(), runtime), proactive=engine)
+    app = create_presentation_app(
+        runtime, FridayConversationService(_SilentLLM(), runtime),
+        proactive=engine, proactive_worker_running=lambda: True,
+    )
     with TestClient(app) as client:
         response = client.get("/api/v1/proactive/notifications?limit=1")
         assert response.status_code == 200
-        assert response.json()["notifications"][0]["notification_id"] == notification.notification_id
+        projected = response.json()["notifications"][0]
+        assert projected["notification_id"] == notification.notification_id
+        assert projected["event_id"] == notification.event_id
+        assert projected["watch_id"] == "watch-1"
+        assert projected["watch_label"] == "Local health"
+        assert projected["source"] == "system"
+        assert projected["event_kind"] == "system.changed"
+        assert projected["relevance"] == 90
+        assert projected["event_occurred_at"]
+        assert projected["acknowledged_at"] is None
+        assert "/private/owner/files" not in response.text
+        watches = client.get("/api/v1/proactive/watches")
+        assert watches.status_code == 200
+        assert watches.json()["worker_running"] is True
+        assert watches.json()["watches"] == [{
+            "watch_id": "watch-1", "source": "system", "label": "Local health",
+            "permission": "notify", "interval_seconds": 60, "enabled": True,
+            "schedule": False, "observer_available": True,
+        }]
         acknowledged = client.post(f"/api/v1/proactive/notifications/{notification.notification_id}/acknowledge")
         assert acknowledged.status_code == 200
         assert acknowledged.json()["acknowledged_at"] is not None
+        assert acknowledged.json()["event_id"] == notification.event_id
+        assert client.get("/api/v1/proactive/notifications").json()["notifications"] == []
+        persisted = client.get("/api/v1/proactive/notifications?include_acknowledged=true")
+        assert persisted.json()["notifications"][0]["acknowledged_at"] == acknowledged.json()["acknowledged_at"]
+        assert client.post(f"/api/v1/proactive/notifications/{notification.notification_id}/acknowledge").status_code == 404
+        assert client.post("/api/v1/proactive/notifications").status_code == 405
+        assert client.get("/api/v1/proactive/watches").json()["watches"][0]["observer_available"] is True
+
+
+def test_watch_status_is_read_only_and_reports_disabled_or_unattached_watch(tmp_path):
+    engine = ProactiveEventEngine(tmp_path / "events.sqlite3")
+    engine.register(watch())
+    assert engine.watch_statuses()[0].observer_available is False
+    engine.register(watch(), lambda: None)
+    assert engine.watch_statuses()[0].observer_available is True
+    engine.disable("watch-1")
+    status = engine.watch_statuses()[0]
+    assert status.enabled is False
+    assert status.observer_available is False
