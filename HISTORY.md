@@ -1378,5 +1378,6 @@ a separate task-history notice remains unacknowledged. Objective
 `task_90be0b53d357423885aa`, which remains `awaiting_approval` with null outcome.
 No approval/execution, event injection, or SQLite fabrication occurred. The
 existing Phase 4 task remains awaiting approval with null outcome; Career Forge
-owner state remains unchanged. The capability is qualified; publication is
-pending.
+owner state remains unchanged. Capability commit
+`4cd83fc7bca9d4c70239321a442c74019476ef65` was published to
+`origin/integration/astra-friday` and verified as the remote branch head.

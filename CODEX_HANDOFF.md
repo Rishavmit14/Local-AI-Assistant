@@ -2582,16 +2582,16 @@ it already has unrelated Pocket/Anna dirty files and remains on its previous
 HEAD/status. Pocket/Anna production behavior remains protected. Phase 4 is
 qualified and published; no next product slice has been started in this session.
 
-## Current recovery — Astra Notifications / Watch status Phase 5 candidate (2026-09-27)
+## Current recovery — Astra Notifications / Watch status Phase 5 qualified (2026-09-27)
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
-`integration/astra-friday`; implementation base/current published recovery
-`0e8f94869d48ebe5adc98c81de1d6dd9a05f4846` equals fetched
+`integration/astra-friday`; Phase 5 capability commit and published recovery
+`4cd83fc7bca9d4c70239321a442c74019476ef65` equals fetched
 `origin/integration/astra-friday`, descendant of Phase 4 capability commit
-`e867bd4114cce6b40440a0362f72c04565154093`. The Phase 5 candidate is
-uncommitted; only Notifications/proactive presentation, its tests, and
-qualification/architecture docs are modified. Do not commit or push until the
-real owner UI qualification gate completes.
+`e867bd4114cce6b40440a0362f72c04565154093`. The capability and owner UI
+qualification are complete; this handoff update records final publication
+recovery. The integration worktree must be clean after this documentation-only
+checkpoint is pushed.
 
 The read-only authority audit classified notifications/events as canonical but
 missing an Astra adapter; watches/conditions and interval schedules as internal
@@ -2642,10 +2642,12 @@ scheduled review, create reinforcement, start `se.engineering`, or mutate the
 learner. Protected `/AI/projects/Local-AI-Assistant` still has only its
 pre-existing Pocket/Anna changes and was not modified.
 
-Phase 5 is qualified and ready for its capability checkpoint. The isolated API
-and Astra frontend remain available at ports 8766 and 5191; production 8765 was
-not restarted. Do not approve/execute either awaiting-approval qualification
-task. Career Forge remains paused with the scheduled review untouched. Protected
+Phase 5 is qualified and published at capability commit
+`4cd83fc7bca9d4c70239321a442c74019476ef65`. The isolated API and Astra frontend
+remain available at ports 8766 and 5191; production 8765 was not restarted. Do
+not approve/execute either awaiting-approval qualification task. Career Forge
+remains paused with the scheduled review untouched. Protected
 `/AI/projects/Local-AI-Assistant` was not modified. No subsequent product slice
-has started; finish documentation review, commit/push this Phase 5 capability,
-and verify remote recovery before reporting the checkpoint.
+has started. Fetch/verify the documentation-only recovery commit that updates
+this handoff, then report the Phase 5 checkpoint and identify the next dependency
+from repository evidence.

@@ -1066,7 +1066,7 @@ reconstruction and appear in Activity. The isolated evidence is recorded in
 `origin/integration/astra-friday`. No next product slice was started in this
 session.
 
-## Astra Canonical Product Integration — Phase 5: Notifications / Watch status (**Qualified; publication pending**)
+## Astra Canonical Product Integration — Phase 5: Notifications / Watch status (**Qualified and published**)
 
 The candidate replaces browser-local routine and notification state with the
 canonical proactive notification journal. Astra reads a bounded list joined to
@@ -1083,7 +1083,10 @@ the genuine empty state, configured read-only watches, a real canonical
 `task.changed` notification, persisted acknowledgement after navigating away and
 back, and no approval or task execution. The isolated candidate objective remains
 `planned`; its linked task remains `awaiting_approval` with no outcome. No
-proactive trigger-injection route was added. Publication checkpoint is pending.
+proactive trigger-injection route was added. Capability commit
+`4cd83fc7bca9d4c70239321a442c74019476ef65` is published to
+`origin/integration/astra-friday`; the current recovery handoff records the
+final recovery SHA and clean worktree.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 
