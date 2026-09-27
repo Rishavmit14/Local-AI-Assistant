@@ -1045,7 +1045,7 @@ The qualified capability commit is
 `origin/integration/astra-friday` and fetched remote HEAD matched exactly.
 The next whole-Friday dependency is Astra Objectives / Activity.
 
-## Astra Canonical Product Integration — Phase 4: Objectives / Activity (**Qualified; publication pending**)
+## Astra Canonical Product Integration — Phase 4: Objectives / Activity (**Qualified and published**)
 
 The recovered Terra candidate replaces the seeded and simulated Astra Objectives
 workflow with the existing `ObjectiveService` and canonical task-history paths.
@@ -1060,8 +1060,10 @@ then generated and inspected a real canonical plan in the isolated qualification
 runtime. Its task remains `awaiting_approval` with no execution outcome; no
 approval or execution action was taken. The plan/objective/task survive backend
 reconstruction and appear in Activity. The isolated evidence is recorded in
-`HISTORY.md` and `CODEX_HANDOFF.md`. Do not advance to the next dependency until
-the final Phase 4 acceptance commit is remotely recoverable.
+`HISTORY.md` and `CODEX_HANDOFF.md`. Capability commit
+`e867bd4114cce6b40440a0362f72c04565154093` is remotely recoverable from
+`origin/integration/astra-friday`. No next product slice was started in this
+session.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 

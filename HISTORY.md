@@ -1347,5 +1347,7 @@ then created and reviewed a canonical plan for synthetic objective
 `task_290e6c92cefe4902b62b`, plan hash
 `dd4549ff1c10d0a16c8a947a1d53bd5d377c20cbbd173a614687cf52735f3566`, state
 `awaiting_approval`, with no execution outcome. Owner UI qualification passed;
-approval and execution remain explicitly outside this slice. Final acceptance
-validation and publication are recorded in the next accepted checkpoint.
+approval and execution remain explicitly outside this slice. Capability commit
+`e867bd4114cce6b40440a0362f72c04565154093` is published to
+`origin/integration/astra-friday`; its final recovery
+handoff records full validation and production-worktree protection.

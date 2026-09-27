@@ -2508,14 +2508,17 @@ Career Forge remains paused and unchanged: `se.python=explain`,
 `2026-09-29T17:43:38.237311+00:00`. Do not deliver it early, create
 reinforcement, start `se.engineering`, or otherwise mutate learner state.
 
-## Current recovery — Astra Objectives / Activity Phase 4 candidate (2026-09-27)
+## Current recovery — Astra Objectives / Activity Phase 4 qualified checkpoint (2026-09-27)
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch
-`integration/astra-friday`; HEAD remains published recovery commit
-`234669580190fce17a73e03abc80160ddc2284dc`, descendant of the qualified Phase 3
+`integration/astra-friday`; Phase 4 capability commit
+`e867bd4114cce6b40440a0362f72c04565154093`
+(`feat(astra): qualify canonical Objectives and Activity Phase 4`),
+published to `origin/integration/astra-friday`. It descends from published
+recovery base `234669580190fce17a73e03abc80160ddc2284dc` and qualified Phase 3
 commit `afc69260beae96fe41056c4fea0f9543be604d22`. Phase 3 is closed and must not
-be reopened absent contradictory repository evidence. Recovered the five
-interrupted frontend changes and continued the dependency-correct Phase 4 slice.
+be reopened absent contradictory repository evidence. The interrupted frontend
+changes were recovered and completed as the dependency-correct Phase 4 slice.
 
 The Astra Objectives screen now uses the real objective API instead of seeded
 browser examples or simulated steps. The candidate also adds a bounded,
@@ -2528,13 +2531,18 @@ explicit cancellation, and read-only inspection of a canonical generated plan.
 Objectives / Activity is **QUALIFIED** for this bounded slice; approval and
 execution remain backend-owned and were not invoked.
 
-All 40 presentation API tests and all 67 frontend tests pass. Frontend
-typecheck/build/lint pass; `scripts/maintenance/verify-repository.sh` passes all
-912 Python tests, CLI checks, dependency consistency, and artifact hygiene. An
-initial combined build invocation segfaulted, then isolated TypeScript and Vite
-builds and a subsequent complete build passed. The build retains its existing
-large-bundle advisory. `git diff --check` passes. The remaining acceptance
-work is final validation, scope review, and checkpoint publication.
+All 40 presentation API tests and all 67 frontend tests pass. Frontend lint,
+TypeScript build, and production build pass; `scripts/maintenance/verify-repository.sh`
+passes all 912 Python tests, CLI checks, dependency consistency, and artifact
+hygiene. `git diff --check` passes. The Vite build retains its existing
+large-bundle advisory; Python verification reports the existing Starlette /
+AnyIO deprecation warning. The first Python run overlapped frontend build and
+hit two MCP subprocess timeouts; both exact tests and the complete Python suite
+then passed sequentially. Candidate and production loopback APIs were healthy
+at final review. The protected production checkout remains untouched at its
+previous HEAD with only pre-existing Pocket/Anna changes. The Phase 4 capability
+commit is remotely recoverable; this handoff update is the final local recovery
+record before continuing to the next dependency.
 
 The isolated loopback qualification ran on 8766 with state rooted at
 `var/astra-objectives-phase4-qualification` (wake/proactive/gateway disabled).
@@ -2571,5 +2579,5 @@ Career Forge remains paused at `se.python=explain`; mission
 `2026-09-29T17:43:38.237311+00:00`. Do not mutate that state. Protected
 `/AI/projects/Local-AI-Assistant` was only inspected read-only in this recovery;
 it already has unrelated Pocket/Anna dirty files and remains on its previous
-HEAD/status. Pocket/Anna production behavior remains protected. Phase 4 remains
-uncommitted until final acceptance checks complete.
+HEAD/status. Pocket/Anna production behavior remains protected. Phase 4 is
+qualified and published; no next product slice has been started in this session.
