@@ -1410,5 +1410,6 @@ execution mutation occurred. Production Friday at 8765 was not restarted.
 Focused perception tests and the complete repository validation passed: 918
 Python tests, 78 frontend tests, frontend lint/typecheck/production build, and
 repository verification. The existing large frontend bundle advisory and
-Starlette/AnyIO deprecation warning remain. Phase 6 capability is published at
-the recovery commit recorded in `CODEX_HANDOFF.md`.
+Starlette/AnyIO deprecation warning remain. Capability commit
+`cbd2246f72e028b7347cdfc6fcb31017abd1db0a` was pushed to
+`origin/integration/astra-friday` and fetched as the exact remote branch head.

@@ -1088,7 +1088,7 @@ proactive trigger-injection route was added. Capability commit
 `origin/integration/astra-friday`; the current recovery handoff records the
 final recovery SHA and clean worktree.
 
-## Astra Canonical Product Integration — Phase 6: Perception (**Qualified**)
+## Astra Canonical Product Integration — Phase 6: Perception (**Qualified and published**)
 
 Astra Perception now projects Friday's canonical retained-capture metadata and
 explicit read-only processing routes through the typed runtime client. Capture
@@ -1110,7 +1110,9 @@ cached local ViT returned model-estimated labels. Navigation reconstructed the
 capture while view-only results cleared. Direct capture returned the desktop
 privacy permission denial and created no capture. Active-window status remained
 unavailable. Focused and full deterministic validation passed; evidence and
-limits are recorded in the product matrix and handoff.
+limits are recorded in the product matrix and handoff. Capability commit
+`cbd2246f72e028b7347cdfc6fcb31017abd1db0a` was pushed to
+`origin/integration/astra-friday` and fetched as the exact remote branch head.
 
 The next Astra dependency from the product matrix is System / Capabilities: a
 truthful typed projection over existing capability and health APIs. History /

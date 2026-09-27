@@ -2655,12 +2655,13 @@ from repository evidence.
 ## Current recovery — Astra Perception Phase 6 qualified candidate (2026-09-27)
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
-`integration/astra-friday`; Phase 5 base and fetched
-`origin/integration/astra-friday` are both
-`b9432255cd5ff5b7a577f985b78b470fb460b0f1`. Phase 6 implementation and owner UI
-qualification are complete; final diff review, commit, push, fetch verification,
-and clean-worktree verification are the remaining checkpoint operations. Do not
-begin the next slice before reporting Phase 6.
+`integration/astra-friday`; Phase 5 base
+`b9432255cd5ff5b7a577f985b78b470fb460b0f1`; Phase 6 capability commit
+`cbd2246f72e028b7347cdfc6fcb31017abd1db0a` is pushed to
+`origin/integration/astra-friday`, fetched, and verified as its exact remote
+head. This handoff-only update will establish the final published recovery SHA.
+The integration worktree must be clean after that documentation checkpoint.
+Do not begin the next slice before reporting Phase 6.
 
 Astra `PerceptionWorkspace` replaces the browser-local specimen with a typed
 projection over Friday's existing Perception routes. The UI shows canonical
@@ -2711,5 +2712,5 @@ verify the complete final staged scope before publication.
 The next dependency identified by the integration matrix is Astra System /
 Capabilities: a truthful typed projection over current capability and health
 routes. History / Recovery and approval/action remain distinct later surfaces.
-Do not begin that dependency before publishing and reporting the Phase 6
-checkpoint.
+Do not begin that dependency before reporting the Phase 6 checkpoint and final
+published recovery SHA.
