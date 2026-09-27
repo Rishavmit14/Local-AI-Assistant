@@ -1464,4 +1464,6 @@ Focused History UI tests: 3 pass; focused activity/desktop/proactive API tests:
 3 pass; frontend suite: 85 pass; lint, TypeScript/production build, Python
 suite: 920 pass; repository verification and `git diff --check` pass. Existing
 Vite bundle-size advisory and Starlette/AnyIO deprecation warning remain.
-Approval / Action remains a separate later phase.
+Capability commit `377f07373c2f482e2356201cc4942304647fbc13` was pushed to
+`origin/integration/astra-friday` and fetched as its exact head. Approval /
+Action remains a separate later phase.

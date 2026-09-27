@@ -1154,7 +1154,7 @@ Capabilities is qualified; History / Recovery is the next missing Astra owner
 surface identified by the product matrix. Approval / Action remains separate
 and has not started.
 
-## Astra Canonical Product Integration — Phase 8: History / Recovery (**Qualified**)
+## Astra Canonical Product Integration — Phase 8: History / Recovery (**Qualified and published**)
 
 Astra History / Recovery is a read-only view over existing canonical sources,
 not a new unified store. It projects ObjectiveService state and TaskHistoryService

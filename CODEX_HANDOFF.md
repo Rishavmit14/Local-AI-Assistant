@@ -2775,15 +2775,16 @@ state changed. Protected `/AI/projects/Local-AI-Assistant` retains its existing
 Pocket/Anna changes and was not modified. The next dependency is History /
 Recovery; it has not started.
 
-## Active recovery — Astra History / Recovery Phase 8 owner-qualified candidate (2026-09-27)
+## Current recovery — Astra History / Recovery Phase 8 qualified and published (2026-09-27)
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
 `integration/astra-friday`; accepted Phase 7 base
 `af33620cc277a880c40d60ea238df20b99577d06`; starting published HEAD
-`8e81cdd887eecb10787ac1912b92d5e943853b79`. The Phase 8 owner surface is
-physically qualified and documented in the uncommitted candidate. Capability
-commit/publication and final recovery-SHA verification remain; do not start
-Approval / Action.
+`8e81cdd887eecb10787ac1912b92d5e943853b79`. Phase 8 capability commit
+`377f07373c2f482e2356201cc4942304647fbc13` is pushed and was fetched as the
+exact `origin/integration/astra-friday` head. This section is the subsequent
+handoff-only recovery update; its publication is verified after this commit.
+Do not start Approval / Action before reporting the Phase 8 checkpoint.
 
 The read-only audit found no unified History service. `GET /api/v1/activity`
 projects bounded ObjectiveService and TaskHistoryService records;
@@ -2814,7 +2815,9 @@ owner observed the canonical objective/task timeline, exact pending state,
 notification acknowledgement history, and internal-only/session-only limits;
 navigation away/back and a page refresh reconstructed the same records. The
 workspace exposes refresh/filter/navigation only and has no approval,
-execution, rollback, or restore controls. Production Friday
+execution, rollback, or restore controls. The current recovery SHA after this
+handoff-only update is verified from `HEAD` and the fetched remote branch.
+Production Friday
 `127.0.0.1:8765` and protected `/AI/projects/Local-AI-Assistant` remain
 untouched. No approval, execution, Career Forge, Memory, Research, learner, or
 Pocket/Anna mutation was performed.
