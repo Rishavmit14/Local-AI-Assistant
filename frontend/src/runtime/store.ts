@@ -183,6 +183,7 @@ export class FridayRuntimeStore {
       event.event_type === "conversation.user_text" &&
       event.text !== null
     ) {
+      patch.sessionActive = true;
       patch.conversation = [
         ...this.state.conversation,
         {

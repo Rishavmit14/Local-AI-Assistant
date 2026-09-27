@@ -285,6 +285,37 @@ describe("FridayRuntimeStore", () => {
     });
   });
 
+  it("projects conversation turns from runtime events and marks the canonical session active", async () => {
+    const client = new FakeRuntimeClient();
+    const store = new FridayRuntimeStore(client as never);
+    await store.start();
+
+    client.liveHandler?.(event(1, {
+      event_type: "conversation.user_text",
+      text: "What did we discuss?",
+    }));
+    client.liveHandler?.(event(2, {
+      event_type: "conversation.assistant.started",
+    }));
+    client.liveHandler?.(event(3, {
+      event_type: "conversation.assistant.delta",
+      text: "The earlier idea",
+    }));
+    client.liveHandler?.(event(4, {
+      event_type: "conversation.assistant.completed",
+      text: "The earlier idea was gradients.",
+    }));
+
+    expect(store.getSnapshot()).toMatchObject({
+      sessionActive: true,
+      conversation: [
+        { role: "user", text: "What did we discuss?", status: "completed" },
+        { role: "assistant", text: "The earlier idea was gradients.", status: "completed" },
+      ],
+    });
+    store.stop();
+  });
+
   it("ignores duplicate or stale live events", async () => {
     const client = new FakeRuntimeClient();
 

@@ -322,6 +322,23 @@ dependency-gated mission-start endpoints. It renders unknown progress honestly;
 the frontend has no Learner Twin advancement, publishing, tool, or desktop
 authority.
 
+The isolated Astra Phase 1 candidate also connects Home and Conversation text
+through the existing `FridayRuntimeStore` / `FridayRuntimeClient` boundary:
+`POST /api/v1/conversation/stream` starts the production conversation service,
+and `/api/v1/runtime/events/stream` projects canonical user/assistant deltas.
+The browser owns no transcript persistence, prompt context, capability state,
+memory retrieval, or model client. The existing backend composes active-session
+context, descriptive capability grounding, and governed read-only memory
+retrieval. This candidate adds no voice path or action authority; existing
+Pocket/Anna production voice ownership is unchanged. Owner-path qualification
+passed on 2026-09-27: a real local-Qwen exchange, immediate active-context
+follow-up, registry-grounded Career Forge capability answer, ephemeral-marker
+absence from durable memory, and Home-to-Conversation transcript continuity
+were observed. The Career Forge due review/mission/mastery and Pocket/Anna voice
+service state remained unchanged. Phase 1 qualifies only this text/session
+path; Astra voice, durable thread history, and other prototype or missing
+surfaces remain outside this accepted boundary.
+
 Stage 15 is an owner-initiated, read-only perception boundary. Captures remain
 under configured `var/perception` state; the presentation API exposes bounded
 metadata, explicit local OCR/UI-state results, and at most ten labels from an

@@ -948,6 +948,30 @@ interview flows, plus a real GitHub publication using the owner's configured
 credential and onboarded repository. The qualified engineering checkpoint is
 published at `9aaef7460cd6c7fa22425f488ab8a9ab858b2073`.
 
+## Astra Canonical Product Integration — Phase 1 (**Qualified; accepted checkpoint pending publication**)
+
+Career Forge autonomous engineering scope is closed; the due owner retention
+review remains a genuine external boundary and does not block independent
+whole-Friday product integration. Astra surface reality is audited in
+`docs/qualification/PRODUCT_INTEGRATION_MATRIX.md` (2026-09-27). Existing LEARN,
+MAP, Practice Lab, PROJECTS, Interview, and PROGRESS components use canonical
+Career Forge adapters. Memory, Research/Knowledge, Objectives/Activity,
+Automations/Notifications, Perception, System/Capabilities, History/Recovery,
+and approval/action remain prototype or missing surfaces as classified there.
+
+Phase 1 connects Astra Home and Conversation text input to Friday's existing
+typed runtime client/store and canonical conversation stream plus runtime event
+projection. It introduces no conversation engine, browser model call, transcript
+local storage, or new authority. Deterministic tests, full repository validation,
+and owner qualification passed on 2026-09-27. The owner sent a normal typed
+message and received a real Friday/local-Qwen response, proved immediate
+follow-up context with ephemeral marker `ORBIT-2719` (not present in durable
+memory), asked for Career Forge capability state and received a registry-grounded
+answer, and navigated Home -> Conversation with the canonical transcript intact.
+The learner retention boundary and Pocket/Anna production voice state were
+unchanged. The candidate is qualified; this branch checkpoint remains to be
+committed and remotely verified.
+
 Real owner qualification has now accepted arbitrary selected-code tutoring, a
 truthful incorrect due-review outcome with weak-area/reinforcement projection,
 and a truthful two-answer no-help interview with zero earned interview evidence.

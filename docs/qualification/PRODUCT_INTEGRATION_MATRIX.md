@@ -1,6 +1,7 @@
 # Friday Product Integration Matrix
 
-**Audit date:** 2026-09-12; Career Forge rows reconciled 2026-09-21
+**Audit date:** 2026-09-27; Career Forge rows reconciled 2026-09-21; Astra
+frontend audit, Phase 1 source trace, and owner qualification reconciled 2026-09-27
 **Repository baseline:** Stage 21 accepted at `3770151bbf146ff580b8cafa0b4f73a0865c55c5`
 **Scope:** owner-facing product reality, not a historical-stage scorecard.
 **Authority:** `FRIDAY_PRODUCT_BASELINE.md` §§1, 21–26; architecture and ADRs
@@ -117,6 +118,42 @@ not applicable because the capability is absent/deferred.
 - **ACTIONABLE ENGINEERING WORK:** none remains inside current Career Forge
   scope. Whole-Friday product integration items elsewhere in this matrix retain
   their existing statuses and are not reclassified by this audit.
+
+## Astra current surface audit — 2026-09-27
+
+This is the actual isolated Astra implementation at `integration/astra-friday`,
+not the protected production checkout. `Astra UI` is the React/Vision surface;
+`FridayPresentation` and `FridayRuntimeClient` are typed adapters; the backend
+authority remains the existing Friday production service. A frontend component
+or a backend endpoint alone does not make a surface connected.
+
+| Astra owner surface | Classification | Frontend and state source | Canonical backend / route | Missing seam, authority, persistence, and evidence |
+|---|---|---|---|---|
+| Home | PARTIALLY CONNECTED | `vision/Vision.tsx`; greeting, preference chrome and navigation are browser presentation; active-session snapshot and Continue action use `FridayRuntimeStore` | `GET /api/v1/runtime/state`; Continue opens the canonical conversation projection | No canonical dashboard/agenda adapter; Home itself has no mutation. Runtime session is in-memory. Owner qualification confirmed active transcript survives Home -> Conversation navigation. |
+| Conversation | QUALIFIED (Phase 1 text path) | `vision/Vision.tsx` over `FridayRuntimeStore` and typed runtime client; transcript is canonical runtime event projection, never browser storage | `POST /api/v1/conversation/stream`; `/api/v1/runtime/events` and `/stream`; `FridayConversationService` -> local Qwen, active-session context, capability registry, governed read-only memory retrieval | Owner physically sent a normal typed message and received a real response; a unique ephemeral marker was recalled on immediate follow-up and absent from durable-memory SQLite; Career Forge answer matched canonical registry and actual limits; Home navigation preserved transcript. No Astra voice or durable thread history/resume API. Deterministic boundary/error/context/capability/memory tests and frontend gates passed. Career Forge learner and Pocket/Anna state remained unchanged. |
+| Career Forge LEARN | CANONICAL / REAL | `Learning.tsx` -> `CanonicalLearn`; typed `FridayPresentation` commands | `CareerForgeService` routes under `/api/v1/career-forge/*` | Mission/tutor/retention mutations go only through governed Career Forge endpoints; Learner Twin SQLite is persistence authority. Qualified owner flows are in Stage 22 and the closure audit above. Waiting `se.python` state is preserved. |
+| MAP | CANONICAL / REAL | `CanonicalMap`; journey projection and advisory research adapter | `GET /api/v1/career-forge/journey`, curriculum research route | Read-only canonical mastery/graph projection; Learner Twin SQLite owns values. Existing focused adapter tests and recorded browser qualification. |
+| Practice Lab | CANONICAL / REAL | `CanonicalPracticeLab`; draft/editor state is shown from backend after load/save | `/api/v1/career-forge/practice-lab/*` | Run/Test/Submit/hints/attempts go through the isolated lab and Career Forge service; no browser execution or direct mastery authority. SQLite plus disposable sandbox files own state. Deterministic tests and recorded owner Run/Test/Hint/Submit/restart qualification. |
+| PROJECTS | CANONICAL / REAL | `CanonicalProjects` | Career Forge project/evidence/objective routes and governed publication gateway | Project/evidence/objective mutations use Career Forge and task/Git services; exact publication still requires external owner credential/mapping/authorization. Deterministic boundary coverage; external publication E2E remains. |
+| Interview | CANONICAL / REAL | `CanonicalInterview` | Career Forge interview endpoints | Answers/evaluation go through Career Forge service and SQLite; no browser mastery write. Two-answer no-help owner qualification recorded in handoff. |
+| PROGRESS | CANONICAL / REAL | `CanonicalProgress` | Career Forge journey, retention, weak-area, reinforcement and interleaving routes | Delivery/evaluation/reinforcement mutate only through service policy and SQLite; review notification alone cannot evaluate or change mastery. Owner retention and recovery evidence recorded. |
+| Memory | PROTOTYPE / BROWSER-LOCAL | `Operations.tsx`; seeded records and CRUD stored by `useStoredState` | `FridayMemoryService`; `/api/v1/memory/recall` and `/api/v1/memory/remember` exist but are not called by this component; no forget API route | Missing typed adapter and explicit inspect/correct/forget UX plus governed delete endpoint. Current browser storage is prototype persistence authority. No production mutation authority. |
+| Research / Knowledge | PROTOTYPE / BROWSER-LOCAL; knowledge owner surface MISSING | `Operations.tsx`; seeded sources/notes stored by `useStoredState` | `ResearchService`: `GET/POST /api/v1/research/sources`, `GET /api/v1/research/synthesis`; document RAG/code knowledge have backend packages but no Astra owner route | Missing research source/knowledge adapters, provenance/citation projection and policy seam. Browser storage currently owns demo state. No canonical research mutation from Astra. |
+| Objectives / Activity | PROTOTYPE / BROWSER-LOCAL | `Operations.tsx`; seeded objectives and simulated plan steps in browser storage | `ObjectiveService`, task history and `/api/v1/objectives` list/create, `/{id}`, `/{id}/plan`, `/{id}/execute`, `/{id}/cancel` exist | Missing read/create/plan/activity projection and exact-plan review adapter. Prototype approval/execution does not call backend. Canonical objective/task databases and journals own real state. |
+| Automations / Notifications | PROTOTYPE / BROWSER-LOCAL | `Operations.tsx`; demo routines and notifications | `ProactiveEventEngine`; `GET /api/v1/proactive/notifications`, `POST /{notification_id}/acknowledge` exist | Missing typed watch/event/acknowledgement adapter and notification center. SQLite owns real watches/events; UI has no mutation authority. |
+| Perception | PROTOTYPE / BROWSER-LOCAL | `Operations.tsx`; sample captures and simulated diagnostics | `GET /api/v1/perception/active-window`, `POST /api/v1/perception/screen/capture`, `GET /api/v1/perception/screen/captures`, plus OCR/UI-state/visual-label routes | Missing explicit capture/result adapter and retention/privacy presentation. Backend owns capture policy and retained files/metadata; demo has no real capture authority. |
+| System / Capabilities | PROTOTYPE / BROWSER-LOCAL | `Operations.tsx`; authored capability rows and simulated diagnostics | `GET /api/v1/capabilities`, `/health`, voice health/latency, interaction state endpoints exist | Missing typed live registry/health/permission adapter and truthful per-capability actions. Read-only canonical registry is available; demo state remains browser-only. |
+| History / Recovery | MISSING OWNER SURFACE | No canonical Astra history/recovery workspace; runtime event projection is only current-session conversation state | Event journal, task history, objective recovery and checkpoints exist | Missing unified read-only activity/recovery adapter that joins canonical records. Persistence remains in each owning service/journal; no Astra mutation authority should be granted. No owner E2E. |
+| Approval / Action | PROTOTYPE / BROWSER-LOCAL | `Vision.tsx` attention modal uses local `approved` state and example website action | Desktop `/api/v1/desktop/actions` list/create, `/{action_id}/approve`, `/{action_id}/execute`; objective exact-plan APIs above | Missing proposal listing/creation, immutable plan binding, truthful approval and one-time result adapters. Current buttons only mutate browser storage. Desktop/task services own audit persistence and execution authority. No real Astra approval E2E. |
+
+The earlier handoff sentence naming retention delivery, weak-area derivation,
+PROJECTS, Interview, and desktop assistance as future Career Forge engineering
+dependencies is historical. Career Forge closure is governed by the audit
+above: autonomous engineering scope is closed. The due review remains due at
+`2026-09-29T17:43:38.237311+00:00`; do not deliver it early, create duplicate
+reinforcement, start `se.engineering`, or change learner state. Current work
+resumes the independent whole-Friday roadmap with Astra Canonical Product
+Integration Phase 1.
 
 ## Reproduction of owner-observed gaps
 

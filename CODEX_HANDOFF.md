@@ -2319,3 +2319,77 @@ auto-completion/mastery, then derive weak areas and adaptive reinforcement from
 canonical attempts/assistance/evidence. No known implementation blocker exists.
 Every replacement session must resume the continuous inspect/build/test/repair/
 validate/checkpoint loop immediately, not wait for owner confirmation.
+
+## Current recovery and Astra Phase 1 continuation (2026-09-27)
+
+Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; recovered HEAD `8b9f63df17a39ac48a99462efca38031bf3b11a3`;
+initial status clean and descended from the expected recovery point. Only this
+checkout is in scope. The protected `/AI/projects/Local-AI-Assistant` Pocket/Anna
+production work remains untouched.
+
+Career Forge autonomous engineering has no remaining actionable implementation
+gap. Preserve the real owner state: `se.python` mastery `explain`, completed
+reinforcement mission `mission_6e616a8b29e4452792b6759693d5b4c7`, and scheduled
+review `review_d73f412786404f1ca9d9d7ab12fa4b23` due
+`2026-09-29T17:43:38.237311+00:00`. Do not make it due early, create duplicate
+reinforcement, start `se.engineering`, or alter Career Forge learner state.
+Career Forge remains paused at this genuine retention boundary.
+
+The independent active goal is Astra Canonical Product Integration — Phase 1.
+The current surface-by-surface reality audit is in
+`docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`; the Career Forge closure
+audit there supersedes historical handoff sentences that listed unfinished
+Career Forge engineering as the next dependency. The narrow candidate wires
+Astra Home/Conversation text to the existing `FridayRuntimeStore`, typed
+`FridayRuntimeClient`, `/api/v1/conversation/stream`, and canonical runtime event
+stream. The transcript is an ephemeral runtime projection, not local storage;
+Friday's existing backend owns active context, capability grounding, and
+governed memory retrieval. Astra voice remains on the existing Pocket/Anna
+production path; no voice service was changed or restarted.
+
+Candidate work is not accepted yet. Focused conversation/API tests passed (57);
+frontend runtime client/store tests passed (34 focused, 49 full); full frontend
+lint and production build passed; full Python regression passed 909 tests; and
+`scripts/maintenance/verify-repository.sh` passed including all 909 Python
+tests, CLI checks, dependency consistency, and tracked-artifact hygiene. One
+initial full-suite MCP stdio subprocess timeout occurred while Python and three
+frontend gates ran concurrently; the isolated test passed in a temporary state
+directory and a later serial full suite passed. Friday `/health` returned OK.
+The candidate Astra dev server served localhost:5191. Owner physically opened
+the real Astra Home/Conversation UI and qualified typed text through the live
+Friday/local-Qwen runtime: normal question/answer, ephemeral `ORBIT-2719`
+immediate-context recall, and canonical Career Forge capability grounding.
+Runtime/session records showed the exact owner turns and completed responses;
+the exact marker was absent from durable-memory SQLite. Home -> Conversation
+navigation retained the transcript. Career Forge mastery/mission/review and
+Pocket/Anna service/voice worker state matched the prequalification baseline.
+
+The focused frontend assertions prove that typed text is sent only to
+`/api/v1/conversation/stream`, event-projected user/assistant turns render into
+runtime state, active session status follows canonical events, and HTTP failure
+is surfaced rather than replaced by a scripted reply. Existing backend tests
+prove sequential active-session context, capability registry grounding,
+read-only durable-memory retrieval, active-vs-durable-memory distinction, and
+error events. The Astra code path no longer reads/writes a browser conversation
+transcript or contains scripted sample replies. It does not expose Career Forge
+mutations from the Home/Conversation composer.
+
+Current changed files include `ARCHITECTURE.md`, `frontend/src/vision/Vision.tsx`,
+`frontend/src/vision/Operations.tsx`, `frontend/src/vision/NeuralPresence.tsx`,
+`frontend/src/vision/ui.tsx`, new `frontend/src/vision/useStoredState.ts`,
+`frontend/src/runtime/store.ts`, focused runtime tests, and the matrix, roadmap,
+and this handoff. The two small lint repairs preserve behavior and split the
+browser-only prototype persistence hook from component exports. Final frontend
+lint, 49 tests, and production build passed after the owner-facing truth copy
+updates; repository and Python gates passed before those copy-only changes.
+Git diff check passed; the worktree contains only these intended Phase 1 changes
+on the recovered branch/HEAD. Do not alter the real Career Forge
+review/mission/mastery state. Phase 1 owner qualification is now complete; the
+remaining acceptance actions are canonical documentation reconciliation,
+commit/push to `origin/integration/astra-friday`, and exact remote-HEAD/clean-tree
+verification. Do not restart Friday. After publication, the next whole-Friday
+dependency is the canonical Astra Memory owner surface: replace browser-local
+seeded memory records with a typed projection over governed Friday memory
+recall/lifecycle APIs, preserving explicit mutation intent and durable-memory
+authority. Do not start that slice before reporting the Phase 1 checkpoint.

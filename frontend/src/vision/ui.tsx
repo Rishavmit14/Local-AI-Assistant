@@ -1,12 +1,6 @@
-import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
 
-export function useStoredState<T>(key: string, initial: T): [T, (next: T | ((previous:T) => T)) => void] {
-  const [value, setValue] = useState<T>(() => { try { const saved = localStorage.getItem(`astra-vision:${key}`); return saved ? JSON.parse(saved) as T : initial; } catch { return initial; } });
-  useEffect(() => { try { localStorage.setItem(`astra-vision:${key}`, JSON.stringify(value)); } catch { /* Prototype remains usable without browser persistence. */ } }, [key, value]);
-  return [value, setValue];
-}
 export function SectionHeader({eyebrow, title, description, actions}: {eyebrow:string; title:string; description?:string; actions?:ReactNode}) {
   return <header className="section-header"><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{description && <p className="section-description">{description}</p>}</div>{actions && <div className="section-actions">{actions}</div>}</header>;
 }

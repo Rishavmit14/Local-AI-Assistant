@@ -1272,3 +1272,17 @@ workspace/CLOSE review plus the live API Run/Test/Hint/Submit/restart-resume
 flow. The live path also exposed a Career Forge SQLite descriptor leak; short
 lived connections now always close, preventing the service FD exhaustion that
 had blocked Lab projection.
+
+## 2026-09-27 — Astra Canonical Product Integration Phase 1 qualified
+
+Connected Astra Home/Conversation text to Friday's existing typed runtime
+client/store and production conversation service, with the canonical runtime
+event projection as the transcript source. Real Astra owner-path qualification
+proved typed local-Qwen response, immediate active-session recall of ephemeral
+`ORBIT-2719` without a matching durable-memory record, canonical Career Forge
+capability grounding, and transcript continuity after Home navigation. Career
+Forge `se.python` mastery remained `explain`; the existing reinforcement mission
+remained completed and the scheduled review remained due at
+`2026-09-29T17:43:38.237311+00:00`. Pocket/Anna service and worker state remained
+unchanged. This qualifies only Astra text conversation; other prototype/missing
+surfaces and durable thread history remain outside scope.

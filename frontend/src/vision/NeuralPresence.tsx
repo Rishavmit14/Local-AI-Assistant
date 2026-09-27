@@ -42,7 +42,7 @@ function Brain({state,reduced}:{state:CognitiveState;reduced:boolean}){
  const cortex=useMemo(()=>cortexTopology(geometry),[geometry]);
  const connectome=useMemo(()=>{const value=buildTractography(geometry);const count=value.nuclei.getAttribute('position').count;value.nuclei.setAttribute('aSize',new Float32BufferAttribute(Array.from({length:count},(_,i)=>1.+(i%7)*.12),1));return value;},[geometry]);
  const micro=useMemo(()=>buildMicrocircuits(geometry),[geometry]);
- const field=useMemo(fieldGeometry,[]);
+ const field=useMemo(()=>fieldGeometry(),[]);
  const materials=useMemo(()=>{
   const uni=(layer:number)=>({uTime:{value:0},uActivity:{value:.2},uMode:{value:0},uPrevious:{value:0},uTransition:{value:1},uLayer:{value:layer}});
   const line=(layer:number)=>new ShaderMaterial({uniforms:uni(layer),vertexShader:fiberVertex,fragmentShader:fiberFragment,transparent:true,depthWrite:false,blending:AdditiveBlending});

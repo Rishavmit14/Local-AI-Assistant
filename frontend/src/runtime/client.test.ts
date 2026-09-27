@@ -4,6 +4,31 @@ import { FridayRuntimeClient } from "./client";
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("FridayRuntimeClient canonical conversation boundary", () => {
+  it("sends only the owner's text to Friday's stream endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("Friday response", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const chunks: string[] = [];
+    await new FridayRuntimeClient().streamConversation({ prompt: "What capabilities are available?" }, (chunk) => chunks.push(chunk));
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/conversation/stream", expect.objectContaining({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: "What capabilities are available?" }),
+    }));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(chunks.join("")).toBe("Friday response");
+  });
+
+  it("reports an unavailable canonical conversation instead of manufacturing a reply", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })));
+
+    await expect(new FridayRuntimeClient().streamConversation({ prompt: "Hello" }, () => undefined))
+      .rejects.toThrow("conversation request failed: 503");
+  });
+});
+
 describe("FridayRuntimeClient Career Forge boundary", () => {
   it("requests an objective plan only for a configured repository ID", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ objective: { objective_id: "o1" } }), { status: 200 }));
