@@ -948,7 +948,7 @@ interview flows, plus a real GitHub publication using the owner's configured
 credential and onboarded repository. The qualified engineering checkpoint is
 published at `9aaef7460cd6c7fa22425f488ab8a9ab858b2073`.
 
-## Astra Canonical Product Integration — Phase 1 (**Qualified; accepted checkpoint pending publication**)
+## Astra Canonical Product Integration — Phase 1 (**Qualified and published**)
 
 Career Forge autonomous engineering scope is closed; the due owner retention
 review remains a genuine external boundary and does not block independent
@@ -969,8 +969,11 @@ follow-up context with ephemeral marker `ORBIT-2719` (not present in durable
 memory), asked for Career Forge capability state and received a registry-grounded
 answer, and navigated Home -> Conversation with the canonical transcript intact.
 The learner retention boundary and Pocket/Anna production voice state were
-unchanged. The candidate is qualified; this branch checkpoint remains to be
-committed and remotely verified.
+unchanged. The qualified candidate was committed as
+`1fb8db70a572dc16014be8e94c0d3ca9db6bc496` and pushed to
+`origin/integration/astra-friday`; fetched remote HEAD matched that commit and
+the worktree was clean at verification. A documentation-only reconciliation
+checkpoint records the final owner evidence and exact continuation state.
 
 Real owner qualification has now accepted arbitrary selected-code tutoring, a
 truthful incorrect due-review outcome with weak-area/reinforcement projection,

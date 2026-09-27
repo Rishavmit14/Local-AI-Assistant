@@ -2348,7 +2348,10 @@ Friday's existing backend owns active context, capability grounding, and
 governed memory retrieval. Astra voice remains on the existing Pocket/Anna
 production path; no voice service was changed or restarted.
 
-Candidate work is not accepted yet. Focused conversation/API tests passed (57);
+The qualified Phase 1 implementation commit is
+`1fb8db70a572dc16014be8e94c0d3ca9db6bc496`, pushed and fetched from
+`origin/integration/astra-friday`; remote HEAD matched and the worktree was
+clean. Focused conversation/API tests passed (57);
 frontend runtime client/store tests passed (34 focused, 49 full); full frontend
 lint and production build passed; full Python regression passed 909 tests; and
 `scripts/maintenance/verify-repository.sh` passed including all 909 Python
@@ -2385,10 +2388,8 @@ lint, 49 tests, and production build passed after the owner-facing truth copy
 updates; repository and Python gates passed before those copy-only changes.
 Git diff check passed; the worktree contains only these intended Phase 1 changes
 on the recovered branch/HEAD. Do not alter the real Career Forge
-review/mission/mastery state. Phase 1 owner qualification is now complete; the
-remaining acceptance actions are canonical documentation reconciliation,
-commit/push to `origin/integration/astra-friday`, and exact remote-HEAD/clean-tree
-verification. Do not restart Friday. After publication, the next whole-Friday
+review/mission/mastery state. Phase 1 owner qualification and publication are
+complete. Do not restart Friday. After publication, the next whole-Friday
 dependency is the canonical Astra Memory owner surface: replace browser-local
 seeded memory records with a typed projection over governed Friday memory
 recall/lifecycle APIs, preserving explicit mutation intent and durable-memory
