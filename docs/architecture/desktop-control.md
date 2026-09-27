@@ -30,8 +30,28 @@ list. A bounded local AT-SPI traversal may invoke only that named accessibility
 action after approval. It never accepts a selector, coordinate, key sequence, or
 screen-derived target and emits no accessibility-tree text through Friday.
 
-The Friday cinematic UI is a projection of this same local action audit. It
-shows a pending action and opens a local confirmation dialog before the separate
-approval and execution requests. The dialog names the exact allowlisted target,
-offers cancellation, and makes the one-time consequence explicit. It cannot
-create an action, expand the allowlist, or bypass the lifecycle.
+The Friday cinematic UI and Astra Attention are projections of this same local
+action audit. Astra loads canonical actions, treats review as read-only, and
+calls the existing per-action approval and execution routes separately. It
+re-fetches the ledger after each transition, exposes no decline/retry lifecycle,
+and does not create proposals from free-form targets. The exact target is shown
+only for bounded application IDs suitable for informed approval; History keeps
+its separate target-redaction policy. Task-plan approval remains behind its
+authenticated Gateway boundary and is not the same authority as desktop action
+approval.
+
+`launch_app` persists the exact allowlisted app ID for review and audit. At
+execution, `DesktopControlService` resolves its exact desktop-file basename in
+configured system XDG `applications` directories because `gio launch` accepts
+a desktop-file path. It does not search `XDG_DATA_HOME` or recurse through the
+owner's files. Missing, duplicate, path-like, symlink-alias, or otherwise
+ambiguous resolution fails closed. The subprocess receives a fixed argument
+vector without a shell; `open_uri`, `open_file`, and accessibility handling
+retain their existing semantics.
+
+Isolated Astra qualification physically exercised only
+`launch_app -> org.gnome.Calculator.desktop`, including separate owner approval
+and execution and reconstruction in Attention and History. That proves no
+other desktop action class. The stale qualification record remains `expired`
+and the first physically attempted record remains `failed`; neither is reset
+or retried.

@@ -2821,3 +2821,51 @@ Production Friday
 `127.0.0.1:8765` and protected `/AI/projects/Local-AI-Assistant` remain
 untouched. No approval, execution, Career Forge, Memory, Research, learner, or
 Pocket/Anna mutation was performed.
+
+## Current recovery — Astra Approval / Action Phase 9 qualified (2026-09-28)
+
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; pre-acceptance base HEAD
+`b2c3f6a367b8303961882e133af79726b59206a0`. Phase 9 is physically qualified;
+capability publication is pending this documentation/diff review and checkpoint.
+
+Astra Attention now uses the typed Friday client and canonical
+`DesktopControlService` action ledger. Review is read-only, approve and execute
+are separate exact-action requests, and canonical state is re-fetched after
+each mutation. No browser-local approval authority, decline, retry, optimistic
+success, or free-form proposal creation exists. Task exact-plan approval and
+objective dispatch remain separate authenticated Gateway boundaries without
+an Astra credential adapter.
+
+The launch adapter resolves only the persisted app ID's exact basename in
+system XDG `applications` directories; it excludes user data, arbitrary paths,
+recursive search, ambiguous matches, and differently named symlink aliases.
+The audit continues to store the exact app ID and subprocess calls use argument
+vectors without a shell. URI, file, and accessibility command semantics are
+unchanged.
+
+Physical qualification used the isolated candidate API at `127.0.0.1:8766`,
+Vite at `127.0.0.1:5191`, state root
+`var/astra-objectives-phase4-qualification`, and only
+`LOCAL_AI_DESKTOP_ALLOWED_APPS=org.gnome.Calculator.desktop` with a 600-second
+approval window. The owner reviewed action
+`17c6a5c642e443989ee17d8a24b2a3ba`, approved it without launch, separately
+executed it, confirmed only GNOME Calculator launched, then verified
+navigation/reload and History reconstruction. Canonical timestamps are
+`2026-09-27T18:57:27.126318+00:00` approved and
+`2026-09-27T18:59:24.472189+00:00` executed. The stale action
+`f4a6b95dd43e442a8b62da655cdb3717` remains `expired`; the first physical
+attempt `117688df784a409a90a2dd3bb1fd15ba` remains `failed`. No action was
+reset or retried. The two protected tasks remain `awaiting_approval` with null
+outcome. Career Forge, production Friday `8765`, protected production checkout,
+and Pocket/Anna were unchanged.
+
+Validation: focused desktop/API tests 52 pass; frontend 90 pass; frontend lint,
+TypeScript/production build, repository verification with 924 Python tests, and
+`git diff --check` pass. Existing Vite bundle advisory and Starlette/AnyIO
+deprecation warning remain. Production API 8765 and isolated candidate API 8766
+are listening; Vite 5191 is healthy. Worktree remains uncommitted until the
+Phase 9 capability checkpoint. Next: reconcile the remaining owner-facing gaps
+in `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md` against actual canonical
+routes and `ROADMAP.md`, then select the next dependency after Phase 9 is
+published; do not begin it before verifying remote recovery.

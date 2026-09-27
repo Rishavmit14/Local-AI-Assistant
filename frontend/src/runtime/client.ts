@@ -46,6 +46,16 @@ function requireRecord(value: unknown, resource: string): Record<string, unknown
   return value;
 }
 
+async function responseDetail(response: Response): Promise<string> {
+  try {
+    const body: unknown = await response.clone().json();
+    if (isRecord(body) && typeof body.detail === "string") return body.detail;
+  } catch {
+    // Keep the status as the reliable fallback for non-JSON responses.
+  }
+  return String(response.status);
+}
+
 export class FridayRuntimeClient {
   private readonly baseUrl: string;
 
@@ -669,13 +679,13 @@ export class FridayRuntimeClient {
 
   async approveDesktopAction(actionId: string): Promise<FridayDesktopAction> {
     const response = await fetch(`${this.baseUrl}/api/v1/desktop/actions/${encodeURIComponent(actionId)}/approve`, { method: "POST" });
-    if (!response.ok) throw new Error(`desktop approval failed: ${response.status}`);
+    if (!response.ok) throw new Error(`desktop approval failed: ${await responseDetail(response)}`);
     return (await response.json() as { action: FridayDesktopAction }).action;
   }
 
   async executeDesktopAction(actionId: string): Promise<FridayDesktopAction> {
     const response = await fetch(`${this.baseUrl}/api/v1/desktop/actions/${encodeURIComponent(actionId)}/execute`, { method: "POST" });
-    if (!response.ok) throw new Error(`desktop action failed: ${response.status}`);
+    if (!response.ok) throw new Error(`desktop action failed: ${await responseDetail(response)}`);
     return (await response.json() as { action: FridayDesktopAction }).action;
   }
 

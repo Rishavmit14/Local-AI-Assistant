@@ -29,6 +29,26 @@ describe("FridayRuntimeClient canonical conversation boundary", () => {
   });
 });
 
+describe("FridayRuntimeClient desktop action authority", () => {
+  it("uses only the canonical approve and execute routes and reports backend policy errors", async () => {
+    const action = { action_id: "desktop-1", action: "launch_app", app_id: "org.gnome.Calculator.desktop", state: "proposed", created_at: "now", approved_at: null, executed_at: null };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ actions: [action] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ detail: "desktop action approval expired" }), { status: 409 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ detail: "desktop action requires explicit approval" }), { status: 409 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+    await expect(client.getDesktopActions()).resolves.toEqual([action]);
+    await expect(client.approveDesktopAction(action.action_id)).rejects.toThrow("desktop approval failed: desktop action approval expired");
+    await expect(client.executeDesktopAction(action.action_id)).rejects.toThrow("desktop action failed: desktop action requires explicit approval");
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method ?? "GET"])).toEqual([
+      ["/api/v1/desktop/actions", "GET"],
+      ["/api/v1/desktop/actions/desktop-1/approve", "POST"],
+      ["/api/v1/desktop/actions/desktop-1/execute", "POST"],
+    ]);
+  });
+});
+
 describe("FridayRuntimeClient governed memory boundary", () => {
   const memory = {
     memory_id: "mem-test", kind: "fact", subject: "temporary qualification marker",

@@ -1467,3 +1467,42 @@ Vite bundle-size advisory and Starlette/AnyIO deprecation warning remain.
 Capability commit `377f07373c2f482e2356201cc4942304647fbc13` was pushed to
 `origin/integration/astra-friday` and fetched as its exact head. Approval /
 Action remains a separate later phase.
+
+## 2026-09-28 — Astra Approval / Action Phase 9 qualified
+
+Replaced Astra's browser-local approval preview with Attention over the
+canonical `DesktopControlService` ledger. Review is read-only; approval and
+one-time execution are distinct explicit owner actions through the existing
+API, each followed by a canonical re-fetch. Notifications remain separate.
+There is no fake decline/reset/retry lifecycle, browser-stored canonical
+approval state, free-form proposal UI, or optimistic success. Desktop proposal
+creation remains backend/internal until a safe target-discovery contract exists.
+Exact-plan task approval and objective execution remain behind the authenticated
+Gateway boundary and are not exposed as browser actions.
+
+The launch adapter now resolves the exact persisted allowlisted desktop ID to
+one unambiguous installed desktop-file basename in system XDG application
+directories for `gio launch`. It excludes `XDG_DATA_HOME`, recursive scans,
+caller paths, duplicate matches, and differently named symlink aliases; command
+execution remains a fixed argument vector without a shell. Other existing
+action branches retain their prior semantics.
+
+On the isolated candidate, the owner physically reviewed proposal
+`17c6a5c642e443989ee17d8a24b2a3ba` (`launch_app` to
+`org.gnome.Calculator.desktop`), confirmed review did not mutate `proposed`,
+approved it without launch, and separately executed it. The owner confirmed
+only Calculator launched. Canonical state became `executed` with approval at
+`2026-09-27T18:57:27.126318+00:00` and execution at
+`2026-09-27T18:59:24.472189+00:00`; navigation, refresh, and History showed the
+same ledger lifecycle. The prior stale proposal remains `expired`; the first
+physical attempt remains `failed`. Neither was reset or retried. Both task
+sentinels remain `awaiting_approval` with null outcome. Candidate allowlisting
+was exactly `org.gnome.Calculator.desktop` with a 600-second approval window;
+production Friday, Career Forge, and Pocket/Anna were unchanged.
+
+Focused desktop/API tests: 52 pass. Frontend suite: 90 pass; lint, TypeScript
+and production builds pass; repository verification passes with 924 Python
+tests; `git diff --check` passes. The existing Vite bundle-size advisory and
+Starlette/AnyIO deprecation warning remain. The next whole-Friday product
+dependency is to be selected from the remaining canonical product matrix after
+the Phase 9 publication checkpoint.

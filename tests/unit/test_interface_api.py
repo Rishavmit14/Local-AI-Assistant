@@ -372,15 +372,20 @@ def test_desktop_actions_require_explicit_approval_before_execution(tmp_path):
     client = TestClient(create_presentation_app(
         runtime, FridayConversationService(FakeStreamingLLM(), runtime), desktop_control=control,
     ))
+    assert client.get("/api/v1/desktop/actions").json() == {"actions": []}
     proposed = client.post("/api/v1/desktop/actions", json={
         "action": "focus_app", "app_id": "org.gnome.Terminal",
     })
     assert proposed.status_code == 200
     action_id = proposed.json()["action"]["action_id"]
+    assert client.get("/api/v1/desktop/actions").json()["actions"][0]["state"] == "proposed"
     assert client.post(f"/api/v1/desktop/actions/{action_id}/execute").status_code == 409
     assert client.post(f"/api/v1/desktop/actions/{action_id}/approve").status_code == 200
     assert client.post(f"/api/v1/desktop/actions/{action_id}/execute").json()["action"]["state"] == "executed"
+    assert client.get("/api/v1/desktop/actions").json()["actions"][0]["state"] == "executed"
+    assert client.post(f"/api/v1/desktop/actions/{action_id}/execute").status_code == 409
     assert calls[0][-2:] == ["org.gnome.Shell.FocusApp", "org.gnome.Terminal"]
+    assert len(calls) == 1
 
 
 def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):

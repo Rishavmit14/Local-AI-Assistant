@@ -777,3 +777,34 @@ inspection remains internal/CLI-only; no owner-routable recovery projection is
 claimed. Runtime conversation events remain bounded in-memory session state,
 not a durable transcript. Astra adds no approval, execution, retry, rollback,
 restore, desktop, shell, file, Git, or learner authority.
+
+### Astra Phase 9 — Approval / Action
+
+Astra Attention is a typed read/write presentation over the existing
+`DesktopControlService` ledger. It loads `GET /api/v1/desktop/actions`, shows
+canonical lifecycle states and bounded decision-safe application targets, and
+uses only the existing per-action approve and execute routes. Review is
+read-only; approval and execution are separate explicit owner transitions;
+each successful transition is followed by a canonical re-fetch. Attention has
+no local approval state, decline lifecycle, optimistic success, free-form
+proposal creator, or retry behavior. Proposal creation remains backend/internal
+until a safe target-discovery contract exists. History reads the same action
+ledger and continues to omit target identifiers.
+
+Task exact-plan approval remains a distinct Gateway boundary. Astra has no
+secure owner credential/session adapter for task approval or objective
+execution, so it exposes no active task approval or execution control. Desktop
+approval grants only the exact persisted action and never causes execution or
+grants other capability authority.
+
+For `launch_app`, the persisted allowlisted desktop ID remains the reviewed and
+audited identity. At execution, the service resolves only that exact basename
+in configured system XDG `applications` directories for `gio launch`; it does
+not inspect `XDG_DATA_HOME`, recurse, accept caller paths, choose between
+duplicate matches, or follow an alias to a differently named entry. URI, file,
+and accessibility command semantics are unchanged. Physical qualification
+proved one isolated `launch_app` to
+`org.gnome.Calculator.desktop` through proposal, review, approval, separate
+execution, navigation/reload, and History reconstruction. The stale attempt
+remains `expired` and the first physical attempt remains `failed` in canonical
+audit history. Other desktop action classes are not thereby qualified.

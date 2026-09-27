@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
 import subprocess
@@ -112,11 +113,11 @@ class DesktopControlService:
         record = self._record(action_id)
         if record.state != "approved":
             raise ValueError("desktop action requires explicit approval")
-        command = self._command(record)
         if record.action is DesktopAction.ACTIVATE_ACCESSIBLE:
             self._accessibility.invoke(record.app_id)
             self._update(action_id, state="executed", executed_at=datetime.now(UTC).isoformat())
             return self._record(action_id)
+        command = self._command(record)
         result = self._runner(command, capture_output=True, text=True, check=False, timeout=10)
         if result.returncode != 0:
             self._update(action_id, state="failed")
@@ -150,7 +151,44 @@ class DesktopControlService:
                        (state, approved_at, executed_at, action_id))
 
     @staticmethod
-    def _command(record: DesktopActionRecord) -> list[str]:
+    def _desktop_file(app_id: str) -> Path:
+        """Resolve one allowlisted desktop ID to its installed desktop file.
+
+        ``gio launch`` accepts a desktop-file filename, not a desktop ID. Keep
+        the owner-approved ID as the persisted identity and resolve only that
+        exact basename inside configured system XDG application directories.
+        Never search user data or recursively scan the filesystem.
+        """
+        if not DesktopControlService._APP_ID.fullmatch(app_id):
+            raise ValueError("desktop application ID is invalid")
+        filename = app_id if app_id.endswith(".desktop") else f"{app_id}.desktop"
+        data_dirs = os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(os.pathsep)
+        matches: set[Path] = set()
+        for directory in data_dirs:
+            root = Path(directory)
+            if not root.is_absolute():
+                continue
+            applications = root / "applications"
+            candidate = applications / filename
+            try:
+                resolved_applications = applications.resolve(strict=True)
+                resolved_candidate = candidate.resolve(strict=True)
+            except OSError:
+                continue
+            if (
+                resolved_candidate.parent == resolved_applications
+                and resolved_candidate.name == filename
+                and resolved_candidate.is_file()
+            ):
+                matches.add(resolved_candidate)
+        if len(matches) != 1:
+            if matches:
+                raise ValueError("allowlisted desktop application resolution is ambiguous")
+            raise ValueError("allowlisted desktop application is not installed")
+        return matches.pop()
+
+    @classmethod
+    def _command(cls, record: DesktopActionRecord) -> list[str]:
         if record.action is DesktopAction.FOCUS_APP:
             return ["gdbus", "call", "--session", "--dest", "org.gnome.Shell", "--object-path",
                     "/org/gnome/Shell", "--method", "org.gnome.Shell.FocusApp", record.app_id]
@@ -158,4 +196,4 @@ class DesktopControlService:
             return ["gio", "open", record.app_id]
         if record.action is DesktopAction.OPEN_FILE:
             return ["gio", "open", record.app_id]
-        return ["gio", "launch", record.app_id]
+        return ["gio", "launch", str(cls._desktop_file(record.app_id))]

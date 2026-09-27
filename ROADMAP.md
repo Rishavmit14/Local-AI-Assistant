@@ -1182,7 +1182,39 @@ Focused History UI tests (3) and focused activity/desktop/proactive API tests
 Python suite (920), repository verification, and `git diff --check` pass. The
 existing Vite bundle advisory and Starlette/AnyIO deprecation warning remain.
 This bounded History / Recovery surface is qualified. Approval / Action remains
-a separate subsequent phase; no later product slice has started.
+a separate subsequent phase and is recorded below.
+
+## Astra Canonical Product Integration — Phase 9: Approval / Action (**Qualified**)
+
+Astra Attention now projects the canonical `DesktopControlService` action
+ledger. Review is read-only; owner approval and one-time execution are separate
+actions through the existing endpoints, with canonical state re-fetched after
+each transition. Notifications remain separate. There is no browser-local
+approval authority, fake decline state, retry, optimistic success, or free-form
+proposal creation. Desktop proposal creation remains backend/internal until an
+owner-safe target-discovery contract exists.
+
+Desktop action approval is distinct from task exact-plan approval. Astra has
+no secure owner credential/session adapter for the authenticated Gateway task
+approval or native objective execution boundaries; neither is exposed as an
+active browser action. Recovery/checkpoint mutation remains unavailable.
+
+Physical owner qualification on the isolated candidate used the exact
+`launch_app -> org.gnome.Calculator.desktop` proposal. Review left it proposed;
+owner approval changed it to approved without launching Calculator; the
+separate owner execution launched Calculator and canonical state became
+`executed`. Navigation, page refresh, and History reconstructed the same
+lifecycle. The older stale action remains `expired` and the first physical
+attempt remains `failed`, both preserved as audit evidence. No other desktop
+action class is claimed qualified. Both task sentinels remained
+`awaiting_approval` with null outcome; Career Forge, production Friday, and
+Pocket/Anna were unchanged.
+
+Focused desktop/API tests (52) and frontend suite (90) pass; frontend lint,
+TypeScript and production builds, repository verification (924 Python tests),
+and `git diff --check` pass. Existing Vite bundle advisory and
+Starlette/AnyIO deprecation warning remain. Phase 9 is physically qualified;
+no later product slice has started.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 
