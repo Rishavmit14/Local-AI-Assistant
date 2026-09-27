@@ -2445,13 +2445,14 @@ truthful typed projections over existing Friday research/knowledge services.
 Do not begin it before reporting the Memory checkpoint. Recovery commit SHA and
 exact remote/worktree verification were confirmed 2026-09-27.
 
-## Current recovery — Astra Research / Knowledge Phase 3 qualified candidate (2026-09-27)
+## Current recovery — Astra Research / Knowledge Phase 3 qualified and published (2026-09-27)
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch
-`integration/astra-friday`; base/current remote HEAD before Phase 3 acceptance:
-`6519a56de84b755f15ab8647d452cb5089849de9`. The qualified Phase 3 code and
-canonical documentation are committed locally; publication and fetched-remote
-verification are the remaining checkpoint operations.
+`integration/astra-friday`; Phase 3 capability commit:
+`afc69260beae96fe41056c4fea0f9543be604d22`. It was pushed to
+`origin/integration/astra-friday` and fetched remote HEAD matched exactly at
+verification. The accepted worktree was clean. Any later documentation-only
+handoff commit is a direct descendant of this capability commit.
 Only this Terra checkout is in scope. Protected
 `/AI/projects/Local-AI-Assistant` was inspected read-only for Career Forge
 preservation and was not modified or restarted. The existing Friday/Pocket/Anna
@@ -2468,10 +2469,15 @@ No seeded Research sources/notes or browser-local durable source state remain.
 The canonical source service has no update/delete lifecycle; the synthetic
 qualification source therefore remains registered.
 
-Physical owner flow on 2026-09-27 registered the benign source in domain
-`astra-qual-20260927`, confirmed its metadata and selected content, navigated
-away and back to verify persistence, assembled evidence with the source's
-provenance, and viewed Knowledge limitations. Friday API 8766 is a candidate
+Physical owner flow on 2026-09-27 registered the benign source
+`Astra Research qualification source` in domain `astra-qual-20260927` with
+provenance `owner-provided synthetic qualification text` and the synthetic
+assertion that a hexagon has six sides. Friday assigned source ID
+`3d5fd541e91f49cb9ad7c2bc3ddd63ea` and content hash
+`bee967db965b3be3d0ed55e72115354259f31c3a9526e090ecfc97391ea8076c`. The owner
+confirmed metadata and selected content, navigated away/back to verify
+persistence, assembled evidence with provenance, and viewed Knowledge
+limitations. Friday API 8766 is a candidate
 process from this Terra checkout configured with
 `LOCAL_AI_VAR_DIR=.../var/astra-memory-phase2-qualification`; this isolated
 qualification root has a fresh Career Forge learner DB whose `se.python` row is
@@ -2492,8 +2498,11 @@ Focused tests passed: 42 Python and 29 frontend. Full frontend tests pass
 advisory remains. `scripts/maintenance/verify-repository.sh` passes all 911
 Python tests, CLI checks, dependency consistency and artifact hygiene; its one
 Starlette/AnyIO deprecation warning is unchanged. `git diff --check` passes.
-The Phase 3 commit must be pushed to `origin/integration/astra-friday` and the
-fetched branch verified at the exact SHA before it is a published checkpoint.
+The qualified Research / Knowledge checkpoint is published and remotely
+recoverable. The next whole-Friday dependency is Astra Objectives / Activity:
+audit and connect the owner workspace to existing objective/task-history
+services and exact-plan approval boundaries. Do not start that slice before
+reporting this published Research / Knowledge checkpoint.
 
 Career Forge remains paused and unchanged: `se.python=explain`,
 `mission_6e616a8b29e4452792b6759693d5b4c7` completed, and review

@@ -1008,7 +1008,7 @@ read-only recall step then passed. The qualified checkpoint is
 `origin/integration/astra-friday`; remote HEAD matched and the integration
 worktree was clean.
 
-## Astra Canonical Product Integration — Phase 3: Research / Knowledge (**Qualified; publication checkpoint in progress**)
+## Astra Canonical Product Integration — Phase 3: Research / Knowledge (**Qualified and published**)
 
 Astra Research now uses a typed `FridayRuntimeClient` projection over the
 existing `ResearchService`. Owner-entered source registration records canonical
@@ -1039,6 +1039,10 @@ mission is completed, the review remains scheduled for
 `2026-09-29T17:43:38.237311+00:00`, and its evidence and attempt are present.
 No Career Forge state was changed. Qualification runtime isolation is an
 explicit limitation of the candidate, not a learner-state discrepancy.
+The qualified capability commit is
+`afc69260beae96fe41056c4fea0f9543be604d22`; it was pushed to
+`origin/integration/astra-friday` and fetched remote HEAD matched exactly.
+The next whole-Friday dependency is Astra Objectives / Activity.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 
