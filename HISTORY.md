@@ -1438,3 +1438,30 @@ Pocket/Anna production state were unchanged. Full validation passed: 82
 frontend tests, lint, typecheck/build, 920 Python tests, and repository
 verification. The established bundle advisory and deprecation warning remain.
 The next matrix dependency is History / Recovery; it has not been started.
+
+## 2026-09-27 — Astra History / Recovery Phase 8 qualified
+
+Added a read-only History / Recovery workspace over existing canonical
+ObjectiveService/TaskHistoryService activity, objective outcome state,
+ProactiveEventEngine notification history, and the desktop action audit route.
+No unified history database or backend mutation route was added. Source errors
+remain independent from empty results; desktop target identifiers are omitted.
+Checkpoint/recovery inspection remains internal/CLI-only, and conversation
+runtime events remain session-only rather than a durable transcript.
+
+Owner qualification on the isolated candidate showed both protected tasks
+`task_290e6c92cefe4902b62b` and `task_90be0b53d357423885aa` still
+`awaiting_approval` with no execution outcome. The owner observed canonical
+objective/task timeline entries, one acknowledged and one unacknowledged real
+task notification with event/watch provenance, no desktop action records, and
+truthful recovery/runtime limits. Navigation away/back and page refresh
+reconstructed the same backend records. No approval, execution, rollback,
+restore, Career Forge, Memory, Research, learner, or Pocket/Anna mutation
+occurred. Production Friday and `/AI/projects/Local-AI-Assistant` were not
+modified.
+
+Focused History UI tests: 3 pass; focused activity/desktop/proactive API tests:
+3 pass; frontend suite: 85 pass; lint, TypeScript/production build, Python
+suite: 920 pass; repository verification and `git diff --check` pass. Existing
+Vite bundle-size advisory and Starlette/AnyIO deprecation warning remain.
+Approval / Action remains a separate later phase.

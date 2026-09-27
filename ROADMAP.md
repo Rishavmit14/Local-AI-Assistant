@@ -1154,6 +1154,36 @@ Capabilities is qualified; History / Recovery is the next missing Astra owner
 surface identified by the product matrix. Approval / Action remains separate
 and has not started.
 
+## Astra Canonical Product Integration — Phase 8: History / Recovery (**Qualified**)
+
+Astra History / Recovery is a read-only view over existing canonical sources,
+not a new unified store. It projects ObjectiveService state and TaskHistoryService
+timeline through the existing bounded Activity/objective routes, persisted
+proactive notification and acknowledgement state, and the desktop action audit
+ledger. Each source reports its own empty or unavailable state. Timestamps are
+shown as recorded and do not imply cross-store causality. Desktop target IDs and
+private paths are omitted. Checkpoint/recovery inspection remains internal/CLI-
+only, and bounded conversation runtime events remain session-only. No approve,
+execute, cancel, retry, rollback, or restore control is added.
+
+Owner qualification on 2026-09-27 observed both existing Astra qualification
+tasks (`task_290e6c92cefe4902b62b` and
+`task_90be0b53d357423885aa`) as `awaiting_approval` with no outcome, the real
+acknowledged and unacknowledged task notifications with event/watch provenance,
+and the truthful internal-only recovery/session-only runtime limits. The owner
+navigated away and back and refreshed; canonical records reconstructed. The
+candidate showed no desktop action records. Neither task was approved or
+executed. The candidate used the isolated
+`var/astra-objectives-phase4-qualification` state root; production Friday at
+8765 and the protected production checkout were not modified.
+
+Focused History UI tests (3) and focused activity/desktop/proactive API tests
+(3) pass. The full frontend suite (85), lint, TypeScript and production builds,
+Python suite (920), repository verification, and `git diff --check` pass. The
+existing Vite bundle advisory and Starlette/AnyIO deprecation warning remain.
+This bounded History / Recovery surface is qualified. Approval / Action remains
+a separate subsequent phase; no later product slice has started.
+
 ## Cross-stage product capabilities (**Planned unless noted**)
 
 - Explicit ask/explain, repo overview, architecture trace, review, bug investigation, traceback/log debugging, feature, test generation, refactor, security, docs, migration, and PR-review modes.

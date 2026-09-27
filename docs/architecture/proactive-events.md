@@ -36,6 +36,11 @@ inserted into durable Memory or injected into conversational prompt history.
 No proactive event can dispatch objective, desktop, shell, Git, network, or
 learner actions.
 
+Astra History reuses the bounded notification projection with acknowledged and
+unacknowledged records included. It preserves event ID, event kind/source,
+watch provenance, event time, and acknowledgement time. This is notification
+history only; it does not imply that an event proposed or executed an action.
+
 The local database defaults to `var/proactive/events.sqlite3` and is configured
 by `LOCAL_AI_PROACTIVE_DB`. `LOCAL_AI_PROACTIVE_ENABLED`,
 `LOCAL_AI_PROACTIVE_POLL_SECONDS`, and

@@ -146,3 +146,12 @@ paths, artifact paths, plan bytes, approval, and execution controls are absent.
 The projection is capped at 100 rows and 20 timeline events per task. Task
 history remains lifecycle authority, and exact-plan approval and execution
 continue through their existing governed paths.
+
+The Astra History / Recovery workspace reuses this bounded activity projection
+and the existing objective read, proactive-notification read, and desktop-action
+audit routes through the typed runtime client. Objective state, task state,
+plan identity, and task outcome remain values from their owning services. The
+workspace does not expose plan contents, raw desktop target identifiers,
+recovery worktree paths, or mutating lifecycle controls. Task checkpoints and
+recovery validation remain internal/CLI-only; visibility of a pending task or
+plan does not authorize approval or execution.

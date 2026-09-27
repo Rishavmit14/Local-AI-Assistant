@@ -763,3 +763,17 @@ no browser-persisted capability/health state and no diagnostic or service
 mutation route. Development Vite proxies `/api` and `/health` to the selected
 candidate API. Capability visibility never grants desktop control, objective
 execution, approval, learner, Memory, or other action authority.
+
+### Astra Phase 8 — History / Recovery projection
+
+Astra History is a read-only composition over existing service-owned records,
+not a new unified persistence authority. The typed client loads objective/task
+activity, objective state/outcome, proactive notification history, and desktop
+action audit independently. Failed sources remain distinct from genuinely
+empty sources; records preserve their service provenance and timestamps do not
+assert causality across stores. Desktop target identifiers are omitted because
+the canonical field may contain a private path. Task-bound recovery/checkpoint
+inspection remains internal/CLI-only; no owner-routable recovery projection is
+claimed. Runtime conversation events remain bounded in-memory session state,
+not a durable transcript. Astra adds no approval, execution, retry, rollback,
+restore, desktop, shell, file, Git, or learner authority.

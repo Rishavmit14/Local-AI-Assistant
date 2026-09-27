@@ -2774,3 +2774,47 @@ Research, Objective execution, desktop action, approval, or production voice
 state changed. Protected `/AI/projects/Local-AI-Assistant` retains its existing
 Pocket/Anna changes and was not modified. The next dependency is History /
 Recovery; it has not started.
+
+## Active recovery — Astra History / Recovery Phase 8 owner-qualified candidate (2026-09-27)
+
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; accepted Phase 7 base
+`af33620cc277a880c40d60ea238df20b99577d06`; starting published HEAD
+`8e81cdd887eecb10787ac1912b92d5e943853b79`. The Phase 8 owner surface is
+physically qualified and documented in the uncommitted candidate. Capability
+commit/publication and final recovery-SHA verification remain; do not start
+Approval / Action.
+
+The read-only audit found no unified History service. `GET /api/v1/activity`
+projects bounded ObjectiveService and TaskHistoryService records;
+`GET /api/v1/objectives` supplies canonical objective/task outcome state;
+`GET /api/v1/proactive/notifications?include_acknowledged=true` supplies
+event-linked acknowledgement history; and `GET /api/v1/desktop/actions`
+supplies its audit ledger. Astra now presents these sources independently via
+the existing typed client, with separate empty/error states. It omits desktop
+target identifiers (which can be private paths), provides no mutation controls,
+and states that task checkpoints/recovery are internal/CLI-only while runtime
+conversation events are session-only. Timestamp display does not imply
+cross-store causality. Browser state is limited to source filters and refresh.
+
+Deterministic validation: focused History UI tests 3 pass; focused backend
+activity/desktop/proactive API tests 3 pass; full frontend suite 85 pass; lint,
+TypeScript/production build, full Python suite 920 pass, repository
+verification, and `git diff --check` pass. The established frontend large-bundle
+advisory and Starlette/AnyIO deprecation warning remain.
+
+The isolated candidate API at `127.0.0.1:8766` and Astra Vite at
+`127.0.0.1:5191` are healthy; the API uses
+`var/astra-objectives-phase4-qualification`, wake and gateway disabled,
+proactive enabled. Candidate reads show 14 activity rows, four objectives,
+two notifications (one acknowledged, one unacknowledged), and zero desktop
+actions. Both qualification tasks `task_290e6c92cefe4902b62b` and
+`task_90be0b53d357423885aa` remain `awaiting_approval` with null outcome. The
+owner observed the canonical objective/task timeline, exact pending state,
+notification acknowledgement history, and internal-only/session-only limits;
+navigation away/back and a page refresh reconstructed the same records. The
+workspace exposes refresh/filter/navigation only and has no approval,
+execution, rollback, or restore controls. Production Friday
+`127.0.0.1:8765` and protected `/AI/projects/Local-AI-Assistant` remain
+untouched. No approval, execution, Career Forge, Memory, Research, learner, or
+Pocket/Anna mutation was performed.

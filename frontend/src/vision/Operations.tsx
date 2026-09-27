@@ -9,12 +9,13 @@ import { NotificationsWorkspace } from './NotificationsWorkspace';
 import { ObjectivesWorkspace } from './ObjectivesWorkspace';
 import { PerceptionWorkspace } from './PerceptionWorkspace';
 import { SystemWorkspace } from './SystemWorkspace';
+import { HistoryWorkspace } from './HistoryWorkspace';
 import type { FridayMemoryKind, FridayMemoryRecord, FridayMemoryState } from '../runtime/types';
 import './Operations.css';
 
-type OperationView = Extract<VisionView, 'memory' | 'research' | 'objectives' | 'automations' | 'perception' | 'system'>;
+type OperationView = Extract<VisionView, 'memory' | 'research' | 'objectives' | 'automations' | 'history' | 'perception' | 'system'>;
 export function Operations({ view, ...props }: WorkspaceProps & { view: OperationView }) {
-  return <div className={`operations operations-${view}`}>{view === 'memory' ? <Memory {...props}/> : view === 'research' ? <ResearchWorkspace {...props}/> : view === 'objectives' ? <ObjectivesWorkspace/> : view === 'automations' ? <NotificationsWorkspace/> : view === 'perception' ? <PerceptionWorkspace/> : <SystemWorkspace/>}</div>;
+  return <div className={`operations operations-${view}`}>{view === 'memory' ? <Memory {...props}/> : view === 'research' ? <ResearchWorkspace {...props}/> : view === 'objectives' ? <ObjectivesWorkspace/> : view === 'automations' ? <NotificationsWorkspace/> : view === 'history' ? <HistoryWorkspace/> : view === 'perception' ? <PerceptionWorkspace/> : <SystemWorkspace/>}</div>;
 }
 function LocalNote({children}: {children:ReactNode}) { return <div className="op-local-note"><LockKeyhole size={13}/><span>{children}</span></div>; }
 function Field({label, children}: {label:string; children:ReactNode}) { return <label className="op-field"><span>{label}</span>{children}</label>; }
