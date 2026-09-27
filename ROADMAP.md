@@ -987,7 +987,7 @@ owner/name mapping, and no protected GitHub publication credential or
 `GITHUB_WRITE` scope is configured. These are owner/project/external state
 dependencies, not permission to fabricate a portfolio artifact.
 
-## Astra Canonical Product Integration — Phase 2: Memory (**Qualified; checkpoint pending**)
+## Astra Canonical Product Integration — Phase 2: Memory (**Qualified and published**)
 
 Astra Memory now uses the typed Friday runtime client and governed memory
 presentation routes backed by `FridayMemoryService` and canonical SQLite. The
@@ -1003,8 +1003,10 @@ recall, correction/supersession, candidate service restart and recovery,
 confirmed forgetting, visible deleted lifecycle, and a natural governed query
 proving no active durable match. A frontend runtime-session restart cursor bug
 was found during qualification, repaired, covered by regression, and the exact
-read-only recall step then passed. Full acceptance and remote checkpoint are
-recorded in the integration matrix and current handoff after publication.
+read-only recall step then passed. The qualified checkpoint is
+`be731f97fecc61b03d507986f3ebf4fccf2c01c4`, pushed and fetched from
+`origin/integration/astra-friday`; remote HEAD matched and the integration
+worktree was clean.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 

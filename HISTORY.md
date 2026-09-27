@@ -1300,4 +1300,8 @@ qualification exposed a session-restart event cursor defect; it was fixed and
 covered by a store regression before the final read-only recall step passed.
 Conversation context stayed separate from durable memory. Career Forge learner
 state and Pocket/Anna production voice behavior were not changed. The exact
-accepted recovery commit and validation are recorded in `CODEX_HANDOFF.md`.
+accepted capability commit `be731f97fecc61b03d507986f3ebf4fccf2c01c4` was
+pushed and fetched from `origin/integration/astra-friday`; remote HEAD matched
+and the worktree was clean. Validation passed 56 frontend tests, frontend lint
+and production build, and full repository verification with 911 Python tests,
+CLI checks, dependency consistency, and tracked-artifact hygiene.

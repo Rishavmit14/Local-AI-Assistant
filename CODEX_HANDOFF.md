@@ -2401,7 +2401,10 @@ This section supersedes older continuation wording above. Worktree:
 `/AI/projects/Local-AI-Assistant-terra-integration`; branch
 `integration/astra-friday`; implementation base
 `1853966e7780172c265dd90229e28bdbf1969881` (Phase 1 accepted remote). The
-uncommitted Phase 2 candidate is qualified and in final checkpoint publication.
+qualified Phase 2 capability commit is
+`be731f97fecc61b03d507986f3ebf4fccf2c01c4`, pushed to
+`origin/integration/astra-friday` and fetched/verified at the exact SHA. The
+integration worktree is clean at that checkpoint.
 Only this Terra checkout was modified. Protected production checkout
 `/AI/projects/Local-AI-Assistant` and Pocket/Anna services/workers were not
 modified or restarted.
@@ -2432,9 +2435,12 @@ Career Forge remains paused: `se.python=explain`,
 `2026-09-29T17:43:38.237311+00:00`. Do not deliver early, create duplicate
 reinforcement, start `se.engineering`, or alter learner state.
 
-After this qualified checkpoint is committed, pushed, fetched, and clean, the
-next whole-Friday dependency is Astra Research / Knowledge: replace the
+The remotely recoverable qualified Memory capability checkpoint is
+`be731f97fecc61b03d507986f3ebf4fccf2c01c4`; branch and fetched origin agreed
+at that checkpoint and its worktree was clean. Any later documentation-only
+checkpoint is in the same branch lineage. The next whole-Friday dependency is
+Astra Research / Knowledge: replace the
 browser-local source/notes prototype and missing knowledge owner surface with
 truthful typed projections over existing Friday research/knowledge services.
 Do not begin it before reporting the Memory checkpoint. Recovery commit SHA and
-exact remote/worktree verification will be filled after publication.
+exact remote/worktree verification were confirmed 2026-09-27.
