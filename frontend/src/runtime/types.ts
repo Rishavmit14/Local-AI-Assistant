@@ -129,6 +129,33 @@ export interface FridayMemoryCreateRequest {
   supersedes?: string;
 }
 
+export interface FridayResearchSource {
+  source_id: string;
+  domain: string;
+  title: string;
+  content?: string;
+  provenance: string;
+  version: string;
+  content_hash: string;
+  created_at: string;
+}
+
+export interface FridayResearchSourceRequest {
+  domain: string;
+  title: string;
+  content: string;
+  provenance: string;
+  version: string;
+}
+
+export interface FridayResearchSynthesis {
+  domain: string;
+  question: string;
+  mode: "evidence_assembly";
+  question_applied: false;
+  synthesis: string;
+}
+
 export interface CareerForgeCompetency {
   competency: {
     competency_id: string;

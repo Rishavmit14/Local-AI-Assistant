@@ -24,7 +24,17 @@ def test_local_research_api_collects_explicit_provenance_only(tmp_path):
     with TestClient(create_presentation_app(runtime, FridayConversationService(LLM(), runtime), research=service)) as client:
         response = client.post("/api/v1/research/sources", json={"domain": "local", "title": "Note", "content": "Offline evidence", "provenance": "owner-note"})
         assert response.status_code == 200
-        assert client.get("/api/v1/research/synthesis?domain=local&question=x").json()["synthesis"].startswith("[Note;")
+        saved = response.json()
+        listed = client.get("/api/v1/research/sources?domain=local").json()["sources"]
+        assert listed == [{key: value for key, value in saved.items() if key != "content"}]
+        assert client.get(f"/api/v1/research/sources/{saved['source_id']}").json() == saved
+        assert client.get("/api/v1/research/sources?domain=local&include_content=true").json()["sources"] == [saved]
+        synthesis = client.get("/api/v1/research/synthesis?domain=local&question=x").json()
+        assert synthesis["synthesis"].startswith("[Note;")
+        assert synthesis["mode"] == "evidence_assembly"
+        assert synthesis["question_applied"] is False
+        assert synthesis["question"] == "x"
+        assert client.get("/api/v1/research/sources/missing").status_code == 404
 
 
 def test_career_curriculum_research_is_provenance_bearing_and_advisory(tmp_path):

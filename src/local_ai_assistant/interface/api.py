@@ -7,6 +7,7 @@ import threading
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict
 from queue import Empty
+from pydantic import BaseModel, Field
 
 try:
     from fastapi import FastAPI, HTTPException, Request
@@ -46,6 +47,14 @@ from .capabilities import FridayCapabilityRegistry
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
 from .runtime import FridayRuntime
+
+
+class ResearchSourceRequest(BaseModel):
+    domain: str = Field(min_length=1, max_length=128)
+    title: str = Field(min_length=1, max_length=500)
+    content: str = Field(min_length=1, max_length=100_000)
+    provenance: str = Field(min_length=1, max_length=1_000)
+    version: str = Field(default="1", min_length=1)
 
 
 class _CancellableInteractionStream:
@@ -285,22 +294,34 @@ def create_presentation_app(
         return research
 
     @app.get("/api/v1/research/sources")
-    def research_sources(domain: str | None = None, limit: int = 20):
+    def research_sources(
+        domain: str | None = None,
+        limit: int = 20,
+        include_content: bool = False,
+    ):
         try:
-            return {"sources": [asdict(item) for item in owner_research().sources(domain, limit=limit)]}
+            items = owner_research().sources(domain, limit=limit)
+            sources = [asdict(item) for item in items]
+            if not include_content:
+                for source in sources:
+                    source.pop("content", None)
+            return {"sources": sources}
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+    @app.get("/api/v1/research/sources/{source_id}")
+    def research_source(source_id: str):
+        item = owner_research().source(source_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="research source is unavailable")
+        return asdict(item)
+
     @app.post("/api/v1/research/sources")
-    async def collect_research_source(request: Request):
+    def collect_research_source(body: ResearchSourceRequest):
         try:
-            body = await request.json()
-            if not isinstance(body, dict):
-                raise ValueError("research source object is required")
             item = owner_research().collect(
-                str(body.get("domain", "")), str(body.get("title", "")),
-                str(body.get("content", "")), str(body.get("provenance", "")),
-                version=str(body.get("version", "1")),
+                body.domain, body.title, body.content, body.provenance,
+                version=body.version,
             )
             return asdict(item)
         except (ValueError, TypeError) as exc:
@@ -308,7 +329,14 @@ def create_presentation_app(
 
     @app.get("/api/v1/research/synthesis")
     def research_synthesis(domain: str, question: str):
-        return {"synthesis": owner_research().synthesis(domain, question)}
+        service = owner_research()
+        return {
+            "domain": domain,
+            "question": question,
+            "mode": "evidence_assembly",
+            "question_applied": False,
+            "synthesis": service.synthesis(domain, question),
+        }
 
     @app.get("/api/v1/proactive/notifications")
     def proactive_notifications(limit: int = 20, include_acknowledged: bool = False):

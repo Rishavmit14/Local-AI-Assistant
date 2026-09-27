@@ -76,6 +76,47 @@ describe("FridayRuntimeClient governed memory boundary", () => {
   });
 });
 
+describe("FridayRuntimeClient canonical research boundary", () => {
+  const source = {
+    source_id: "src-1", domain: "qualification", title: "Synthetic source",
+    provenance: "owner-provided test text", version: "v1", content_hash: "abc123",
+    created_at: "2026-09-27T10:00:00+00:00",
+  };
+
+  it("lists only canonical source metadata and reads text only for a selected source", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sources: [source] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...source, content: "Private source body" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+
+    await expect(client.getResearchSources("qualification")).resolves.toEqual([source]);
+    await expect(client.getResearchSource("src 1")).resolves.toMatchObject({ content: "Private source body" });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/research/sources?limit=1000&include_content=false&domain=qualification", {});
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/research/sources/src%201", {});
+  });
+
+  it("registers owner-provided provenance and calls the canonical evidence-assembly route", async () => {
+    const synthesis = { domain: "qualification", question: "What does it say?", mode: "evidence_assembly", question_applied: false, synthesis: "[Synthetic source; provenance=owner-provided test text; version=v1]\\nEvidence." };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...source, content: "Evidence." }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(synthesis), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+    const request = { domain: "qualification", title: "Synthetic source", content: "Evidence.", provenance: "owner-provided test text", version: "v1" };
+
+    await client.registerResearchSource(request);
+    await expect(client.getResearchSynthesis("qualification", "What does it say?")).resolves.toMatchObject({ mode: "evidence_assembly", question_applied: false });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/research/sources", expect.objectContaining({ method: "POST", body: JSON.stringify(request) }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/research/synthesis?domain=qualification&question=What+does+it+say%3F", {});
+  });
+
+  it("reports unavailable research without substituting browser data", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })));
+    await expect(new FridayRuntimeClient().getResearchSources()).rejects.toThrow("research sources request failed: 503");
+  });
+});
+
 describe("FridayRuntimeClient Career Forge boundary", () => {
   it("requests an objective plan only for a configured repository ID", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ objective: { objective_id: "o1" } }), { status: 200 }));

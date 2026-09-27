@@ -1285,6 +1285,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/voice/latency",
         "/api/v1/interaction/state",
         "/api/v1/research/sources",
+        "/api/v1/research/sources/{source_id}",
         "/api/v1/research/synthesis",
         "/api/v1/proactive/notifications",
         "/api/v1/proactive/notifications/{notification_id}/acknowledge",

@@ -352,6 +352,25 @@ Physical Astra qualification covered save, reload, conversational recall,
 correction, service restart/recovery, confirmed forget, and verified absence
 from active recall. No memory database or authority was added to the frontend.
 
+### Astra Research / Knowledge presentation boundary
+
+Astra's Research workspace uses the typed Friday runtime client and the
+existing `ResearchService`/SQLite. Source-list responses project canonical
+metadata without content; content is read only for an explicitly selected
+source. Explicit owner registration carries owner-provided provenance and text
+through the governed presentation API. The current service has no source
+update/delete operation. Its synthesis endpoint assembles bounded registered
+source evidence deterministically; it does not apply the question to retrieval
+or produce generated prose, which the UI states directly. Private-document RAG
+remains internal/CLI-only and repository/code retrieval remains inside guarded
+engineering flows; Astra presents no general Knowledge query or ingestion
+authority. Research sources remain distinct from personal memory, active
+conversation context, and generated synthesis. The 2026-09-27 owner flow
+qualified canonical registration, navigation persistence, evidence assembly,
+and truthful Knowledge limits. Its 8766 API ran against an isolated
+qualification state root; Career Forge preservation was checked against the
+existing Friday authoritative store at 8765.
+
 Stage 15 is an owner-initiated, read-only perception boundary. Captures remain
 under configured `var/perception` state; the presentation API exposes bounded
 metadata, explicit local OCR/UI-state results, and at most ten labels from an

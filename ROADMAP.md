@@ -1008,6 +1008,38 @@ read-only recall step then passed. The qualified checkpoint is
 `origin/integration/astra-friday`; remote HEAD matched and the integration
 worktree was clean.
 
+## Astra Canonical Product Integration — Phase 3: Research / Knowledge (**Qualified; publication checkpoint in progress**)
+
+Astra Research now uses a typed `FridayRuntimeClient` projection over the
+existing `ResearchService`. Owner-entered source registration records canonical
+domain, title, text, provenance, version, content hash, and creation time in
+Friday's research SQLite. Source lists omit source text; content is retrieved
+only for an explicitly selected source. No browser-local seeded sources or
+notes remain authoritative. The backend has no source update/delete lifecycle,
+so Astra exposes neither operation.
+
+Evidence synthesis is truthfully presented as the current service's bounded,
+deterministic source assembly, not model-generated narrative. The endpoint
+returns its question and explicitly reports that the question is not applied to
+retrieval. Astra distinguishes source metadata/text from assembled evidence.
+The Knowledge tab accurately reports private document RAG as internal/CLI-only
+and repository/code knowledge as guarded/internal with no general Astra query
+route; no ingestion or retrieval system was invented for this phase.
+
+Real Astra qualification on 2026-09-27 registered the benign synthetic source
+`astra-qual-20260927`, verified its canonical metadata and content, navigated
+away/back to confirm persistence, assembled evidence containing the source's
+owner provenance, and inspected the truthful Knowledge limitations. The
+candidate API at 8766 intentionally used the isolated
+`var/astra-memory-phase2-qualification` state root; its fresh Career Forge DB
+reports `unverified` and lacks the owner's records. Preservation was instead
+verified read-only against the existing Friday API at 8765 and its authoritative
+production Learner Twin SQLite: `se.python=explain`, the specified reinforcement
+mission is completed, the review remains scheduled for
+`2026-09-29T17:43:38.237311+00:00`, and its evidence and attempt are present.
+No Career Forge state was changed. Qualification runtime isolation is an
+explicit limitation of the candidate, not a learner-state discrepancy.
+
 ## Cross-stage product capabilities (**Planned unless noted**)
 
 - Explicit ask/explain, repo overview, architecture trace, review, bug investigation, traceback/log debugging, feature, test generation, refactor, security, docs, migration, and PR-review modes.

@@ -2444,3 +2444,65 @@ browser-local source/notes prototype and missing knowledge owner surface with
 truthful typed projections over existing Friday research/knowledge services.
 Do not begin it before reporting the Memory checkpoint. Recovery commit SHA and
 exact remote/worktree verification were confirmed 2026-09-27.
+
+## Current recovery — Astra Research / Knowledge Phase 3 qualified candidate (2026-09-27)
+
+Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; base/current remote HEAD before Phase 3 acceptance:
+`6519a56de84b755f15ab8647d452cb5089849de9`. The qualified Phase 3 code and
+canonical documentation are committed locally; publication and fetched-remote
+verification are the remaining checkpoint operations.
+Only this Terra checkout is in scope. Protected
+`/AI/projects/Local-AI-Assistant` was inspected read-only for Career Forge
+preservation and was not modified or restarted. The existing Friday/Pocket/Anna
+runtime at 8765 remains running.
+
+Astra Research now uses a typed `FridayRuntimeClient` over the existing
+`ResearchService`: source listing omits private content, selected-source detail
+loads canonical text, explicit registration records owner-entered provenance,
+and the Evidence synthesis tab projects bounded deterministic source assembly
+with `question_applied=false`. It is not generated narrative. The Knowledge tab
+truthfully reports private-document RAG as internal/CLI-only and repository
+knowledge as guarded/internal without a general Astra query or ingestion route.
+No seeded Research sources/notes or browser-local durable source state remain.
+The canonical source service has no update/delete lifecycle; the synthetic
+qualification source therefore remains registered.
+
+Physical owner flow on 2026-09-27 registered the benign source in domain
+`astra-qual-20260927`, confirmed its metadata and selected content, navigated
+away and back to verify persistence, assembled evidence with the source's
+provenance, and viewed Knowledge limitations. Friday API 8766 is a candidate
+process from this Terra checkout configured with
+`LOCAL_AI_VAR_DIR=.../var/astra-memory-phase2-qualification`; this isolated
+qualification root has a fresh Career Forge learner DB whose `se.python` row is
+`unverified`, and it lacks the recovery mission/review/evidence/attempt. It is
+not the owner-authoritative Career Forge store. Existing Friday at 8765 runs
+from `/AI/projects/Local-AI-Assistant` and resolves the authoritative DB
+`/AI/projects/Local-AI-Assistant/var/career-forge/learner.sqlite3`. Its journey
+reports `se.python=explain`; read-only SQLite records show the exact
+reinforcement mission completed, the review scheduled for
+`2026-09-29T17:43:38.237311+00:00`, and its linked evidence and attempt present.
+This explains the endpoint discrepancy as isolated qualification state, not a
+shared-store cache or authoritative learner-state change. No Career Forge write
+route was invoked; its authoritative DB mtime and records remain at the
+recovery state. Do not use 8766's learner row for preservation qualification.
+
+Focused tests passed: 42 Python and 29 frontend. Full frontend tests pass
+62/62; frontend lint and production build pass. The existing large-bundle build
+advisory remains. `scripts/maintenance/verify-repository.sh` passes all 911
+Python tests, CLI checks, dependency consistency and artifact hygiene; its one
+Starlette/AnyIO deprecation warning is unchanged. `git diff --check` passes.
+The Phase 3 commit must be pushed to `origin/integration/astra-friday` and the
+fetched branch verified at the exact SHA before it is a published checkpoint.
+
+Career Forge remains paused and unchanged: `se.python=explain`,
+`mission_6e616a8b29e4452792b6759693d5b4c7` completed, and review
+`review_d73f412786404f1ca9d9d7ab12fa4b23` remains scheduled for
+`2026-09-29T17:43:38.237311+00:00`. Do not deliver it early, create
+reinforcement, start `se.engineering`, or otherwise mutate learner state.
+
+After completing Phase 3's commit/push/fetched-remote and clean-worktree gates,
+the next whole-Friday dependency is Astra Objectives / Activity: audit and
+connect the owner workspace to existing objective/task-history services and
+exact-plan approval boundaries. Do not start that slice before reporting the
+published Research / Knowledge checkpoint.

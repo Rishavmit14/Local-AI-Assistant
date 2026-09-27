@@ -54,6 +54,15 @@ class ResearchService:
             rows = db.execute("SELECT * FROM research_sources WHERE (? IS NULL OR domain=?) ORDER BY created_at DESC LIMIT ?", (domain, domain, limit)).fetchall()
         return tuple(SourceRecord(*row) for row in rows)
 
+    def source(self, source_id: str) -> SourceRecord | None:
+        """Read one explicitly selected source, including its owner-provided content."""
+        with self._db() as db:
+            row = db.execute(
+                "SELECT * FROM research_sources WHERE source_id=?",
+                (source_id,),
+            ).fetchone()
+        return SourceRecord(*row) if row is not None else None
+
     def gaps(self, domain: str, required_topics: tuple[str, ...]) -> tuple[str, ...]:
         corpus = "\n".join(item.content.casefold() for item in self.sources(domain))
         return tuple(topic for topic in required_topics if topic.casefold() not in corpus)

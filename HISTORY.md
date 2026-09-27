@@ -1,5 +1,24 @@
 # Project History
 
+## 2026-09-27 — Astra Canonical Product Integration Phase 3 qualified
+
+Replaced Astra's browser-local Research examples/notes with the typed
+`FridayRuntimeClient` and existing `ResearchService`. The workspace registers
+owner-provided sources through Friday, projects canonical provenance/version/
+hash/timestamps, and fetches content only when a source is selected. The
+existing deterministic evidence assembly is labeled as source evidence rather
+than generated prose, and the Knowledge tab reports the current CLI-only and
+guarded-internal capabilities without fabricating a general search or ingestion
+workflow. Physical owner qualification proved synthetic source registration,
+canonical metadata/content, persistence after navigation, evidence assembly,
+and truthful Knowledge limitations. The candidate API's isolated qualification
+Career Forge DB reported `unverified`; read-only process/config/SQLite tracing
+showed the existing Friday runtime uses a separate authoritative Learner Twin
+DB that still reports `se.python=explain`, the reinforcement mission completed,
+and the review scheduled for its unchanged due time with its evidence and
+attempt present. No learner state was mutated. Final validation and publication
+details are recorded in the current handoff checkpoint.
+
 ## 2026-09-21 — Real Career Forge owner-path qualification and recovery
 
 The owner physically selected arbitrary Practice Lab code, completed an actual

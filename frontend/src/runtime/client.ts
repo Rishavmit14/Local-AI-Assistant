@@ -18,6 +18,9 @@ import type {
   FridayMemoryCreateRequest,
   FridayMemoryRecord,
   FridayMemoryRecordQuery,
+  FridayResearchSource,
+  FridayResearchSourceRequest,
+  FridayResearchSynthesis,
 } from "./types";
 
 export class FridayRuntimeClient {
@@ -105,6 +108,35 @@ export class FridayRuntimeClient {
     });
     if (!response.ok) throw new Error(`memory conflict resolution failed: ${response.status}`);
     return response.json() as Promise<FridayMemoryRecord>;
+  }
+
+  async getResearchSources(domain?: string, signal?: AbortSignal): Promise<FridayResearchSource[]> {
+    const params = new URLSearchParams({ limit: "1000", include_content: "false" });
+    if (domain?.trim()) params.set("domain", domain.trim());
+    const response = await fetch(`${this.baseUrl}/api/v1/research/sources?${params}`, { signal });
+    if (!response.ok) throw new Error(`research sources request failed: ${response.status}`);
+    return (await response.json() as { sources: FridayResearchSource[] }).sources;
+  }
+
+  async getResearchSource(sourceId: string, signal?: AbortSignal): Promise<FridayResearchSource> {
+    const response = await fetch(`${this.baseUrl}/api/v1/research/sources/${encodeURIComponent(sourceId)}`, { signal });
+    if (!response.ok) throw new Error(`research source request failed: ${response.status}`);
+    return response.json() as Promise<FridayResearchSource>;
+  }
+
+  async registerResearchSource(source: FridayResearchSourceRequest): Promise<FridayResearchSource> {
+    const response = await fetch(`${this.baseUrl}/api/v1/research/sources`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(source),
+    });
+    if (!response.ok) throw new Error(`research source registration failed: ${response.status}`);
+    return response.json() as Promise<FridayResearchSource>;
+  }
+
+  async getResearchSynthesis(domain: string, question: string, signal?: AbortSignal): Promise<FridayResearchSynthesis> {
+    const params = new URLSearchParams({ domain, question });
+    const response = await fetch(`${this.baseUrl}/api/v1/research/synthesis?${params}`, { signal });
+    if (!response.ok) throw new Error(`research synthesis request failed: ${response.status}`);
+    return response.json() as Promise<FridayResearchSynthesis>;
   }
 
   async getCareerJourney(signal?: AbortSignal): Promise<CareerForgeJourney> {
