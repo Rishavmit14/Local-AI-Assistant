@@ -1503,6 +1503,9 @@ production Friday, Career Forge, and Pocket/Anna were unchanged.
 Focused desktop/API tests: 52 pass. Frontend suite: 90 pass; lint, TypeScript
 and production builds pass; repository verification passes with 924 Python
 tests; `git diff --check` passes. The existing Vite bundle-size advisory and
-Starlette/AnyIO deprecation warning remain. The next whole-Friday product
-dependency is to be selected from the remaining canonical product matrix after
-the Phase 9 publication checkpoint.
+Starlette/AnyIO deprecation warning remain. Capability commit
+`076f6fa0c1ce2c584be24096d8baeb22ff6de799` was pushed to and fetched from
+`origin/integration/astra-friday` as the exact branch head. The next product
+matrix dependency is long-running objective progress (row 49, PARTIAL), a
+richer read-only owner narrative over existing task/objective progress and
+recovery state; it is not started here.

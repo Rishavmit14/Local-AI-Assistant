@@ -2825,9 +2825,11 @@ Pocket/Anna mutation was performed.
 ## Current recovery — Astra Approval / Action Phase 9 qualified (2026-09-28)
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
-`integration/astra-friday`; pre-acceptance base HEAD
-`b2c3f6a367b8303961882e133af79726b59206a0`. Phase 9 is physically qualified;
-capability publication is pending this documentation/diff review and checkpoint.
+`integration/astra-friday`; accepted Phase 9 capability commit
+`076f6fa0c1ce2c584be24096d8baeb22ff6de799`, pushed and fetched as the exact
+`origin/integration/astra-friday` head. It descends from Phase 8 checkpoint
+`b2c3f6a367b8303961882e133af79726b59206a0`. Phase 9 is physically qualified
+and published; the present handoff update records post-publication recovery.
 
 Astra Attention now uses the typed Friday client and canonical
 `DesktopControlService` action ledger. Review is read-only, approve and execute
@@ -2864,8 +2866,8 @@ Validation: focused desktop/API tests 52 pass; frontend 90 pass; frontend lint,
 TypeScript/production build, repository verification with 924 Python tests, and
 `git diff --check` pass. Existing Vite bundle advisory and Starlette/AnyIO
 deprecation warning remain. Production API 8765 and isolated candidate API 8766
-are listening; Vite 5191 is healthy. Worktree remains uncommitted until the
-Phase 9 capability checkpoint. Next: reconcile the remaining owner-facing gaps
-in `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md` against actual canonical
-routes and `ROADMAP.md`, then select the next dependency after Phase 9 is
-published; do not begin it before verifying remote recovery.
+are listening; Vite 5191 is healthy. Worktree was clean at capability commit
+before this handoff-only update. The next product-matrix dependency is
+long-running objective progress (row 49, PARTIAL): a richer read-only owner
+narrative over canonical task/objective progress and recovery status, building
+on qualified Objectives / Activity and History. It is not started here.

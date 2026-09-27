@@ -1184,7 +1184,7 @@ existing Vite bundle advisory and Starlette/AnyIO deprecation warning remain.
 This bounded History / Recovery surface is qualified. Approval / Action remains
 a separate subsequent phase and is recorded below.
 
-## Astra Canonical Product Integration — Phase 9: Approval / Action (**Qualified**)
+## Astra Canonical Product Integration — Phase 9: Approval / Action (**Qualified and published**)
 
 Astra Attention now projects the canonical `DesktopControlService` action
 ledger. Review is read-only; owner approval and one-time execution are separate
@@ -1213,8 +1213,13 @@ Pocket/Anna were unchanged.
 Focused desktop/API tests (52) and frontend suite (90) pass; frontend lint,
 TypeScript and production builds, repository verification (924 Python tests),
 and `git diff --check` pass. Existing Vite bundle advisory and
-Starlette/AnyIO deprecation warning remain. Phase 9 is physically qualified;
-no later product slice has started.
+Starlette/AnyIO deprecation warning remain. Phase 9 capability commit
+`076f6fa0c1ce2c584be24096d8baeb22ff6de799` was pushed to and fetched from
+`origin/integration/astra-friday` as the exact branch head. The next dependency
+in the product matrix is long-running objective progress (row 49, currently
+PARTIAL): provide a richer read-only owner narrative over existing canonical
+task/objective progress and recovery status, building on Objective/Activity and
+History. It is not started in this checkpoint.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 
