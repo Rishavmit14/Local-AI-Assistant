@@ -955,9 +955,10 @@ review remains a genuine external boundary and does not block independent
 whole-Friday product integration. Astra surface reality is audited in
 `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md` (2026-09-27). Existing LEARN,
 MAP, Practice Lab, PROJECTS, Interview, and PROGRESS components use canonical
-Career Forge adapters. Memory, Research/Knowledge, Objectives/Activity,
-Automations/Notifications, Perception, System/Capabilities, History/Recovery,
-and approval/action remain prototype or missing surfaces as classified there.
+Career Forge adapters. Memory, Research/Knowledge, and Objectives / Activity
+are qualified on the Astra integration branch. Automations/Notifications,
+Perception, System/Capabilities, History/Recovery, and approval/action remain
+prototype or missing as classified there.
 
 Phase 1 connects Astra Home and Conversation text input to Friday's existing
 typed runtime client/store and canonical conversation stream plus runtime event
@@ -1043,6 +1044,24 @@ The qualified capability commit is
 `afc69260beae96fe41056c4fea0f9543be604d22`; it was pushed to
 `origin/integration/astra-friday` and fetched remote HEAD matched exactly.
 The next whole-Friday dependency is Astra Objectives / Activity.
+
+## Astra Canonical Product Integration — Phase 4: Objectives / Activity (**Qualified; publication pending**)
+
+The recovered Terra candidate replaces the seeded and simulated Astra Objectives
+workflow with the existing `ObjectiveService` and canonical task-history paths.
+Objective create/list/resume/plan/review/cancel remain backend-owned; the
+frontend can inspect a canonical plan but cannot approve or execute it. A bounded
+read-only `/api/v1/activity` projection joins objective records with persisted
+task timeline entries and exposes no repository paths or artifact access.
+Deterministic API/UI coverage and full repository verification pass. The owner
+created synthetic objectives through Astra, navigated away and back, observed
+canonical Activity, and intentionally cancelled the first objective. The owner
+then generated and inspected a real canonical plan in the isolated qualification
+runtime. Its task remains `awaiting_approval` with no execution outcome; no
+approval or execution action was taken. The plan/objective/task survive backend
+reconstruction and appear in Activity. The isolated evidence is recorded in
+`HISTORY.md` and `CODEX_HANDOFF.md`. Do not advance to the next dependency until
+the final Phase 4 acceptance commit is remotely recoverable.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 

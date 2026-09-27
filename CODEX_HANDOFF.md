@@ -2499,10 +2499,8 @@ advisory remains. `scripts/maintenance/verify-repository.sh` passes all 911
 Python tests, CLI checks, dependency consistency and artifact hygiene; its one
 Starlette/AnyIO deprecation warning is unchanged. `git diff --check` passes.
 The qualified Research / Knowledge checkpoint is published and remotely
-recoverable. The next whole-Friday dependency is Astra Objectives / Activity:
-audit and connect the owner workspace to existing objective/task-history
-services and exact-plan approval boundaries. Do not start that slice before
-reporting this published Research / Knowledge checkpoint.
+recoverable. Astra Objectives / Activity Phase 4 continuation and current
+qualification status are recorded below.
 
 Career Forge remains paused and unchanged: `se.python=explain`,
 `mission_6e616a8b29e4452792b6759693d5b4c7` completed, and review
@@ -2510,8 +2508,68 @@ Career Forge remains paused and unchanged: `se.python=explain`,
 `2026-09-29T17:43:38.237311+00:00`. Do not deliver it early, create
 reinforcement, start `se.engineering`, or otherwise mutate learner state.
 
-After completing Phase 3's commit/push/fetched-remote and clean-worktree gates,
-the next whole-Friday dependency is Astra Objectives / Activity: audit and
-connect the owner workspace to existing objective/task-history services and
-exact-plan approval boundaries. Do not start that slice before reporting the
-published Research / Knowledge checkpoint.
+## Current recovery — Astra Objectives / Activity Phase 4 candidate (2026-09-27)
+
+Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; HEAD remains published recovery commit
+`234669580190fce17a73e03abc80160ddc2284dc`, descendant of the qualified Phase 3
+commit `afc69260beae96fe41056c4fea0f9543be604d22`. Phase 3 is closed and must not
+be reopened absent contradictory repository evidence. Recovered the five
+interrupted frontend changes and continued the dependency-correct Phase 4 slice.
+
+The Astra Objectives screen now uses the real objective API instead of seeded
+browser examples or simulated steps. The candidate also adds a bounded,
+read-only `/api/v1/activity` projection over canonical `ObjectiveService` and
+`TaskHistoryService` records; no plan approval, execution, desktop, shell, Git,
+or Career Forge learner authority was added. Plan review stays read-only and
+exact-plan review/approval/execution boundaries remain canonical. The owner UI
+qualified objective creation/persistence, navigation away/back, Activity,
+explicit cancellation, and read-only inspection of a canonical generated plan.
+Objectives / Activity is **QUALIFIED** for this bounded slice; approval and
+execution remain backend-owned and were not invoked.
+
+All 40 presentation API tests and all 67 frontend tests pass. Frontend
+typecheck/build/lint pass; `scripts/maintenance/verify-repository.sh` passes all
+912 Python tests, CLI checks, dependency consistency, and artifact hygiene. An
+initial combined build invocation segfaulted, then isolated TypeScript and Vite
+builds and a subsequent complete build passed. The build retains its existing
+large-bundle advisory. `git diff --check` passes. The remaining acceptance
+work is final validation, scope review, and checkpoint publication.
+
+The isolated loopback qualification ran on 8766 with state rooted at
+`var/astra-objectives-phase4-qualification` (wake/proactive/gateway disabled).
+It retains the earlier setup-check objective `34c467f4c7304e05803a28131d3eb6f7`
+and the owner-created objective
+`e86b2d6b23d6459d87db2982f8f48170` in
+`var/astra-objectives-phase4-qualification`. The owner reported that the UI flow
+worked and confirmed intentionally clicking **CANCEL OBJECTIVE**. Read-only API
+verification showed the new record persisted with `task_id`, `plan_hash`, and
+`repository_id` null; Activity reports its canonical `objective_cancelled`
+state after cancellation. The owner navigated away/back and observed the
+objective/Activity reconstruction. No task or plan was generated during that
+flow. Afterward, an isolated synthetic repository
+`astra-qualification-sample` was created with disposable local commit
+`bf0c79d3172c482f98c51809234b15d4c413e519`; the isolated code index contains
+its two source chunks. The API restarted from that same state root and is
+healthy on 8766; Vite remains healthy on 5191. The owner then created plan-review
+objective `58785acfdc1b4d4d91bc4bc4b08a3a92` for repository
+`astra-qualification-sample`. The canonical backend generated plan hash
+`dd4549ff1c10d0a16c8a947a1d53bd5d377c20cbbd173a614687cf52735f3566` and task
+`task_290e6c92cefe4902b62b`; read-only API verification found the task in
+`awaiting_approval`, with no outcome. The owner reported that the real Astra
+plan flow worked. Approval and execution were not invoked; the task remains
+awaiting approval and has no execution outcome. This qualifies objective
+creation, canonical planning, persisted reconstruction, Activity, and read-only
+plan review for this slice. CUA itself had no browser surface, but the owner
+performed the UI flow. Production Friday
+8765 remained healthy and was not restarted. These objectives are disposable
+qualification data, not owner production data.
+
+Career Forge remains paused at `se.python=explain`; mission
+`mission_6e616a8b29e4452792b6759693d5b4c7` is completed and review
+`review_d73f412786404f1ca9d9d7ab12fa4b23` remains scheduled for
+`2026-09-29T17:43:38.237311+00:00`. Do not mutate that state. Protected
+`/AI/projects/Local-AI-Assistant` was only inspected read-only in this recovery;
+it already has unrelated Pocket/Anna dirty files and remains on its previous
+HEAD/status. Pocket/Anna production behavior remains protected. Phase 4 remains
+uncommitted until final acceptance checks complete.

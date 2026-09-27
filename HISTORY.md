@@ -1324,3 +1324,28 @@ pushed and fetched from `origin/integration/astra-friday`; remote HEAD matched
 and the worktree was clean. Validation passed 56 frontend tests, frontend lint
 and production build, and full repository verification with 911 Python tests,
 CLI checks, dependency consistency, and tracked-artifact hygiene.
+
+## 2026-09-27 — Astra Objectives / Activity Phase 4 qualified
+
+Recovered the interrupted Terra worktree candidate after published Phase 3 at
+`234669580190fce17a73e03abc80160ddc2284dc`. The candidate replaces seeded and
+simulated Objectives browser state with the canonical objective API and adds a
+bounded read-only Activity projection over objective and task-history records.
+It preserves read-only plan review and adds no approval, execution, desktop,
+shell, Git, or learner-state authority. Focused API and frontend tests pass;
+real Astra owner qualification and complete acceptance gates remain pending.
+This is an in-progress status record, not an accepted capability checkpoint.
+
+Owner UI evidence on 2026-09-27 proved synthetic objective creation, navigation
+away/back reconstruction, canonical Activity projection, and explicit
+cancellation. Read-only candidate API verification confirmed objective
+`e86b2d6b23d6459d87db2982f8f48170`, its persisted Activity row, and null task,
+plan, and repository bindings before the intentional cancellation. The owner
+then created and reviewed a canonical plan for synthetic objective
+`58785acfdc1b4d4d91bc4bc4b08a3a92` against the isolated
+`astra-qualification-sample` repository. The task is
+`task_290e6c92cefe4902b62b`, plan hash
+`dd4549ff1c10d0a16c8a947a1d53bd5d377c20cbbd173a614687cf52735f3566`, state
+`awaiting_approval`, with no execution outcome. Owner UI qualification passed;
+approval and execution remain explicitly outside this slice. Final acceptance
+validation and publication are recorded in the next accepted checkpoint.

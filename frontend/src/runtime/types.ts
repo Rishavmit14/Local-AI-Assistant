@@ -327,6 +327,17 @@ export interface FridayObjective {
   repository_id: string | null;
 }
 
+export interface FridayActivityItem {
+  id: string;
+  occurred_at: string;
+  kind: string;
+  summary: string;
+  task_id: string | null;
+  task_state: string | null;
+  objective_id: string | null;
+  objective_text: string | null;
+}
+
 export interface CareerForgeMissionObjective {
   link: { mission_id: string; objective_id: string; created_at: string };
   objective: FridayObjective;

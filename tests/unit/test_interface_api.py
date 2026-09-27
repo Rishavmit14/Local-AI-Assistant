@@ -15,6 +15,8 @@ from local_ai_assistant.career_forge import (
 from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
+from local_ai_assistant.history.service import TaskHistoryService
+from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.capabilities import (
     CapabilityStatus,
@@ -319,6 +321,32 @@ def test_objective_api_persists_lifecycle_without_execution_authority(tmp_path):
     assert planned.json()["objective"]["task_state"] == "awaiting_approval"
     assert client.get(f"/api/v1/objectives/{objective_id}/plan").json()["plan"]["plan_hash"] == "b" * 64
     assert client.post(f"/api/v1/objectives/{objective_id}/cancel").json()["objective"]["state"] == "cancelled"
+
+
+def test_activity_projects_canonical_objective_and_task_timeline_read_only(tmp_path):
+    history = TaskHistoryService(TaskHistoryStore(tmp_path / "tasks.sqlite3"))
+    task = history.create_task("Review a local module", tmp_path, "a" * 40, "main")
+    history.store.add_event(task.task_id, "planning", "plan_requested", "Canonical plan requested")
+    autonomy = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda task_id: "b" * 64 if task_id == task.task_id else None,
+        task_state_for_task=lambda task_id: "planning" if task_id == task.task_id else None,
+    )
+    objective = autonomy.create("Review a local module")
+    autonomy.bind_plan(objective.objective_id, task.task_id)
+    runtime = FridayRuntime("activity-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        autonomy=autonomy, task_history=history,
+    ))
+    response = client.get("/api/v1/activity")
+    assert response.status_code == 200
+    rows = response.json()["activity"]
+    assert any(row["task_id"] == task.task_id and row["kind"] == "plan_requested" for row in rows)
+    assert any(row["objective_id"] == objective.objective_id and row["kind"] == "objective_planned" for row in rows)
+    assert "repository" not in rows[0]
+    assert client.get("/api/v1/activity?limit=101").status_code == 400
+    assert client.post("/api/v1/activity").status_code == 405
 
 
 def test_objective_api_requests_only_the_configured_canonical_planner(tmp_path):
@@ -1290,6 +1318,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/proactive/notifications",
         "/api/v1/proactive/notifications/{notification_id}/acknowledge",
         "/api/v1/objectives",
+        "/api/v1/activity",
         "/api/v1/objectives/{objective_id}",
         "/api/v1/objectives/{objective_id}/resume",
         "/api/v1/objectives/{objective_id}/plan",

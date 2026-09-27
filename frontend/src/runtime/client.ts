@@ -4,6 +4,7 @@ import type {
   CareerForgeInterview,
   CareerForgeCurriculumResearch,
   CareerForgeMissionObjective,
+  FridayActivityItem,
   CareerForgeMission,
   CareerForgePublicEvidenceCandidate,
   CodeAttentionQuestion,
@@ -408,6 +409,12 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/objectives`, { signal });
     if (!response.ok) throw new Error(`objective request failed: ${response.status}`);
     return (await response.json() as { objectives: FridayObjective[] }).objectives;
+  }
+
+  async getActivity(signal?: AbortSignal): Promise<FridayActivityItem[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/activity`, { signal });
+    if (!response.ok) throw new Error(`activity request failed: ${response.status}`);
+    return (await response.json() as { activity: FridayActivityItem[] }).activity;
   }
 
   async createObjective(text: string): Promise<FridayObjective> {

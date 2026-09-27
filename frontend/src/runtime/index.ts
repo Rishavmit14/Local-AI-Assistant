@@ -27,6 +27,7 @@ export type {
   FridayRuntimeSnapshot,
   FridayScreenCapture,
   FridayDesktopAction,
+  FridayActivityItem,
   FridayObjective,
   FridayPlanReview,
   FridayRuntimeState,

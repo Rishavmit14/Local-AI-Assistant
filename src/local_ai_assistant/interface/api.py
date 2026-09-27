@@ -36,6 +36,8 @@ from local_ai_assistant.gateway.auth import (
 from local_ai_assistant.gateway.models import GatewayScope
 from local_ai_assistant.gateway.publication import GitHubPublicationService
 from local_ai_assistant.history.errors import HistoryDatabaseError
+from local_ai_assistant.history.models import TaskFilter
+from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.isolation.errors import SandboxUnavailableError
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind, MemoryState
 from local_ai_assistant.onboarding import RepositoryOnboardingError
@@ -187,6 +189,7 @@ def create_presentation_app(
     proactive: ProactiveEventEngine | None = None,
     research: ResearchService | None = None,
     capabilities: FridayCapabilityRegistry | None = None,
+    task_history: TaskHistoryService | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -376,6 +379,62 @@ def create_presentation_app(
             return {"objectives": [asdict(item) for item in owner_autonomy().recent(limit)]}
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/v1/activity")
+    def recent_activity(limit: int = 50):
+        """Read-only, bounded activity projection from objective and task journals."""
+        if not 1 <= limit <= 100:
+            raise HTTPException(status_code=400, detail="limit must be between 1 and 100")
+        if task_history is None:
+            raise HTTPException(status_code=503, detail="canonical task history is unavailable")
+        try:
+            objectives = autonomy.recent(100) if autonomy is not None else ()
+            objective_by_task = {
+                item.task_id: item for item in objectives if item.task_id
+            }
+            tasks = task_history.list(TaskFilter(limit=limit))
+            activity = []
+            for item in objectives:
+                activity.append({
+                    "id": f"objective:{item.objective_id}",
+                    "occurred_at": item.updated_at,
+                    "kind": f"objective_{item.state}",
+                    "summary": item.text[:1000],
+                    "task_id": item.task_id,
+                    "task_state": item.task_state,
+                    "objective_id": item.objective_id,
+                    "objective_text": item.text[:1000],
+                })
+            for task in tasks:
+                linked = objective_by_task.get(task.task_id)
+                events = task_history.timeline(task.task_id)
+                if events:
+                    for event in events[-20:]:
+                        activity.append({
+                            "id": event.event_id,
+                            "occurred_at": event.timestamp,
+                            "kind": event.event_type,
+                            "summary": event.summary[:1000],
+                            "task_id": task.task_id,
+                            "task_state": task.status.value,
+                            "objective_id": linked.objective_id if linked else None,
+                            "objective_text": linked.text[:1000] if linked else None,
+                        })
+                else:
+                    activity.append({
+                        "id": task.task_id,
+                        "occurred_at": task.updated_at,
+                        "kind": task.status.value,
+                        "summary": (task.summary or task.original_request)[:1000],
+                        "task_id": task.task_id,
+                        "task_state": task.status.value,
+                        "objective_id": linked.objective_id if linked else None,
+                        "objective_text": linked.text[:1000] if linked else None,
+                    })
+            activity.sort(key=lambda item: (item["occurred_at"], item["id"]), reverse=True)
+            return {"activity": activity[:limit]}
+        except (OSError, ValueError, HistoryDatabaseError) as exc:
+            raise HTTPException(status_code=503, detail="canonical activity is unavailable") from exc
 
     @app.post("/api/v1/objectives/{objective_id}/resume")
     def resume_objective(objective_id: str):

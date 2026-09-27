@@ -134,3 +134,15 @@ validates the checkpoint and worktree identity as well as that artifact; a
 cleaned worktree never becomes a success inference. The local tool schema
 normalizes only a quoted unsigned decimal `plan_step` to its audit ordinal;
 other malformed values remain rejected.
+
+The Astra Phase 4 candidate uses the existing objective routes and adds no
+frontend lifecycle authority. Its `/api/v1/activity` endpoint is a bounded,
+read-only projection from `ObjectiveService.recent()` and the injected canonical
+`TaskHistoryService`: objective rows show their persisted updated state, while
+task rows show stored timeline events (or the task's canonical current state if
+it has no events). The route returns only event identity/time/type/summary,
+task identity/state, and an optional linked objective identity/text; repository
+paths, artifact paths, plan bytes, approval, and execution controls are absent.
+The projection is capped at 100 rows and 20 timeline events per task. Task
+history remains lifecycle authority, and exact-plan approval and execution
+continue through their existing governed paths.
