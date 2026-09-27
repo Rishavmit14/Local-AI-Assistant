@@ -2652,15 +2652,17 @@ has started. Fetch/verify the documentation-only recovery commit that updates
 this handoff, then report the Phase 5 checkpoint and identify the next dependency
 from repository evidence.
 
-## Current recovery — Astra Perception Phase 6 qualified candidate (2026-09-27)
+## Current recovery — Astra Perception Phase 6 qualified and published (2026-09-27)
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
 `integration/astra-friday`; Phase 5 base
 `b9432255cd5ff5b7a577f985b78b470fb460b0f1`; Phase 6 capability commit
 `cbd2246f72e028b7347cdfc6fcb31017abd1db0a` is pushed to
 `origin/integration/astra-friday`, fetched, and verified as its exact remote
-head. This handoff-only update will establish the final published recovery SHA.
-The integration worktree must be clean after that documentation checkpoint.
+head. It is followed by this documentation-only publication checkpoint; the
+checkout and fetched remote tip were verified equal after that push. The final
+recovery report records the exact tip SHA. The integration worktree must be
+clean after publication.
 Do not begin the next slice before reporting Phase 6.
 
 Astra `PerceptionWorkspace` replaces the browser-local specimen with a typed
