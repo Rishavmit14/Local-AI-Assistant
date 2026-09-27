@@ -811,6 +811,20 @@ def test_health_projects_managed_worker_liveness():
     }
 
 
+def test_health_identifies_pocket_anna_without_exposing_local_configuration():
+    service, *_ = make_service()
+
+    class PocketSpeechSynthesizer:
+        config = SimpleNamespace(voice="anna", model_path="/private/model/path")
+
+    service.speech_synthesizer = SimpleNamespace(inner=PocketSpeechSynthesizer())
+
+    health = service.health()
+
+    assert health["speech_output"] == {"backend": "pocket", "voice": "anna"}
+    assert "/private/model/path" not in repr(health)
+
+
 def test_transient_capture_failure_recovers_without_reloading_models():
     from local_ai_assistant.voice.wake_capture import WakeCaptureError
 

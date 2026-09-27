@@ -743,3 +743,23 @@ barge coverage alive through explicit bounded-monitor timeout passes while speec
 continues. Speech events report only aggregate outcome/pass/elapsed/VAD metadata.
 The live delayed-counting trial stopped on `Friday, stop` in 3.3 ms and completed
 the exact-stop IDLE path without a runtime error.
+
+### Astra Phase 7 — System / capability projection
+
+Astra's Local intelligence view is a read-only presentation of the composition-
+owned `FridayCapabilityRegistry` plus existing health/status routes. The typed
+client preserves canonical capability maturity, configured, permissioned,
+healthy, owner-route, and limitation fields. It does not infer host availability
+or action authority from those descriptive fields. Conversation and Astra read
+the same backend registry; no second frontend capability interpretation is
+introduced.
+
+Health remains endpoint-specific: `/health` reports the presentation API only;
+voice health/latency, interaction ownership, bounded session metadata,
+proactive worker/watch state, and active-window status retain their own
+independent responses and failures. Astra omits session text/identity, window
+title/application identity, worker PIDs, error details, and local paths. It has
+no browser-persisted capability/health state and no diagnostic or service
+mutation route. Development Vite proxies `/api` and `/health` to the selected
+candidate API. Capability visibility never grants desktop control, objective
+execution, approval, learner, Memory, or other action authority.

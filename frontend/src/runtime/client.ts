@@ -20,6 +20,12 @@ import type {
   FridayScreenText,
   FridayScreenUiState,
   FridayVisualLabel,
+  FridayCapabilitiesSnapshot,
+  FridayPresentationHealth,
+  FridayVoiceRuntimeHealth,
+  FridayVoiceLatencySnapshot,
+  FridayRuntimeStatus,
+  FridayInteractionStatus,
   FridayDesktopAction,
   FridayObjective,
   FridayPlanReview,
@@ -30,6 +36,15 @@ import type {
   FridayResearchSourceRequest,
   FridayResearchSynthesis,
 } from "./types";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function requireRecord(value: unknown, resource: string): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error(`Friday returned an invalid ${resource} response`);
+  return value;
+}
 
 export class FridayRuntimeClient {
   private readonly baseUrl: string;
@@ -439,6 +454,137 @@ export class FridayRuntimeClient {
       // Keep the bounded HTTP status when the response is not JSON.
     }
     return new Error(`${prefix}: ${detail || response.status}`);
+  }
+
+  async getCapabilities(signal?: AbortSignal): Promise<FridayCapabilitiesSnapshot> {
+    const data = requireRecord(await this.getSystemResource<unknown>("/api/v1/capabilities", signal), "capability registry");
+    if (!Array.isArray(data.capabilities) || !data.capabilities.every((item) => isRecord(item)
+      && typeof item.key === "string" && typeof item.title === "string" && typeof item.status === "string"
+      && typeof item.configured === "boolean" && typeof item.permissioned === "boolean"
+      && (typeof item.healthy === "boolean" || item.healthy === null)
+      && typeof item.owner_route === "string" && (typeof item.limitation === "string" || item.limitation === null))) {
+      throw new Error("Friday returned an invalid capability registry response");
+    }
+    return data as unknown as FridayCapabilitiesSnapshot;
+  }
+
+  async getPresentationHealth(signal?: AbortSignal): Promise<FridayPresentationHealth> {
+    const data = requireRecord(await this.getSystemResource<unknown>("/health", signal), "presentation health");
+    if (typeof data.status !== "string" || typeof data.service !== "string" || typeof data.api_version !== "string") {
+      throw new Error("Friday returned an invalid presentation health response");
+    }
+    return data as unknown as FridayPresentationHealth;
+  }
+
+  async getVoiceRuntimeHealth(signal?: AbortSignal): Promise<FridayVoiceRuntimeHealth> {
+    const response = await this.systemResponse("/api/v1/voice/health", signal);
+    const data = requireRecord(await response.json(), "voice health") as {
+      enabled?: unknown;
+      status?: unknown;
+      capture_thread_alive?: unknown;
+      voice_turn_running?: unknown;
+      recovery_count?: unknown;
+      last_error_type?: unknown;
+      speech_output?: { backend?: unknown; voice?: unknown };
+      workers?: Record<string, { running?: unknown }>;
+    };
+    const workers = data.workers ?? {};
+    const worker = (key: string) => typeof workers[key]?.running === "boolean"
+      ? { running: workers[key].running as boolean }
+      : undefined;
+    const backend = data.speech_output?.backend;
+    const voice = data.speech_output?.voice;
+    return {
+      ...(typeof data.enabled === "boolean" ? { enabled: data.enabled } : {}),
+      ...(typeof data.status === "string" ? { status: data.status } : {}),
+      ...(typeof data.capture_thread_alive === "boolean" ? { capture_thread_alive: data.capture_thread_alive } : {}),
+      ...(typeof data.voice_turn_running === "boolean" ? { voice_turn_running: data.voice_turn_running } : {}),
+      ...(typeof data.recovery_count === "number" ? { recovery_count: data.recovery_count } : {}),
+      ...(typeof data.last_error_type === "string" || data.last_error_type === null
+        ? { last_error_type: data.last_error_type as string | null }
+        : {}),
+      ...(data.speech_output ? {
+        speech_output: {
+          backend: backend === "pocket" || backend === "piper" ? backend : null,
+          voice: voice === "anna" ? voice : null,
+        },
+      } : {}),
+      workers: {
+        ...(worker("primary") ? { primary: worker("primary") } : {}),
+        ...(worker("fallback") ? { fallback: worker("fallback") } : {}),
+        ...(worker("piper") ? { speech_output: worker("piper") } : {}),
+      },
+    };
+  }
+
+  async getVoiceLatency(signal?: AbortSignal): Promise<FridayVoiceLatencySnapshot> {
+    const response = await this.systemResponse("/api/v1/voice/latency", signal);
+    const data = requireRecord(await response.json(), "voice latency") as { turns?: unknown };
+    if (!Array.isArray(data.turns)) throw new Error("Friday returned invalid voice latency records");
+    const turns = data.turns as Array<{ durations_ms?: unknown }>;
+    const latest = turns.at(-1)?.durations_ms;
+    const safeDurations = latest && typeof latest === "object"
+      ? Object.fromEntries(Object.entries(latest).filter((entry): entry is [string, number] =>
+        typeof entry[1] === "number" && Number.isFinite(entry[1])))
+      : null;
+    return {
+      turn_count: turns.length,
+      last_durations_ms: safeDurations && Object.keys(safeDurations).length ? safeDurations : null,
+    };
+  }
+
+  async getRuntimeStatus(signal?: AbortSignal): Promise<FridayRuntimeStatus> {
+    const response = await this.systemResponse("/api/v1/runtime/state", signal);
+    const data = requireRecord(await response.json(), "runtime state") as {
+      state?: unknown;
+      session?: {
+        active?: unknown;
+        turn_count?: unknown;
+        context_characters?: unknown;
+        max_turns?: unknown;
+        max_characters?: unknown;
+      };
+    };
+    if (typeof data.state !== "string" || !isRecord(data.session)
+      || typeof data.session.active !== "boolean"
+      || ![data.session.turn_count, data.session.context_characters, data.session.max_turns, data.session.max_characters]
+        .every((value) => typeof value === "number" && Number.isFinite(value))) {
+      throw new Error("Friday returned invalid runtime state");
+    }
+    const session = data.session ?? {};
+    return {
+      state: data.state,
+      session: {
+        active: session.active as boolean,
+        turn_count: session.turn_count as number,
+        context_characters: session.context_characters as number,
+        max_turns: session.max_turns as number,
+        max_characters: session.max_characters as number,
+      },
+    };
+  }
+
+  async getInteractionStatus(signal?: AbortSignal): Promise<FridayInteractionStatus> {
+    const response = await this.systemResponse("/api/v1/interaction/state", signal);
+    const data = requireRecord(await response.json(), "interaction state");
+    if (typeof data.busy !== "boolean" || !(typeof data.owner === "string" || data.owner === null)) {
+      throw new Error("Friday returned invalid interaction state");
+    }
+    return {
+      busy: data.busy,
+      owner: data.owner,
+    };
+  }
+
+  private async getSystemResource<T>(path: string, signal?: AbortSignal): Promise<T> {
+    const response = await this.systemResponse(path, signal);
+    return response.json() as Promise<T>;
+  }
+
+  private async systemResponse(path: string, signal?: AbortSignal): Promise<Response> {
+    const response = await fetch(`${this.baseUrl}${path}`, { signal });
+    if (!response.ok) throw new Error(`Friday ${path} request failed: ${response.status}`);
+    return response;
   }
 
   async getDesktopActions(signal?: AbortSignal): Promise<FridayDesktopAction[]> {

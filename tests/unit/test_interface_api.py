@@ -35,6 +35,7 @@ from local_ai_assistant.perception import ActiveWindowContext, ScreenCaptureServ
 class FakeStreamingLLM:
     def __init__(self, chunks=None):
         self.chunks = list(chunks or [])
+        self.calls = []
 
     def stream_chat(
         self,
@@ -43,6 +44,7 @@ class FakeStreamingLLM:
         temperature=0.2,
         max_tokens=1024,
     ):
+        self.calls.append({"prompt": prompt, "system_prompt": system_prompt})
         yield from self.chunks
 
 
@@ -253,6 +255,35 @@ def test_runtime_session_and_capability_projection_are_read_only():
     assert capability["key"] == "career_forge"
     assert capability["status"] == "integrated"
     assert capability["limitation"] == "Practice Lab is not installed"
+
+
+def test_capability_api_and_conversation_grounding_share_registry_fields():
+    registry = FridayCapabilityRegistry((
+        FridayCapability(
+            "perception", "Screen perception", CapabilityStatus.IMPLEMENTED,
+            True, True, True, "explicit capture API", "GNOME may deny capture",
+        ),
+    ))
+    runtime = FridayRuntime("capability-consistency")
+    conversation = FridayConversationService(
+        FakeStreamingLLM(["Screen perception is implemented through the explicit capture API."]),
+        runtime,
+        capability_context=registry.conversation_context,
+    )
+    client = TestClient(create_presentation_app(runtime, conversation, capabilities=registry))
+
+    capability = client.get("/api/v1/capabilities").json()["capabilities"][0]
+    answer = "".join(conversation.stream_response("Can Friday capture the screen?"))
+    prompt = conversation.llm.calls[0]["system_prompt"]
+
+    assert capability == {
+        "key": "perception", "title": "Screen perception", "status": "implemented",
+        "configured": True, "permissioned": True, "healthy": True,
+        "owner_route": "explicit capture API", "limitation": "GNOME may deny capture",
+    }
+    assert "Screen perception: implemented; route: explicit capture API; healthy." in prompt
+    assert "Limitation: GNOME may deny capture." in prompt
+    assert "implemented through the explicit capture API" in answer
 
 
 def test_memory_capture_requires_an_explicit_complete_owner_record(tmp_path):

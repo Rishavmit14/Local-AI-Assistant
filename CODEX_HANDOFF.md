@@ -2711,8 +2711,64 @@ clarification was covered by the focused workspace test (5 pass) and a fresh
 frontend lint run. Run `git diff --check` after this documentation update and
 verify the complete final staged scope before publication.
 
-The next dependency identified by the integration matrix is Astra System /
-Capabilities: a truthful typed projection over current capability and health
-routes. History / Recovery and approval/action remain distinct later surfaces.
-Do not begin that dependency before reporting the Phase 6 checkpoint and final
-published recovery SHA.
+At the end of Phase 6, the next dependency was Astra System / Capabilities;
+Phase 7 is qualified in the current recovery section below. The next missing
+surface is History / Recovery. Approval / Action remains distinct and later.
+
+## Current recovery — Astra System / Capabilities Phase 7 owner-qualified
+
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; accepted Phase 6 capability base
+`cbd2246f72e028b7347cdfc6fcb31017abd1db0a`; starting Phase 7 published HEAD
+`5ecad8a7a299b0156fca7dda3a3b9354d62f1180`. The owner has physically
+qualified Phase 7. The capability/documents are being prepared for the next
+capability commit and publication checkpoint; do not start History / Recovery
+or Approval / Action before reporting that checkpoint.
+
+System removes authored/browser-local capability cards and simulated
+diagnostics. `SystemWorkspace` uses typed `FridayRuntimeClient` projections for
+the backend `FridayCapabilityRegistry`, `/health`, voice health/latency,
+runtime/session metadata, interaction ownership, proactive watch state, and
+Perception active-window availability. Registry maturity/configuration/
+permission/health fields are displayed separately; they grant no authority and
+are not conflated with general host/service health. No session text or identity,
+window title/application identity, worker PID, detailed error, local path,
+browser-persisted canonical state, diagnostic simulation, or mutation route is
+exposed. The registry is the same source used by Conversation. Vite proxies
+`/api` and `/health` to its configured API origin.
+
+Owner qualification used candidate API `127.0.0.1:8766` and Vite
+`127.0.0.1:5191`, with `LOCAL_AI_VAR_DIR` set to
+`var/astra-objectives-phase4-qualification`, wake disabled, proactive enabled,
+and gateway disabled. The owner observed 13 canonical registry entries,
+presentation API `ok`, candidate voice disabled with no backend reported,
+empty bounded session state, idle interaction ownership, unavailable active
+window, running proactive poller, and two enabled notify-only watches. The
+owner navigated away/back and reloaded; registry and runtime state reconstructed.
+Production 8765 remained running and was not restarted. Production Pocket/Anna
+state was not changed; the candidate's disabled voice state is not represented
+as production voice state.
+
+Validation for this candidate: four focused System UI tests; 82 frontend tests;
+frontend lint, TypeScript and production builds; 920 Python tests; repository
+verification; and `git diff --check`. The established frontend bundle advisory
+and Starlette/AnyIO deprecation warning remain. An initial plain `pytest`
+invocation lacked the repository root on `sys.path` and failed two compatibility
+wrapper imports; rerunning via the repository verification wrapper passed all
+920 tests. Candidate `GET /health`, `/api/v1/capabilities`,
+`/api/v1/voice/health`, `/api/v1/runtime/state`, `/api/v1/interaction/state`,
+`/api/v1/perception/active-window`, and `/api/v1/proactive/watches` were
+cross-checked. Vite health/API proxy checks passed after adding `/health` to its
+development proxy and keeping the server in a persistent session.
+
+Both qualification tasks remain `awaiting_approval` with null outcome:
+`task_290e6c92cefe4902b62b` and `task_90be0b53d357423885aa`. Career Forge
+remains paused at `se.python=explain`; mission
+`mission_6e616a8b29e4452792b6759693d5b4c7` is complete and review
+`review_d73f412786404f1ca9d9d7ab12fa4b23` remains scheduled for
+`2026-09-29T17:43:38.237311+00:00`. Do not deliver the review early, create
+reinforcement, start `se.engineering`, or mutate learner state. No Memory,
+Research, Objective execution, desktop action, approval, or production voice
+state changed. Protected `/AI/projects/Local-AI-Assistant` retains its existing
+Pocket/Anna changes and was not modified. The next dependency is History /
+Recovery; it has not started.

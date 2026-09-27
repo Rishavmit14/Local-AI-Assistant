@@ -1076,6 +1076,7 @@ class FridayManagedWakeVoice:
                 "last_error_detail": (
                     str(last_error)[:240] if last_error else None
                 ),
+                "speech_output": _speech_output_identity(self.speech_synthesizer),
                 "capture": capture,
                 "workers": {
                     "primary": _managed_worker_health(self.primary),
@@ -1419,6 +1420,29 @@ def build_managed_wake_voice(
 
 
     return managed
+
+
+def _speech_output_identity(resource: object) -> dict[str, str | None]:
+    """Expose only the selected local speech backend and safe voice label."""
+    selected = resource
+    for _ in range(4):
+        inner = getattr(selected, "inner", None)
+        if inner is None or inner is selected:
+            break
+        selected = inner
+
+    backend = {
+        "PocketSpeechSynthesizer": "pocket",
+        "PiperSpeechSynthesizer": "piper",
+    }.get(type(selected).__name__)
+    configured_voice = getattr(getattr(selected, "config", None), "voice", None)
+    voice = (
+        configured_voice.strip().casefold()
+        if backend == "pocket" and isinstance(configured_voice, str)
+        and configured_voice.strip().casefold() == "anna"
+        else None
+    )
+    return {"backend": backend, "voice": voice}
 
 
 def _managed_worker_health(resource: ManagedStartableClosable) -> dict[str, object]:

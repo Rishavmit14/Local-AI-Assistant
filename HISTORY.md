@@ -1413,3 +1413,28 @@ repository verification. The existing large frontend bundle advisory and
 Starlette/AnyIO deprecation warning remain. Capability commit
 `cbd2246f72e028b7347cdfc6fcb31017abd1db0a` was pushed to
 `origin/integration/astra-friday` and fetched as the exact remote branch head.
+
+## 2026-09-27 — Astra System / Capabilities Phase 7 qualified
+
+Replaced Astra's authored System capability cards and simulated diagnostics
+with a typed, read-only projection of Friday's canonical capability registry
+and existing API, voice, runtime, interaction, proactive, and Perception status
+routes. The capability registry remains descriptive and shares its source with
+Conversation grounding. Astra does not claim that maturity, configuration,
+registry health, or a permission flag alone means that a service is currently
+available or authorized to act. Errors and unknown telemetry remain truthful;
+private session/window/process details are omitted. The only System action is
+read-only refresh.
+
+Focused consistency/voice API tests and four System UI tests pass. Physical
+owner qualification on 2026-09-27 showed 13 backend registry entries, API
+health `ok`, isolated candidate voice disabled/backend unreported, active window
+unavailable, and two canonical notify-only watches with worker running. The
+owner confirmed navigation reconstruction and page reload. The isolated
+candidate used `var/astra-objectives-phase4-qualification`; production Friday
+was not restarted. Both qualification tasks remain `awaiting_approval` with
+no outcome. Career Forge, Memory, Research, Objective execution, and
+Pocket/Anna production state were unchanged. Full validation passed: 82
+frontend tests, lint, typecheck/build, 920 Python tests, and repository
+verification. The established bundle advisory and deprecation warning remain.
+The next matrix dependency is History / Recovery; it has not been started.

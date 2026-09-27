@@ -8,6 +8,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': { target: process.env.VITE_FRIDAY_API_ORIGIN ?? 'http://127.0.0.1:8765', changeOrigin: true },
+      '/health': { target: process.env.VITE_FRIDAY_API_ORIGIN ?? 'http://127.0.0.1:8765', changeOrigin: true },
     },
   },
 });

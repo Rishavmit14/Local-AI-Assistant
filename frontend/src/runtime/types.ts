@@ -332,6 +332,72 @@ export interface FridayVisualLabel {
   confidence: number;
 }
 
+export type FridayCapabilityMaturity =
+  | "absent"
+  | "partial"
+  | "implemented"
+  | "integrated"
+  | "usable"
+  | "qualified"
+  | "deferred";
+
+export interface FridayCapability {
+  key: string;
+  title: string;
+  status: FridayCapabilityMaturity;
+  configured: boolean;
+  permissioned: boolean;
+  healthy: boolean | null;
+  owner_route: string;
+  limitation: string | null;
+}
+
+export interface FridayCapabilitiesSnapshot {
+  capabilities: FridayCapability[];
+}
+
+export interface FridayPresentationHealth {
+  status: string;
+  service: string;
+  api_version: string;
+}
+
+export interface FridayVoiceRuntimeHealth {
+  enabled?: boolean;
+  status?: string;
+  capture_thread_alive?: boolean;
+  voice_turn_running?: boolean;
+  recovery_count?: number;
+  last_error_type?: string | null;
+  speech_output?: { backend: "pocket" | "piper" | null; voice: "anna" | null };
+  workers: {
+    primary?: { running: boolean };
+    fallback?: { running: boolean };
+    speech_output?: { running: boolean };
+  };
+}
+
+export interface FridayVoiceLatencySnapshot {
+  turn_count: number;
+  last_durations_ms: Record<string, number> | null;
+}
+
+export interface FridayRuntimeStatus {
+  state: string;
+  session: {
+    active: boolean;
+    turn_count: number;
+    context_characters: number;
+    max_turns: number;
+    max_characters: number;
+  };
+}
+
+export interface FridayInteractionStatus {
+  busy: boolean;
+  owner: string | null;
+}
+
 export interface FridayDesktopAction {
   action_id: string;
   action: "focus_app" | "launch_app" | "open_uri" | "open_file" | "activate_accessible";

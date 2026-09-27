@@ -1114,9 +1114,45 @@ limits are recorded in the product matrix and handoff. Capability commit
 `cbd2246f72e028b7347cdfc6fcb31017abd1db0a` was pushed to
 `origin/integration/astra-friday` and fetched as the exact remote branch head.
 
-The next Astra dependency from the product matrix is System / Capabilities: a
-truthful typed projection over existing capability and health APIs. History /
-Recovery and approval/action remain later distinct surfaces.
+At the end of Phase 6, the next dependency was System / Capabilities; Phase 7
+is qualified below. The next missing surface is History / Recovery. Approval /
+Action remains a later distinct surface.
+
+## Astra Canonical Product Integration — Phase 7: System / Capabilities (**Qualified and published**)
+
+Astra Local intelligence now projects Friday's `FridayCapabilityRegistry` and
+existing read-only service endpoints through the typed runtime client. The
+capability list is the same registry used to ground Conversation. The UI keeps
+integration maturity separate from registry configuration, permission, and
+health fields; those fields are not treated as universal live service probes
+or execution grants. API health states only the presentation API response.
+Voice, latency, bounded runtime/session metadata, interaction ownership,
+proactive watch state, and active-window availability are independently loaded
+from their actual routes. Unknown and failed data remain unknown/errors; no
+fixture fallback, local capability/health persistence, diagnostic simulation,
+restart, permission mutation, approval, or execution control is present. The
+development server proxies both `/api` and `/health` to the configured Friday
+candidate API.
+
+Owner qualification on 2026-09-27 observed all 13 canonical capability rows,
+the presentation API `ok` response, candidate voice disabled with no speech
+backend reported, empty bounded session state, idle interaction state,
+unavailable active-window query, and the live proactive worker with two
+notify-only watches. The owner navigated away and back and reloaded the page;
+the registry and runtime values reconstructed. The isolated API used
+`var/astra-objectives-phase4-qualification`; production Friday on 8765 was not
+restarted. Its existing Pocket/Anna runtime was not changed. The two Astra
+qualification tasks remained `awaiting_approval` with no outcome; Career Forge
+remained paused and unchanged. No Memory, Research, Objective, learner, or
+desktop/action state was mutated.
+
+Validation passed: focused capability/voice API coverage, four focused System
+UI tests, 82 frontend tests, frontend lint, TypeScript and production builds,
+920 Python tests, repository verification, and `git diff --check`. Existing
+Vite bundle-size and Starlette/AnyIO deprecation warnings remain. System /
+Capabilities is qualified; History / Recovery is the next missing Astra owner
+surface identified by the product matrix. Approval / Action remains separate
+and has not started.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 
