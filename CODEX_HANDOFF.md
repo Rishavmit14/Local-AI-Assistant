@@ -2720,10 +2720,12 @@ surface is History / Recovery. Approval / Action remains distinct and later.
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
 `integration/astra-friday`; accepted Phase 6 capability base
 `cbd2246f72e028b7347cdfc6fcb31017abd1db0a`; starting Phase 7 published HEAD
-`5ecad8a7a299b0156fca7dda3a3b9354d62f1180`. The owner has physically
-qualified Phase 7. The capability/documents are being prepared for the next
-capability commit and publication checkpoint; do not start History / Recovery
-or Approval / Action before reporting that checkpoint.
+`5ecad8a7a299b0156fca7dda3a3b9354d62f1180`. Phase 7 capability commit
+`af33620cc277a880c40d60ea238df20b99577d06` was pushed and fetched as the exact
+`origin/integration/astra-friday` head. This recovery update is the following
+documentation-only checkpoint; the final published recovery SHA is reported
+after its push. The owner has physically qualified Phase 7. Do not start
+History / Recovery or Approval / Action before reporting the Phase 7 checkpoint.
 
 System removes authored/browser-local capability cards and simulated
 diagnostics. `SystemWorkspace` uses typed `FridayRuntimeClient` projections for
