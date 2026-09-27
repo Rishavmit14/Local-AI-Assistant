@@ -22,6 +22,31 @@ def test_memory_provenance_supersession_and_recall(tmp_path):
     assert m.recall("owner") == (new,)
 
 
+def test_owner_listing_exposes_lifecycle_without_changing_active_retrieval(tmp_path):
+    memory = FridayMemoryService(tmp_path / "memory.sqlite3")
+    original = memory.remember(
+        kind=MemoryKind.FACT, subject="project", content="old value", provenance="owner", confidence=1,
+    )
+    current = memory.remember(
+        kind=MemoryKind.FACT, subject="project", content="new value", provenance="owner", confidence=1,
+        supersedes=original.memory_id,
+    )
+    memory.mark_conflicted(current.memory_id)
+    forgotten = memory.remember(
+        kind=MemoryKind.PREFERENCE, subject="display", content="quiet", provenance="owner", confidence=1,
+    )
+    memory.forget(forgotten.memory_id)
+
+    listed = memory.list_records()
+    assert {item.memory_id for item in listed} == {forgotten.memory_id, current.memory_id, original.memory_id}
+    assert memory.list_records(state=MemoryState.SUPERSEDED) == (memory.get(original.memory_id),)
+    assert memory.list_records(state=MemoryState.CONFLICTED) == (memory.get(current.memory_id),)
+    assert memory.list_records(state=MemoryState.DELETED) == (memory.get(forgotten.memory_id),)
+    assert memory.list_records(query="new value") == (memory.get(current.memory_id),)
+    assert memory.list_records(limit=1, offset=1) == listed[1:2]
+    assert not memory.recall("project")
+
+
 def test_conflict_delete_and_expiry_are_not_recalled(tmp_path):
     m = FridayMemoryService(tmp_path / "m.sqlite3")
     fact = m.remember(

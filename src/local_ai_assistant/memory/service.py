@@ -196,6 +196,38 @@ class FridayMemoryService:
             raise KeyError(memory_id)
         return self._record(row)
 
+    def list_records(
+        self,
+        *,
+        state: MemoryState | None = None,
+        query: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[MemoryRecord, ...]:
+        """List durable records for owner inspection without changing retrieval semantics."""
+        self._limit(limit)
+        if offset < 0:
+            raise ValueError("memory offset must not be negative")
+        if query is not None:
+            query = _normalize(query, "search query")
+        self.enforce_retention()
+        filters: list[str] = []
+        values: list[object] = []
+        if state is not None:
+            filters.append("state=?")
+            values.append(state)
+        if query:
+            filters.append("(subject LIKE ? COLLATE NOCASE OR content LIKE ? COLLATE NOCASE)")
+            values.extend((f"%{query}%", f"%{query}%"))
+        where = f"WHERE {' AND '.join(filters)} " if filters else ""
+        with self._db() as db:
+            rows = db.execute(
+                f"SELECT * FROM memories {where}"
+                "ORDER BY updated_at DESC, memory_id DESC LIMIT ? OFFSET ?",
+                (*values, limit, offset),
+            ).fetchall()
+        return tuple(self._record(row) for row in rows)
+
     def recall(self, subject: str, limit: int = 20) -> tuple[MemoryRecord, ...]:
         subject = _normalize(subject, "subject")
         self._limit(limit)

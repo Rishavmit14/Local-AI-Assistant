@@ -339,6 +339,19 @@ service state remained unchanged. Phase 1 qualifies only this text/session
 path; Astra voice, durable thread history, and other prototype or missing
 surfaces remain outside this accepted boundary.
 
+Astra Memory now projects only Friday's canonical durable-memory records through
+the typed presentation client. Owner remember, correction/supersession,
+conflict-resolution, and forget actions are explicit and pass through governed
+API routes into the existing `FridayMemoryService`; forgetting preserves the
+service's tombstone lifecycle. SQLite remains the persistence authority.
+Browser state is limited to transient filters, selection, and form drafts. The
+workspace distinguishes active, superseded, conflicted, and deleted records,
+and surfaces service failure without demo fallback. Active conversation turns
+remain a separate runtime context and never become durable records implicitly.
+Physical Astra qualification covered save, reload, conversational recall,
+correction, service restart/recovery, confirmed forget, and verified absence
+from active recall. No memory database or authority was added to the frontend.
+
 Stage 15 is an owner-initiated, read-only perception boundary. Captures remain
 under configured `var/perception` state; the presentation API exposes bounded
 metadata, explicit local OCR/UI-state results, and at most ten labels from an

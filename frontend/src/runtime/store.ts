@@ -153,10 +153,27 @@ export class FridayRuntimeStore {
   }
 
   private applySnapshot(snapshot: FridayRuntimeSnapshot): void {
+    // Event sequences are scoped to a runtime session. If Friday has restarted
+    // while Astra stayed open, carrying the old cursor/history forward causes
+    // every event from the new session to be discarded as stale.
+    const sessionChanged =
+      this.state.sessionId !== null &&
+      this.state.sessionId !== snapshot.session_id;
+
     this.patch({
       sessionId: snapshot.session_id,
       sessionActive: snapshot.session?.active ?? false,
       runtimeState: snapshot.state,
+      ...(sessionChanged
+        ? {
+            cursor: 0,
+            events: [],
+            conversation: [],
+            assistantText: "",
+            error: null,
+            voiceSignal: "none" as const,
+          }
+        : {}),
     });
   }
 

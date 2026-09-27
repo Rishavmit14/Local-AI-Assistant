@@ -228,6 +228,52 @@ def test_memory_capture_requires_an_explicit_complete_owner_record(tmp_path):
     assert unavailable.get("/api/v1/memory/recall", params={"subject": "owner"}).status_code == 404
 
 
+def test_memory_owner_api_lists_supersedes_resolves_and_forgets_canonically(tmp_path):
+    runtime = FridayRuntime("memory-owner-api")
+    memory = FridayMemoryService(tmp_path / "memory.sqlite3")
+    client = TestClient(
+        create_presentation_app(
+            runtime,
+            FridayConversationService(FakeStreamingLLM(["Remembered."]), runtime, memory_context=lambda _query: ""),
+            memory=memory,
+        )
+    )
+    saved = client.post("/api/v1/memory/remember", json={
+        "kind": "fact", "subject": "ORBIT-TEST", "content": "first value",
+        "provenance": "owner_astra_memory_ui", "confidence": 1,
+    })
+    assert saved.status_code == 200
+    original_id = saved.json()["memory_id"]
+    listed = client.get("/api/v1/memory/records", params={"query": "orbit-test"})
+    assert listed.status_code == 200
+    assert [item["memory_id"] for item in listed.json()] == [original_id]
+
+    corrected = client.post("/api/v1/memory/remember", json={
+        "kind": "fact", "subject": "ORBIT-TEST", "content": "corrected value",
+        "provenance": "owner_astra_memory_ui", "confidence": 1, "supersedes": original_id,
+    }).json()
+    assert corrected["state"] == "active"
+    assert corrected["supersedes"] == original_id
+    assert client.get("/api/v1/memory/records", params={"state": "superseded"}).json()[0]["memory_id"] == original_id
+    assert client.post(f"/api/v1/memory/{corrected['memory_id']}/conflict", json={}).status_code == 400
+    conflict = client.post(
+        f"/api/v1/memory/{corrected['memory_id']}/conflict", json={"owner_confirmed": True}
+    ).json()
+    assert conflict["state"] == "conflicted"
+    assert client.get("/api/v1/memory/recall", params={"subject": "ORBIT-TEST"}).json() == []
+    resolved = client.post(
+        f"/api/v1/memory/{corrected['memory_id']}/resolve-conflict",
+        json={"owner_confirmed": True, "keep": True},
+    ).json()
+    assert resolved["state"] == "active"
+    assert client.post(f"/api/v1/memory/{corrected['memory_id']}/forget", json={}).status_code == 400
+    forgotten = client.post(
+        f"/api/v1/memory/{corrected['memory_id']}/forget", json={"owner_confirmed": True}
+    ).json()
+    assert forgotten["state"] == "deleted"
+    assert client.get("/api/v1/memory/records", params={"state": "deleted"}).json()[0]["memory_id"] == corrected["memory_id"]
+
+
 def test_desktop_actions_require_explicit_approval_before_execution(tmp_path):
     calls = []
     control = DesktopControlService(
@@ -1293,6 +1339,10 @@ def test_presentation_api_has_no_unbounded_execution_routes():
             "/api/v1/career-forge/practice-lab/code-question/answer",
         "/api/v1/memory/recall",
         "/api/v1/memory/remember",
+        "/api/v1/memory/records",
+        "/api/v1/memory/{memory_id}/forget",
+        "/api/v1/memory/{memory_id}/conflict",
+        "/api/v1/memory/{memory_id}/resolve-conflict",
         "/api/v1/runtime/events",
         "/api/v1/runtime/events/stream",
         "/api/v1/conversation/stream",

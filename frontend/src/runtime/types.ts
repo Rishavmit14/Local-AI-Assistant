@@ -96,6 +96,39 @@ export interface ConversationRequest {
   max_tokens?: number;
 }
 
+export type FridayMemoryKind = "episodic" | "preference" | "fact" | "working";
+export type FridayMemoryState = "active" | "superseded" | "conflicted" | "deleted" | "expired";
+
+export interface FridayMemoryRecord {
+  memory_id: string;
+  kind: FridayMemoryKind;
+  subject: string;
+  content: string;
+  provenance: string;
+  confidence: number;
+  created_at: string;
+  updated_at: string;
+  state: FridayMemoryState;
+  supersedes: string | null;
+  expires_at: string | null;
+}
+
+export interface FridayMemoryRecordQuery {
+  state?: FridayMemoryState;
+  query?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface FridayMemoryCreateRequest {
+  kind: FridayMemoryKind;
+  subject: string;
+  content: string;
+  provenance: string;
+  confidence: number;
+  supersedes?: string;
+}
+
 export interface CareerForgeCompetency {
   competency: {
     competency_id: string;

@@ -15,6 +15,9 @@ import type {
   FridayDesktopAction,
   FridayObjective,
   FridayPlanReview,
+  FridayMemoryCreateRequest,
+  FridayMemoryRecord,
+  FridayMemoryRecordQuery,
 } from "./types";
 
 export class FridayRuntimeClient {
@@ -57,6 +60,51 @@ export class FridayRuntimeClient {
     }
 
     return response.json() as Promise<FridayRuntimeEvent[]>;
+  }
+
+  async getMemoryRecords(query: FridayMemoryRecordQuery = {}, signal?: AbortSignal): Promise<FridayMemoryRecord[]> {
+    const params = new URLSearchParams();
+    if (query.state) params.set("state", query.state);
+    if (query.query?.trim()) params.set("query", query.query.trim());
+    if (query.limit !== undefined) params.set("limit", String(query.limit));
+    if (query.offset !== undefined) params.set("offset", String(query.offset));
+    const suffix = params.size ? `?${params}` : "";
+    const response = await fetch(`${this.baseUrl}/api/v1/memory/records${suffix}`, { signal });
+    if (!response.ok) throw new Error(`memory records request failed: ${response.status}`);
+    return response.json() as Promise<FridayMemoryRecord[]>;
+  }
+
+  async rememberMemory(record: FridayMemoryCreateRequest): Promise<FridayMemoryRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/memory/remember`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(record),
+    });
+    if (!response.ok) throw new Error(`memory remember request failed: ${response.status}`);
+    return response.json() as Promise<FridayMemoryRecord>;
+  }
+
+  async forgetMemory(memoryId: string): Promise<FridayMemoryRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/memory/${encodeURIComponent(memoryId)}/forget`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ owner_confirmed: true }),
+    });
+    if (!response.ok) throw new Error(`memory forget request failed: ${response.status}`);
+    return response.json() as Promise<FridayMemoryRecord>;
+  }
+
+  async markMemoryConflicted(memoryId: string): Promise<FridayMemoryRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/memory/${encodeURIComponent(memoryId)}/conflict`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ owner_confirmed: true }),
+    });
+    if (!response.ok) throw new Error(`memory conflict request failed: ${response.status}`);
+    return response.json() as Promise<FridayMemoryRecord>;
+  }
+
+  async resolveMemoryConflict(memoryId: string, keep: boolean): Promise<FridayMemoryRecord> {
+    const response = await fetch(`${this.baseUrl}/api/v1/memory/${encodeURIComponent(memoryId)}/resolve-conflict`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ owner_confirmed: true, keep }),
+    });
+    if (!response.ok) throw new Error(`memory conflict resolution failed: ${response.status}`);
+    return response.json() as Promise<FridayMemoryRecord>;
   }
 
   async getCareerJourney(signal?: AbortSignal): Promise<CareerForgeJourney> {

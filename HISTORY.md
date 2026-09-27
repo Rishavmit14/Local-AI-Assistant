@@ -1286,3 +1286,18 @@ remained completed and the scheduled review remained due at
 `2026-09-29T17:43:38.237311+00:00`. Pocket/Anna service and worker state remained
 unchanged. This qualifies only Astra text conversation; other prototype/missing
 surfaces and durable thread history remain outside scope.
+
+## 2026-09-27 — Astra Canonical Product Integration Phase 2: Memory qualified
+
+Replaced Astra Memory's seeded browser-local records with a typed projection of
+Friday's governed `FridayMemoryService` and canonical SQLite. The owner UI now
+supports explicit save, review/search, correction through supersession,
+conflict-resolution, and confirmed forget through canonical tombstones, with
+truthful lifecycle/error states. Real Astra qualification proved persistence
+across navigation and service restart, natural conversation recall, correction
+and supersession, explicit deletion, and absence from active recall. The
+qualification exposed a session-restart event cursor defect; it was fixed and
+covered by a store regression before the final read-only recall step passed.
+Conversation context stayed separate from durable memory. Career Forge learner
+state and Pocket/Anna production voice behavior were not changed. The exact
+accepted recovery commit and validation are recorded in `CODEX_HANDOFF.md`.

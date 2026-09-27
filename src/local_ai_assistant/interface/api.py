@@ -36,7 +36,7 @@ from local_ai_assistant.gateway.models import GatewayScope
 from local_ai_assistant.gateway.publication import GitHubPublicationService
 from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.isolation.errors import SandboxUnavailableError
-from local_ai_assistant.memory import FridayMemoryService, MemoryKind
+from local_ai_assistant.memory import FridayMemoryService, MemoryKind, MemoryState
 from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
 from local_ai_assistant.proactive import ProactiveEventEngine
@@ -1208,6 +1208,24 @@ def create_presentation_app(
             finally:
                 lease.release()
 
+    @app.get("/api/v1/memory/records")
+    def memory_records(
+        state: str | None = None,
+        query: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ):
+        try:
+            memory_state = MemoryState(state) if state is not None else None
+            return [
+                asdict(item)
+                for item in owner_memory().list_records(
+                    state=memory_state, query=query, limit=limit, offset=offset
+                )
+            ]
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.get("/api/v1/memory/recall")
     def memory_recall(subject: str, limit: int = 20):
         try:
@@ -1250,6 +1268,56 @@ def create_presentation_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return asdict(record)
+
+    @app.post("/api/v1/memory/{memory_id}/forget")
+    async def memory_forget(memory_id: str, request: Request):
+        """Tombstone a record only after a typed owner confirmation."""
+        try:
+            body = await request.json()
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail="malformed JSON request") from exc
+        if not isinstance(body, dict) or body.get("owner_confirmed") is not True:
+            raise HTTPException(status_code=400, detail="explicit owner confirmation is required")
+        try:
+            owner_memory().forget(memory_id)
+            return asdict(owner_memory().get(memory_id))
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="memory record not found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/memory/{memory_id}/conflict")
+    async def memory_mark_conflicted(memory_id: str, request: Request):
+        """Exclude one active record from retrieval after explicit owner review."""
+        try:
+            body = await request.json()
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail="malformed JSON request") from exc
+        if not isinstance(body, dict) or body.get("owner_confirmed") is not True:
+            raise HTTPException(status_code=400, detail="explicit owner confirmation is required")
+        try:
+            owner_memory().mark_conflicted(memory_id)
+            return asdict(owner_memory().get(memory_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/memory/{memory_id}/resolve-conflict")
+    async def memory_resolve_conflict(memory_id: str, request: Request):
+        """Apply the canonical keep-active or discard-as-deleted conflict policy."""
+        try:
+            body = await request.json()
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail="malformed JSON request") from exc
+        if (
+            not isinstance(body, dict)
+            or body.get("owner_confirmed") is not True
+            or type(body.get("keep")) is not bool
+        ):
+            raise HTTPException(status_code=400, detail="explicit owner conflict resolution is required")
+        try:
+            return asdict(owner_memory().resolve_conflict(memory_id, keep=body["keep"]))
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/api/v1/runtime/events")
     def runtime_events(cursor: int = 0, limit: int = 100):

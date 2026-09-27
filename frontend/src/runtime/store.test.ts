@@ -225,6 +225,40 @@ describe("FridayRuntimeStore", () => {
     expect(store.getSnapshot().assistantText).toBe("Quite a lot.");
   });
 
+  it("resets session-scoped event cursor and transcript after a runtime restart", async () => {
+    const client = new FakeRuntimeClient();
+    const store = new FridayRuntimeStore(client as never);
+
+    client.replay = [
+      event(1, { event_type: "conversation.user_text", text: "Old session" }),
+      event(2, {
+        event_type: "conversation.assistant.completed",
+        text: "Old response",
+      }),
+    ];
+    await store.start();
+    expect(store.getSnapshot().cursor).toBe(2);
+
+    client.snapshot = {
+      session_id: "session-after-restart",
+      state: "idle",
+    };
+    client.replay = [
+      event(1, {
+        session_id: "session-after-restart",
+        event_type: "conversation.user_text",
+        text: "What do you remember about Astra memory qualification?",
+      }),
+    ];
+    await store.start();
+
+    expect(store.getSnapshot().sessionId).toBe("session-after-restart");
+    expect(store.getSnapshot().cursor).toBe(1);
+    expect(store.getSnapshot().conversation.map(({ text }) => text)).toEqual([
+      "What do you remember about Astra memory qualification?",
+    ]);
+  });
+
   it("updates the active assistant history message while streaming", async () => {
     const client = new FakeRuntimeClient();
     const store = new FridayRuntimeStore(

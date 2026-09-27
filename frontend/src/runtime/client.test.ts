@@ -29,6 +29,53 @@ describe("FridayRuntimeClient canonical conversation boundary", () => {
   });
 });
 
+describe("FridayRuntimeClient governed memory boundary", () => {
+  const memory = {
+    memory_id: "mem-test", kind: "fact", subject: "temporary qualification marker",
+    content: "A harmless test value", provenance: "owner_astra_memory_ui", confidence: 1,
+    created_at: "2026-09-27T10:00:00+00:00", updated_at: "2026-09-27T10:00:00+00:00",
+    state: "active", supersedes: null, expires_at: null,
+  };
+
+  it("lists canonical memory through the typed presentation endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([memory]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new FridayRuntimeClient().getMemoryRecords({ state: "active", query: "temporary marker", limit: 50, offset: 0 }))
+      .resolves.toMatchObject([{ memory_id: "mem-test", provenance: "owner_astra_memory_ui" }]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/memory/records?state=active&query=temporary+marker&limit=50&offset=0", {},
+    );
+  });
+
+  it("routes explicit remember and lifecycle actions through governed APIs", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(memory), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...memory, state: "conflicted" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...memory, state: "active" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...memory, state: "deleted" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+
+    await client.rememberMemory({ kind: "fact", subject: memory.subject, content: memory.content, provenance: memory.provenance, confidence: 1 });
+    await client.markMemoryConflicted("mem test");
+    await client.resolveMemoryConflict("mem-test", true);
+    await client.forgetMemory("mem-test");
+
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method, init?.body])).toEqual([
+      ["/api/v1/memory/remember", "POST", JSON.stringify({ kind: "fact", subject: memory.subject, content: memory.content, provenance: memory.provenance, confidence: 1 })],
+      ["/api/v1/memory/mem%20test/conflict", "POST", JSON.stringify({ owner_confirmed: true })],
+      ["/api/v1/memory/mem-test/resolve-conflict", "POST", JSON.stringify({ owner_confirmed: true, keep: true })],
+      ["/api/v1/memory/mem-test/forget", "POST", JSON.stringify({ owner_confirmed: true })],
+    ]);
+  });
+
+  it("surfaces a failed memory request without synthesizing records", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })));
+    await expect(new FridayRuntimeClient().getMemoryRecords()).rejects.toThrow("memory records request failed: 503");
+  });
+});
+
 describe("FridayRuntimeClient Career Forge boundary", () => {
   it("requests an objective plan only for a configured repository ID", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ objective: { objective_id: "o1" } }), { status: 200 }));
