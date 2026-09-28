@@ -17,11 +17,13 @@ bootstrap instructions describe completed work; use current recovery refs and
 ## Current recovery handoff — 2026-09-28 — Phase 16 row 56 qualification
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
-`integration/astra-friday`, baseline HEAD
-`a09fb37f205961e7237f7fc0fd632f2dd3ff0203`; Phase 15B commit
-`b03da82f1a37510971f0f84a19a2176d009584db` is an ancestor. The Phase 16 capability is qualified on this branch. Its capability commit
-and final handoff recovery commit are recorded below after remote verification.
-No rows 57–60 have started.
+`integration/astra-friday`, Phase 16 capability commit
+`870aafab8d1bf851d3090c9419579a43afa07f02`, descended from Phase 15B
+`b03da82f1a37510971f0f84a19a2176d009584db`. The capability commit is pushed
+and currently verified at both `origin/integration/astra-friday` and
+`origin/main`. This handoff-only recovery commit must now be pushed to both refs,
+fetched, and verified at the same SHA before closing. No rows 57–60 have
+started.
 
 Row 56 adds one typed, exact-task, read-only `TaskRecoveryProjectionService`
 over canonical TaskHistory, claim leases, rollback ledger, isolation metadata,
@@ -59,11 +61,13 @@ access or mutate it.
 Protected production checkout remains `/AI/projects/Local-AI-Assistant` on
 `stage-22/product-integration` at
 `e43896623978e86b7bae6502b380462b455626be` with its pre-existing Pocket/Anna
-changes. Production API 8765 was not restarted; its read-only health check returned 200.
-Protected task sentinels and candidate desktop, proactive, research, preference,
-and Career Forge stores were inspected read-only after qualification. Phase 15B row 55 remains bounded authenticated
-isolated-task checkpoint rollback. The next dependency after Phase 16 is the
-actual current matrix row 57, Model replaceability; do not start it here.
+changes. Production API 8765 was not restarted; its read-only health check
+returned 200. Protected task sentinels and candidate desktop, proactive,
+research, preference, and Career Forge stores were inspected read-only after
+qualification. Phase 15B row 55 remains bounded authenticated isolated-task
+checkpoint rollback. The integration worktree must be clean after the
+handoff-only commit and both fetched refs must match it. The next dependency is
+actual current matrix row 57, Model replaceability; do not start it in this task.
 
 ## Previous recovery handoff — 2026-09-28 — Phase 15A
 
