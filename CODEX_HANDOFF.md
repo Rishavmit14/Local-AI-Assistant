@@ -19,11 +19,12 @@ bootstrap instructions describe completed work; use current recovery refs and
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
 `integration/astra-friday`. Phase 16 recovery `1a3d708abb97d9912da391999c1283d8b91ef3ad`
 was clean and fetched at both `origin/integration/astra-friday` and
-`origin/main` before Phase 17. Phase 17 implementation and acceptance are
-complete locally; publish the capability commit, fast-forward/push `main`, then
-write/publish the final handoff-only recovery commit and verify fetched refs and
-clean status. Record exact SHAs here after those operations. Do not start rows
-58–60 in this task.
+`origin/main` before Phase 17. Capability commit
+`056e463e8f6a68f84512c40130c3d57636bbd137` is pushed to both
+`origin/integration/astra-friday` and `origin/main`. This handoff update is the
+final recovery checkpoint; fetch and verify that the branch and `main` point to
+the final handoff commit and that the integration worktree is clean. Do not
+start rows 58–60 in this task.
 
 Row 57 qualifies bounded configuration-driven local model replacement through
 the single `LocalLLM` boundary, without changing ADR 0014's one-general-purpose-
