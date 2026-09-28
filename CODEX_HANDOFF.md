@@ -2920,13 +2920,17 @@ commit is a documentation-only descendant of capability commit
 is proactive watches/notifications (row 50, PARTIAL); do not start it in this
 checkpoint.
 
-## Current recovery — Astra Phase 11 Proactive Watches / Notifications (2026-09-28)
+## Current recovery — Astra Phase 11 Proactive Watches / Notifications (Qualified and published — 2026-09-28)
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
-`integration/astra-friday`, parent recovery `b4302d32907cd0fa2a6107e1ab33b1ef9e92b0d8`.
-Phase 11 implementation, documentation, and qualification are complete; the
-accepted commit and remote verification are being recorded at the publication
-boundary. The UI closes two truthfulness gaps: notification lists keep
+`integration/astra-friday`; Phase 10 recovery was
+`b4302d32907cd0fa2a6107e1ab33b1ef9e92b0d8`. Phase 11 capability commit
+`05a33c4c16709b82a3d4917286625d855c2464f1` contains the implementation,
+qualification, and canonical docs. It was pushed to
+`origin/integration/astra-friday`, fast-forwarded to `main`, and both refs were
+fetched and verified at that exact SHA. This handoff-only recovery update is a
+documentation descendant of the accepted capability. The UI closes two
+truthfulness gaps: notification lists keep
 `event_occurred_at` separate from `created_at` and show unavailable event time
 as such; watch state does not equate observer attachment with healthy
 observation. The schedule-source watch is identified as a due-item observer,
