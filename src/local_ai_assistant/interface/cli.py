@@ -362,6 +362,7 @@ def build_presentation_components(
         capability_context=capabilities.conversation_context,
         cognition=cognition,
         capability_router=capability_router,
+        research_llm=roles.client(Role.REASONING),
     )
 
     interactions = FridayInteractionCoordinator()

@@ -2984,3 +2984,41 @@ advisory and Starlette/AnyIO deprecation. Phase 10 progress and History
 regressions passed in the full frontend/repository suites. Owner-safe watch
 authoring, calendar scheduling, and all proactive action authority remain
 intentionally excluded; no next phase is started.
+
+## Current recovery — Astra Research / Self-Learning Phase 12
+
+Phase 12 implements an explicit Astra research-answer route backed by bounded,
+server-loaded canonical evidence and Friday's existing local Qwen
+`Role.REASONING` client. It leaves deterministic evidence assembly semantics
+unchanged, skips inference without evidence, treats source text as untrusted,
+and returns clearly labeled unverified interpretation plus canonical source
+identity/hash metadata. No citations are validated. This route bypasses normal
+conversation history, memory, learning, web fetching, action tools, and durable
+research writes.
+
+Candidate UI qualification used the existing isolated root
+`var/astra-objectives-phase4-qualification`, API `127.0.0.1:8766`, and Astra UI
+`127.0.0.1:5191`. Registered the synthetic fixture source
+`c65d4b2fae2a4bb4aeb0c5ec164c8f22` (SHA-256
+`9513464ea182c55ebd3404086c5867b0098faaf7aab7767f521d5b1633bc0dcb`) through
+the owner source-registration UI; one native UI answer correctly returned
+`ORBIT-7319` and ignored the embedded instruction-like source text. Reload
+reconstructed the result and source metadata. The no-evidence API check
+returned `no_local_evidence` without inference. Two notify-only watches remain
+enabled with the worker stopped; the pending approval sentinel remains
+`awaiting_approval` with null outcome. Protected production checkout
+`/AI/projects/Local-AI-Assistant` remains at
+`e43896623978e86b7bae6502b380462b455626be` with its pre-existing Pocket/Piper
+working changes untouched; production API 8765 was not restarted. Local Qwen
+8080 remained available. Focused backend research/API tests passed; focused
+frontend tests passed (32). Full frontend suite passed (94), ESLint and
+TypeScript passed, and the production build passed with the existing large
+chunk warning. `scripts/maintenance/verify-repository.sh` passed: 933 Python
+tests, CLI checks, package integrity, and tracked-artifact checks; one existing
+Starlette/AnyIO deprecation warning remains. `git diff --check` passed after a
+test-fixture whitespace correction. Matrix row 51 now reflects bounded Astra
+qualification while retaining the broader research/self-learning gaps. At
+this handoff edit, commit/push/remote verification remain pending. Current
+branch is `integration/astra-friday`, based on Phase 11 checkpoint
+`05a33c4c16709b82a3d4917286625d855c2464f1`. Do not start a subsequent phase;
+finish Phase 12 publication and stop at that boundary.

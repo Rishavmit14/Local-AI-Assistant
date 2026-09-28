@@ -156,6 +156,20 @@ export interface FridayResearchSynthesis {
   synthesis: string;
 }
 
+export interface FridayResearchAnswer {
+  mode: "generated_from_local_evidence" | "no_local_evidence";
+  domain: string;
+  question: string;
+  question_applied: boolean;
+  interpretation_label?: string;
+  answer: string | null;
+  message?: string;
+  sources: Array<Omit<FridayResearchSource, "content">>;
+  evidence_truncated: boolean;
+  answer_truncated: boolean;
+  citation_validation?: "not_provided";
+}
+
 export interface CareerForgeCompetency {
   competency: {
     competency_id: string;

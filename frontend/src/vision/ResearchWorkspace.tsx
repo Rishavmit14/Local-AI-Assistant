@@ -3,16 +3,17 @@ import type { FormEvent } from "react";
 import { FileText, LoaderCircle, Plus, RefreshCw, Search, Sparkles } from "lucide-react";
 
 import { FridayRuntimeClient } from "../runtime/client";
-import type { FridayResearchSource, FridayResearchSourceRequest, FridayResearchSynthesis } from "../runtime/types";
+import type { FridayResearchAnswer, FridayResearchSource, FridayResearchSourceRequest, FridayResearchSynthesis } from "../runtime/types";
 import type { WorkspaceProps } from "./types";
 import { DetailRow, SectionHeader, Status, Tabs } from "./ui";
 
 const researchClient = new FridayRuntimeClient();
-type ResearchTab = "sources" | "synthesis" | "knowledge";
+type ResearchTab = "sources" | "synthesis" | "answer" | "knowledge";
 
 const tabs: readonly { id: ResearchTab; label: string }[] = [
   { id: "sources", label: "Registered sources" },
   { id: "synthesis", label: "Evidence synthesis" },
+  { id: "answer", label: "Ask Friday from evidence" },
   { id: "knowledge", label: "Knowledge" },
 ];
 
@@ -31,6 +32,7 @@ export function ResearchWorkspace({ notify }: WorkspaceProps) {
   const [domain, setDomain] = useState("");
   const [question, setQuestion] = useState("");
   const [evidence, setEvidence] = useState<FridayResearchSynthesis | null>(null);
+  const [researchAnswer, setResearchAnswer] = useState<FridayResearchAnswer | null>(null);
   const [draft, setDraft] = useState<FridayResearchSourceRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -115,6 +117,21 @@ export function ResearchWorkspace({ notify }: WorkspaceProps) {
     }
   }
 
+  async function askUsingEvidence(event: FormEvent) {
+    event.preventDefault();
+    if (!domain.trim() || !question.trim()) return;
+    setBusy(true);
+    setError(null);
+    setResearchAnswer(null);
+    try {
+      setResearchAnswer(await researchClient.askResearch(domain.trim(), question.trim()));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "local research answer request failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="op-research-canonical">
       <SectionHeader
@@ -132,7 +149,7 @@ export function ResearchWorkspace({ notify }: WorkspaceProps) {
 
       <div className="op-toolbar op-research-toolbar">
         <Tabs label="Research workspace" items={tabs} value={tab} onChange={setTab} />
-        <label className="op-search"><Search size={16} /><input aria-label="Filter research domain" value={domain} onChange={(event) => setDomain(event.target.value)} placeholder="Filter by exact domain…" /></label>
+        <label className="op-search"><Search size={16} /><input aria-label="Filter research domain" value={domain} onChange={(event) => { setDomain(event.target.value); setResearchAnswer(null); }} placeholder="Filter by exact domain…" /></label>
         {!loading && <Status tone="blue">{sources.length} returned · maximum 1000</Status>}
       </div>
 
@@ -200,6 +217,35 @@ export function ResearchWorkspace({ notify }: WorkspaceProps) {
               <p>Question applied to retrieval: <strong>{evidence.question_applied ? "yes" : "no · current service behavior"}</strong></p>
               <pre className="op-research-evidence">{evidence.synthesis}</pre>
             </> : <div className="op-empty"><Sparkles size={25} /><h3>{sources.length ? "No evidence assembled yet" : "Evidence is unavailable"}</h3><p>Run the canonical route to retrieve Friday's current domain evidence. Generated synthesis is not available from this service.</p></div>}
+          </article>
+        </div>
+      )}
+
+      {tab === "answer" && (
+        <div className="op-research-synthesis op-research-answer">
+          <form className="op-form" onSubmit={(event) => void askUsingEvidence(event)}>
+            <div className="op-inspector-heading"><span className="eyebrow">EXPLICIT LOCAL RESEARCH CONTEXT</span><Sparkles size={17} /></div>
+            <label className="op-field"><span>Canonical research domain</span><input required maxLength={128} value={domain} onChange={(event) => { setDomain(event.target.value); setResearchAnswer(null); }} placeholder="Choose an exact registered domain" /></label>
+            <label className="op-field"><span>Question for Friday</span><textarea required maxLength={4000} rows={4} value={question} onChange={(event) => { setQuestion(event.target.value); setResearchAnswer(null); }} placeholder="Ask a question about this local evidence…" /></label>
+            <div className="op-policy-note"><Sparkles size={18} /><p>Friday loads canonical source records for this domain and asks the local model to interpret them. Source text is untrusted reference data. No web search, external model, memory write, or learner update is used.</p></div>
+            <button className="btn btn-primary" type="submit" disabled={busy || loading || !domain.trim() || !question.trim()}><Sparkles size={15} />{busy ? "Asking Friday" : "Ask Friday using local evidence"}</button>
+          </form>
+          <article className="op-research-synthesis-result" aria-live="polite">
+            {researchAnswer?.mode === "no_local_evidence" ? <div className="op-empty"><Search size={25} /><h3>No local evidence available</h3><p>{researchAnswer.message}</p></div> : researchAnswer?.mode === "generated_from_local_evidence" ? <>
+              <div className="op-inspector-heading"><span className="eyebrow">MODEL-GENERATED INTERPRETATION FROM LOCAL EVIDENCE</span><Status tone="blue">Generated · local evidence</Status></div>
+              <p>Question applied: <strong>{researchAnswer.question_applied ? "yes" : "no"}</strong></p>
+              {researchAnswer.evidence_truncated && <p role="note">The canonical source context was bounded; not all matching source content was supplied.</p>}
+              <div className="op-research-answer-text">{researchAnswer.answer}</div>
+              {researchAnswer.answer_truncated && <p role="note">The generated answer reached Friday's configured response bound.</p>}
+              <p className="op-research-answer-label">{researchAnswer.interpretation_label} Citation-level validation is not provided.</p>
+              <h3>Sources supplied</h3>
+              <ul className="op-research-answer-sources">{researchAnswer.sources.map((source) => <li key={source.source_id}>
+                <strong>{source.title}</strong>
+                <small>{source.domain} · {source.provenance} · version {source.version}</small>
+                <small>Source ID · {source.source_id}</small>
+                <small>SHA-256 · {source.content_hash}</small>
+              </li>)}</ul>
+            </> : <div className="op-empty"><Sparkles size={25} /><h3>Ask Friday from registered evidence</h3><p>This is an explicit local research question. Friday will load matching canonical sources; normal Conversation does not silently receive them.</p></div>}
           </article>
         </div>
       )}

@@ -98,6 +98,11 @@ class ResearchSourceRequest(BaseModel):
     version: str = Field(default="1", min_length=1)
 
 
+class ResearchAnswerRequest(BaseModel):
+    domain: str = Field(min_length=1, max_length=128)
+    question: str = Field(min_length=1, max_length=4_000)
+
+
 class _CancellableInteractionStream:
     """Keep ownership until an in-flight synchronous iterator reaches a safe stop."""
 
@@ -381,6 +386,65 @@ def create_presentation_app(
             "question_applied": False,
             "synthesis": service.synthesis(domain, question),
         }
+
+    @app.post("/api/v1/research/answer")
+    def research_answer(body: ResearchAnswerRequest):
+        domain = body.domain.strip()
+        question = body.question.strip()
+        if not domain or not question:
+            raise HTTPException(status_code=422, detail="domain and question must be non-empty")
+        try:
+            sources, evidence_json, evidence_truncated = owner_research().grounding_context(domain)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        if not sources:
+            return {
+                "mode": "no_local_evidence",
+                "domain": domain,
+                "question": question,
+                "question_applied": False,
+                "answer": None,
+                "message": "No local provenance-bearing evidence is available for this research context.",
+                "sources": [],
+                "evidence_truncated": False,
+                "answer_truncated": False,
+            }
+
+        lease = interaction_coordinator.try_acquire("research")
+        if lease is None:
+            owner = interaction_coordinator.snapshot().owner
+            raise HTTPException(status_code=409, detail={"code": "interaction_busy", "owner": owner})
+        paused = False
+        try:
+            if presentation_pause is not None:
+                presentation_pause()
+                paused = True
+            answer, answer_truncated = conversation.answer_from_local_research(question, evidence_json)
+            if not answer:
+                raise HTTPException(status_code=503, detail="local model returned no research answer")
+            return {
+                "mode": "generated_from_local_evidence",
+                "domain": domain,
+                "question": question,
+                "question_applied": True,
+                "interpretation_label": "Model-generated interpretation from local evidence; not a verified fact.",
+                "answer": answer,
+                "sources": [{key: value for key, value in asdict(source).items() if key != "content"} for source in sources],
+                "evidence_truncated": evidence_truncated,
+                "answer_truncated": answer_truncated,
+                "citation_validation": "not_provided",
+            }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="local model is unavailable for research answering") from exc
+        finally:
+            try:
+                if paused and presentation_resume is not None:
+                    presentation_resume()
+            finally:
+                lease.release()
 
     @app.get("/api/v1/proactive/notifications")
     def proactive_notifications(limit: int = 20, include_acknowledged: bool = False):

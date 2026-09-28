@@ -1568,3 +1568,18 @@ outcomes; desktop audit states remained expired, failed, and executed. No
 Career Forge state or production/protected checkout was used or modified.
 Owner-safe watch authoring, calendar scheduling, and all action authority remain
 excluded.
+
+## 2026-09-28 — Astra Research / Self-Learning Phase 12 qualified
+
+Qualified an explicit Astra action that asks Friday's existing local Qwen
+reasoning role to interpret canonical local research sources for a submitted
+question. The backend loads and bounds source evidence itself; empty evidence
+skips inference. The UI shows generated interpretation separately from
+registered source content and displays source identity/hash metadata, with
+clear limits that prose is not verified and citations are not validated. A
+synthetic grounding beacon produced the expected answer in the native Astra UI;
+an instruction-like string embedded in the source was treated as untrusted
+data. Existing deterministic evidence assembly remains unchanged. The route
+adds no web fetching, memory/learning writes, conversation-history coupling,
+model-weight changes, or action tools. Qualification used one local-model run;
+source lifecycle remains owner-provided and has no delete operation.

@@ -838,3 +838,14 @@ without inferring observer health from attachment. A `schedule` source denotes
 the due-item observer; the separate watch `schedule` boolean means the engine
 may emit an interval-triggered event and does not represent a calendar. No
 watch-authoring, watch-mutation, calendar, or action routes are added.
+
+### Astra Phase 12 — Research answer generation
+
+The Research workspace has a separate explicit answer operation over
+server-loaded canonical local source records. The backend bounds the evidence
+context and invokes the existing local `Role.REASONING` client; browser input
+cannot replace source text or prompts. Empty evidence skips inference. The
+response labels generated prose as an interpretation, includes canonical
+source identity/hash metadata, and makes no citation-validation claim. This
+route bypasses normal conversation history, memory and learning hooks, web
+fetching, and action tools; it does not persist generated prose.

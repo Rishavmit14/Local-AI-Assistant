@@ -36,6 +36,7 @@ import type {
   FridayResearchSource,
   FridayResearchSourceRequest,
   FridayResearchSynthesis,
+  FridayResearchAnswer,
 } from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -171,6 +172,15 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/research/synthesis?${params}`, { signal });
     if (!response.ok) throw new Error(`research synthesis request failed: ${response.status}`);
     return response.json() as Promise<FridayResearchSynthesis>;
+  }
+
+  async askResearch(domain: string, question: string, signal?: AbortSignal): Promise<FridayResearchAnswer> {
+    const response = await fetch(`${this.baseUrl}/api/v1/research/answer`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domain, question }), signal,
+    });
+    if (!response.ok) throw new Error(`research answer request failed: ${await responseDetail(response)}`);
+    return response.json() as Promise<FridayResearchAnswer>;
   }
 
   async getCareerJourney(signal?: AbortSignal): Promise<CareerForgeJourney> {

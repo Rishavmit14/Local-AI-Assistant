@@ -39,3 +39,18 @@ path, but there is no general, repository-selectable Knowledge query contract
 for Astra. The Knowledge panel reports these boundaries rather than implying
 that either capability is available through this workspace. Research records
 remain separate from personal memory and active conversation context.
+
+## Astra Phase 12: generated research interpretation
+
+The deterministic `ResearchService.synthesis(domain, question)` remains a
+source-evidence assembly and does not apply the question to retrieval. A
+separate explicit `POST /api/v1/research/answer` route loads canonical sources
+for a requested domain on the server and sends bounded evidence context to the
+existing local `Role.REASONING` client (the same configured Qwen model). Browser
+input cannot supply evidence or a system prompt. With no local evidence the
+route returns `no_local_evidence` without invoking the model. Source text is
+untrusted reference data. The route labels generated prose as an unverified
+interpretation, returns source identity/hash metadata, and makes no citation
+validation claim. It bypasses normal conversation session history, memory,
+learning hooks, web fetching, and action tools; generated prose is not
+persisted as research.

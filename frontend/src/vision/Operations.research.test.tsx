@@ -24,6 +24,18 @@ const synthesis = {
   question_applied: false,
   synthesis: "[Benign synthetic source; provenance=owner-provided synthetic text; version=v1]\nSynthetic fact: blue squares have four sides.",
 };
+const generatedAnswer = {
+  mode: "generated_from_local_evidence",
+  domain: source.domain,
+  question: "What shape has four sides?",
+  question_applied: true,
+  interpretation_label: "Model-generated interpretation from local evidence; not a verified fact.",
+  answer: "The source says blue squares have four sides.",
+  sources: [source],
+  evidence_truncated: false,
+  answer_truncated: false,
+  citation_validation: "not_provided",
+};
 
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -146,6 +158,76 @@ describe("Astra canonical Research workspace", () => {
     expect(container?.textContent).toContain("provenance=owner-provided synthetic text");
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/memory/"))).toBe(false);
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/career-forge/"))).toBe(false);
+  });
+
+  it("requires an explicit research ask and shows model interpretation with canonical grounding metadata", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+      if (String(url).startsWith("/api/v1/research/sources?")) return Promise.resolve(response({ sources: [source] }));
+      if (url === "/api/v1/research/answer" && init?.method === "POST") return Promise.resolve(response(generatedAnswer));
+      return Promise.resolve(response({ detail: "unexpected route" }, 404));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await mount();
+    await settle();
+
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/research/answer"))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/conversation/stream"))).toBe(false);
+    const askTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Ask Friday from evidence");
+    await act(async () => { askTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
+    setField("Canonical research domain", source.domain);
+    setField("Question for Friday", generatedAnswer.question);
+    await act(async () => {
+      container?.querySelector(".op-research-answer .op-form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await new Promise((resolve) => window.setTimeout(resolve, 5));
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/research/answer", expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ domain: source.domain, question: generatedAnswer.question }),
+    }));
+    expect(container?.textContent).toContain("MODEL-GENERATED INTERPRETATION FROM LOCAL EVIDENCE");
+    expect(container?.textContent).toContain(generatedAnswer.answer);
+    expect(container?.textContent).toContain("Sources supplied");
+    expect(container?.textContent).toContain(source.source_id);
+    expect(container?.textContent).toContain(source.content_hash);
+    expect(container?.textContent).toContain("Citation-level validation is not provided");
+    expect(container?.textContent).not.toContain(sourceBody.content);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/memory/"))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/career-forge/"))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/objectives"))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/desktop/"))).toBe(false);
+    expect(localStorage.length).toBe(0);
+  });
+
+  it("renders canonical no-evidence output without inventing a generated answer", async () => {
+    const noEvidence = {
+      mode: "no_local_evidence",
+      domain: "empty-domain",
+      question: "What is stored?",
+      question_applied: false,
+      answer: null,
+      message: "No local provenance-bearing evidence is available for this research context.",
+      sources: [],
+      evidence_truncated: false,
+      answer_truncated: false,
+    };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string, init?: RequestInit) => Promise.resolve(
+      url === "/api/v1/research/answer" && init?.method === "POST" ? response(noEvidence) :
+      String(url).startsWith("/api/v1/research/sources?") ? response({ sources: [] }) : response({ detail: "unexpected route" }, 404),
+    )));
+    await mount();
+    await settle();
+    const askTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Ask Friday from evidence");
+    await act(async () => { askTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
+    setField("Canonical research domain", "empty-domain");
+    setField("Question for Friday", "What is stored?");
+    await act(async () => {
+      container?.querySelector(".op-research-answer .op-form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await new Promise((resolve) => window.setTimeout(resolve, 5));
+    });
+    expect(container?.textContent).toContain("No local evidence available");
+    expect(container?.textContent).toContain(noEvidence.message);
+    expect(container?.textContent).not.toContain("MODEL-GENERATED INTERPRETATION");
   });
 
   it("shows research failure without restoring examples and states the real Knowledge boundary", async () => {

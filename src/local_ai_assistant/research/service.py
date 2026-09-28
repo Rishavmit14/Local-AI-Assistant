@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sqlite3
-from dataclasses import astuple, dataclass
+from dataclasses import astuple, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
+
+MAX_GROUNDING_SOURCES = 20
+MAX_GROUNDING_CONTEXT_CHARS = 20_000
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +76,62 @@ class ResearchService:
         if not evidence:
             return "No local provenance-bearing evidence is available."
         return "\n\n".join(f"[{item.title}; provenance={item.provenance}; version={item.version}]\n{item.content}" for item in evidence)[:20_000]
+
+    def grounding_context(
+        self,
+        domain: str,
+        *,
+        max_sources: int = MAX_GROUNDING_SOURCES,
+        max_characters: int = MAX_GROUNDING_CONTEXT_CHARS,
+    ) -> tuple[tuple[SourceRecord, ...], str, bool]:
+        """Return a bounded, canonical JSON evidence context for explicit generation."""
+        if not 1 <= max_sources <= MAX_GROUNDING_SOURCES:
+            raise ValueError("research grounding source limit is out of bounds")
+        if not 1 <= max_characters <= MAX_GROUNDING_CONTEXT_CHARS:
+            raise ValueError("research grounding context limit is out of bounds")
+
+        available = self.sources(domain, limit=max_sources + 1)
+        candidates = available[:max_sources]
+        included: list[SourceRecord] = []
+        objects: list[dict[str, str]] = []
+        truncated = len(available) > max_sources
+
+        def encode(items: list[dict[str, str]]) -> str:
+            return json.dumps(items, ensure_ascii=False, separators=(",", ":"))
+
+        for source in candidates:
+            metadata = {
+                "source_id": source.source_id,
+                "domain": source.domain,
+                "title": source.title,
+                "provenance": source.provenance,
+                "version": source.version,
+                "content_hash": source.content_hash,
+            }
+            complete = {**metadata, "content": source.content}
+            if len(encode([*objects, complete])) <= max_characters:
+                objects.append(complete)
+                included.append(source)
+                continue
+
+            low, high, best = 0, len(source.content), -1
+            while low <= high:
+                middle = (low + high) // 2
+                partial = {**metadata, "content": source.content[:middle]}
+                if len(encode([*objects, partial])) <= max_characters:
+                    best = middle
+                    low = middle + 1
+                else:
+                    high = middle - 1
+            if best > 0:
+                objects.append({**metadata, "content": source.content[:best]})
+                included.append(replace(source, content=source.content[:best]))
+            truncated = True
+            break
+
+        if len(included) < len(candidates):
+            truncated = True
+        return tuple(included), encode(objects), truncated
 
     def curriculum(self, domain: str, topics: tuple[str, ...]) -> tuple[dict[str, str], ...]:
         """Build a transparent local study sequence from known/gap evidence."""

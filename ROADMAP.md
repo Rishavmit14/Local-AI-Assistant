@@ -1440,3 +1440,19 @@ watch, task, objective, desktop, or Career Forge state besides its
 navigation/reload, and System showed the same two enabled notify-only watches
 and stopped worker. Watch authoring, schedule mutation, calendar semantics, and
 action authority remain excluded pending a separate owner-safe policy.
+
+## Astra Canonical Product Integration — Phase 12: Research / Self-Learning (**Qualified and published**)
+
+Astra Research now distinguishes deterministic evidence assembly from an
+explicit, user-triggered question-specific interpretation. The answer route
+loads bounded canonical source evidence on the backend and uses Friday's
+existing local Qwen reasoning role. It returns the canonical source identity
+and hash with the interpretation, labels generated prose as unverified, and
+does not claim citation validation. No-evidence requests skip model inference.
+The path does not fetch the web, alter model weights, persist generated prose,
+write memory, update learning state, or use normal conversation history/tools.
+Live Astra UI qualification retrieved the synthetic beacon `ORBIT-7319` from
+its registered source while ignoring embedded instruction-like source text.
+The deterministic evidence-assembly route and its `question_applied: false`
+semantics remain unchanged. Citation verification, browsing, and autonomous
+learning from research remain outside this qualified capability.
