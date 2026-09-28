@@ -22,8 +22,8 @@ Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
 `12883f070ee176944152c34f0930c9ab0bb211b2` is pushed to
 `origin/integration/astra-friday`, fast-forwarded to `main`, and verified after
 fetch at both `origin/integration/astra-friday` and `origin/main`. The current
-recovery HEAD is the published handoff-only commit directly following that
-capability commit; both fetched refs resolve to it and the worktree is clean.
+recovery HEAD is the latest published recovery descendant of that capability
+commit; both fetched refs resolve to it and the worktree is clean.
 
 The nine containment gates passed. A disposable transient systemd candidate ran
 as owner UID/GID 1000 with `PrivateNetwork=yes`, `PrivateUsers=no`, the same user

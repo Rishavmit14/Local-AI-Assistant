@@ -96,9 +96,14 @@ embedding model loaded with `HF_HUB_OFFLINE=1` and
   enforced by the existing Bubblewrap backend.
 - **Restart/reconstruction:** candidate Friday was stopped and started again
   inside the same private-network anchor with the same disposable state root.
-  Memory, Career Forge mission, and Knowledge source/index reappeared in the
+  The first stop had an active browser/API stream; Uvicorn waited for that
+  connection until systemd's 90-second stop timeout and systemd terminated only
+  the disposable candidate process. After restarting the candidate, Memory,
+  Career Forge mission, and Knowledge source/index reappeared in the
   post-restart UI; a real post-restart Conversation also traversed the fixed
-  Qwen relay. CodeRAG had been separately loaded and queried while offline
+  Qwen relay. Closing the browser before final candidate shutdown allowed a
+  clean stop.
+  CodeRAG had been separately loaded and queried while offline
   before restart; its post-restart query was not part of this evidence. The
   temporary transient units were later stopped and removed.
 - **Online-only behavior:** no web fetch or GitHub operation was substituted by
