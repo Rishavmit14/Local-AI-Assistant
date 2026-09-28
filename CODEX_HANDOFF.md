@@ -3044,8 +3044,10 @@ Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch
 `977aa96ec2890384bab7a2849be1f917ec92a402` is an ancestor. Phase 13 capability
 commit is `d34b15736d2cc1fe7f6b851c9d99991f151e4e3e`; it has been pushed to
 `origin/integration/astra-friday` and fast-forwarded/pushed to `origin/main`.
-Fetch and verify both refs at this SHA after the handoff-only recovery commit.
-Do not begin the next matrix capability in this task.
+The handoff-only recovery commit `4eed034fd10b146bb22764a5498dda33e34165d4`
+was fetched and verified at both refs. This final handoff record is the next
+handoff-only descendant and must be pushed to both refs and verified before
+closing. Do not begin the next matrix capability in this task.
 
 Phase 13 adds an explicit default-off setting to the canonical memory SQLite
 database and a bounded, read-only projection of active preference records to
