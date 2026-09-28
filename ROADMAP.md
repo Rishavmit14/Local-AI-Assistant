@@ -1418,3 +1418,25 @@ coverage verifies the projection without transferring lifecycle authority.
 
 Remaining Stage 12 work includes long-running stability qualification and
 observability.
+
+
+## Astra Canonical Product Integration — Phase 11: Proactive Watches / Notifications (**Qualified and published**)
+
+The existing `NotificationsWorkspace` is qualified as a bounded owner-facing
+view over canonical proactive notifications and configured watch status. It
+shows notification acknowledgement separately from approval or resolution,
+keeps event-occurrence time distinct from notification creation time (including
+an explicit unavailable value), and distinguishes enabled watches, observer
+attachment/availability, and polling-worker liveness without claiming observer
+health. The schedule-source retention observer is described as due-item based;
+`Watch.schedule` is an interval-triggered event flag, not a calendar lifecycle.
+
+Qualification used the isolated candidate state root
+`var/astra-objectives-phase4-qualification`, the native Codex in-app browser,
+and direct canonical API comparison. One already-existing unacknowledged
+candidate notification was acknowledged through the UI and re-fetched; no event,
+watch, task, objective, desktop, or Career Forge state besides its
+`acknowledged_at` changed. History reconstructed that timestamp after
+navigation/reload, and System showed the same two enabled notify-only watches
+and stopped worker. Watch authoring, schedule mutation, calendar semantics, and
+action authority remain excluded pending a separate owner-safe policy.

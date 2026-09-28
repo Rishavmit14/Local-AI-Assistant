@@ -2919,3 +2919,64 @@ commit is a documentation-only descendant of capability commit
 `07a509bbd60454ab3854a4470cf8041cc76fc4c7`. The next product-matrix dependency
 is proactive watches/notifications (row 50, PARTIAL); do not start it in this
 checkpoint.
+
+## Current recovery — Astra Phase 11 Proactive Watches / Notifications (2026-09-28)
+
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
+`integration/astra-friday`, parent recovery `b4302d32907cd0fa2a6107e1ab33b1ef9e92b0d8`.
+Phase 11 implementation, documentation, and qualification are complete; the
+accepted commit and remote verification are being recorded at the publication
+boundary. The UI closes two truthfulness gaps: notification lists keep
+`event_occurred_at` separate from `created_at` and show unavailable event time
+as such; watch state does not equate observer attachment with healthy
+observation. The schedule-source watch is identified as a due-item observer,
+and the watch `schedule` flag means interval-triggered event, not a calendar.
+
+Authority audit: `ProactiveEventEngine` owns durable local SQLite watches,
+events, notifications, delivery limits, and acknowledgement. Configured watches
+are registered/upserted by the runtime; watch rows persist enabled state, but
+Astra has no watch create/update/delete route. The only proactive routes are
+`GET /api/v1/proactive/notifications`,
+`POST /api/v1/proactive/notifications/{notification_id}/acknowledge`, and
+`GET /api/v1/proactive/watches`. Acknowledgement timestamps a notification and
+removes it from the default unacknowledged query; it neither deletes the event
+nor grants task/action authority. Notification projection omits arbitrary event
+metadata. `worker_running` is polling-thread liveness; `observer_available`
+means an observer callable is attached (or schedule flag applies), not that it
+is healthy. All configured candidate watches have `notify` permission only.
+
+Candidate state root remains
+`var/astra-objectives-phase4-qualification`; no new root was created and the
+proactive worker remains stopped. The canonical candidate contained two
+notifications and two enabled notify-only watches. With explicit owner
+authorization, Codex used the native in-app Notifications view to acknowledge
+only notification `6e97db4942f446448ccbda939ac3965a` (event
+`aa8ec99c6c3242dc9463a96ab3a7040c`). Its `acknowledged_at` is now
+`2026-09-28T06:45:04.107387+00:00`; notification/event identity, times, source,
+watch, summary, relevance, count, and the other notification did not change.
+Watch rows and stopped-worker state were unchanged. History reconstructed the
+acknowledgement after navigation, and System showed the same two watches and
+worker state. The native UI exposed accessibility state and screenshots; a
+browser console/network/raw-storage inspector was not used. Direct candidate
+API responses were compared with rendered Notifications, History, and System.
+
+Protected task sentinels remain `task_90be0b53d357423885aa` and
+`task_290e6c92cefe4902b62b`, both `awaiting_approval` with null outcomes.
+Desktop action audit remains `17c6a5c642e443989ee17d8a24b2a3ba` executed,
+`117688df784a409a90a2dd3bb1fd15ba` failed, and
+`f4a6b95dd43e442a8b62da655cdb3717` expired. Candidate Career Forge baseline is
+still incomplete (`se.python=unverified`; expected mission/review absent); no
+Career Forge state was used or changed. The protected production checkout
+remains at `e43896623978e86b7bae6502b380462b455626be` on
+`stage-22/product-integration` with its pre-existing Pocket/Piper owner changes.
+Production API `127.0.0.1:8765` remains healthy and untouched; candidate API
+8766 and Vite 5191 remain in use.
+
+Validation: focused proactive backend/API tests 10 passed; focused Notifications
+UI tests 8 passed; full frontend suite 92 passed; lint passed; TypeScript and
+production builds passed; full repository verification passed with 928 Python
+tests; `git diff --check` passed. Known warnings remain the Vite bundle-size
+advisory and Starlette/AnyIO deprecation. Phase 10 progress and History
+regressions passed in the full frontend/repository suites. Owner-safe watch
+authoring, calendar scheduling, and all proactive action authority remain
+intentionally excluded; no next phase is started.

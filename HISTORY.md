@@ -1545,3 +1545,26 @@ production builds, repository verification (928 Python tests), and
 `git diff --check` pass. Existing Starlette/AnyIO deprecation and Vite bundle
 size warnings remain. Matrix row 49 advances to QUALIFIED for this bounded
 read-only surface; proactive watches/notifications (row 50, PARTIAL) is next.
+
+
+## 2026-09-28 — Astra Proactive Watches / Notifications Phase 11 qualified
+
+Qualified the canonical Notifications workspace as a bounded owner-facing
+notification and read-only watch-status surface. It now keeps event and
+notification times separate and reports missing event time as unavailable.
+Observer attachment is not presented as healthy observation; enabled state,
+observer availability, interval mechanism, notify-only permission, and worker
+liveness remain distinct. Schedule-source due-item observation and interval
+trigger semantics are described without implying calendar automation.
+
+Codex verified the native in-app Notifications view against the candidate API,
+acknowledged the one existing unacknowledged candidate notification through the
+UI, and verified the canonical acknowledgement timestamp by re-fetch. The
+notification count stayed two; both watches remained enabled with notify-only
+permission and observer available, and the worker remained stopped. History
+reconstructed the acknowledgement; System reported the same watch/worker
+state. Both protected task sentinels remained `awaiting_approval` with null
+outcomes; desktop audit states remained expired, failed, and executed. No
+Career Forge state or production/protected checkout was used or modified.
+Owner-safe watch authoring, calendar scheduling, and all action authority remain
+excluded.

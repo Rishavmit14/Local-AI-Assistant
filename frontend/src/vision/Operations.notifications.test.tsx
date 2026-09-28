@@ -84,7 +84,7 @@ describe("Astra canonical Notifications workspace", () => {
     expect(container?.textContent).toContain("task.changed");
     expect(container?.textContent).toContain("Friday task lifecycle");
     expect(container?.textContent).toContain("Engine relevance score");
-    expect(container?.textContent).toContain("Observing");
+    expect(container?.textContent).toContain("observer attached; health unknown");
     expect(container?.textContent).toContain("notification permission only");
     expect(container?.textContent).not.toContain("Browser-only routine");
     expect(container?.textContent).not.toContain("Fake completed automation");
@@ -94,6 +94,30 @@ describe("Astra canonical Notifications workspace", () => {
     expect(setItem).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/proactive/notifications?limit=100&include_acknowledged=true", expect.anything());
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/proactive/watches", expect.anything());
+  });
+
+  it("keeps event time separate from notification time when canonical event time is missing", async () => {
+    const missingEventTime = { ...notice, event_occurred_at: null };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => Promise.resolve(
+      url.includes("/notifications?") ? response({ notifications: [missingEventTime] }) : response({ worker_running: true, watches }),
+    )));
+    await mount();
+    await settle();
+    expect(container?.textContent).toMatch(/Event: Time unavailable · Notified: \d+\/\d+\/2026/);
+    expect(container?.textContent).not.toMatch(/Event: \d+\/\d+\/2026/);
+  });
+
+  it("describes a schedule-source observer as a due-item observer and leaves health unknown", async () => {
+    const dueWatch = { ...watches[0], source: "schedule", label: "Career Forge retention review" };
+    vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => Promise.resolve(
+      url.includes("/notifications?") ? response({ notifications: [] }) : response({ worker_running: true, watches: [dueWatch] }),
+    )));
+    await mount();
+    await settle();
+    expect(container?.textContent).toContain("due-item observer attached");
+    expect(container?.textContent).toContain("health unknown");
+    expect(container?.textContent).not.toContain("change observer attached");
+    expect(container?.textContent).not.toContain("Observing");
   });
 
   it("renders a genuinely empty canonical state", async () => {

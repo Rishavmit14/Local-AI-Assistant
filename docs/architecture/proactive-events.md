@@ -45,3 +45,16 @@ The local database defaults to `var/proactive/events.sqlite3` and is configured
 by `LOCAL_AI_PROACTIVE_DB`. `LOCAL_AI_PROACTIVE_ENABLED`,
 `LOCAL_AI_PROACTIVE_POLL_SECONDS`, and
 `LOCAL_AI_PROACTIVE_MAX_NOTIFICATIONS_PER_HOUR` bound runtime behavior.
+
+
+## Astra Phase 11 owner-facing semantics
+
+The qualified Notifications view preserves event `occurred_at` independently
+from notification `created_at`; unavailable event time is never substituted
+with delivery time. Its watch status separates persisted enabled state,
+observer attachment/availability, notify-only permission, configured interval,
+and the live worker-running signal. Observer attachment is not observer health.
+The `schedule` watch boolean denotes an interval-triggered event, not calendar
+scheduling. The `schedule` source used by the retention watch identifies a
+due-item observer. There remain no owner watch create/update/delete routes or
+calendar lifecycle.

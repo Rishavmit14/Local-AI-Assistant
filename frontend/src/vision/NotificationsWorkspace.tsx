@@ -17,8 +17,17 @@ function displayTime(value: string | null): string {
 function watchState(watch: FridayProactiveWatch, workerRunning: boolean): string {
   if (!watch.enabled) return "Disabled";
   if (!workerRunning) return "Enabled · polling worker stopped";
+  if (watch.schedule) return "Enabled · interval-triggered event";
   if (!watch.observer_available) return "Enabled · observer unavailable";
-  return watch.schedule ? "Interval schedule active" : "Observing";
+  return watch.source === "schedule"
+    ? "Enabled · due-item observer attached; health unknown"
+    : "Enabled · observer attached; health unknown";
+}
+
+function watchMechanism(watch: FridayProactiveWatch): string {
+  if (watch.schedule) return "interval-triggered event";
+  if (watch.source === "schedule") return watch.observer_available ? "due-item observer attached" : "due-item observer unavailable";
+  return watch.observer_available ? "observer attached" : "observer unavailable";
 }
 
 export function NotificationsWorkspace() {
@@ -125,7 +134,7 @@ export function NotificationsWorkspace() {
               <button type="button" className="op-notification-select" onClick={() => setSelectedId(item.notification_id)}>
                 <span className="op-notification-kind">{item.event_kind?.replaceAll("_", " ") ?? "Proactive event"}</span>
                 <strong>{item.summary}</strong>
-                <small>{displayTime(item.event_occurred_at ?? item.created_at)}</small>
+                <small>Event: {displayTime(item.event_occurred_at)} · Notified: {displayTime(item.created_at)}</small>
                 <Status tone={item.acknowledged_at ? "neutral" : "blue"}>{item.acknowledged_at ? "Acknowledged" : "Unacknowledged"}</Status>
               </button>
             </article>)}
@@ -163,9 +172,9 @@ export function NotificationsWorkspace() {
       <section className="op-watch-status" aria-label="Configured watch status">
         <div className="op-notification-heading"><div><Radio size={18}/><h2>Configured watch status</h2></div><div><Status tone={workerRunning ? "green" : "amber"}>{workerRunning ? "Polling worker active" : "Polling worker stopped"}</Status><small>Read-only · notification permission only</small></div></div>
         {watches.length ? <ul>{watches.map((watch) => <li key={watch.watch_id}>
-          <div><strong>{watch.label}</strong><small>{watch.source} · every {watch.interval_seconds} seconds · {watch.schedule ? "interval trigger" : watch.observer_available ? "change observer attached" : "no change observer attached"}</small></div>
+          <div><strong>{watch.label}</strong><small>{watch.source} · every {watch.interval_seconds} seconds · {watchMechanism(watch)}</small></div>
           <span>{watch.permission}</span>
-          <Status tone={watch.enabled && workerRunning && watch.observer_available ? "green" : watch.enabled ? "amber" : "neutral"}>{watchState(watch, workerRunning)}</Status>
+          <Status tone={!watch.enabled ? "neutral" : !workerRunning || !watch.observer_available ? "amber" : "neutral"}>{watchState(watch, workerRunning)}</Status>
         </li>)}</ul> : <p>No watches are configured in this runtime.</p>}
         <p className="op-watch-boundary">Watch authoring, schedules, and enable/disable controls are not available in Astra. Enabled state and observer availability come from Friday; the polling-worker status is live backend state.</p>
       </section>

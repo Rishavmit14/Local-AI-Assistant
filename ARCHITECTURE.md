@@ -824,3 +824,17 @@ credentials, or reveal recovery paths. Recovery and isolation stay owned by
 their existing services. Codex-performed candidate navigation and reload
 reconstructed the canonical pending-approval projection; terminal task UI
 states remain deterministically tested but were not present in that candidate.
+
+
+### Astra Phase 11 — Proactive Watches / Notifications
+
+The existing typed `NotificationsWorkspace` is qualified as a read-only
+notification and configured-watch surface, with the existing canonical
+notification acknowledgement as its sole mutation. Event occurrence and
+notification creation times render independently; absent event time is shown as
+unavailable. The view reports enabled state, observer attachment/availability,
+notify-only permission, configured interval/mechanism, and worker liveness
+without inferring observer health from attachment. A `schedule` source denotes
+the due-item observer; the separate watch `schedule` boolean means the engine
+may emit an interval-triggered event and does not represent a calendar. No
+watch-authoring, watch-mutation, calendar, or action routes are added.
