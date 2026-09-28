@@ -30,6 +30,7 @@ class WorktreeState(StrEnum):
     READY = "ready"
     EXECUTING = "executing"
     VALIDATING = "validating"
+    ROLLBACK_IN_PROGRESS = "rollback_in_progress"
     PROMOTION_READY = "promotion_ready"
     PROMOTED = "promoted"
     FAILED = "failed"

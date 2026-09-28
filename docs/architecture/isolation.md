@@ -21,7 +21,26 @@ Repository code, test hooks, build scripts, package scripts, Makefiles, Cargo `b
 
 `WorktreeManager` stores worktrees only below `LOCAL_AI_WORKTREE_ROOT/<repo-id>/<task-id>`. A separate metadata record binds task, repository, branch, base commit, plan hash, current commit, lifecycle, and cleanup. Safe identifiers, resolved containment, branch collision checks, locks, and Git worktree metadata prevent cross-task attachment.
 
-Checkpoints record HEAD, staged and unstaged binary patches, a bounded untracked inventory/archive, modes, symlinks, and hashes. Archives have file-count, per-file, and total-size ceilings, private permissions, and member-by-member restoration that refuses parent symlinks and non-file objects. Restore performs a task-worktree-only reset/clean and recreates the exact checkpoint state. It never cleans the canonical repository.
+Checkpoints record HEAD, staged and unstaged binary patches, a bounded untracked inventory/archive, modes, symlinks, and hashes. Schema 2 checkpoints cover non-ignored untracked files; ignored task-local data is preserved by restore because it is outside the checkpoint model. Older schema 1 checkpoints remain readable by the CLI but are not eligible for transactional restore. Archives have file-count, per-file, and total-size ceilings, private permissions, and member-by-member restoration that refuses parent symlinks and non-file objects. Restore performs a task-worktree-only reset/clean and recreates the exact checkpoint state. It never cleans the canonical repository.
+
+### Transactional task-checkpoint restore (Phase 15A)
+
+`TransactionalRollbackService` is the only supported checkpoint mutation
+kernel. It validates the canonical task, repository, task ID, plan hash,
+worktree identity/lifecycle, and current checkpoint HEAD; rejects canonical,
+protected, active, promoted, terminal, and recovery-required states; then holds
+the same per-task advisory lock used by worktree lifecycle transitions and
+cleanup. Under that lock it creates a uniquely named schema-2 safety checkpoint,
+persists `rollback_in_progress`, restores the target, and verifies HEAD, staged
+and unstaged patch identities, non-ignored untracked inventory/content/modes,
+and symlink targets. Failure triggers one compensating restore and identical
+verification. A verified compensation reports `failed_recovered`; double
+failure persists `recovery_required`. A process crash leaves the durable
+`rollback_in_progress` marker, which the recovery scanner reports for operator
+inspection. The CLI uses this kernel; there is still no Astra mutation route or
+owner authentication bridge. Checkpoint artifacts and lifecycle metadata are
+fsynced before destructive work. TaskStatus is not changed by this internal
+worktree operation.
 
 ## Sandbox and resources
 
@@ -33,7 +52,7 @@ Strong isolation is required by default. If mount/network namespace isolation is
 
 Reviewed, validated, current, and committed states are bound by a deterministic temporary-index tree identity. Any later file, mode, symlink, untracked, branch, or canonical-HEAD change invalidates promotion. Isolation-owned Git calls disable hooks, prompts, editors, pagers, signing, system/global configuration, and reject repository/shared Git filter or LFS attributes rather than executing clean/smudge programs. Stage 8 produces a task-branch commit and never merges main.
 
-Interrupted `creating`, `executing`, `validating`, or cleanup states become `recovery_required`. Recovery inspection never auto-resumes. Task-local advisory locks prevent duplicate ownership and cleanup/execution races. Stage 7 timeline events record isolation backend/capability, network policy, checkpoint, cleanup, cancellation, rollback, and promotion readiness without exposing user-facing absolute worktree paths.
+Interrupted `creating`, `executing`, `validating`, rollback-in-progress, or cleanup states become `recovery_required`. Recovery inspection never auto-resumes. Task-local advisory locks prevent duplicate ownership and cleanup/execution/rollback/promotion races. Stage 7 timeline events record isolation backend/capability, network policy, checkpoint, cleanup, cancellation, rollback, and promotion readiness without exposing user-facing absolute worktree paths.
 
 ## Limitations
 

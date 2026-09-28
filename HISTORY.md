@@ -1637,3 +1637,17 @@ routes; production API 8765 remained healthy and untouched. The existing
 preference adaptation remains disabled; watches, notifications, Phase 12
 research source, desktop records, and Career Forge qualification state were not
 changed.
+
+## 2026-09-28 — Astra Phase 15A transactional rollback safety kernel
+
+Added an internal transactional restore service for exact task-bound schema-2
+checkpoints. It captures a unique private safety checkpoint, uses the task
+advisory lock shared by lifecycle, cleanup, and promotion operations, persists
+an in-progress marker, verifies restored tracked and non-ignored untracked
+state, and compensates once after target failure. Double failure is persisted
+as `recovery_required`; process interruption remains visible through the
+existing recovery scanner. Ignored task-local files are preserved because the
+checkpoint format does not capture them. TaskHistory receives bounded isolation
+events, while TaskStatus semantics remain unchanged. The CLI is routed through
+this kernel. Astra rollback UI and authenticated owner mutation remain absent;
+product matrix row 55 stays PARTIAL and Phase 15B remains required.

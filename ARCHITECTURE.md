@@ -34,6 +34,13 @@ TurboQuant llama-server (127.0.0.1:8080)
 
 Stage 8 worktree/checkpoint/isolation controls are accepted in the current branch. Stage 9's authenticated gateway, GitHub transport, MCP-compatible stdio, provenance/idempotency, bounded events, and delegation into existing safety services are implemented; real external-integration hardening remains. Stage 10 repository onboarding is partially implemented and broader benchmark/tuning work remains.
 
+Phase 15A hardens the internal task-checkpoint restore kernel: exact task/plan
+identity, per-task serialization, a private pre-restore safety checkpoint,
+verification and one compensating restore, plus recovery-scanner-visible
+in-progress/double-failure state. It adds no owner-facing rollback authority;
+product matrix row 55 remains PARTIAL until Phase 15B supplies authenticated
+owner review and execution.
+
 Stage 11 replaces Streamlit with Friday's native presentation/event architecture and conversational voice stack. The accepted wake path is:
 
 ```text

@@ -38,7 +38,7 @@ class CheckpointManager:
         unstaged = _git_bytes(repository, "diff", "--binary", "--full-index")
         untracked = tuple(
             item
-            for item in _git(repository, "ls-files", "--others").splitlines()
+            for item in _git(repository, "ls-files", "--others", "--exclude-standard").splitlines()
             if item
         )
         if len(untracked) > self.max_files:
@@ -73,12 +73,13 @@ class CheckpointManager:
             raise
         for artifact in base.iterdir():
             os.chmod(artifact, 0o600)
+            _fsync_file(artifact)
         archive_hash = _sha256(archive.read_bytes())
         checkpoint_id = _sha256(
             f"{task_id}\0{plan_hash}\0{head}\0{label}\0{_sha256(staged)}\0{_sha256(unstaged)}\0{archive_hash}".encode()
         )[:24]
         record = CheckpointRecord(
-            1,
+            2,
             checkpoint_id,
             task_id,
             plan_hash,
@@ -91,7 +92,7 @@ class CheckpointManager:
             base,
         )
         metadata = {
-            "schema_version": 1,
+            "schema_version": 2,
             "checkpoint_id": checkpoint_id,
             "task_id": task_id,
             "plan_hash": plan_hash,
@@ -104,6 +105,8 @@ class CheckpointManager:
             "created_at": record.created_at,
         }
         _atomic_json(base / "checkpoint.json", metadata)
+        _fsync_directory(base.parent)
+        _fsync_directory(self.root)
         return record
 
     def load(self, task_id: str, label: str, plan_hash: str | None = None) -> CheckpointRecord:
@@ -115,10 +118,15 @@ class CheckpointManager:
         )
         try:
             value = json.loads((base / "checkpoint.json").read_text())
-            if value["schema_version"] != 1 or value["task_id"] != task_id:
+            if value["schema_version"] not in {1, 2} or value["task_id"] != task_id:
                 raise ValueError("identity mismatch")
             if plan_hash is not None and value["plan_hash"] != plan_hash:
                 raise ValueError("plan mismatch")
+            untracked = value["untracked"]
+            if not isinstance(untracked, list) or any(not isinstance(item, str) for item in untracked):
+                raise ValueError("invalid untracked inventory")
+            if _sha256("\n".join(untracked).encode()) != value["untracked_hash"]:
+                raise ValueError("untracked inventory hash mismatch")
             for filename, expected in (
                 ("staged.patch", value["staged_diff_hash"]),
                 ("unstaged.patch", value["unstaged_diff_hash"]),
@@ -126,8 +134,19 @@ class CheckpointManager:
             ):
                 if _sha256((base / filename).read_bytes()) != expected:
                     raise ValueError(f"{filename} hash mismatch")
+            checkpoint_id = _sha256(
+                f"{task_id}\0{value['plan_hash']}\0{value['head']}\0{label}\0{value['staged_diff_hash']}\0{value['unstaged_diff_hash']}\0{value['archive_hash']}".encode()
+            )[:24]
+            if checkpoint_id != value["checkpoint_id"]:
+                raise ValueError("checkpoint identity hash mismatch")
+            with tarfile.open(base / "untracked.tar", "r") as bundle:
+                members = bundle.getmembers()
+                for member in members:
+                    _validate_tar_member(member)
+                if {member.name for member in members} != set(untracked):
+                    raise ValueError("archive inventory mismatch")
             return CheckpointRecord(
-                1,
+                value["schema_version"],
                 value["checkpoint_id"],
                 task_id,
                 value["plan_hash"],
@@ -139,7 +158,7 @@ class CheckpointManager:
                 value["created_at"],
                 base,
             )
-        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError, tarfile.TarError) as exc:
             raise CheckpointError(f"Invalid checkpoint: {exc}") from exc
 
     def restore(self, repository: Path, record: CheckpointRecord) -> None:
@@ -147,7 +166,9 @@ class CheckpointManager:
         if _git(repository, "rev-parse", "HEAD") != record.head:
             raise CheckpointError("Checkpoint HEAD no longer matches worktree HEAD")
         _run_git(repository, "reset", "--hard", record.head)
-        _run_git(repository, "clean", "-fdx")
+        # Preserve ignored task-local data: it is outside the checkpoint model
+        # and cannot be reconstructed by compensating from a checkpoint.
+        _run_git(repository, "clean", "-fd")
         staged = record.path / "staged.patch"
         unstaged = record.path / "unstaged.patch"
         if staged.stat().st_size:
@@ -160,6 +181,52 @@ class CheckpointManager:
                 _validate_tar_member(member)
             for member in bundle.getmembers():
                 _extract_member_safely(bundle, member, repository)
+
+    def verify(self, repository: Path, record: CheckpointRecord) -> bool:
+        """Compare live task-worktree content with a validated checkpoint."""
+        repository = repository.resolve(strict=True)
+        if _git(repository, "rev-parse", "HEAD") != record.head:
+            return False
+        if _sha256(_git_bytes(repository, "diff", "--cached", "--binary", "--full-index", "HEAD")) != record.staged_diff_hash:
+            return False
+        if _sha256(_git_bytes(repository, "diff", "--binary", "--full-index")) != record.unstaged_diff_hash:
+            return False
+        try:
+            metadata = json.loads((record.path / "checkpoint.json").read_text())
+            expected_names = tuple(metadata["untracked"])
+            args = ("ls-files", "--others") if metadata["schema_version"] == 1 else ("ls-files", "--others", "--exclude-standard")
+            actual_names = tuple(_git(repository, *args).splitlines())
+            if actual_names != expected_names:
+                return False
+            with tarfile.open(record.path / "untracked.tar", "r") as bundle:
+                members = {item.name: item for item in bundle.getmembers()}
+                if set(members) != set(expected_names):
+                    return False
+                for relative in expected_names:
+                    member = members[relative]
+                    actual = _safe_repo_path(repository, relative)
+                    info = os.lstat(actual)
+                    if member.issym():
+                        if not actual.is_symlink() or os.readlink(actual) != member.linkname:
+                            return False
+                    elif not actual.is_file() or actual.is_symlink():
+                        return False
+                    elif (info.st_mode & 0o777) != (member.mode & 0o777):
+                        return False
+                    else:
+                        expected = bundle.extractfile(member)
+                        if expected is None:
+                            return False
+                        with expected, actual.open("rb") as stream:
+                            while True:
+                                left, right = expected.read(1024 * 1024), stream.read(1024 * 1024)
+                                if left != right:
+                                    return False
+                                if not left:
+                                    break
+            return True
+        except (OSError, ValueError, KeyError, TypeError, tarfile.TarError, CheckpointError):
+            return False
 
 
 def _safe_repo_path(repository: Path, relative: str) -> Path:
@@ -253,10 +320,24 @@ def _sha256(value: bytes) -> str:
 def _atomic_json(path: Path, value: dict) -> None:
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n")
+    os.chmod(temporary, 0o600)
     with temporary.open("rb") as stream:
         os.fsync(stream.fileno())
     os.replace(temporary, path)
-    os.chmod(path, 0o600)
+    _fsync_directory(path.parent)
+
+
+def _fsync_file(path: Path) -> None:
+    with path.open("rb") as stream:
+        os.fsync(stream.fileno())
+
+
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _discard_incomplete_checkpoint(base: Path) -> None:

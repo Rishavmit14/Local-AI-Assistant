@@ -14,9 +14,11 @@ from local_ai_assistant.history.store import TaskHistoryStore
 
 from .checkpoints import CheckpointManager
 from .errors import IsolationError
-from .models import NetworkPolicy, ResourcePolicy
+from .locks import task_lock
+from .models import NetworkPolicy, ResourcePolicy, WorktreeState
 from .recovery import inspect_recovery
 from .sandbox import select_backend
+from .transactional_rollback import TransactionalRollbackService
 from .worktrees import WorktreeManager
 
 
@@ -82,23 +84,27 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "status":
             print(json.dumps(manager.load(args.repository, args.task_id).to_dict(), indent=2))
         elif args.command == "checkpoint":
-            identity = manager.load(
-                args.repository, args.task_id, plan_hash=args.plan_hash
-            )
-            record = CheckpointManager(config.paths.isolation_dir / "checkpoints").create(
-                Path(identity.worktree), args.task_id, args.plan_hash, args.label
-            )
+            identity = manager.load(args.repository, args.task_id, plan_hash=args.plan_hash)
+            with task_lock(manager.root, identity.repository_id, args.task_id):
+                identity = manager.load(args.repository, args.task_id, plan_hash=args.plan_hash)
+                if identity.state not in {WorktreeState.READY, WorktreeState.FAILED}:
+                    raise IsolationError("Task lifecycle does not permit checkpoint creation")
+                record = CheckpointManager(config.paths.isolation_dir / "checkpoints").create(
+                    Path(identity.worktree), args.task_id, args.plan_hash, args.label
+                )
             print(json.dumps({"checkpoint_id": record.checkpoint_id, "head": record.head}, indent=2))
         elif args.command == "rollback":
-            identity = manager.load(
-                args.repository, args.task_id, plan_hash=args.plan_hash
+            history = TaskHistoryService(TaskHistoryStore(config.paths.task_history_db))
+            result = TransactionalRollbackService(
+                manager,
+                CheckpointManager(config.paths.isolation_dir / "checkpoints"),
+                history,
+            ).restore(
+                args.repository, args.task_id, args.plan_hash, args.label,
             )
-            checkpoints = CheckpointManager(config.paths.isolation_dir / "checkpoints")
-            checkpoints.restore(
-                Path(identity.worktree),
-                checkpoints.load(args.task_id, args.label, args.plan_hash),
-            )
-            print(json.dumps({"status": "rolled_back", "task_id": args.task_id}))
+            print(json.dumps(asdict(result), indent=2))
+            if result.status != "restored":
+                return 3
         elif args.command == "cleanup":
             identity = manager.load(args.repository, args.task_id)
             print(json.dumps(manager.cleanup(identity, delete_branch=args.delete_branch).to_dict(), indent=2))

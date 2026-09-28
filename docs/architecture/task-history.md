@@ -18,6 +18,16 @@ Schema version 5 contains normalized `tasks`, `task_status_events`, `plans`, `ex
 
 The validated lifecycle is `created → planning → awaiting approval/approved → executing → validating → reviewing → succeeded`, with explicit reapproval, failed, blocked, rolled-back, and cancelled branches. Terminal states cannot resume. Imported historical events retain their original timestamps and artifact links.
 
+Internal checkpoint restore is audited through the existing task timeline under
+the `isolation` subsystem (`rollback_started`, target failure, recovered
+failure, restore success, or recovery required). Events carry only task-bound
+checkpoint IDs and bounded error types, never filesystem paths or secrets.
+Manual checkpoint restore does not transition `TaskStatus`; `rolled_back`
+continues to describe the existing executor rollback-on-failure outcome.
+Interrupted restore is represented by isolation metadata state
+`rollback_in_progress` and the normal read-only recovery scanner, not by a new
+task status or parallel database.
+
 SQLite uses WAL, foreign keys, a bounded busy timeout, short `BEGIN IMMEDIATE` writes, rollback on errors, and indexed common queries. `PRAGMA quick_check` detects corruption. Migrations run in deterministic transactions and never drop/recreate history.
 
 ## Privacy and presentation boundary

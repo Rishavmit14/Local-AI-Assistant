@@ -154,6 +154,21 @@ class WorktreeManager:
             self._persist(updated)
             return updated
 
+    def mark_recovery_required(self, identity: WorktreeIdentity) -> WorktreeIdentity:
+        """Persist severe recovery state; caller must hold this task's lock."""
+        updated = replace(identity, state=WorktreeState.RECOVERY_REQUIRED)
+        self._persist(updated)
+        return updated
+
+    def persist_state_under_lock(
+        self, identity: WorktreeIdentity, state: WorktreeState
+    ) -> WorktreeIdentity:
+        """Persist a transaction marker; caller must hold this task's lock."""
+        current = _git(Path(identity.worktree), "rev-parse", "HEAD")
+        updated = replace(identity, state=state, current_commit=current)
+        self._persist(updated)
+        return updated
+
     def cleanup(
         self,
         identity: WorktreeIdentity,
@@ -195,8 +210,10 @@ class WorktreeManager:
         if not allow_active and persisted.state in {
             WorktreeState.EXECUTING,
             WorktreeState.VALIDATING,
+            WorktreeState.ROLLBACK_IN_PROGRESS,
+            WorktreeState.RECOVERY_REQUIRED,
         }:
-            raise IsolationError("Refusing cleanup while task execution is active")
+            raise IsolationError("Refusing cleanup while task execution or recovery is active")
         if path.exists():
             result = subprocess.run(
                 git_argv("worktree", "remove", "--force", str(path)),
@@ -227,10 +244,15 @@ class WorktreeManager:
         os.chmod(target.parent, 0o700)
         temporary = target.with_suffix(".tmp")
         temporary.write_text(json.dumps(identity.to_dict(), sort_keys=True, indent=2) + "\n")
+        os.chmod(temporary, 0o600)
         with temporary.open("rb") as stream:
             os.fsync(stream.fileno())
         os.replace(temporary, target)
-        os.chmod(target, 0o600)
+        descriptor = os.open(target.parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
 
     def _metadata_path(self, repo_id: str, task_id: str) -> Path:
         return contained_path(self.root, repo_id, "metadata", task_id).with_suffix(".json")

@@ -35,6 +35,8 @@ def inspect_recovery(root: Path) -> tuple[RecoveryFinding, ...]:
                 WorktreeState.CREATING,
                 WorktreeState.EXECUTING,
                 WorktreeState.VALIDATING,
+                WorktreeState.ROLLBACK_IN_PROGRESS,
+                WorktreeState.RECOVERY_REQUIRED,
                 WorktreeState.CLEANUP_PENDING,
             }:
                 reason = "interrupted lifecycle requires operator inspection"
@@ -81,6 +83,7 @@ def inspect_task_recovery(root: Path, task_id: str) -> tuple[RecoveryFinding, ..
                 WorktreeState.CREATING,
                 WorktreeState.EXECUTING,
                 WorktreeState.VALIDATING,
+                WorktreeState.ROLLBACK_IN_PROGRESS,
                 WorktreeState.CLEANUP_PENDING,
                 WorktreeState.RECOVERY_REQUIRED,
             } or (state is not WorktreeState.CLEANED and not worktree.exists()):

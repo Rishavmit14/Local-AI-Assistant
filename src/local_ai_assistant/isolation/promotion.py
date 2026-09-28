@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .errors import PromotionError
 from .gitops import ensure_no_git_filters, git_argv, safe_git_environment
+from .locks import task_lock
 from .models import WorktreeIdentity, WorktreeState
 
 
@@ -84,14 +85,15 @@ def verify_promotion(
     *,
     canonical_head: str,
 ) -> PromotionEvidence:
-    if identity.state not in {WorktreeState.VALIDATING, WorktreeState.PROMOTION_READY}:
-        raise PromotionError("Worktree is not in a promotable lifecycle state")
-    if canonical_head != identity.starting_commit:
-        raise PromotionError("Canonical repository advanced; revalidation/reapproval is required")
-    current = diff_hash(Path(identity.worktree), identity.starting_commit)
-    if not current or len({current, reviewed_diff_hash, validated_diff_hash}) != 1:
-        raise PromotionError("Reviewed, validated, and current diff identities do not match")
-    return PromotionEvidence(identity.plan_hash, reviewed_diff_hash, validated_diff_hash, current)
+    with _promotion_lock(identity):
+        if identity.state not in {WorktreeState.VALIDATING, WorktreeState.PROMOTION_READY}:
+            raise PromotionError("Worktree is not in a promotable lifecycle state")
+        if canonical_head != identity.starting_commit:
+            raise PromotionError("Canonical repository advanced; revalidation/reapproval is required")
+        current = diff_hash(Path(identity.worktree), identity.starting_commit)
+        if not current or len({current, reviewed_diff_hash, validated_diff_hash}) != 1:
+            raise PromotionError("Reviewed, validated, and current diff identities do not match")
+        return PromotionEvidence(identity.plan_hash, reviewed_diff_hash, validated_diff_hash, current)
 
 
 def commit_exact(
@@ -100,44 +102,51 @@ def commit_exact(
     message: str,
 ) -> PromotionEvidence:
     repository = Path(identity.worktree)
-    if diff_hash(repository, identity.starting_commit) != evidence.current_diff_hash:
-        raise PromotionError("Worktree changed after promotion review")
-    try:
-        ensure_no_git_filters(repository, identity.starting_commit)
-    except Exception as exc:
-        raise PromotionError(str(exc)) from exc
-    environment = safe_git_environment()
-    add = subprocess.run(git_argv("add", "-A"), cwd=repository, env=environment, capture_output=True)
-    if add.returncode:
-        raise PromotionError("Cannot stage promotion candidate")
-    commit = subprocess.run(
-        git_argv("commit", "-m", message),
-        cwd=repository,
-        env=environment,
-        text=True,
-        capture_output=True,
-    )
-    if commit.returncode:
-        subprocess.run(
-            git_argv("restore", "--staged", "."), cwd=repository, env=environment, capture_output=True
+    with _promotion_lock(identity):
+        if diff_hash(repository, identity.starting_commit) != evidence.current_diff_hash:
+            raise PromotionError("Worktree changed after promotion review")
+        try:
+            ensure_no_git_filters(repository, identity.starting_commit)
+        except Exception as exc:
+            raise PromotionError(str(exc)) from exc
+        environment = safe_git_environment()
+        add = subprocess.run(git_argv("add", "-A"), cwd=repository, env=environment, capture_output=True)
+        if add.returncode:
+            raise PromotionError("Cannot stage promotion candidate")
+        commit = subprocess.run(
+            git_argv("commit", "-m", message),
+            cwd=repository,
+            env=environment,
+            text=True,
+            capture_output=True,
         )
-        raise PromotionError("Cannot commit promotion candidate: " + commit.stderr.strip())
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=repository, text=True, capture_output=True
-    ).stdout.strip()
-    committed_tree = subprocess.run(
-        ["git", "rev-parse", f"{head}^{{tree}}"], cwd=repository,
-        text=True, capture_output=True,
-    ).stdout.strip()
-    committed_hash = hashlib.sha256(
-        f"{identity.starting_commit}\0{committed_tree}".encode()
-    ).hexdigest()
-    if committed_hash != evidence.current_diff_hash:
-        raise PromotionError("Committed content differs from reviewed promotion evidence")
-    return PromotionEvidence(
-        evidence.plan_hash,
-        evidence.reviewed_diff_hash,
-        evidence.validated_diff_hash,
-        evidence.current_diff_hash,
-        head,
-    )
+        if commit.returncode:
+            subprocess.run(
+                git_argv("restore", "--staged", "."), cwd=repository, env=environment, capture_output=True
+            )
+            raise PromotionError("Cannot commit promotion candidate: " + commit.stderr.strip())
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repository, text=True, capture_output=True
+        ).stdout.strip()
+        committed_tree = subprocess.run(
+            ["git", "rev-parse", f"{head}^{{tree}}"], cwd=repository,
+            text=True, capture_output=True,
+        ).stdout.strip()
+        committed_hash = hashlib.sha256(
+            f"{identity.starting_commit}\0{committed_tree}".encode()
+        ).hexdigest()
+        if committed_hash != evidence.current_diff_hash:
+            raise PromotionError("Committed content differs from reviewed promotion evidence")
+        return PromotionEvidence(
+            evidence.plan_hash,
+            evidence.reviewed_diff_hash,
+            evidence.validated_diff_hash,
+            evidence.current_diff_hash,
+            head,
+        )
+
+
+def _promotion_lock(identity: WorktreeIdentity):
+    worktree = Path(identity.worktree).resolve(strict=True)
+    root = worktree.parent.parent
+    return task_lock(root, identity.repository_id, identity.task_id)
