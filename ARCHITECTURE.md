@@ -528,6 +528,14 @@ records remain untrusted style guidance below the current turn and all system,
 safety, capability, and approval policy; no passive habit inference or memory
 write occurs. See `docs/architecture/memory.md` and ADR 0027.
 
+Astra Phase 14 adds a deterministic, read-only explanation projection over
+`TaskHistoryService` and explicitly linked `ObjectiveService` records. Exact-ID
+GET routes and the conversation adapter share typed allowlisted explanation
+DTOs; no Qwen generation or action authority is involved. Plan, approval,
+execution, outcome, objective state, and recovery remain distinct facts, and
+timeline order does not imply causality. See
+`docs/architecture/task-history.md` and ADR 0028.
+
 The compounding architecture is:
 
 ```text

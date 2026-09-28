@@ -28,6 +28,7 @@ from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
+from local_ai_assistant.interface.task_explanation import TaskExplanationService
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
 from local_ai_assistant.onboarding import RepositoryOnboardingService
@@ -338,13 +339,25 @@ def build_presentation_components(
         FridayCapability("ocr", "OCR", CapabilityStatus.IMPLEMENTED, resolved_config.ocr.enabled, True, resolved_config.ocr.enabled, "explicit captured-screen API", "OCR results are not attached to normal conversation context"),
         FridayCapability("desktop_control", "Desktop control", CapabilityStatus.IMPLEMENTED, True, True, True, "allowlisted proposal/approval API", "only configured allowlisted actions; no general keyboard or mouse control"),
         FridayCapability("objectives", "Guarded objectives", CapabilityStatus.INTEGRATED, True, execution_auth is not None, True, "objective console and bounded API", "execution retains authenticated exact-plan approval and isolation gates"),
+        FridayCapability("task_explanation", "Grounded task explanations", CapabilityStatus.INTEGRATED, True, True, True, "exact task/objective ID; read-only canonical projection", "deterministic facts only; no approval, execution, mutation, or unsupported causality"),
         FridayCapability("proactive", "Proactive notifications", CapabilityStatus.IMPLEMENTED, resolved_config.proactive.enabled, True, resolved_config.proactive.enabled, "configured local watches", "notifications only; no action authority"),
         FridayCapability("research", "Local research ledger", CapabilityStatus.IMPLEMENTED, True, True, True, "bounded local research API", "owner-provided sources only; no automatic web research"),
         FridayCapability("code_intelligence", "Repository and code intelligence", CapabilityStatus.IMPLEMENTED, True, True, True, "CLI and guarded engineering paths", "not yet a normal conversation capability"),
         FridayCapability("github", "GitHub integration", CapabilityStatus.INTEGRATED, resolved_config.gateway.enabled, execution_auth is not None, career_publication is not None, "authenticated gateway", "requires an explicit onboarded publication mapping, GITHUB_WRITE scope, and local credential"),
     ), health={"voice": voice_capability_health})
 
-    capability_router = FridayConversationCapabilityRouter(capabilities, career_forge=career_forge, memory=memory, practice_lab=practice_lab)
+    task_explanation = TaskExplanationService(
+        history,
+        autonomy,
+        resolved_config.paths.worktree_dir,
+    )
+    capability_router = FridayConversationCapabilityRouter(
+        capabilities,
+        career_forge=career_forge,
+        memory=memory,
+        practice_lab=practice_lab,
+        task_explanation=task_explanation,
+    )
     def memory_context_with_timing(prompt: str, mark) -> str:
         return "\n".join(
             f"[{item.kind}] {item.subject}: {item.content} (provenance={item.provenance}, confidence={item.confidence:g})"

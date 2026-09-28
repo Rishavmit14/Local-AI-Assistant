@@ -1463,3 +1463,18 @@ its registered source while ignoring embedded instruction-like source text.
 The deterministic evidence-assembly route and its `question_applied: false`
 semantics remain unchanged. Citation verification, browsing, and autonomous
 learning from research remain outside this qualified capability.
+
+## Astra Canonical Product Integration — Phase 14: Explain what Friday did (**Qualified candidate**)
+
+A deterministic, read-only task explanation capability projects one exact
+canonical task or explicitly linked objective through allowlisted facts,
+source labels, up to 20 task events, and bounded isolation recovery evidence.
+Astra History and Objectives expose explicit explanation actions, and the
+conversation route answers exact task/objective identities without Qwen
+interpretation. It preserves objective/task lifecycle distinctions and does
+not infer causality from timestamps or treat plan, approval, execution, or
+artifact presence as success. Qualification covers candidate API, native Astra
+UI, reload/navigation reconstruction, exact-ID conversation routing, and
+focused/full validation; see matrix row 54 and ADR 0028. The capability grants
+no task, objective, desktop, shell, Git, approval, execution, rollback, or
+restore authority.

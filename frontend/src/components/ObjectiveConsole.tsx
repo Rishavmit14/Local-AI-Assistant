@@ -4,6 +4,8 @@ import { FridayRuntimeClient } from "../runtime";
 import type { FridayActivityItem, FridayObjective, FridayObjectiveProgress, FridayPlanReview } from "../runtime";
 import { selectObjectiveDisplay } from "../runtime/objectives";
 import { ObjectiveOutcome } from "./ObjectiveOutcome";
+import { TaskExplanationPanel } from "./TaskExplanationPanel";
+import type { FridayObjectiveExplanation, FridayTaskExplanation } from "../runtime/types";
 
 export function ObjectiveConsole() {
   const client = useMemo(() => new FridayRuntimeClient(), []);
@@ -14,6 +16,9 @@ export function ObjectiveConsole() {
   const [repositoryId, setRepositoryId] = useState("");
   const [review, setReview] = useState<FridayPlanReview | null>(null);
   const [progress, setProgress] = useState<FridayObjectiveProgress | null>(null);
+  const [explanation, setExplanation] = useState<FridayTaskExplanation | FridayObjectiveExplanation | null>(null);
+  const [explanationError, setExplanationError] = useState<string | null>(null);
+  const [explanationLoading, setExplanationLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [hasSnapshot, setHasSnapshot] = useState(false);
@@ -81,6 +86,13 @@ export function ObjectiveConsole() {
     catch (reason) { setError(reason instanceof Error ? reason.message : "Could not request a canonical plan"); }
     finally { setBusy(false); }
   };
+  const explain = async () => {
+    if (!current) return;
+    setExplanationLoading(true);setExplanationError(null);setExplanation(null);
+    try { setExplanation(await client.getObjectiveExplanation(current.objective_id)); }
+    catch (reason) { setExplanationError(reason instanceof Error ? reason.message : "Canonical explanation unavailable"); }
+    finally { setExplanationLoading(false); }
+  };
   return <aside className="objective-console" aria-label="Autonomous objectives">
     <div className="career-forge-heading"><span>OBJECTIVE</span><small>LOCAL · GUARDED</small></div>
     {error ? <div className="objective-service-error" role="alert">
@@ -110,6 +122,8 @@ export function ObjectiveConsole() {
           {progress.timeline.length ? <ol>{progress.timeline.map((event) => <li key={event.event_id}><time dateTime={event.timestamp}>{event.timestamp}</time><strong>{event.kind.replaceAll("_", " ")}</strong><span>{event.summary}</span></li>)}</ol> : <p>No canonical task timeline is recorded.</p>}
         </details>
       </section> : null}
+      <button type="button" onClick={() => void explain()} disabled={explanationLoading}>EXPLAIN WHAT HAPPENED</button>
+      <TaskExplanationPanel explanation={explanation} loading={explanationLoading} error={explanationError}/>
       {current.state === "created" ? <button type="button" onClick={() => void resume()} disabled={busy}>BEGIN PLANNING</button> : null}
       {current.state === "planning" ? <>
         <label className="objective-create-label" htmlFor="objective-repository">CONFIGURED REPOSITORY ID</label>

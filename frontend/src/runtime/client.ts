@@ -29,6 +29,8 @@ import type {
   FridayDesktopAction,
   FridayObjective,
   FridayObjectiveProgress,
+  FridayTaskExplanation,
+  FridayObjectiveExplanation,
   FridayPlanReview,
   FridayMemoryCreateRequest,
   FridayMemoryRecord,
@@ -645,6 +647,18 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/progress`, { signal });
     if (!response.ok) throw new Error(`objective progress request failed: ${response.status}`);
     return response.json() as Promise<FridayObjectiveProgress>;
+  }
+
+  async getTaskExplanation(taskId: string, signal?: AbortSignal): Promise<FridayTaskExplanation> {
+    const response = await fetch(`${this.baseUrl}/api/v1/explanations/tasks/${encodeURIComponent(taskId)}`, { signal });
+    if (!response.ok) throw new Error(`task explanation request failed: ${response.status}`);
+    return response.json() as Promise<FridayTaskExplanation>;
+  }
+
+  async getObjectiveExplanation(objectiveId: string, signal?: AbortSignal): Promise<FridayTaskExplanation | FridayObjectiveExplanation> {
+    const response = await fetch(`${this.baseUrl}/api/v1/explanations/objectives/${encodeURIComponent(objectiveId)}`, { signal });
+    if (!response.ok) throw new Error(`objective explanation request failed: ${response.status}`);
+    return response.json() as Promise<FridayTaskExplanation | FridayObjectiveExplanation>;
   }
 
   async getProactiveNotifications(signal?: AbortSignal): Promise<FridayProactiveNotification[]> {

@@ -42,8 +42,6 @@ from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.history.models import TaskFilter
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.isolation.errors import SandboxUnavailableError
-from local_ai_assistant.isolation.models import WorktreeState
-from local_ai_assistant.isolation.recovery import inspect_task_recovery
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind, MemoryState
 from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
@@ -53,7 +51,9 @@ from local_ai_assistant.research import ResearchService
 from .capabilities import FridayCapabilityRegistry
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
+from .progress_projection import task_recovery_projection
 from .runtime import FridayRuntime
+from .task_explanation import TaskExplanationNotFound, TaskExplanationService
 
 
 def _safe_progress_text(value: str | None, limit: int) -> str | None:
@@ -523,39 +523,11 @@ def create_presentation_app(
                     "kind": kind, "subsystem": event.subsystem[:80], "status": event.status,
                     "summary": summary})
             latest = events[-1] if events else None
-            recovery = {"status": "unavailable" if isolation_root is None else "no_isolation_record",
-                        "summary": "Isolation recovery evidence is unavailable." if isolation_root is None else "No task isolation record was found; recovery health is unknown."}
-            if task and isolation_root is not None:
-                try:
-                    root = isolation_root.resolve()
-                    matches = sorted(root.glob(f"*/metadata/{task.task_id}.json")) if root.exists() else []
-                    if len(matches) > 1:
-                        recovery = {"status": "identity_collision", "summary": "Multiple isolation records match this task; inspection is required."}
-                    elif matches:
-                        path = matches[0].resolve(strict=True)
-                        if root not in path.parents:
-                            recovery = {"status": "path_rejected", "summary": "Isolation metadata failed its containment check."}
-                        else:
-                            metadata = json.loads(path.read_text(encoding="utf-8"))
-                            state = WorktreeState(str(metadata.get("state", ""))).value
-                            cleanup = str(metadata.get("cleanup_status", ""))
-                            findings = inspect_task_recovery(root, task.task_id)
-                            if state == WorktreeState.RECOVERY_REQUIRED.value:
-                                recovery = {"status": "recovery_required", "summary": "Recovery inspection is required."}
-                            elif state == WorktreeState.CLEANUP_PENDING.value or cleanup == WorktreeState.CLEANUP_PENDING.value:
-                                recovery = {"status": "cleanup_pending", "summary": "Canonical isolation metadata records pending cleanup; inspection is required."}
-                            elif findings:
-                                recovery = {"status": "recovery_required", "summary": "Recovery inspection is required."}
-                            elif state == "cleaned" or cleanup == "cleaned":
-                                recovery = {"status": "cleaned", "summary": "Canonical isolation metadata records cleanup as complete."}
-                            elif state:
-                                recovery = {"status": "known_isolation_state", "isolation_state": state,
-                                    "cleanup_state": cleanup or None,
-                                    "summary": "Canonical isolation metadata is available; no recovery conclusion is inferred."}
-                            else:
-                                recovery = {"status": "unavailable", "summary": "Isolation metadata has no recognized state."}
-                except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
-                    recovery = {"status": "unavailable", "summary": "Isolation recovery evidence could not be read."}
+            recovery = task_recovery_projection(isolation_root, task.task_id) if task else (
+                {"status": "unavailable", "summary": "Isolation recovery evidence is unavailable."}
+                if isolation_root is None else
+                {"status": "no_isolation_record", "summary": "No task isolation record was found; recovery health is unknown."}
+            )
             return {"objective": {"objective_id": objective.objective_id, "text": _safe_progress_text(objective.text, 1000),
                     "state": objective.state, "created_at": objective.created_at, "updated_at": objective.updated_at,
                     "narrative": objective_narratives.get(objective.state, "Objective state is recorded; its meaning is unavailable.")},
@@ -638,6 +610,30 @@ def create_presentation_app(
             return {"activity": activity[:limit]}
         except (OSError, ValueError, HistoryDatabaseError) as exc:
             raise HTTPException(status_code=503, detail="canonical activity is unavailable") from exc
+
+    @app.get("/api/v1/explanations/tasks/{task_id}")
+    def explain_task(task_id: str):
+        """Read one exact task into an allowlisted deterministic explanation."""
+        if task_history is None:
+            raise HTTPException(status_code=503, detail="canonical task history is unavailable")
+        try:
+            return TaskExplanationService(task_history, autonomy, isolation_root).task(task_id).to_dict()
+        except TaskExplanationNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (OSError, HistoryDatabaseError) as exc:
+            raise HTTPException(status_code=503, detail="canonical task explanation is unavailable") from exc
+
+    @app.get("/api/v1/explanations/objectives/{objective_id}")
+    def explain_objective(objective_id: str):
+        """Read one exact objective and only its canonically linked task."""
+        if task_history is None or autonomy is None:
+            raise HTTPException(status_code=503, detail="canonical objective/task records are unavailable")
+        try:
+            return TaskExplanationService(task_history, autonomy, isolation_root).objective(objective_id).to_dict()
+        except TaskExplanationNotFound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (OSError, HistoryDatabaseError) as exc:
+            raise HTTPException(status_code=503, detail="canonical objective explanation is unavailable") from exc
 
     @app.post("/api/v1/objectives/{objective_id}/resume")
     def resume_objective(objective_id: str):

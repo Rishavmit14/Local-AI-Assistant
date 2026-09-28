@@ -1615,3 +1615,25 @@ and Vite large-chunk warnings remain. Capability commit
 `d34b15736d2cc1fe7f6b851c9d99991f151e4e3e` was pushed to the owning integration
 branch and fast-forwarded to main; final fetched recovery verification is
 recorded in the handoff.
+
+## 2026-09-28 — Astra Phase 14 grounded task explanations
+
+Added exact-ID, deterministic read-only explanations over canonical task history
+and explicitly linked objectives. Task/objective lifecycle states, plan and
+approval records, execution evidence, outcome, bounded timeline, source
+provenance, and isolation recovery are presented as separate evidence; event
+order does not establish causality. The typed projection excludes raw task
+requests, arbitrary timeline summaries, commands, artifact paths/content, and
+unrelated store data. GET-only APIs, History/Objectives explanation panels, and
+an exact-ID conversation route add no approval, execution, rollback, restore,
+desktop, shell, or Git authority. Qwen is not invoked for this route.
+
+Native Astra candidate qualification verified both sentinel records in History,
+Objectives, and the conversation route. Objective state remained `planned`,
+task state remained `awaiting_approval`, with zero approval/execution records
+and null outcome. Navigation/reload reconstructed canonical state; explanation
+requests did not mutate it. Candidate API was restarted on 8766 to load the new
+routes; production API 8765 remained healthy and untouched. The existing
+preference adaptation remains disabled; watches, notifications, Phase 12
+research source, desktop records, and Career Forge qualification state were not
+changed.

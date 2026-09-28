@@ -15,6 +15,9 @@ from local_ai_assistant.interface.capability_routing import (
 )
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.runtime import FridayRuntime
+from local_ai_assistant.history.service import TaskHistoryService
+from local_ai_assistant.history.store import TaskHistoryStore
+from local_ai_assistant.interface.task_explanation import TaskExplanationService
 from local_ai_assistant.memory import FridayMemoryService
 
 
@@ -34,6 +37,7 @@ def router(tmp_path):
     registry = FridayCapabilityRegistry((
         FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED, True, True, True, "local", None),
         FridayCapability("persistent_memory", "Persistent memory", CapabilityStatus.INTEGRATED, True, True, True, "local", None),
+        FridayCapability("task_explanation", "Grounded task explanations", CapabilityStatus.INTEGRATED, True, True, True, "local", None),
         FridayCapability("practice_lab", "Practice Lab", CapabilityStatus.INTEGRATED, True, True, True, "local", "Python only"),
     ))
     forge = CareerForgeService(tmp_path / "career.sqlite3")
@@ -96,6 +100,22 @@ def test_ambiguous_memory_mutation_fails_without_writing(tmp_path):
     assert "only in the form" in response
     assert not llm.calls
     assert not capability_router.adapters["persistent_memory"].service.search("turtles")
+
+
+def test_exact_task_explanation_uses_canonical_records_without_local_model(tmp_path):
+    capability_router = router(tmp_path)
+    history = TaskHistoryService(TaskHistoryStore(tmp_path / "explanation.sqlite3"))
+    task = history.create_task("Qualification task", tmp_path, "a" * 40, "main")
+    capability_router.adapters["task_explanation"].service = TaskExplanationService(history)
+    llm = FakeLLM()
+    conversation = FridayConversationService(llm, FridayRuntime("grounded-explanation"), capability_router=capability_router)
+
+    response = "".join(conversation.stream_response(f"What happened with task {task.task_id}?"))
+
+    assert "awaiting" not in response
+    assert "No execution record is present" in response
+    assert "deterministic, read-only" in response
+    assert not llm.calls
 
 
 def test_information_and_invocation_intents_remain_distinct(tmp_path):

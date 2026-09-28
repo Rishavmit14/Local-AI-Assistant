@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { History as HistoryIcon, RefreshCw, ShieldCheck } from "lucide-react";
 import { FridayRuntimeClient } from "../runtime";
-import type { FridayActivityItem, FridayDesktopAction, FridayObjective, FridayProactiveNotification } from "../runtime";
+import type { FridayActivityItem, FridayDesktopAction, FridayObjective, FridayObjectiveExplanation, FridayProactiveNotification, FridayTaskExplanation } from "../runtime";
+import { TaskExplanationPanel } from "../components/TaskExplanationPanel";
 import { SectionHeader, Status, Tabs } from "./ui";
 import "./History.css";
 
@@ -29,6 +30,9 @@ export function HistoryWorkspace() {
   const [filter, setFilter] = useState<HistoryFilter>("all");
   const [reload, setReload] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [explanation, setExplanation] = useState<FridayTaskExplanation | FridayObjectiveExplanation | null>(null);
+  const [explanationError, setExplanationError] = useState<string | null>(null);
+  const [explanationLoading, setExplanationLoading] = useState(false);
 
   const refresh = useCallback(async (signal: AbortSignal) => {
     const requests: [SourceKey, () => Promise<unknown[]>][] = [
@@ -69,6 +73,20 @@ export function HistoryWorkspace() {
     return `${name}: ${state.data.length ? `${state.data.length} canonical record${state.data.length === 1 ? "" : "s"}` : "no canonical records"}`;
   }
 
+  async function explainTask(taskId: string) {
+    setExplanation(null);setExplanationError(null);setExplanationLoading(true);
+    try { setExplanation(await client.getTaskExplanation(taskId)); }
+    catch (reason) { setExplanationError(reason instanceof Error ? reason.message : "Canonical explanation unavailable"); }
+    finally { setExplanationLoading(false); }
+  }
+  async function explainObjective(objectiveId: string) {
+    setExplanation(null);setExplanationError(null);setExplanationLoading(true);
+    try { setExplanation(await client.getObjectiveExplanation(objectiveId)); }
+    catch (reason) { setExplanationError(reason instanceof Error ? reason.message : "Canonical explanation unavailable"); }
+    finally { setExplanationLoading(false); }
+  }
+  const explainableTaskIds = new Set<string>();
+
   return <section className="op-history" aria-label="History and recovery">
     <SectionHeader eyebrow="WHAT FRIDAY RECORDED" title="History / Recovery" description="A read-only view across existing task, notification, and desktop audit records. Sources remain separately owned; timestamps are shown as recorded and do not imply cross-store causality." actions={<button className="btn" type="button" disabled={loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}><RefreshCw size={15}/>Refresh canonical history</button>}/>
     <div className="op-history-boundary"><ShieldCheck size={18}/><p>Inspection only. This view cannot approve, execute, cancel, retry, roll back, or restore work. A recorded state is shown as stored; missing records are not inferred.</p></div>
@@ -78,13 +96,16 @@ export function HistoryWorkspace() {
     <Tabs label="History source filter" items={filters} value={filter} onChange={setFilter}/>
     {noRecords && <div className="op-history-empty"><HistoryIcon size={22}/><strong>No canonical records in these sources</strong><p>Friday returned empty history for the selected sources. Nothing is filled in from browser fixtures.</p></div>}
     {(filter === "all" || filter === "tasks") && (visibleObjectives.length > 0 || objectives.error) && <section className="op-history-section"><header><h2>Canonical objectives</h2><Status>ObjectiveService · read-only</Status></header>
-      {objectives.error ? <p className="op-history-error" role="alert">Objective records are unavailable: {objectives.error}</p> : <ol>{visibleObjectives.map(item => <li key={item.objective_id}><time>{time(item.updated_at)}</time><strong>{item.state}</strong><p>{item.text}</p><dl><div><dt>Objective</dt><dd>{item.objective_id}</dd></div>{item.task_id && <div><dt>Linked task</dt><dd>{item.task_id} · {item.task_state ?? "state unavailable"}</dd></div>}{item.task_id && <div><dt>Execution outcome</dt><dd>{item.task_outcome ?? "No outcome recorded"}</dd></div>}{item.plan_hash && <div><dt>Plan identity</dt><dd>{item.plan_hash}</dd></div>}</dl></li>)}</ol>}
+      {objectives.error ? <p className="op-history-error" role="alert">Objective records are unavailable: {objectives.error}</p> : <ol>{visibleObjectives.map(item => <li key={item.objective_id}><time>{time(item.updated_at)}</time><strong>{item.state}</strong><p>{item.text}</p><dl><div><dt>Objective</dt><dd>{item.objective_id}</dd></div>{item.task_id && <div><dt>Linked task</dt><dd>{item.task_id} · {item.task_state ?? "state unavailable"}</dd></div>}{item.task_id && <div><dt>Execution outcome</dt><dd>{item.task_outcome ?? "No outcome recorded"}</dd></div>}{item.plan_hash && <div><dt>Plan identity</dt><dd>{item.plan_hash}</dd></div>}</dl><button className="btn" type="button" onClick={() => void explainObjective(item.objective_id)}>Explain this objective</button></li>)}</ol>}
     </section>}
     {(visibleActivity.length > 0 || activity.error || (activity.loaded && !activity.data.some(item => item.task_id) && filter === "tasks")) && <section className="op-history-section"><header><h2>Task timeline</h2><Status>TaskHistoryService · read-only</Status></header>
       {activity.error ? <p className="op-history-error" role="alert">Objective/task activity is unavailable: {activity.error}</p> : visibleActivity.length ? <ol>{visibleActivity.map(item => {
-        return <li key={item.id}><time>{time(item.occurred_at)}</time><strong>{item.kind}</strong><p>{item.summary}</p><dl>{item.objective_id && <div><dt>Objective</dt><dd>{item.objective_id}{item.objective_text ? ` · ${item.objective_text}` : ""}</dd></div>}{item.task_id && <div><dt>Task</dt><dd>{item.task_id} · {item.task_state ?? "state unavailable"}</dd></div>}</dl></li>;
+        const offerExplanation = item.task_id && !explainableTaskIds.has(item.task_id);
+        if (item.task_id && offerExplanation) explainableTaskIds.add(item.task_id);
+        return <li key={item.id}><time>{time(item.occurred_at)}</time><strong>{item.kind}</strong><p>{item.summary}</p><dl>{item.objective_id && <div><dt>Objective</dt><dd>{item.objective_id}{item.objective_text ? ` · ${item.objective_text}` : ""}</dd></div>}{item.task_id && <div><dt>Task</dt><dd>{item.task_id} · {item.task_state ?? "state unavailable"}</dd></div>}</dl>{offerExplanation&&item.task_id&&<button className="btn" type="button" onClick={() => void explainTask(item.task_id!)}>Explain this task</button>}</li>;
       })}</ol> : <p className="op-history-empty-inline">No objective or task timeline records are stored.</p>}
     </section>}
+    <TaskExplanationPanel explanation={explanation} loading={explanationLoading} error={explanationError}/>
     {(visibleNotifications.length > 0 || notifications.error) && <section className="op-history-section"><header><h2>Proactive notifications</h2><Status>Event-linked · read-only</Status></header>
       {notifications.error ? <p className="op-history-error" role="alert">Notification history is unavailable: {notifications.error}</p> : visibleNotifications.length ? <ol>{visibleNotifications.map(item => <li key={item.notification_id}><time>{time(item.event_occurred_at ?? item.created_at)}</time><strong>{item.event_kind ?? "Event kind unavailable"}</strong><p>{item.summary}</p><dl><div><dt>Event</dt><dd>{item.event_id}</dd></div><div><dt>Source / watch</dt><dd>{item.source ?? "Source unavailable"} · {item.watch_label ?? item.watch_id}</dd></div><div><dt>Acknowledgement</dt><dd>{item.acknowledged_at ? `Acknowledged · ${time(item.acknowledged_at)}` : "Not acknowledged"}</dd></div></dl></li>)}</ol> : <p className="op-history-empty-inline">No canonical notifications are stored.</p>}
     </section>}

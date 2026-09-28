@@ -3093,3 +3093,46 @@ The candidate API is running on 8766 with adaptation disabled. Production
 8765 remains running. After this handoff-only commit, fetch and verify the
 capability and recovery refs on both remotes, verify the worktree is clean, and
 stop at the Phase 13 acceptance boundary without starting another phase.
+
+## Current recovery — Astra grounded task explanations, Phase 14
+
+Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
+`integration/astra-friday`; implementation began clean at
+`97c39d91b6b403b5f3a0d2a8ca458f9bc3e1eb25`. Phase 13 commit
+`d34b15736d2cc1fe7f6b851c9d99991f151e4e3` is an ancestor. Phase 14 adds a
+read-only typed task/objective explanation service, exact-ID conversation
+routing, GET-only API endpoints, and explicit History and Objectives
+explanation panels. It reuses TaskHistoryService and ObjectiveService, emits at
+most 20 allowlisted timeline facts, and includes bounded isolation recovery
+inspection. It does not invoke Qwen, expose raw task requests/summaries,
+commands, artifact paths/contents/metadata, or add authority.
+
+Native Astra candidate qualification used API 8766 and UI 5191. For sentinel
+`task_90be0b53d357423885aa` / objective
+`76403f1080c949efb09e4aa1a3b1351e`, History, Objectives, and the exact-ID
+conversation route agree: objective `planned`, task `awaiting_approval`, plan
+present, zero approval/execution records, null outcome, and recovery health
+unknown because no isolation record exists. Navigation/reload reconstructed
+canonical records. The response is deterministic and read-only. Candidate API
+8766 was restarted for route loading; Vite 5191 remains on candidate API 8766.
+Production API 8765 remains healthy and untouched. Both task sentinels remain
+awaiting approval with null outcome; the preference setting remains disabled;
+two notify-only watches remain enabled with worker stopped; two notifications
+remain acknowledged; Phase 12 source/hash and existing desktop audit states
+remain unchanged. Career Forge remains unqualified as before.
+
+Validation: focused backend suite passed (61 tests across explanation/API/
+routing); frontend suite passed (97); TypeScript and production build passed;
+ESLint passed; repository verification passed (942 Python tests and tracked
+artifact checks); `git diff --check` passed. Existing Starlette/AnyIO
+DeprecationWarning and Vite large-chunk advisory remain. Phase 14 matrix row 54
+is qualified as a bounded candidate. The next unresolved product dependency is
+matrix row 55, Undo/rollback; do not start it in this phase.
+
+Pending publication at handoff authoring: review the final diff, commit on
+`integration/astra-friday`, push it, fast-forward `main` to the same accepted
+commit, fetch and verify both remote refs at that exact SHA, then update this
+recovery record with the accepted SHA and final clean-state evidence. Protected
+production checkout `/AI/projects/Local-AI-Assistant` remains untouched at
+`e43896623978e86b7bae6502b380462b455626be` on
+`stage-22/product-integration`, including its owner voice changes.

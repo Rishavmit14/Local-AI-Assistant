@@ -475,6 +475,20 @@ export interface FridayObjectiveProgress {
   owner_attention: "approval_required" | "reapproval_required" | "none_recorded" | "unavailable";
 }
 
+export interface FridayExplanationFact { label: string; value: string; source: string }
+export interface FridayExplanationEvent { timestamp: string; kind: string; status: string | null; source: string }
+export interface FridayTaskExplanation {
+  task_id: string; objective_id: string | null; objective_text: string | null; objective_state: string | null;
+  canonical_status: string; outcome: string | null; owner_attention: string; summary: string;
+  facts: FridayExplanationFact[]; timeline: FridayExplanationEvent[]; latest_event: FridayExplanationEvent | null;
+  recovery: { status: string; summary: string }; evidence_sources: string[]; limitations: string[]; generated: false;
+}
+export interface FridayObjectiveExplanation {
+  objective_id: string; objective_text: string; objective_state: string; task_id: string | null;
+  task_state: string | null; summary: string; facts: FridayExplanationFact[];
+  evidence_sources: string[]; limitations: string[]; generated: false;
+}
+
 export interface FridayProactiveNotification {
   notification_id: string;
   event_id: string;

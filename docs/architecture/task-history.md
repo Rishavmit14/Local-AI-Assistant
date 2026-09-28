@@ -28,6 +28,20 @@ The legacy Stage 7 Streamlit presentation layer was removed at the start of Stag
 
 Metrics represent observed fields only. Missing model tokens, planning duration, or index timing remains `null`; no value is inferred.
 
+## Grounded explanations
+
+The read-only Phase 14 explanation adapter (`interface/task_explanation.py`)
+projects one exact task ID or an explicitly linked objective through typed,
+allowlisted DTOs. It consumes canonical task fields, bounded timeline events,
+record counts, validation decisions, review counts, and isolation recovery
+inspection. It does not return task requests, arbitrary event summaries,
+commands, artifact paths/contents/metadata, affected-file scope, or
+publication/CI internals. The conversation route is deterministic and does not
+invoke the language model. Objective and task states remain separate; plan,
+approval, execution, and successful outcome remain separate facts. Event order
+is not presented as causality. The endpoints are GET-only and grant no
+approval, execution, rollback, restore, desktop, shell, or Git authority.
+
 Stage 17 local objective reservations reuse the existing idempotency table under
 source `friday-objective`, with the pre-reserved task ID as delivery identity.
 History atomically materializes that exact task and claim. This is local

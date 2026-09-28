@@ -505,6 +505,26 @@ def test_activity_projects_canonical_objective_and_task_timeline_read_only(tmp_p
     assert client.post("/api/v1/activity").status_code == 405
 
 
+def test_grounded_explanation_routes_are_exact_read_only_and_allowlisted(tmp_path):
+    history = TaskHistoryService(TaskHistoryStore(tmp_path / "explanation.sqlite3"))
+    task = history.create_task("Review /private/owner/secret.txt", tmp_path, "a" * 40, "main")
+    objectives = ObjectiveService(tmp_path / "explanation-objectives.sqlite3")
+    runtime = FridayRuntime("explanation-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        autonomy=objectives, task_history=history,
+    ))
+
+    response = client.get(f"/api/v1/explanations/tasks/{task.task_id}")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["generated"] is False
+    assert body["canonical_status"] == "created"
+    assert "/private/owner/secret.txt" not in response.text
+    assert client.get("/api/v1/explanations/tasks/task_unknown").status_code == 404
+    assert client.post(f"/api/v1/explanations/tasks/{task.task_id}").status_code == 405
+
+
 def test_objective_progress_is_canonical_bounded_and_read_only(tmp_path):
     history = TaskHistoryService(TaskHistoryStore(tmp_path / "tasks.sqlite3"))
     task = history.create_task("Review a local module", tmp_path, "a" * 40, "main")
@@ -1557,6 +1577,8 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/proactive/watches",
         "/api/v1/objectives",
         "/api/v1/activity",
+        "/api/v1/explanations/tasks/{task_id}",
+        "/api/v1/explanations/objectives/{objective_id}",
         "/api/v1/objectives/{objective_id}",
         "/api/v1/objectives/{objective_id}/progress",
         "/api/v1/objectives/{objective_id}/resume",

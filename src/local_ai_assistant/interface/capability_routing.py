@@ -19,6 +19,7 @@ from local_ai_assistant.career_forge import (
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 from .capabilities import CapabilityStatus, FridayCapabilityRegistry
+from .task_explanation import TaskExplanationNotFound, TaskExplanationService
 
 
 class ConversationIntent(StrEnum):
@@ -294,13 +295,72 @@ class MemoryConversationAdapter:
         return None
 
 
+class TaskExplanationConversationAdapter:
+    """Exact-ID, deterministic read-only task/objective explanations."""
+
+    _task_id = re.compile(r"\btask_[0-9a-f]{20}\b", re.IGNORECASE)
+    _objective_id = re.compile(r"\bobjective\s+([0-9a-f]{32})\b", re.IGNORECASE)
+
+    def __init__(self, service: TaskExplanationService | None) -> None:
+        self.service = service
+
+    @staticmethod
+    def _explanation_intent(text: str) -> bool:
+        return any(phrase in text for phrase in (
+            "explain", "what happened", "what did", "why is", "why did",
+            "did this", "did task", "did it execute", "what evidence",
+        ))
+
+    def route(self, text: str) -> CapabilityRoute | None:
+        normalized = text.strip().lower()
+        task_ids = self._task_id.findall(normalized)
+        objective_ids = self._objective_id.findall(normalized)
+        refers_to_record = any(term in normalized for term in ("task", "objective"))
+        generic_question = "what did you do" in normalized or "explain what happened" in normalized
+        if not (task_ids or objective_ids or ((refers_to_record or generic_question) and self._explanation_intent(normalized))):
+            return None
+        if len(task_ids) + len(objective_ids) > 1:
+            return CapabilityRoute(
+                ConversationIntent.INFORMATION,
+                "task_explanation",
+                "Please ask about one exact task ID or objective ID at a time. I will not choose between records.",
+            )
+        if self.service is None:
+            return CapabilityRoute(
+                ConversationIntent.INFORMATION,
+                "task_explanation",
+                "Canonical task explanation is unavailable right now.",
+            )
+        if task_ids:
+            try:
+                response = self.service.task(task_ids[0]).conversation_text()
+            except TaskExplanationNotFound as exc:
+                response = str(exc)
+            return CapabilityRoute(ConversationIntent.INFORMATION, "task_explanation", response)
+        if objective_ids:
+            try:
+                response = self.service.objective(objective_ids[0]).conversation_text()
+            except TaskExplanationNotFound as exc:
+                response = str(exc)
+            return CapabilityRoute(ConversationIntent.INFORMATION, "task_explanation", response)
+        if any(word in normalized for word in ("task", "objective", "this succeeded", "what did you do")):
+            return CapabilityRoute(
+                ConversationIntent.INFORMATION,
+                "task_explanation",
+                "Please include the exact task ID (`task_` followed by 20 hexadecimal characters) or objective ID. I will not guess which record you mean.",
+            )
+        return None
+
+
 class FridayConversationCapabilityRouter:
     """Classify deterministic intents and dispatch only registered adapters."""
 
     def __init__(self, registry: FridayCapabilityRegistry, *, career_forge: CareerForgeService,
-                 memory: FridayMemoryService, practice_lab: PracticeLabService | None = None) -> None:
+                 memory: FridayMemoryService, practice_lab: PracticeLabService | None = None,
+                 task_explanation: TaskExplanationService | None = None) -> None:
         self.registry = registry
         self.adapters = {
+            "task_explanation": TaskExplanationConversationAdapter(task_explanation),
             "career_forge": CareerForgeConversationAdapter(career_forge, practice_lab),
             "persistent_memory": MemoryConversationAdapter(memory),
         }
