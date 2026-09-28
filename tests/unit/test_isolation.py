@@ -198,6 +198,18 @@ def test_checkpoint_retry_can_verify_same_exact_baseline(repository, tmp_path):
     assert reused.head == identity.starting_commit
 
 
+def test_checkpoint_storage_enforces_per_task_count_and_total_patch_size(repository, tmp_path):
+    _, identity = create_worktree(repository, tmp_path)
+    manager = CheckpointManager(tmp_path / "bounded", max_checkpoints=1)
+    manager.create(Path(identity.worktree), "task-1", identity.plan_hash, "first")
+    with pytest.raises(CheckpointError, match="count exceeds"):
+        manager.create(Path(identity.worktree), "task-1", identity.plan_hash, "second")
+    oversized = CheckpointManager(tmp_path / "oversized", max_total_bytes=1)
+    (Path(identity.worktree) / "tracked.txt").write_text("large patch state")
+    with pytest.raises(CheckpointError, match="patch content exceeds"):
+        oversized.create(Path(identity.worktree), "task-1", identity.plan_hash, "large")
+
+
 def test_environment_is_allowlisted_and_task_scoped(tmp_path):
     parent = {
         "LANG": "C.UTF-8",

@@ -1486,7 +1486,8 @@ safety checkpoint, serializes task lifecycle/cleanup/promotion through the task
 advisory lock, verifies target fidelity, compensates once on failure, and marks
 double failure or process interruption for read-only recovery inspection.
 Ignored task-local files are preserved because they are outside the checkpoint
-model. Task history records bounded isolation events without changing
+model; default storage limits cap each checkpoint at 2 GiB and each task at 16
+checkpoints. Task history records bounded isolation events without changing
 `TaskStatus`. The CLI is routed through the kernel. This does not add owner
 rollback authentication, an Astra action, or publication reversal; matrix row
 55 remains PARTIAL. Phase 15B is the remaining dependency before row 55 can be

@@ -26,7 +26,9 @@ the same state visible to `inspect_recovery()`.
 Schema-2 checkpoints omit ignored files and restore preserves ignored task-local
 data, because this data is outside the modeled checkpoint content. Schema-1
 records remain readable but cannot be used by the transactional kernel. The
-CLI uses the new service. Timeline evidence uses TaskHistory's existing
+default checkpoint policy caps patch-plus-archive content at 2 GiB and retains
+at most 16 checkpoints per task; exhaustion fails before worktree mutation.
+The CLI uses the new service. Timeline evidence uses TaskHistory's existing
 `isolation` events and contains checkpoint IDs and bounded error types only.
 Manual restore does not transition `TaskStatus.ROLLED_BACK`.
 

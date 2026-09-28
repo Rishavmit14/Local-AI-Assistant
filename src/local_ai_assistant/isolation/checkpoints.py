@@ -19,13 +19,15 @@ from .paths import contained_path, safe_identifier
 class CheckpointManager:
     def __init__(self, root: Path, *, max_files: int = 10_000,
                  max_file_bytes: int = 512 * 1024**2,
-                 max_total_bytes: int = 2 * 1024**3) -> None:
+                 max_total_bytes: int = 2 * 1024**3,
+                 max_checkpoints: int = 16) -> None:
         self.root = root.resolve()
-        if min(max_files, max_file_bytes, max_total_bytes) < 1:
+        if min(max_files, max_file_bytes, max_total_bytes, max_checkpoints) < 1:
             raise CheckpointError("Checkpoint limits must be positive")
         self.max_files = max_files
         self.max_file_bytes = max_file_bytes
         self.max_total_bytes = max_total_bytes
+        self.max_checkpoints = max_checkpoints
 
     def create(
         self, repository: Path, task_id: str, plan_hash: str, label: str
@@ -43,6 +45,18 @@ class CheckpointManager:
         )
         if len(untracked) > self.max_files:
             raise CheckpointError("Checkpoint untracked file count exceeds policy")
+        if len(staged) + len(unstaged) > self.max_total_bytes:
+            raise CheckpointError("Checkpoint patch content exceeds total-size policy")
+        task_root = contained_path(self.root, task_id)
+        if task_root.exists():
+            if not task_root.is_dir() or task_root.is_symlink():
+                raise CheckpointError("Checkpoint task storage is not a private directory")
+            existing = sum(
+                1 for child in task_root.iterdir()
+                if child.is_dir() and not child.is_symlink() and (child / "checkpoint.json").is_file()
+            )
+            if existing >= self.max_checkpoints:
+                raise CheckpointError("Task checkpoint count exceeds policy")
         base = contained_path(self.root, task_id, label)
         if base.exists() or base.is_symlink():
             raise CheckpointError("Checkpoint already exists")
@@ -66,8 +80,8 @@ class CheckpointManager:
                     if total > self.max_total_bytes:
                         raise CheckpointError("Checkpoint archive content exceeds policy")
                     bundle.add(path, arcname=relative, recursive=False)
-            if archive.stat().st_size > self.max_total_bytes + 1024 * 1024:
-                raise CheckpointError("Checkpoint archive exceeds policy")
+            if len(staged) + len(unstaged) + archive.stat().st_size > self.max_total_bytes:
+                raise CheckpointError("Checkpoint artifacts exceed total-size policy")
         except (OSError, tarfile.TarError, CheckpointError):
             _discard_incomplete_checkpoint(base)
             raise

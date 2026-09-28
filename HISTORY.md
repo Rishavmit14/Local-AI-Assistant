@@ -1644,8 +1644,10 @@ Added an internal transactional restore service for exact task-bound schema-2
 checkpoints. It captures a unique private safety checkpoint, uses the task
 advisory lock shared by lifecycle, cleanup, and promotion operations, persists
 an in-progress marker, verifies restored tracked and non-ignored untracked
-state, and compensates once after target failure. Double failure is persisted
-as `recovery_required`; process interruption remains visible through the
+state, and compensates once after target failure. Default storage limits cap
+each checkpoint at 2 GiB of patch/archive artifacts and retain at most 16 per
+task. Double failure is persisted as `recovery_required`; process interruption
+remains visible through the
 existing recovery scanner. Ignored task-local files are preserved because the
 checkpoint format does not capture them. TaskHistory receives bounded isolation
 events, while TaskStatus semantics remain unchanged. The CLI is routed through

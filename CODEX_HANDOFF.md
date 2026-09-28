@@ -28,8 +28,10 @@ next explicit phase request.
 The kernel composes `CheckpointManager` with exact task/repository/plan and
 worktree validation, the shared task advisory lock, a uniquely labeled private
 schema-2 safety checkpoint, fsynced checkpoint/metadata writes, exact tracked
-and non-ignored-untracked verification, and one compensating restore. Ignored
-task-local files are preserved because they are outside checkpoint scope.
+and non-ignored-untracked verification, and one compensating restore. Storage
+is capped at 16 checkpoints per task and 2 GiB of patch-plus-archive content
+per checkpoint by default. Ignored task-local files are preserved because they
+are outside checkpoint scope.
 Target failure followed by verified compensation returns `failed_recovered`;
 double failure persists `recovery_required`; process interruption leaves a
 recovery-scanner-visible `rollback_in_progress` state. Isolation audit events
@@ -38,9 +40,9 @@ change. CLI checkpoint writes and rollback use the shared lock/kernel; cleanup
 and promotion mutation are serialized by the same task lock. Astra has no
 rollback route, browser credential, or rollback UI.
 
-Validation: 82 focused isolation/checkpoint/rollback/CLI/executor tests passed;
+Validation: 83 focused isolation/checkpoint/rollback/CLI/executor tests passed;
 Ruff passed for isolation and the new tests. Full
-`scripts/maintenance/verify-repository.sh` passed with 950 Python tests, CLI
+`scripts/maintenance/verify-repository.sh` passed with 951 Python tests, CLI
 checks, `pip check`, and artifact checks. `git diff --check` passed. Frontend
 was not changed and the
 Phase 14 baseline of 97 frontend tests/build evidence remains the latest UI
