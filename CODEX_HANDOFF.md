@@ -20,8 +20,11 @@ Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
 `stage-18/private-document-knowledge`; starting recovery HEAD was
 `2f6ef48ac7c22601f85fcf94546f2331abd12893`, clean and matching fetched
 `origin/integration/astra-friday` and `origin/main`. Phase 17 commit
-`056e463e8f6a68f84512c40130c3d57636bbd137` is an ancestor. Phase 18A capability commit and final recovery handoff SHA, plus verified remote
-refs, are recorded below after publication.
+`056e463e8f6a68f84512c40130c3d57636bbd137` is an ancestor. Phase 18A capability commit `e4f2fdbca6c5e9988952e32a134abf64e70d0109`
+is published to `origin/stage-18/private-document-knowledge`; this commit is the
+qualified capability checkpoint. The final recovery handoff commit follows it;
+fetch verification must show `origin/stage-18/private-document-knowledge`,
+`origin/integration/astra-friday`, and `origin/main` at that final HEAD.
 
 Phase 18A qualifies bounded private-document Knowledge (matrix row 24): local
 CLI-only ingestion/indexing; metadata-only inventory; explicit one-to-five
