@@ -51,6 +51,36 @@ repository was preserved and canonical audit/explanation records reconstructed.
 Row 55 is qualified only for authenticated isolated-task checkpoint rollback.
 It does not imply general undo or row 56 interruption recovery.
 
+### Unified interruption read model (Phase 16)
+
+`TaskRecoveryProjectionService` is a task-scoped, read-only composition over
+TaskHistory, its admission-claim and rollback ledgers, exact ObjectiveService
+links, task isolation metadata, execution-artifact records, and the optional
+current-process execution Future. It adds no persistence authority and performs
+no lease pruning, reconciliation, cleanup, execution, or rollback. History,
+Objectives progress, Phase 14 explanations, and the exact-ID recovery endpoint
+share the same projection instance and deterministic classification.
+
+An in-progress lifecycle with no currently observed Future is an interrupted
+lifecycle requiring inspection. A claim is reported as active or expired by
+its fixed one-hour planning or 24-hour execution lease; expiry permits later
+admission but proves neither worker death nor task outcome. Process-local
+`not_started` or absent worker observation is unknown, especially after API
+restart. Missing isolation metadata is unknown rather than healthy. Missing
+worktrees, corrupt or rejected metadata, `rollback_in_progress`,
+`recovery_required`, `cleanup_pending`, objective-plan disagreement, terminal
+execution evidence not reflected in TaskHistory, and successful or recovered
+rollback results are each preserved as separate bounded facts. The DTO exposes
+no paths, raw metadata, artifact content, environment, or credentials.
+
+Startup does not reconcile terminal artifacts. The existing explicit
+`ArtifactImporter` remains the only supported reconciliation path: it validates
+the exact task, plan, starting commit, repository identity and artifact schema,
+then uses digest idempotency before finalizing canonical history. An
+unreconciled terminal artifact is shown for inspection; the read model never
+invokes the importer. No universal resume, execution retry, rollback retry, or
+automatic cleanup is authorized.
+
 ## Sandbox and resources
 
 `SandboxBackend` supports capability-aware Bubblewrap and native implementations. Bubblewrap is selected only if its actual namespace probe works. The native backend provides task HOME/TMP/cache, a minimal environment and trusted system PATH, closed inherited descriptors, process sessions, tree termination, bounded output, wall/CPU/process/open-file/file-size/address-space limits, but only partial filesystem isolation and no network isolation.

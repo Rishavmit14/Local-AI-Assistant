@@ -30,6 +30,7 @@ import type {
   FridayObjective,
   FridayObjectiveProgress,
   FridayTaskExplanation,
+  FridayTaskRecovery,
   FridayObjectiveExplanation,
   FridayPlanReview,
   FridayMemoryCreateRequest,
@@ -641,6 +642,12 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/activity`, { signal });
     if (!response.ok) throw new Error(`activity request failed: ${response.status}`);
     return (await response.json() as { activity: FridayActivityItem[] }).activity;
+  }
+
+  async getTaskRecovery(taskId: string, signal?: AbortSignal): Promise<FridayTaskRecovery> {
+    const response = await fetch(`${this.baseUrl}/api/v1/tasks/${encodeURIComponent(taskId)}/recovery`, { signal });
+    if (!response.ok) throw new Error(`task recovery request failed: ${response.status}`);
+    return response.json() as Promise<FridayTaskRecovery>;
   }
 
   async getObjectiveProgress(objectiveId: string, signal?: AbortSignal): Promise<FridayObjectiveProgress> {

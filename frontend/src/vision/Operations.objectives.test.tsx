@@ -38,7 +38,14 @@ const progress = {
   sources: { objective: "ObjectiveService", task: "TaskHistoryService", timeline: "TaskHistoryService.timeline", recovery: "isolation metadata and inspect_recovery" },
   latest_event: { event_id: "event-1", timestamp: objective.updated_at, kind: "plan_ready", subsystem: "planning", status: "awaiting_approval", summary: "Friday has produced a canonical plan and is waiting for owner approval." },
   timeline: [{ event_id: "event-1", timestamp: objective.updated_at, kind: "plan_ready", subsystem: "planning", status: "awaiting_approval", summary: "Friday has produced a canonical plan and is waiting for owner approval." }],
-  recovery: { status: "no_isolation_record", summary: "No task isolation record was found; recovery health is unknown." },
+  recovery: {
+    task_id: objective.task_id, objective_links: [], task_status: "awaiting_approval", overall_status: "no_isolation_record", status: "no_isolation_record", owner_attention: "unknown", worker_liveness: "unknown",
+    isolation: { status: "no_isolation_record", state: null, worktree_present: null, summary: "No task isolation record was found; recovery health is unknown." },
+    planning_claim: { state: "none", expires_at: null, lease_seconds: null }, execution_claim: { state: "none", expires_at: null, lease_seconds: null },
+    rollback: { state: "none", operation_id: null, checkpoint_id: null, result: null }, cleanup: { state: "unknown" },
+    reconciliation: { state: "not_recorded", execution_evidence_count: 0, terminal_artifact_statuses: [] },
+    evidence_sources: ["TaskHistoryService"], limitations: [], summary: "No task isolation record was found; recovery health is unknown.",
+  },
   owner_attention: "approval_required",
 };
 
@@ -108,6 +115,10 @@ describe("Astra canonical Objectives workspace", () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/rollback") || String(url).includes("/restore"))).toBe(false);
     expect(fetchMock).toHaveBeenCalledWith(`/api/v1/objectives/${objective.objective_id}/progress`, expect.anything());
     expect(localStorage.getItem("astra-vision:objectives")).toContain("Browser seeded objective");
+    const historyLink = [...(container?.querySelectorAll("button") ?? [])].find(button => button.textContent?.includes("OPEN IN HISTORY / RECOVERY"));
+    expect(historyLink).toBeDefined();
+    act(() => historyLink?.click());
+    expect(window.location.hash).toBe("#history");
   });
 
   it("reads the canonical plan when task history has already approved it", async () => {
@@ -144,7 +155,7 @@ describe("Astra canonical Objectives workspace", () => {
         saved = true;
         return Promise.resolve(response({ objective: created }));
       }
-      if (url === `/api/v1/objectives/${created.objective_id}/progress`) return Promise.resolve(response({ ...progress, objective: { ...progress.objective, state: "created", narrative: "Friday has recorded the objective; planning has not started." }, task: null, latest_event: null, timeline: [], recovery: { status: "unavailable", summary: "Isolation recovery evidence is unavailable." }, owner_attention: "unavailable" }));
+      if (url === `/api/v1/objectives/${created.objective_id}/progress`) return Promise.resolve(response({ ...progress, objective: { ...progress.objective, state: "created", narrative: "Friday has recorded the objective; planning has not started." }, task: null, latest_event: null, timeline: [], recovery: { ...progress.recovery, status: "unavailable", overall_status: "unavailable", isolation: { ...progress.recovery.isolation, status: "unavailable", summary: "Isolation recovery evidence is unavailable." }, summary: "Isolation recovery evidence is unavailable." }, owner_attention: "unavailable" }));
       if (url === "/api/v1/activity") return Promise.resolve(response({ activity: [] }));
       if (url === "/api/v1/objectives") return Promise.resolve(response({ objectives: saved ? [created] : [] }));
       return Promise.resolve(response({ detail: "unexpected route" }, 404));

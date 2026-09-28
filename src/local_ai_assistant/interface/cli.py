@@ -436,6 +436,7 @@ def build_presentation_components(
         capabilities=capabilities,
         task_history=history,
         isolation_root=resolved_config.paths.worktree_dir,
+        task_worker_status=execution.get_status,
         owner_rollback=rollback_service,
         owner_rollback_sessions=rollback_sessions,
         rollback_gateway_auth=rollback_gateway_auth,

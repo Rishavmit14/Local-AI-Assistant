@@ -1680,3 +1680,25 @@ universal undo, publication/canonical repository reversal, or crash recovery.
 Phase 15B implementation and evidence are in ADR 0030 and matrix row 55.
 
 Capability commit: `b03da82f1a37510971f0f84a19a2176d009584db`, verified on both `origin/integration/astra-friday` and `origin/main`.
+
+## 2026-09-28 — Astra Phase 16 unified interruption recovery projection
+
+Added an exact-task, typed read-only projection over existing task history,
+planning/execution claim leases, isolation metadata, rollback-operation ledger,
+execution artifact records, exact objective links, and optional current-process
+worker observation. History displays the detailed evidence; Objective progress
+and Phase 14 explanation consume the same projection. It preserves task,
+objective, worker, claim, rollback, cleanup, and isolation authorities without
+inferring causality. Claim expiry only describes admission eligibility;
+post-restart worker liveness is unknown. `cleanup_pending`, missing/corrupt or
+path-rejected metadata, interrupted rollback, `failed_recovered`,
+`recovery_required`, and unreconciled terminal execution evidence remain
+distinct.
+
+Candidate restart qualification uses only a synthetic executing task and
+interrupted isolation metadata. Reads and startup perform no execution,
+rollback, cleanup, objective mutation, or artifact reconciliation. The existing
+explicit ArtifactImporter remains the only identity-checked, digest-idempotent
+terminal finalization path. This capability does not implement universal
+resume, automatic retry, rollback retry, or repair. Acceptance evidence and
+remote recovery SHA will be recorded with the Phase 16 qualification commit.

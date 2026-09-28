@@ -181,3 +181,26 @@ and reload against the isolated candidate reconstructed the canonical
 awaiting-approval state; deterministic tests cover other task states. This
 candidate lacked the authoritative Career Forge records, so its Career Forge
 data-preservation claim is limited to unchanged Phase 10 code and state scope.
+
+### Astra Phase 16 interruption / crash recovery projection
+
+Objective progress now embeds the same typed `TaskRecoveryProjectionService`
+view used by History's task explanation, the Phase 14 task/objective
+explanation, and `GET /api/v1/tasks/{task_id}/recovery`. Each view is keyed by
+one exact canonical task. Objective and task states remain separate, and the
+linked objective is read by its stored task binding; nearby timestamps do not
+create a relationship. The projection separates claim lease, worker
+liveness, isolation state, rollback ledger state, cleanup, and terminal
+execution evidence.
+
+History is the primary owner surface; Objectives displays the shared recovery
+summary and a navigation link back to History. In-progress task or isolation
+state without an observed current-process worker is an interrupted lifecycle,
+not proof of process crash or task failure. Expired claims do not establish
+outcome. `cleanup_pending`, `rollback_in_progress`, `failed_recovered`,
+`recovery_required`, missing/corrupt/path-rejected metadata, and a terminal
+artifact inconsistent with TaskHistory remain distinct. Startup performs no
+reconciliation or task action. Only the pre-existing explicit, identity-checked
+artifact import can finalize verified execution evidence. This qualified
+read-only capability adds no automatic resume, execution/rollback retry, or
+cleanup policy.

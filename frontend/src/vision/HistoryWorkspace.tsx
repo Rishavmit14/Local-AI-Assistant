@@ -89,7 +89,7 @@ export function HistoryWorkspace() {
   const explainableTaskIds = new Set<string>();
 
   return <section className="op-history" aria-label="History and recovery">
-    <SectionHeader eyebrow="WHAT FRIDAY RECORDED" title="History / Recovery" description="A read-only view across existing task, notification, and desktop audit records. Sources remain separately owned; timestamps are shown as recorded and do not imply cross-store causality." actions={<button className="btn" type="button" disabled={loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}><RefreshCw size={15}/>Refresh canonical history</button>}/>
+    <SectionHeader eyebrow="WHAT FRIDAY RECORDED" title="History / Recovery" description="Inspect a task’s canonical history and unified recovery evidence. Claims, worker observation, objectives, rollback, and isolation remain separate authorities; no recovery action is taken here." actions={<button className="btn" type="button" disabled={loading} onClick={() => { setLoading(true); setReload(value => value + 1); }}><RefreshCw size={15}/>Refresh canonical history</button>}/>
     <div className="op-history-boundary"><ShieldCheck size={18}/><p>History remains read-only. Checkpoint restore is a separate owner-authenticated review and execute flow, limited to eligible isolated task worktrees. A recorded state is shown as stored; missing records are not inferred.</p></div>
     <div className="op-history-sources" aria-label="Canonical history source status">
       <p>{sourceMessage("Objective/task activity", activity)}</p><p>{sourceMessage("Objective records", objectives)}</p><p>{sourceMessage("Proactive notifications", notifications)}</p><p>{sourceMessage("Desktop action audit", desktop)}</p>
@@ -103,7 +103,7 @@ export function HistoryWorkspace() {
       {activity.error ? <p className="op-history-error" role="alert">Objective/task activity is unavailable: {activity.error}</p> : visibleActivity.length ? <ol>{visibleActivity.map(item => {
         const offerExplanation = item.task_id && !explainableTaskIds.has(item.task_id);
         if (item.task_id && offerExplanation) explainableTaskIds.add(item.task_id);
-        return <li key={item.id}><time>{time(item.occurred_at)}</time><strong>{item.kind}</strong><p>{item.summary}</p><dl>{item.objective_id && <div><dt>Objective</dt><dd>{item.objective_id}{item.objective_text ? ` · ${item.objective_text}` : ""}</dd></div>}{item.task_id && <div><dt>Task</dt><dd>{item.task_id} · {item.task_state ?? "state unavailable"}</dd></div>}</dl>{offerExplanation&&item.task_id&&<button className="btn" type="button" onClick={() => void explainTask(item.task_id!)}>Explain this task</button>}</li>;
+        return <li key={item.id}><time>{time(item.occurred_at)}</time><strong>{item.kind}</strong><p>{item.summary}</p><dl>{item.objective_id && <div><dt>Objective</dt><dd>{item.objective_id}{item.objective_text ? ` · ${item.objective_text}` : ""}</dd></div>}{item.task_id && <div><dt>Task</dt><dd>{item.task_id} · {item.task_state ?? "state unavailable"}</dd></div>}</dl>{offerExplanation&&item.task_id&&<button className="btn" type="button" onClick={() => void explainTask(item.task_id!)}>View task recovery &amp; explanation</button>}</li>;
       })}</ol> : <p className="op-history-empty-inline">No objective or task timeline records are stored.</p>}
     </section>}
     <TaskExplanationPanel explanation={explanation} loading={explanationLoading} error={explanationError}/>

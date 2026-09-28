@@ -34,6 +34,26 @@ worktree-state fingerprint, expiry, one-time state, idempotency key, and the
 bounded result; it contains no paths or checkpoint contents. Expired and stale
 reviews cannot execute, and an executing record is not replayed after a crash.
 
+### Phase 16 task recovery projection
+
+`TaskRecoveryProjectionService` reads TaskHistory task/artifact rows, claim
+timestamps and the Phase 15 rollback ledger without changing them. It joins
+ObjectiveService only by the stored exact task ID, reads exactly the matching
+worktree metadata, and may observe the current process's executor Future. It
+does not make a recovery database, prune expired claims, reconcile artifacts,
+or grant action authority. Exact-task GET, Objective progress, and Phase 14
+explanations reuse the same typed output.
+
+Claim expiry only reopens the existing admission path; it does not prove an
+operation failed to start or that it made no progress. Future liveness is
+process-local, so no observation after restart is `unknown`. Terminal artifact
+records that remain paired with nonterminal TaskHistory are shown as
+unreconciled. Explicit artifact import remains the existing identity-checked,
+digest-idempotent finalization path; application startup and the read model
+never initiate it. Objective/task states, rollback result, cleanup status, and
+isolation lifecycle are presented independently. No interrupted operation is
+resumed, retried, cleaned, promoted, approved, or executed automatically.
+
 SQLite uses WAL, foreign keys, a bounded busy timeout, short `BEGIN IMMEDIATE` writes, rollback on errors, and indexed common queries. `PRAGMA quick_check` detects corruption. Migrations run in deterministic transactions and never drop/recreate history.
 
 ## Privacy and presentation boundary

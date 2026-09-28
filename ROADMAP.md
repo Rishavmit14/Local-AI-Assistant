@@ -1514,3 +1514,27 @@ canonical repositories, desktop actions, or other Friday stores. Do not start
 row 56 within Phase 15B.
 
 Phase 15B accepted capability commit: `b03da82f1a37510971f0f84a19a2176d009584db`, published to `origin/integration/astra-friday` and `origin/main`.
+
+## Astra Canonical Product Integration — Phase 16: Unified interruption recovery (**Qualified and published**)
+
+Row 56 adds a typed, exact-task, read-only projection over existing TaskHistory,
+admission claims, rollback operations, isolation metadata, execution artifact
+records, and exact linked objectives. History is the primary recovery surface;
+Objectives progress and Phase 14 explanation consume the same projection.
+Current-process worker observation is reported separately from persisted task
+state. An active/expired claim describes only its bounded admission lease.
+Missing, corrupt, mismatched, and path-rejected isolation metadata fail closed;
+cleanup, interrupted rollback, `failed_recovered`, `recovery_required`, and
+terminal evidence awaiting explicit reconciliation retain distinct states.
+
+The read model creates no persistence authority and performs no resume,
+execution or rollback retry, cleanup, objective mutation, or reconciliation.
+Application startup does not reconcile artifacts. The already accepted
+explicit ArtifactImporter remains the only exact-identity and digest-idempotent
+terminal import/finalization path. Phase 16 candidate qualification uses one
+synthetic executing task with interrupted isolation metadata and an isolated
+API restart; the canonical task, event, artifact, claim, rollback, objective,
+and metadata projection must remain unchanged across restart.
+
+The intended acceptance is bounded owner-visible interruption recovery, not a
+universal repair engine. No rows 57–60 are started by Phase 16.

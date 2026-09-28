@@ -112,6 +112,14 @@ export function ObjectiveConsole() {
           <div><dt>Linked task state</dt><dd>{progress.task?.status ?? "Unavailable: no canonical task record"}</dd></div>
           <div><dt>Owner attention</dt><dd>{progress.owner_attention.replaceAll("_", " ")}</dd></div>
           <div><dt>Recovery</dt><dd>{progress.recovery.summary}</dd></div>
+          {progress.task ? <>
+            <div><dt>Recovery state / attention</dt><dd>{progress.recovery.overall_status} · {progress.recovery.owner_attention}</dd></div>
+            <div><dt>Worker liveness</dt><dd>{progress.recovery.worker_liveness}</dd></div>
+            <div><dt>Isolation</dt><dd>{progress.recovery.isolation.status}{progress.recovery.isolation.state ? ` · ${progress.recovery.isolation.state}` : ""}</dd></div>
+            <div><dt>Claims</dt><dd>Planning {progress.recovery.planning_claim.state} · execution {progress.recovery.execution_claim.state}</dd></div>
+            <div><dt>Rollback / cleanup</dt><dd>{progress.recovery.rollback.state} · {progress.recovery.cleanup.state}</dd></div>
+            <div><dt>Reconciliation</dt><dd>{progress.recovery.reconciliation.state}</dd></div>
+          </> : null}
           {progress.task?.outcome && <div><dt>Outcome</dt><dd>{progress.task.outcome}</dd></div>}
           {progress.task?.failure_reason && <div><dt>Failure detail</dt><dd>{progress.task.failure_reason}</dd></div>}
           {progress.task?.final_decision && <div><dt>Final decision</dt><dd>{progress.task.final_decision}</dd></div>}
@@ -123,6 +131,7 @@ export function ObjectiveConsole() {
         </details>
       </section> : null}
       <button type="button" onClick={() => void explain()} disabled={explanationLoading}>EXPLAIN WHAT HAPPENED</button>
+      {current.task_id ? <button type="button" onClick={() => { window.location.hash = "history"; }}>OPEN IN HISTORY / RECOVERY</button> : null}
       <TaskExplanationPanel explanation={explanation} loading={explanationLoading} error={explanationError}/>
       {current.state === "created" ? <button type="button" onClick={() => void resume()} disabled={busy}>BEGIN PLANNING</button> : null}
       {current.state === "planning" ? <>

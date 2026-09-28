@@ -25,6 +25,14 @@ class Objective:
     task_outcome: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class ObjectiveTaskLink:
+    objective_id: str
+    state: str
+    plan_hash: str | None
+    task_id: str
+
+
 class ObjectiveService:
     """Persist bounded owner objectives before planning or execution begins."""
 
@@ -205,6 +213,16 @@ class ObjectiveService:
                 (limit,),
             ).fetchall()
         return tuple(self._project(Objective(*row)) for row in rows)
+
+    def linked_to_task(self, task_id: str) -> tuple[ObjectiveTaskLink, ...]:
+        """Return exact canonical objective bindings for one task identity."""
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT objective_id, state, plan_hash, task_id FROM objectives "
+                "WHERE task_id=? ORDER BY created_at, objective_id LIMIT 20",
+                (task_id,),
+            ).fetchall()
+        return tuple(ObjectiveTaskLink(*row) for row in rows)
 
     def _project(self, item: Objective) -> Objective:
         task_state = (

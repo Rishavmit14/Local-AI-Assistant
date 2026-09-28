@@ -14,75 +14,56 @@ and the **Current cross-session handoff and Git policy** section below. Historic
 bootstrap instructions describe completed work; use current recovery refs and
 `ROADMAP.md` to continue automatically after each accepted checkpoint.
 
-## Current recovery handoff — 2026-09-28 — Phase 15B qualified, publication in progress
+## Current recovery handoff — 2026-09-28 — Phase 16 row 56 qualification
 
-Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
-`integration/astra-friday`; Phase 15B capability commit
-`b03da82f1a37510971f0f84a19a2176d009584db` is pushed and verified on both
-`origin/integration/astra-friday` and `origin/main`. Phase 15A recovery base is
-`3e467599d6e341abf77fbbb879b2dda892e9baa1`. A final handoff-only recovery
-commit remains to be pushed to both refs.
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
+`integration/astra-friday`, baseline HEAD
+`a09fb37f205961e7237f7fc0fd632f2dd3ff0203`; Phase 15B commit
+`b03da82f1a37510971f0f84a19a2176d009584db` is an ancestor. The Phase 16 capability is qualified on this branch. Its capability commit
+and final handoff recovery commit are recorded below after remote verification.
+No rows 57–60 have started.
 
-Phase 15B adds a distinct `request_rollback` server bridge, separate strong
-owner-token authentication, ten-minute volatile owner sessions, strict loopback
-Host/configured-Origin/CSRF checks, bounded login rate limiting, and exact
-TaskHistory-backed expiring reviews bound to owner, task, plan, checkpoint,
-worktree identity/fingerprint, and one-time state. Review is non-mutating.
-Execute consumes the review, rechecks state under the task lock, records
-operation/timeline audit state without changing TaskStatus, and supports
-same-key idempotent result reconstruction without a second restore. Astra
-History exposes separately gated review and execute actions. The Phase 14
-deterministic explanation surface describes the canonical audit events without
-claiming task execution or causal facts.
+Row 56 adds one typed, exact-task, read-only `TaskRecoveryProjectionService`
+over canonical TaskHistory, claim leases, rollback ledger, isolation metadata,
+execution artifacts, exact objective binding, and optional current-process
+worker observation. History is primary; Objectives progress and Phase 14
+explanations consume the same projection. It does not add persistence, reconcile
+on startup, prune claims, resume/retry work, retry rollback, clean isolation,
+or mutate objectives. Explicit exact-identity/digest-idempotent ArtifactImporter
+remains the existing terminal reconciliation path.
 
-Disposable native-Astra E2E on 2026-09-28 used only synthetic task
-`task_9ed84837b92146468271`, checkpoint
-`e29b47e6513851d7011ac1bc`, operation
-`e87f63a1114a4398b0e089696a69e70d`, and isolated API 8766/UI 5191. Owner
-unlock succeeded. Review showed the exact task/checkpoint/plan/HEAD and left
-worktree file contents, HEAD, and Git status unchanged. Separate execute
-restored `exact reviewed checkpoint state`; synthetic canonical source remained
-`base candidate state` with its original SHA-256. TaskHistory recorded
-`Rollback_started` and `Rollback_restore_succeeded`, and the rollback ledger
-recorded `Succeeded`. History and the Phase 14 explanation reconstructed the
-result; navigation and full reload reconstructed canonical history. Focused
-regressions reject stale fingerprints, accept same-key replay without another
-restore, recover a completed kernel operation when ledger finalization was
-interrupted, and reject a different key with 409. No second destructive
-rollback was performed.
+Focused evidence: 44 deterministic backend recovery scenarios; targeted
+History/explanation/API/isolation/artifact regressions pass; 104 frontend tests,
+ESLint, TypeScript/production build, changed-file Ruff, and `git diff --check`
+pass; `scripts/maintenance/verify-repository.sh` passed 1,000 Python tests,
+`pip check`, and repository checks. A synthetic native candidate task `task_16c0ffee1234567890ab` showed
+TaskHistory `executing`, isolation `executing`, `interrupted_lifecycle`, owner
+attention `inspect`, unknown worker liveness, and separate claim/rollback/
+cleanup/reconciliation facts. Objectives displayed the same state and linked
+back to History. Restarting only disposable API 8767 preserved the exact
+projection and canonical task/objective/event/artifact/claim/rollback and
+metadata content; native History, Objective, explanation, navigation, and
+reload reconstructed it. The temporary API, Vite server, browser tab, and isolated runtime were stopped,
+closed, and removed. Phase 16 did not create a temporary credential. Existing
+candidate API 8766 and UI 5191 were not touched. The two real task sentinels
+remain `awaiting_approval` with null outcomes. Desktop audit states remain one
+executed, one expired, and one failed. Both existing notify-only watches remain
+enabled and both notifications remain acknowledged; the pre-existing candidate
+API reports its observer worker running, despite the older handoff recording it
+stopped. Research source `c65d4b2fae2a4bb4aeb0c5ec164c8f22` retains hash
+`9513464ea182c55ebd3404086c5867b0098faaf7aab7767f521d5b1633bc0dcb`. Preference
+`mem_70a17b2992b645e496bae1a6066dffee` remains active and preference adaptation
+remains disabled. Career Forge state was queried read-only; Phase 16 did not
+access or mutate it.
 
-The two protected real task sentinels remain `awaiting_approval` with null
-outcomes. The existing candidate qualification stores remain unchanged: desktop
-action states executed/failed/expired; two enabled notify-only watches; two
-notifications (one acknowledged and one unacknowledged); research source
-`c65d4b2fae2a4bb4aeb0c5ec164c8f22` retains SHA-256
-`9513464ea182c55ebd3404086c5867b0098faaf7aab7767f521d5b1633bc0dcb`; preference
-`mem_70a17b2992b645e496bae1a6066dffee` remains active with adaptation disabled;
-Career Forge remains unqualified. Production API 8765 is healthy. Protected
-production checkout `/AI/projects/Local-AI-Assistant` stays on
+Protected production checkout remains `/AI/projects/Local-AI-Assistant` on
 `stage-22/product-integration` at
-`e43896623978e86b7bae6502b380462b455626be` with pre-existing Pocket/Anna
-changes intact.
-
-Final validation: `scripts/maintenance/verify-repository.sh` passed all 955
-Python tests and dependency/repository checks. Frontend tests passed (98), ESLint
-passed, and TypeScript/production build passed with the existing Vite large-chunk
-advisory. Changed-file Ruff and `git diff --check` passed. The repository suite
-initially had two MCP subprocess timeouts while frontend gates ran concurrently;
-both focused tests passed alone and the serialized full suite passed. The
-existing Starlette/AnyIO deprecation warning remains.
-
-Temporary candidate credentials and the disposable runtime were removed, and
-the prior candidate API configuration was restored and health-checked at 8766.
-No token value was logged. Final acceptance gates passed; the capability commit is remotely recoverable.
-The handoff-only recovery commit must fast-forward both refs to one exact SHA.
-Product matrix row 55 is
-qualified only as bounded authenticated isolated-task checkpoint rollback; this
-does not add universal undo, publication reversal, canonical repository,
-desktop, or other-store rollback. Next roadmap dependency is interruption/crash
-recovery row 56; it is explicitly not started in this task. When resumed, begin
-with row-56 discovery against the current handoff and Phase 15A/15B architecture
-and tests; preserve row 55 unchanged.
+`e43896623978e86b7bae6502b380462b455626be` with its pre-existing Pocket/Anna
+changes. Production API 8765 was not restarted; its read-only health check returned 200.
+Protected task sentinels and candidate desktop, proactive, research, preference,
+and Career Forge stores were inspected read-only after qualification. Phase 15B row 55 remains bounded authenticated
+isolated-task checkpoint rollback. The next dependency after Phase 16 is the
+actual current matrix row 57, Model replaceability; do not start it here.
 
 ## Previous recovery handoff — 2026-09-28 — Phase 15A
 

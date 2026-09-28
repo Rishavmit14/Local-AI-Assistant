@@ -872,3 +872,17 @@ response labels generated prose as an interpretation, includes canonical
 source identity/hash metadata, and makes no citation-validation claim. This
 route bypasses normal conversation history, memory and learning hooks, web
 fetching, and action tools; it does not persist generated prose.
+
+### Astra Phase 16 — unified task recovery read model
+
+`TaskRecoveryProjectionService` composes existing task history, admission claim
+timestamps, Phase 15 rollback operations, exact objective links, isolation
+metadata, execution artifact records, and trustworthy process-local worker
+observation for an exact task. It is a presentation read model, not another
+authority. History, Objectives progress, and deterministic Phase 14 explanation
+share the same classification. API restart does not infer a still-running
+worker or mutate an interrupted task. The existing exact-identity,
+digest-idempotent explicit artifact-import path remains unchanged; startup and
+recovery reads do not trigger reconciliation. Row 56 is bounded to truthful
+owner-visible inspection and adds no universal resume, retry, cleanup, or
+rollback authority.

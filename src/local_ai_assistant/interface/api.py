@@ -57,9 +57,9 @@ from local_ai_assistant.research import ResearchService
 from .capabilities import FridayCapabilityRegistry
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
-from .progress_projection import task_recovery_projection
 from .runtime import FridayRuntime
 from .task_explanation import TaskExplanationNotFound, TaskExplanationService
+from .task_recovery import TaskRecoveryProjectionService
 
 
 def _safe_progress_text(value: str | None, limit: int) -> str | None:
@@ -76,7 +76,7 @@ _TASK_PROGRESS_NARRATIVES = {
     "planning": "Friday is producing the canonical plan.",
     "awaiting_approval": "Friday has produced a canonical plan and is waiting for owner approval.",
     "approved": "The canonical plan is approved. Execution has not yet been recorded as started.",
-    "executing": "The canonical task is recorded as executing; worker liveness is unavailable.",
+    "executing": "TaskHistory records the executing state; current worker liveness is reported separately.",
     "validating": "Execution has reached canonical validation.",
     "reviewing": "Friday is reviewing the validated result.",
     "reapproval_required": "The canonical task requires new owner approval before continuing.",
@@ -246,6 +246,7 @@ def create_presentation_app(
     capabilities: FridayCapabilityRegistry | None = None,
     task_history: TaskHistoryService | None = None,
     isolation_root: Path | None = None,
+    task_worker_status: Callable[[str], dict] | None = None,
     owner_rollback=None,
     owner_rollback_sessions=None,
     rollback_gateway_auth: GatewayAuth | None = None,
@@ -264,6 +265,10 @@ def create_presentation_app(
         title="Friday Presentation API",
         version="1.0",
         docs_url="/docs",
+    )
+    task_recovery = (
+        TaskRecoveryProjectionService(task_history, isolation_root, autonomy, task_worker_status)
+        if task_history is not None else None
     )
     if on_shutdown is not None:
         app.router.on_shutdown.append(on_shutdown)
@@ -676,10 +681,10 @@ def create_presentation_app(
                     "kind": kind, "subsystem": event.subsystem[:80], "status": event.status,
                     "summary": summary})
             latest = events[-1] if events else None
-            recovery = task_recovery_projection(isolation_root, task.task_id) if task else (
-                {"status": "unavailable", "summary": "Isolation recovery evidence is unavailable."}
-                if isolation_root is None else
-                {"status": "no_isolation_record", "summary": "No task isolation record was found; recovery health is unknown."}
+            recovery = (
+                task_recovery.project(task.task_id).to_dict()
+                if task and task_recovery is not None else
+                {"overall_status": "unavailable", "summary": "Task recovery evidence is unavailable."}
             )
             return {"objective": {"objective_id": objective.objective_id, "text": _safe_progress_text(objective.text, 1000),
                     "state": objective.state, "created_at": objective.created_at, "updated_at": objective.updated_at,
@@ -695,7 +700,8 @@ def create_presentation_app(
                     "duration_seconds": task.duration_seconds if task.duration_seconds is not None else None},
                 "sources": {"objective": "ObjectiveService", "task": "TaskHistoryService", "timeline": "TaskHistoryService.timeline", "recovery": "isolation metadata and inspect_recovery"},
                 "latest_event": latest, "timeline": events, "recovery": recovery,
-                "owner_attention": "approval_required" if status == "awaiting_approval" else "reapproval_required" if status == "reapproval_required" else "none_recorded" if task else "unavailable"}
+                "owner_attention": "approval_required" if status == "awaiting_approval" else "reapproval_required" if status == "reapproval_required" else "none_recorded" if task else "unavailable",
+                "recovery_owner_attention": recovery.get("owner_attention", "unavailable")}
         except ValueError as exc:
             raise HTTPException(status_code=404, detail="objective is unavailable") from exc
         except (OSError, HistoryDatabaseError) as exc:
@@ -764,13 +770,25 @@ def create_presentation_app(
         except (OSError, ValueError, HistoryDatabaseError) as exc:
             raise HTTPException(status_code=503, detail="canonical activity is unavailable") from exc
 
+    @app.get("/api/v1/tasks/{task_id}/recovery")
+    def task_recovery_status(task_id: str):
+        """Read exact-task recovery facts without granting reconciliation authority."""
+        if task_recovery is None:
+            raise HTTPException(status_code=503, detail="canonical task recovery is unavailable")
+        try:
+            return task_recovery.project(task_id).to_dict()
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="canonical task is unavailable") from exc
+        except (OSError, ValueError, HistoryDatabaseError) as exc:
+            raise HTTPException(status_code=503, detail="canonical task recovery is unavailable") from exc
+
     @app.get("/api/v1/explanations/tasks/{task_id}")
     def explain_task(task_id: str):
         """Read one exact task into an allowlisted deterministic explanation."""
         if task_history is None:
             raise HTTPException(status_code=503, detail="canonical task history is unavailable")
         try:
-            return TaskExplanationService(task_history, autonomy, isolation_root).task(task_id).to_dict()
+            return TaskExplanationService(task_history, autonomy, isolation_root, task_recovery).task(task_id).to_dict()
         except TaskExplanationNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except (OSError, HistoryDatabaseError) as exc:
@@ -782,7 +800,7 @@ def create_presentation_app(
         if task_history is None or autonomy is None:
             raise HTTPException(status_code=503, detail="canonical objective/task records are unavailable")
         try:
-            return TaskExplanationService(task_history, autonomy, isolation_root).objective(objective_id).to_dict()
+            return TaskExplanationService(task_history, autonomy, isolation_root, task_recovery).objective(objective_id).to_dict()
         except TaskExplanationNotFound as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except (OSError, HistoryDatabaseError) as exc:

@@ -58,7 +58,7 @@ def test_task_progress_narratives_cover_each_canonical_status_without_fake_metri
     assert len(set(_TASK_PROGRESS_NARRATIVES.values())) == len(TaskStatus)
     assert "waiting for owner approval" in _TASK_PROGRESS_NARRATIVES["awaiting_approval"]
     assert "Execution has not" in _TASK_PROGRESS_NARRATIVES["approved"]
-    assert "liveness is unavailable" in _TASK_PROGRESS_NARRATIVES["executing"]
+    assert "worker liveness is reported separately" in _TASK_PROGRESS_NARRATIVES["executing"]
     assert not any("%" in value or "ETA" in value for value in _TASK_PROGRESS_NARRATIVES.values())
     assert _EVENT_PROGRESS_SUMMARIES["plan_ready"] == "Canonical plan generated and recorded."
 
@@ -563,14 +563,16 @@ def test_objective_progress_is_canonical_bounded_and_read_only(tmp_path):
     assert client.post(f"/api/v1/objectives/{objective.objective_id}/progress").status_code == 405
     assert history.get(task.task_id).status is TaskStatus.AWAITING_APPROVAL
 
-    metadata_path = tmp_path / "worktrees" / "repo-id" / "metadata" / f"{task.task_id}.json"
+    repository_id = "a" * 20
+    worktree_root = tmp_path / "worktrees"
+    metadata_path = worktree_root / repository_id / "metadata" / f"{task.task_id}.json"
     metadata_path.parent.mkdir(parents=True)
-    metadata_path.write_text(json.dumps({"task_id": task.task_id, "state": "recovery_required", "worktree": str(tmp_path / "worktrees" / "repo-id" / task.task_id)}))
+    metadata_path.write_text(json.dumps({"schema_version": 1, "task_id": task.task_id, "repository_id": repository_id, "canonical_repository": str(tmp_path.resolve()), "starting_commit": task.starting_commit, "plan_hash": task.plan_hash, "state": "recovery_required", "cleanup_status": "pending", "worktree": str(worktree_root / repository_id / task.task_id)}))
     recovery = client.get(f"/api/v1/objectives/{objective.objective_id}/progress").json()["recovery"]
     assert recovery["status"] == "recovery_required"
     assert "inspection is required" in recovery["summary"]
     assert "resume" not in recovery["summary"]
-    metadata_path.write_text(json.dumps({"task_id": task.task_id, "state": "cleanup_pending", "cleanup_status": "cleanup_pending", "worktree": str(tmp_path / "worktrees" / "repo-id" / task.task_id)}))
+    metadata_path.write_text(json.dumps({"schema_version": 1, "task_id": task.task_id, "repository_id": repository_id, "canonical_repository": str(tmp_path.resolve()), "starting_commit": task.starting_commit, "plan_hash": task.plan_hash, "state": "cleanup_pending", "cleanup_status": "pending", "worktree": str(worktree_root / repository_id / task.task_id)}))
     cleanup = client.get(f"/api/v1/objectives/{objective.objective_id}/progress").json()["recovery"]
     assert cleanup["status"] == "cleanup_pending"
 
@@ -595,6 +597,41 @@ def test_objective_progress_reports_unavailable_recovery_and_distinct_terminal_s
     assert projection["task"]["narrative"] == "The canonical task failed."
     assert projection["task"]["outcome"] == "canonical failure"
     assert projection["recovery"]["status"] == "unavailable"
+
+
+def test_exact_task_recovery_endpoint_is_get_only_and_sanitized(tmp_path):
+    history = TaskHistoryService(TaskHistoryStore(tmp_path / "tasks.sqlite3"))
+    task = history.create_task("private request /owner/private.txt", tmp_path, "a" * 40, "main")
+    history.transition(task.task_id, TaskStatus.PLANNING, "planning started")
+    history.transition(task.task_id, TaskStatus.APPROVED, "approved")
+    history.transition(task.task_id, TaskStatus.EXECUTING, "execution started")
+    history.store.update_task(task.task_id, task.repository, plan_hash="b" * 64)
+    autonomy = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda _: "b" * 64,
+        task_state_for_task=lambda task_id: history.get(task_id).status.value if history.get(task_id) else None,
+    )
+    objective = autonomy.create("synthetic linked recovery objective")
+    autonomy.bind_plan(objective.objective_id, task.task_id)
+    runtime = FridayRuntime("exact-task-recovery-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        autonomy=autonomy, task_history=history, isolation_root=tmp_path / "worktrees",
+    ))
+    response = client.get(f"/api/v1/tasks/{task.task_id}/recovery")
+    explanation = client.get(f"/api/v1/explanations/tasks/{task.task_id}")
+    progress = client.get(f"/api/v1/objectives/{objective.objective_id}/progress")
+    assert response.status_code == 200
+    assert response.json()["task_id"] == task.task_id
+    assert response.json()["task_status"] == "executing"
+    assert response.json()["overall_status"] == "interrupted_lifecycle"
+    assert response.json()["isolation"]["status"] == "no_isolation_record"
+    assert "unknown" in response.json()["isolation"]["summary"]
+    assert explanation.json()["recovery"] == response.json()
+    assert progress.json()["recovery"] == response.json()
+    assert "/owner/private.txt" not in response.text and str(tmp_path) not in response.text
+    assert client.post(f"/api/v1/tasks/{task.task_id}/recovery").status_code == 405
+    assert client.get("/api/v1/tasks/task_ffffffffffffffffffff/recovery").status_code == 404
 
 
 def test_objective_api_requests_only_the_configured_canonical_planner(tmp_path):
@@ -1647,6 +1684,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/rollback/tasks/{task_id}/checkpoints",
         "/api/v1/rollback/tasks/{task_id}/review",
         "/api/v1/rollback/operations/{operation_id}/execute",
+        "/api/v1/tasks/{task_id}/recovery",
     }
     assert schema["paths"]["/api/v1/memory/preference-adaptation"].keys() == {"get", "post"}
 

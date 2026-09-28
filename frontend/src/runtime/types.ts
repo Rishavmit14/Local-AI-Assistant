@@ -465,14 +465,34 @@ export interface FridayActivityItem {
   objective_text: string | null;
 }
 
+export interface FridayTaskRecovery {
+  task_id: string;
+  objective_links: Array<{ objective_id: string | null; state: string; plan_matches_task: boolean | null }>;
+  task_status: string;
+  overall_status: string;
+  status: string;
+  owner_attention: string;
+  worker_liveness: "running" | "not_running" | "unknown";
+  isolation: { status: string; state: string | null; worktree_present: boolean | null; summary: string };
+  planning_claim: { state: string; expires_at: string | null; lease_seconds: number | null };
+  execution_claim: { state: string; expires_at: string | null; lease_seconds: number | null };
+  rollback: { state: string; operation_id: string | null; checkpoint_id: string | null; result: string | null };
+  cleanup: { state: string };
+  reconciliation: { state: string; execution_evidence_count: number; terminal_artifact_statuses: string[] };
+  evidence_sources: string[];
+  limitations: string[];
+  summary: string;
+}
+
 export interface FridayObjectiveProgress {
   objective: { objective_id: string; text: string; state: string; created_at: string; updated_at: string; narrative: string };
   task: null | { task_id: string; status: string; created_at: string; updated_at: string; approval_state: string; plan_present: boolean; narrative: string; outcome: string | null; final_decision: string | null; failure_reason: string | null; human_review_state: string; duration_seconds: number | null };
   sources: { objective: string; task: string; timeline: string; recovery: string };
   latest_event: null | { event_id: string; timestamp: string; kind: string; subsystem: string; status: string | null; summary: string };
   timeline: Array<{ event_id: string; timestamp: string; kind: string; subsystem: string; status: string | null; summary: string }>;
-  recovery: { status: string; summary: string; isolation_state?: string; cleanup_state?: string | null };
+  recovery: FridayTaskRecovery;
   owner_attention: "approval_required" | "reapproval_required" | "none_recorded" | "unavailable";
+  recovery_owner_attention?: string;
 }
 
 export interface FridayExplanationFact { label: string; value: string; source: string }
@@ -481,7 +501,7 @@ export interface FridayTaskExplanation {
   task_id: string; objective_id: string | null; objective_text: string | null; objective_state: string | null;
   canonical_status: string; outcome: string | null; owner_attention: string; summary: string;
   facts: FridayExplanationFact[]; timeline: FridayExplanationEvent[]; latest_event: FridayExplanationEvent | null;
-  recovery: { status: string; summary: string }; evidence_sources: string[]; limitations: string[]; generated: false;
+  recovery: FridayTaskRecovery; evidence_sources: string[]; limitations: string[]; generated: false;
 }
 export interface FridayObjectiveExplanation {
   objective_id: string; objective_text: string; objective_state: string; task_id: string | null;

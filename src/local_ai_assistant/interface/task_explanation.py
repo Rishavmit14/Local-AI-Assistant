@@ -10,7 +10,7 @@ from local_ai_assistant.autonomy.service import ObjectiveService
 from local_ai_assistant.execution.history import redact
 from local_ai_assistant.history.models import TaskRecord, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
-from local_ai_assistant.interface.progress_projection import task_recovery_projection
+from local_ai_assistant.interface.task_recovery import TaskRecoveryProjectionService
 
 _TASK_ID = re.compile(r"task_[0-9a-f]{20}\Z")
 _OBJECTIVE_ID = re.compile(r"[0-9a-f]{32}\Z")
@@ -38,7 +38,7 @@ _STATUS_NARRATIVE = {
     TaskStatus.PLANNING: "Task history records planning in progress.",
     TaskStatus.AWAITING_APPROVAL: "Task history records that owner approval is awaited.",
     TaskStatus.APPROVED: "Task history records approval; this does not establish execution.",
-    TaskStatus.EXECUTING: "Task history records the executing state; worker liveness is unavailable here.",
+    TaskStatus.EXECUTING: "TaskHistory records the executing state; current worker liveness is reported separately.",
     TaskStatus.VALIDATING: "Task history records the validating state.",
     TaskStatus.REVIEWING: "Task history records the reviewing state.",
     TaskStatus.REAPPROVAL_REQUIRED: "Task history records that renewed approval is required.",
@@ -87,7 +87,7 @@ class FridayTaskExplanation:
     facts: tuple[ExplanationFact, ...]
     timeline: tuple[ExplanationEvent, ...]
     latest_event: ExplanationEvent | None
-    recovery: dict[str, str | None]
+    recovery: dict
     evidence_sources: tuple[str, ...]
     limitations: tuple[str, ...]
     generated: bool = False
@@ -145,10 +145,14 @@ class TaskExplanationService:
         history: TaskHistoryService,
         objectives: ObjectiveService | None = None,
         isolation_root: Path | None = None,
+        recovery_service: TaskRecoveryProjectionService | None = None,
     ) -> None:
         self.history = history
         self.objectives = objectives
         self.isolation_root = isolation_root
+        self.recovery_service = recovery_service or TaskRecoveryProjectionService(
+            history, isolation_root, objectives
+        )
 
     def task(self, task_id: str) -> FridayTaskExplanation:
         if not _TASK_ID.fullmatch(task_id):
@@ -282,7 +286,7 @@ class TaskExplanationService:
             pieces.append(f"Recorded failure reason: {failure}")
         if not timeline:
             pieces.append("No task timeline event is recorded.")
-        recovery = task_recovery_projection(self.isolation_root, task.task_id)
+        recovery = self.recovery_service.project(task.task_id).to_dict()
         pieces.append(recovery["summary"])
         return FridayTaskExplanation(
             task_id=task.task_id,

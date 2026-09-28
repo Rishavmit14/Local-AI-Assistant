@@ -73,4 +73,39 @@ describe("Astra History canonical read projection", () => {
     expect(remounted.textContent).toContain("Acknowledged");
     expect(localStorage.length).toBe(0);
   });
+
+  it("shows the unified read-only recovery projection when a task is selected", async () => {
+    const recovery = {
+      task_id: activity[0].task_id, objective_links: [{ objective_id: "objective-a", state: "planned", plan_matches_task: true }],
+      task_status: "executing", overall_status: "interrupted_lifecycle", status: "interrupted_lifecycle", owner_attention: "inspect", worker_liveness: "unknown",
+      isolation: { status: "interrupted_lifecycle", state: "executing", worktree_present: true, summary: "Interrupted lifecycle requires inspection." },
+      planning_claim: { state: "none", expires_at: null, lease_seconds: null }, execution_claim: { state: "active", expires_at: "2026-09-28T20:00:00Z", lease_seconds: 86400 },
+      rollback: { state: "none", operation_id: null, checkpoint_id: null, result: null }, cleanup: { state: "not_started" },
+      reconciliation: { state: "not_recorded", execution_evidence_count: 0, terminal_artifact_statuses: [] },
+      evidence_sources: ["TaskHistoryService.task", "WorktreeManager.metadata", "TaskHistoryStore.admission_claims"],
+      limitations: ["A claim does not prove worker liveness."], summary: "Interrupted lifecycle requires inspection.",
+    };
+    vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve(
+      url === "/api/v1/activity" ? response({ activity }) :
+      url === "/api/v1/objectives" ? response({ objectives: [objective] }) :
+      url.startsWith("/api/v1/proactive/notifications") ? response({ notifications: [] }) :
+      url === "/api/v1/desktop/actions" ? response({ actions: [] }) :
+      url === `/api/v1/explanations/tasks/${activity[0].task_id}` ? response({
+        task_id: activity[0].task_id, objective_id: "objective-a", objective_text: objective.text,
+        objective_state: "planned", canonical_status: "executing", outcome: null, owner_attention: "inspect",
+        summary: "Task was interrupted.", facts: [], timeline: [], latest_event: null, recovery,
+        evidence_sources: recovery.evidence_sources, limitations: recovery.limitations, generated: false,
+      }) : response({}, 404),
+    )));
+    const mounted = await mount();
+    await act(async () => {
+      [...mounted.querySelectorAll("button")].find(button => button.textContent?.includes("View task recovery"))?.click();
+      await new Promise(resolve => window.setTimeout(resolve, 0));
+    });
+    expect(mounted.textContent).toContain("interrupted_lifecycle · inspect");
+    expect(mounted.textContent).toContain("Worker liveness");
+    expect(mounted.textContent).toContain("Planning none · execution active");
+    expect(mounted.textContent).toContain("A claim does not prove worker liveness.");
+    expect([...mounted.querySelectorAll("button")].map(button => button.textContent).join(" ")).not.toMatch(/\bRecover\b|\bResume\b|\bExecute\b|retry rollback/i);
+  });
 });

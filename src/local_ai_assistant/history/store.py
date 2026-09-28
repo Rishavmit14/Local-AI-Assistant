@@ -167,6 +167,36 @@ class TaskHistoryStore:
         with self.transaction() as connection:
             connection.execute("DELETE FROM task_execution_claims WHERE task_id=? AND claim_id=?", (task_id, claim_id))
 
+    def task_claims(self, task_id: str) -> dict[str, dict[str, int] | None]:
+        """Read admission lease timestamps without pruning expired claims."""
+        with self._connect() as connection:
+            result = {}
+            for kind, table in (
+                ("planning", "task_planning_claims"),
+                ("execution", "task_execution_claims"),
+            ):
+                row = connection.execute(
+                    f"SELECT claimed_at, expires_at FROM {table} WHERE task_id=?",
+                    (task_id,),
+                ).fetchone()
+                result[kind] = (
+                    {"claimed_at": int(row["claimed_at"]), "expires_at": int(row["expires_at"])}
+                    if row else None
+                )
+        return result
+
+    def task_rollback_operations(self, task_id: str, *, limit: int = 20) -> tuple[dict, ...]:
+        """Read bounded rollback ledger facts; omit principal, fingerprint and key."""
+        if not 1 <= limit <= 100:
+            raise HistoryDatabaseError("Rollback operation limit must be between 1 and 100")
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT operation_id, checkpoint_id, state, created_at, expires_at, result_json "
+                "FROM rollback_operations WHERE task_id=? ORDER BY created_at DESC LIMIT ?",
+                (task_id, limit),
+            ).fetchall()
+        return tuple(dict(row) for row in rows)
+
     def create_task(self, task: TaskRecord) -> TaskRecord:
         with self.transaction() as connection:
             connection.execute(
