@@ -14,6 +14,60 @@ and the **Current cross-session handoff and Git policy** section below. Historic
 bootstrap instructions describe completed work; use current recovery refs and
 `ROADMAP.md` to continue automatically after each accepted checkpoint.
 
+## Current recovery handoff — 2026-09-28 — Phase 15A
+
+Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
+`integration/astra-friday`; Phase 15A capability commit:
+`712c395` (full SHA recorded by Git). The candidate was pushed to
+`origin/integration/astra-friday` and fast-forwarded to `origin/main`; the
+handoff-only recovery commit is the final verification checkpoint. Phase 15A
+adds an internal transactional rollback kernel, not owner-facing rollback.
+Matrix row 55 remains **PARTIAL**. Do not start Phase 15B or row 56 without the
+next explicit phase request.
+
+The kernel composes `CheckpointManager` with exact task/repository/plan and
+worktree validation, the shared task advisory lock, a uniquely labeled private
+schema-2 safety checkpoint, fsynced checkpoint/metadata writes, exact tracked
+and non-ignored-untracked verification, and one compensating restore. Ignored
+task-local files are preserved because they are outside checkpoint scope.
+Target failure followed by verified compensation returns `failed_recovered`;
+double failure persists `recovery_required`; process interruption leaves a
+recovery-scanner-visible `rollback_in_progress` state. Isolation audit events
+contain only checkpoint IDs and bounded error types. `TaskStatus` does not
+change. CLI checkpoint writes and rollback use the shared lock/kernel; cleanup
+and promotion mutation are serialized by the same task lock. Astra has no
+rollback route, browser credential, or rollback UI.
+
+Validation: 82 focused isolation/checkpoint/rollback/CLI/executor tests passed;
+Ruff passed for isolation and the new tests. Full
+`scripts/maintenance/verify-repository.sh` passed with 950 Python tests, CLI
+checks, `pip check`, and artifact checks. `git diff --check` passed. Frontend
+was not changed and the
+Phase 14 baseline of 97 frontend tests/build evidence remains the latest UI
+validation. The existing Starlette/AnyIO deprecation warning remains.
+
+This phase performed no rollback against any candidate runtime or owner state,
+did not change task history or other Friday stores, and did not restart a
+service. Protected production checkout `/AI/projects/Local-AI-Assistant` stays
+on `stage-22/product-integration` at
+`e43896623978e86b7bae6502b380462b455626be`, with its pre-existing Pocket/Anna
+voice changes intact. Production Friday at `127.0.0.1:8765` returned healthy.
+The prior Phase 15 audit state remains unchanged: both task sentinels are
+`awaiting_approval` with null outcomes; desktop audit states are expired,
+failed, and executed; two notify-only watches remain enabled with worker
+stopped and two notifications acknowledged; Phase 12 source
+`c65d4b2fae2a4bb4aeb0c5ec164c8f22` retains hash
+`9513464ea182c55ebd3404086c5867b0098faaf7aab7767f521d5b1633bc0dcb`; preference
+`mem_70a17b2992b645e496bae1a6066dffee` remains active and adaptation disabled.
+Career Forge remains unqualified and untouched. Qualification repositories and
+tasks existed only in pytest-managed disposable temporary fixtures.
+
+Next dependency is Phase 15B: establish a safe owner-authenticated path and
+explicit review/execute flow over this kernel, including stale/replay behavior,
+task-history audit reconstruction, and disposable native-Astra E2E. Preserve
+row 55 as PARTIAL until that product path is independently qualified. Do not
+implement interruption/crash recovery row 56 in this checkpoint.
+
 ## Current integration recovery state — 2026-09-22
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
