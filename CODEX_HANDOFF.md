@@ -22,9 +22,8 @@ Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
 `12883f070ee176944152c34f0930c9ab0bb211b2` is pushed to
 `origin/integration/astra-friday`, fast-forwarded to `main`, and verified after
 fetch at both `origin/integration/astra-friday` and `origin/main`. The current
-handoff-only recovery commit follows that capability commit. The only current
-working-tree change is this handoff update; its final recovery commit must be
-pushed/fetched to both refs and verified clean.
+recovery HEAD is the published handoff-only commit directly following that
+capability commit; both fetched refs resolve to it and the worktree is clean.
 
 The nine containment gates passed. A disposable transient systemd candidate ran
 as owner UID/GID 1000 with `PrivateNetwork=yes`, `PrivateUsers=no`, the same user
@@ -78,9 +77,10 @@ running. Existing candidate ports 8766/5191 were not changed. Protected
 checkout `/AI/projects/Local-AI-Assistant` remains at
 `e43896623978e86b7bae6502b380462b455626be` on
 `stage-22/product-integration`, with its pre-existing Pocket/Anna changes
-untouched. No host network setting changed. Next: commit this handoff update,
-push and fetch-verify the final recovery SHA on integration and main, verify the
-worktree is clean, then stop. Do not start row 59 or 60.
+untouched. No host network setting changed. The handoff-only recovery commit
+has been pushed and fetch-verified on integration and main; the worktree is
+clean. The next unresolved matrix dependency is row 59, Local Intelligence
+Sovereignty. Do not start row 59 or row 60 in this task.
 
 ## Previous accepted recovery handoff — 2026-09-28 — Phase 18A row 24 qualification
 
