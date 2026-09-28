@@ -3129,10 +3129,13 @@ DeprecationWarning and Vite large-chunk advisory remain. Phase 14 matrix row 54
 is qualified as a bounded candidate. The next unresolved product dependency is
 matrix row 55, Undo/rollback; do not start it in this phase.
 
-Pending publication at handoff authoring: review the final diff, commit on
-`integration/astra-friday`, push it, fast-forward `main` to the same accepted
-commit, fetch and verify both remote refs at that exact SHA, then update this
-recovery record with the accepted SHA and final clean-state evidence. Protected
-production checkout `/AI/projects/Local-AI-Assistant` remains untouched at
+Accepted Phase 14 capability commit:
+`d883e67f92fe75238373f6d214bb8ebad7eec2dc`. It was pushed to
+`origin/integration/astra-friday`, fast-forwarded/pushed to `origin/main`, then
+fetched and verified at that exact SHA on both refs. Protected production
+checkout `/AI/projects/Local-AI-Assistant` remains untouched at
 `e43896623978e86b7bae6502b380462b455626be` on
-`stage-22/product-integration`, including its owner voice changes.
+`stage-22/product-integration`, including its owner voice changes. This
+handoff-only recovery update must now be committed and pushed to the same two
+refs, followed by fetch verification and a clean worktree check. Stop at Phase
+14; do not start row 55 in this task.
