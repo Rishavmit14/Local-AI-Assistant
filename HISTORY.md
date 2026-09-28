@@ -1611,5 +1611,7 @@ Focused preference/memory/conversation/API tests pass (87 Python); focused
 frontend Memory/client tests pass (32). Full frontend suite passes (96), lint,
 TypeScript, and production build pass. Repository verification passes (937
 Python tests); `git diff --check` passes. Existing Starlette/AnyIO deprecation
-and Vite large-chunk warnings remain. The implementation and documentation are
-ready for the Phase 13 capability commit and publication.
+and Vite large-chunk warnings remain. Capability commit
+`d34b15736d2cc1fe7f6b851c9d99991f151e4e3e` was pushed to the owning integration
+branch and fast-forwarded to main; final fetched recovery verification is
+recorded in the handoff.

@@ -3041,9 +3041,11 @@ present on both refs.
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch
 `integration/astra-friday`; base HEAD before Phase 13 implementation was
 `1636f90f0777081b6b5e4e0c0481a741dc4b5710`. Phase 12 commit
-`977aa96ec2890384bab7a2849be1f917ec92a402` is an ancestor. Phase 13 is
-qualified locally and pending its capability commit/publication. Do not begin
-the next matrix capability in this task.
+`977aa96ec2890384bab7a2849be1f917ec92a402` is an ancestor. Phase 13 capability
+commit is `d34b15736d2cc1fe7f6b851c9d99991f151e4e3e`; it has been pushed to
+`origin/integration/astra-friday` and fast-forwarded/pushed to `origin/main`.
+Fetch and verify both refs at this SHA after the handoff-only recovery commit.
+Do not begin the next matrix capability in this task.
 
 Phase 13 adds an explicit default-off setting to the canonical memory SQLite
 database and a bounded, read-only projection of active preference records to
@@ -3085,5 +3087,7 @@ Forge state was queried or used as qualification evidence.
 Protected production checkout `/AI/projects/Local-AI-Assistant` remained
 untouched at `e43896623978e86b7bae6502b380462b455626be`, including pre-existing
 owner voice changes; production API 8765 remained up and was not restarted.
-The candidate API is running on 8766 with adaptation disabled. Exact Phase 13
-capability SHA and remote recovery refs are to be recorded after publication.
+The candidate API is running on 8766 with adaptation disabled. Production
+8765 remains running. After this handoff-only commit, fetch and verify the
+capability and recovery refs on both remotes, verify the worktree is clean, and
+stop at the Phase 13 acceptance boundary without starting another phase.
