@@ -3022,3 +3022,16 @@ this handoff edit, commit/push/remote verification remain pending. Current
 branch is `integration/astra-friday`, based on Phase 11 checkpoint
 `05a33c4c16709b82a3d4917286625d855c2464f1`. Do not start a subsequent phase;
 finish Phase 12 publication and stop at that boundary.
+
+## Phase 12 publication recovery — 2026-09-28
+
+Phase 12 capability commit `977aa96ec2890384bab7a2849be1f917ec92a402`
+contains the implementation, qualification record, matrix update, and full
+test evidence. It was pushed to `origin/integration/astra-friday`,
+fast-forwarded to `main`, then fetched and verified at the exact same SHA on
+both remote refs. The worktree is `/AI/projects/Local-AI-Assistant-terra-integration`;
+the owning branch is `integration/astra-friday`. No implementation changes
+remain uncommitted. Phase 12 is qualified and published; the next roadmap
+capability is deliberately not started. The accepted capability itself remains
+the recovery checkpoint if the handoff-only publication record is not yet
+present on both refs.
