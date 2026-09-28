@@ -17,11 +17,12 @@ bootstrap instructions describe completed work; use current recovery refs and
 ## Current recovery handoff — 2026-09-28 — Phase 15A
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
-`integration/astra-friday`; Phase 15A capability commit:
-`712c395` (full SHA recorded by Git). The candidate was pushed to
-`origin/integration/astra-friday` and fast-forwarded to `origin/main`; the
-handoff-only recovery commit is the final verification checkpoint. Phase 15A
-adds an internal transactional rollback kernel, not owner-facing rollback.
+`integration/astra-friday`; Phase 15A kernel commit `712c395`, followed by the
+bounded-storage hardening commit `d4bfaab` (full SHAs recorded by Git). Both
+were pushed to `origin/integration/astra-friday` and fast-forwarded to
+`origin/main`; the handoff-only recovery commit is the final verification
+checkpoint. Phase 15A adds an internal transactional rollback kernel, not
+owner-facing rollback.
 Matrix row 55 remains **PARTIAL**. Do not start Phase 15B or row 56 without the
 next explicit phase request.
 
