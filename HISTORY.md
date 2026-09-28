@@ -1531,8 +1531,9 @@ Objectives and a full reload reconstructed objective
 required, the latest canonical plan-ready event, five bounded timeline entries,
 and unknown recovery. History retained both pending task sentinels and desktop
 audit states expired, failed, and executed. Browser tooling exposed rendered
-accessibility state and screenshots, but not console logs or direct storage
-inspection. No owner physically observed this phase.
+accessibility state and screenshots, but not console/network capture or direct
+storage inspection; candidate API responses were queried directly. No owner
+physically observed this phase.
 
 The candidate state snapshot lacks authoritative Career Forge records
 (`se.python=unverified`; expected mission/review absent), so Career Forge data

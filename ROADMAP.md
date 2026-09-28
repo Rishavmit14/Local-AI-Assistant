@@ -1241,8 +1241,9 @@ Navigation from History to Objectives and a page reload reconstructed the same
 canonical state. History retained both pending task sentinels and desktop
 action states `expired`, `failed`, and `executed`. No task was approved or
 executed and no desktop action was changed. The UI tool exposed accessibility
-state and screenshots; browser console and raw storage inspection were not
-available through that native tool.
+state and screenshots; browser console/network capture and raw storage
+inspection were not available through that native tool. Candidate API responses
+were queried directly and compared with the rendered UI.
 
 The isolated candidate snapshot does not contain the authoritative Career
 Forge baseline (`se.python=unverified`; expected mission/review absent), so

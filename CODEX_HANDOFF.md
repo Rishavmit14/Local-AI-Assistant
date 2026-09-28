@@ -2897,8 +2897,9 @@ Validation after the final implementation change: focused backend tests 6;
 focused frontend tests 13; full frontend suite 90; lint, TypeScript and
 production builds pass; `scripts/maintenance/verify-repository.sh` passes with
 928 Python tests; `git diff --check` passes. Known warnings: Starlette/AnyIO
-deprecation and Vite bundle size advisory. No browser console or direct browser
-storage inspector was exposed by the available native UI API.
+deprecation and Vite bundle size advisory. No browser console, network, or
+direct browser storage inspector was exposed by the available native UI API;
+candidate API responses were queried directly and compared with the UI.
 
 Candidate-data limitation: the isolated state root has `se.python=unverified`
 and lacks the expected Career Forge mission/review, so preservation of those
