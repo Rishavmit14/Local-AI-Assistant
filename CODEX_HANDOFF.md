@@ -3017,11 +3017,11 @@ chunk warning. `scripts/maintenance/verify-repository.sh` passed: 933 Python
 tests, CLI checks, package integrity, and tracked-artifact checks; one existing
 Starlette/AnyIO deprecation warning remains. `git diff --check` passed after a
 test-fixture whitespace correction. Matrix row 51 now reflects bounded Astra
-qualification while retaining the broader research/self-learning gaps. At
-this handoff edit, commit/push/remote verification remain pending. Current
-branch is `integration/astra-friday`, based on Phase 11 checkpoint
-`05a33c4c16709b82a3d4917286625d855c2464f1`. Do not start a subsequent phase;
-finish Phase 12 publication and stop at that boundary.
+qualification while retaining the broader research/self-learning gaps. Phase
+12 is published as `977aa96ec2890384bab7a2849be1f917ec92a402` and the
+handoff-only descendant `abd3f4414195b81f562e9d8c5e780de919bc1af5` is now
+verified on both `origin/integration/astra-friday` and `origin/main`. Current
+branch is `integration/astra-friday`; do not start a subsequent phase.
 
 ## Phase 12 publication recovery — 2026-09-28
 
