@@ -2911,8 +2911,10 @@ unchanged: `f4a6b95dd43e442a8b62da655cdb3717` expired,
 `117688df784a409a90a2dd3bb1fd15ba` failed, and
 `17c6a5c642e443989ee17d8a24b2a3ba` executed.
 
-Validation and acceptance are complete. The handoff-only recovery commit must
-also be pushed to `origin/integration/astra-friday` and fast-forward `main`,
-then fetched and verified at an identical SHA. After that checkpoint, the next
-product-matrix dependency is proactive watches/notifications (row 50, PARTIAL);
-do not start it in this checkpoint.
+Validation and acceptance are complete. This handoff-only recovery update is
+published to `origin/integration/astra-friday` and `origin/main`; both were
+fetched and verified at the identical current recovery HEAD. That recovery
+commit is a documentation-only descendant of capability commit
+`07a509bbd60454ab3854a4470cf8041cc76fc4c7`. The next product-matrix dependency
+is proactive watches/notifications (row 50, PARTIAL); do not start it in this
+checkpoint.
