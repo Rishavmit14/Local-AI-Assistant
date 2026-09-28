@@ -204,6 +204,22 @@ the same client contract. Model identity stays configuration, not product
 authority or persisted state. See ADR 0032 and the model-swap qualification
 procedure.
 
+Phase 18B qualifies one bounded offline owner-path scenario without changing
+the installed runtime architecture. The disposable candidate API ran as the
+normal owner UID/GID in a transient systemd `PrivateNetwork=yes` namespace and
+listened only on AF_UNIX. A loopback presentation proxy connected the host Astra
+page to that socket. A separate fixed-operation AF_UNIX relay connected only
+the candidate's loopback chat-completions adapter to the already-local Qwen at
+`127.0.0.1:8080`; it offered no general proxy or network tunnel. Candidate
+processes could not reach external DNS/IPs or host loopback services. Existing
+Practice Lab `NetworkPolicy.DENY` Bubblewrap remained unchanged and its actual
+learner process was separately shown unable to reach external, host, or
+candidate loopback services. This topology is qualification-only: it installs
+no persistent unit, service, route, firewall rule, or host network change. It
+does not isolate the host browser process or establish that online-only
+capabilities or first-time installation work offline. See the Phase 18B
+qualification record and `docs/architecture/isolation.md`.
+
 Career Forge's durable boundary is a local Learner Twin and versioned ML/AI
 Engineer competency graph above the Stage 13 memory foundation. It reuses
 Friday's code intelligence, controlled tools, validation, Git isolation, history,

@@ -87,6 +87,37 @@ automatic cleanup is authorized.
 
 Strong isolation is required by default. If mount/network namespace isolation is unavailable, autonomous repository execution blocks. Explicit lower-trust policy can permit native execution with `network=allowed`, but it must not be described as contained untrusted execution.
 
+## Phase 18B offline qualification boundary
+
+The bounded E2E-018 offline proof used a **disposable candidate-only** systemd
+transient service with `PrivateNetwork=yes`, `PrivateUsers=no`, and the normal
+owner UID/GID. The candidate API bound only a private pathname AF_UNIX socket;
+candidate-facing Astra and Qwen adapters were fixed loopback surfaces provided
+by host-side proxies that each connected to one preselected AF_UNIX socket.
+The Qwen relay accepted only the configured model's `POST
+/v1/chat/completions` operation and forwarded to the single literal destination
+`127.0.0.1:8080`; it did not accept a host, port, URL, CONNECT request, DNS
+lookup, or tunnel operation. This permits explicitly selected local Qwen while
+the candidate network namespace has no external egress and cannot reach host
+loopback services.
+
+Practice Lab continued to use its existing Bubblewrap `NetworkPolicy.DENY`
+implementation. `PracticeLabService.availability()` passed inside the
+candidate, and real disposable Run/Test learner execution remained isolated
+from external addresses, host services, and the candidate Qwen adapter. The
+host browser was not placed in the network namespace; it loaded local built
+assets from loopback and used only the constrained presentation proxy for
+Friday API calls.
+
+This topology is a qualification harness, not a production deployment or a
+general Qwen proxy. Transient units, temporary sockets/state, and local preview
+processes were removed after evidence capture. No host interface, firewall,
+route, DNS, NetworkManager, or persistent service configuration was changed.
+The acceptance claim covers only the integrated normal-use paths recorded in
+`docs/qualification/offline-operation.md`; web research, GitHub, external APIs,
+package/model downloads, uncached assets, and first-time installation remain
+outside its scope.
+
 ## Promotion and recovery
 
 Reviewed, validated, current, and committed states are bound by a deterministic temporary-index tree identity. Any later file, mode, symlink, untracked, branch, or canonical-HEAD change invalidates promotion. Isolation-owned Git calls disable hooks, prompts, editors, pagers, signing, system/global configuration, and reject repository/shared Git filter or LFS attributes rather than executing clean/smudge programs. Stage 8 produces a task-branch commit and never merges main.

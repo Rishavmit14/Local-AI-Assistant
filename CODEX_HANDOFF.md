@@ -14,7 +14,62 @@ and the **Current cross-session handoff and Git policy** section below. Historic
 bootstrap instructions describe completed work; use current recovery refs and
 `ROADMAP.md` to continue automatically after each accepted checkpoint.
 
-## Current recovery handoff — 2026-09-28 — Phase 18A row 24 qualification
+## Current session recovery — 2026-09-29 — Phase 18B offline qualification
+
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
+`integration/astra-friday`; Phase 18A recovery base was
+`6f1c09b204f1418f8d0f2c872b226b0c4eb042e`, with fetched integration/main refs
+verified at session start. Phase 18B source, tests, matrix, architecture,
+roadmap, history, qualification record, and this handoff are prepared on that
+base. The Phase 18B capability commit and publication are pending; do not treat
+the working-tree candidate as remotely accepted until its refs are verified.
+
+The nine containment gates passed. A disposable transient systemd candidate ran
+as owner UID/GID 1000 with `PrivateNetwork=yes`, `PrivateUsers=no`, the same user
+namespace as host and a different network namespace. Direct external IP, DNS,
+GitHub, Hugging Face, and OpenAI failed; host loopback ports 8765, 8080, 8766,
+and 5191 were unreachable. The exact Practice Lab Bubblewrap capability worked
+inside the candidate, `PracticeLabService.availability()` passed, and actual
+Practice Lab Test/Run used its unchanged Bubblewrap `NetworkPolicy.DENY`
+learner boundary. Learner probes could not reach external IP, host services, or
+the candidate Qwen adapter. No fallback isolation policy was used.
+
+The fixed Qwen bridge used candidate loopback `127.0.0.1:18080` -> framed
+AF_UNIX RPC -> fixed host `127.0.0.1:8080/v1/chat/completions`; requests had no
+destination field, and the bridge rejected noncanonical methods/routes, Host,
+CONNECT, arbitrary targets, proxy/destination headers, and oversized or
+malformed input. Candidate Friday API bound only AF_UNIX. Astra used locally
+built assets and a loopback-only presentation proxy to that socket. Real local
+Qwen powered Astra Conversation and selected private Knowledge; synthetic
+Memory, Career Forge, and Knowledge state reconstructed after candidate
+restart. CodeRAG separately answered its synthetic query while offline before
+restart; post-restart CodeRAG reconstruction was not tested. Cached embeddings
+loaded with Hugging Face offline mode. See
+`docs/qualification/offline-operation.md` for evidence and limitations.
+
+The browser itself stayed in the host namespace; this proves the integrated
+page/API paths do not need internet resources, not browser-process egress
+containment. This bounded E2E does not establish that all Friday capabilities
+or first-time installation work offline. Row 58 is recorded QUALIFIED as
+**bounded integrated normal-use offline operation, Phase 18B**. Row 59 remains
+IMPLEMENTED and unqualified; row 60 was not started.
+
+Validation passed: 17 focused bridge tests; 1,064 Python tests; 105 frontend
+tests; ESLint; TypeScript/build; Ruff; `pip check`; repository verification;
+and `git diff --check`. One initial full-suite run had a single unrelated MCP
+stdio test timeout; that test passed on focused rerun and subsequent complete
+suite and repository verification. Existing Starlette/AnyIO deprecation and
+Vite large-chunk advisories remain.
+
+All temporary transient units, namespace, candidate processes, sockets, preview
+ports, and `/tmp/friday-phase18b-qual-*` state were stopped/removed. Production
+Friday 8765 and Qwen 8080 remained running; existing candidate 8766/5191 and
+protected checkout `/AI/projects/Local-AI-Assistant` were untouched. No host
+network setting changed. Next: review final diff, create and publish the Phase
+18B capability and recovery commits, fetch/verify `origin/integration/astra-friday`
+and `origin/main`, ensure clean status, then stop. Do not start row 59 or 60.
+
+## Previous accepted recovery handoff — 2026-09-28 — Phase 18A row 24 qualification
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
 `stage-18/private-document-knowledge`; starting recovery HEAD was

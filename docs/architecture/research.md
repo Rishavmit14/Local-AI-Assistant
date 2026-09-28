@@ -64,7 +64,14 @@ loopback Qwen endpoint. Native Astra navigation/reload reconstructed inventory;
 a grounded query returned canonical evidence, an unrelated question returned
 no evidence without model generation, and an instruction embedded in the
 document caused no authority mutation. This establishes the bounded private
-document owner path, not fact validation or the integrated offline scenario.
+document owner path, not fact validation.
+
+Phase 18B separately verified one explicitly selected synthetic Knowledge
+source through Astra while candidate network egress was denied, using
+already-cached local embeddings and the fixed local-Qwen bridge. This is
+offline-use evidence only; source acquisition and first-time model/embedding
+downloads remain outside the claim. See
+`docs/qualification/offline-operation.md`.
 
 ## Astra Phase 12: generated research interpretation
 

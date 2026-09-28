@@ -1558,8 +1558,7 @@ currently configured Qwen endpoint. Fixture compatibility is not real-model
 quality or permanent replacement approval. No safe concurrent alternate model
 was loaded. See ADR 0032 and `docs/qualification/model-swap.md`.
 
-Phase 17 qualifies only this bounded configuration and restart contract. The
-next unresolved capability is row 58, Offline operation; it remains unstarted.
+Phase 17 qualifies only this bounded configuration and restart contract.
 
 
 ## Astra Product Integration — Phase 18A: Private document Knowledge (row 24)
@@ -1578,5 +1577,40 @@ candidate state. A grounded Qwen answer returned normalized source evidence; an
 unrelated question abstained without model generation; navigation/reload
 reconstructed the index inventory; and document instructions caused no
 authority mutation. Unsupported extensions and absence of fact validation remain
-limitations. This does not prove integrated offline operation. Row 58 remains
-PARTIAL; Phase 18B and rows 59–60 were not started.
+limitations. This did not prove integrated offline operation. Row 58 remained
+PARTIAL at the Phase 18A checkpoint; rows 59–60 were not started.
+
+## Astra Product Integration — Phase 18B: Offline operation (row 58)
+
+Row 58 is **QUALIFIED (bounded integrated normal-use offline operation, Phase
+18B)**. E2E-018 exercised the existing Astra owner path against a disposable
+Friday API running in a transient systemd `PrivateNetwork=yes` network namespace
+as the normal owner UID/GID. The host network and production services were not
+changed. Candidate Friday exposed only a private AF_UNIX API socket; local
+presentation and model bridges used fixed local endpoints. The candidate had no
+external IP/DNS access and could not reach host loopback services.
+
+Conversation completed through the configured production local Qwen model by a
+fixed chat-completions-only bridge to `127.0.0.1:8080`; the bridge accepted no
+destination values, DNS, CONNECT, or generic TCP. Astra showed a real Qwen
+answer. Candidate Memory, an active Career Forge mission, and the synthetic
+private Knowledge index reconstructed after candidate restart. Local cached
+embeddings and a synthetic CodeRAG repository remained usable. The real Astra
+Practice Lab Run and Test paths invoked the existing Bubblewrap
+`NetworkPolicy.DENY` sandbox and denied external, host-service, and candidate
+adapter connections without policy changes. External DNS, direct IP, GitHub,
+Hugging Face, and OpenAI negative controls failed inside the candidate.
+
+The Astra browser itself remained in the normal host session: it loaded only
+the locally built frontend and contacted a loopback presentation proxy, which
+reached the candidate API over its fixed AF_UNIX socket. The browser process was
+not placed in the candidate namespace; this qualification proves the integrated
+owner flow does not require internet resources, not browser-process egress
+containment. The Qwen model, embeddings, runtime assets, and indexes were
+already local. Web research, GitHub, external APIs, package/model acquisition,
+and first-install operation remain internet-dependent or outside this proof.
+See `docs/qualification/offline-operation.md` for topology and evidence.
+
+Row 59 Local Intelligence Sovereignty remains **IMPLEMENTED** and is not
+qualified by this bounded scenario. Row 60 remains unchanged. Neither row was
+started.

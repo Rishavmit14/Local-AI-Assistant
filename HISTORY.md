@@ -1752,5 +1752,49 @@ Native Astra qualification used only one synthetic TXT document in an isolated
 candidate root. Grounded Qwen response/evidence, unrelated-query abstention,
 navigation/reload reconstruction, and no authority effects were observed. No
 owner files were scanned. This qualifies matrix row 24's bounded query path;
-explicit CLI indexing remains required. Row 58 Offline operation remains
-PARTIAL and is not qualified by this work.
+explicit CLI indexing remains required. At this Phase 18A checkpoint, row 58
+Offline operation remained PARTIAL.
+
+## 2026-09-29 — Astra Phase 18B offline operation qualification
+
+Qualified matrix row 58 as **bounded integrated normal-use offline operation**
+under E2E-018. A disposable Friday candidate ran as the normal owner UID/GID in
+a transient systemd `PrivateNetwork=yes` namespace. External DNS and direct IP
+access failed, host loopback services were unreachable, and no host network,
+firewall, route, DNS, or NetworkManager setting changed. The candidate API was
+AF_UNIX-only. Candidate Astra reached it through one local presentation proxy.
+
+The isolated candidate used the already-running local Qwen through a fixed
+chat-completions-only AF_UNIX relay; it had no arbitrary destination, proxy,
+DNS, or CONNECT capability. Real Astra Conversation received Qwen output.
+Synthetic candidate Memory, the active Career Forge mission, and private
+Knowledge index reconstructed after API restart. CodeRAG independently loaded
+and answered its synthetic query while offline before restart. Cached local
+embeddings loaded with Hugging Face offline mode. Astra Practice Lab Test and
+Run invoked the existing Bubblewrap `NetworkPolicy.DENY` policy; learner probes
+could not reach external IP, host services, or the Qwen adapter. Negative
+controls for GitHub, Hugging Face, and OpenAI failed inside the isolated
+candidate.
+
+The Astra browser remained on the host and used locally built assets plus a
+loopback presentation relay; the browser process itself was not isolated. The
+qualification establishes that the tested integrated owner paths do not need
+internet resources, not that every Friday capability is offline or that a
+first-time install can run offline. Owner-authorized web research, GitHub,
+external APIs, downloads, and acquisition of uncached assets remain outside
+the claim. Row 59 remains IMPLEMENTED and unqualified; row 60 was not started.
+
+Validation passed: 17 focused bridge tests; full Python suite (1,064 tests);
+full frontend suite (105 tests); ESLint; TypeScript and production build; Ruff;
+`pip check`; repository verification (1,064 tests and tracked-artifact checks);
+and `git diff --check`. Existing Starlette/AnyIO deprecation and Vite
+large-chunk advisories remain. A first concurrent full-suite run encountered
+one unrelated 20-second MCP stdio startup timeout; the focused test passed and
+the subsequent full suite and canonical repository verification both passed.
+
+The transient namespace, candidate API, candidate Qwen adapter, host relay,
+presentation proxy, Vite preview, AF_UNIX sockets, and disposable candidate
+state were stopped and removed. Production Friday/Qwen, the existing candidate,
+the protected checkout, and host networking remained untouched. See the current
+handoff for the accepted recovery SHA and next dependency; row 59 and row 60
+must not be started as part of this qualification.
