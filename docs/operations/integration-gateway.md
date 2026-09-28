@@ -15,3 +15,23 @@ configured bearer token; neither Astra nor the Learner Twin stores it. Candidate
 approval and publication remain separate requests, and only a succeeded
 `friday/task/` task with a final commit and matching local/remote repository
 identity can reach the existing publisher.
+
+Owner-reviewed task checkpoint restore is disabled unless all of these
+protected local environment values are configured:
+
+- `LOCAL_AI_ROLLBACK_OWNER_TOKEN_HASH`: SHA-256 hex digest of a strong local
+  owner unlock token.
+- `LOCAL_AI_ROLLBACK_GATEWAY_TOKEN`: server-only plaintext bridge credential.
+- `LOCAL_AI_ROLLBACK_GATEWAY_TOKEN_HASH`: its SHA-256 hex digest.
+- `LOCAL_AI_ROLLBACK_ALLOWED_ORIGINS`: comma-separated exact Astra origins.
+
+The bridge is constructed with only `request_rollback`; do not reuse the
+execution token. Keep both plaintext values out of repository, frontend build,
+logs, and browser storage. The owner token is entered only at unlock. Astra gets
+an HttpOnly, strict-SameSite, 10-minute session cookie and an in-memory CSRF
+token; restart revokes sessions. Remove the protected owner digest and bridge
+values to revoke this capability, then reload the local Presentation API.
+Rollback is limited to eligible schema-2 checkpoints in non-protected isolated
+task worktrees. This flow does not undo publication, canonical-repository
+changes, desktop actions, or arbitrary files. Candidate qualification should
+use disposable task state only.

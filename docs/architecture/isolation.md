@@ -37,10 +37,19 @@ and symlink targets. Failure triggers one compensating restore and identical
 verification. A verified compensation reports `failed_recovered`; double
 failure persists `recovery_required`. A process crash leaves the durable
 `rollback_in_progress` marker, which the recovery scanner reports for operator
-inspection. The CLI uses this kernel; there is still no Astra mutation route or
-owner authentication bridge. Checkpoint artifacts and lifecycle metadata are
-fsynced before destructive work. TaskStatus is not changed by this internal
-worktree operation.
+inspection. The CLI and authenticated owner-review adapter use this kernel.
+The adapter exposes only safe checkpoint projections, validates a separate
+server-side `request_rollback` bridge authority, and never gives Astra the
+Gateway bearer. Its exact review is bound to the task, plan, checkpoint
+identity, current worktree fingerprint, owner principal, and expiry. Execute
+atomically consumes the review before invoking the kernel; exact idempotency
+keys recover completed results without a second restore. Checkpoint artifacts
+and lifecycle metadata are fsynced before destructive work. TaskStatus is not
+changed by this internal worktree operation. Phase 15B qualified this bounded
+behavior through disposable native-Astra review/execute; the synthetic source
+repository was preserved and canonical audit/explanation records reconstructed.
+Row 55 is qualified only for authenticated isolated-task checkpoint rollback.
+It does not imply general undo or row 56 interruption recovery.
 
 ## Sandbox and resources
 

@@ -69,6 +69,7 @@ class TaskHistoryStore:
                     "external_publications", "external_ci_checks",
                     "task_planning_claims",
                     "task_execution_claims",
+                    "rollback_operations",
                 }
                 actual_tables = {
                     row[0]

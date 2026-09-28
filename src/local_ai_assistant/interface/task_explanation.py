@@ -8,7 +8,6 @@ from pathlib import Path
 
 from local_ai_assistant.autonomy.service import ObjectiveService
 from local_ai_assistant.execution.history import redact
-from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.history.models import TaskRecord, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.interface.progress_projection import task_recovery_projection
@@ -28,6 +27,11 @@ _EVENT_NAMES = {
     "review_imported": "Review evidence imported",
     "task_status_changed": "Task status changed",
     "cancel_requested": "Cancellation request recorded",
+    "rollback_started": "An owner-reviewed checkpoint restore started in the isolated task worktree",
+    "rollback_target_failed": "Checkpoint restore failed; transactional compensation started",
+    "rollback_failed_recovered": "Checkpoint restore failed; the pre-restore task state was recovered",
+    "rollback_restore_succeeded": "The isolated task worktree was restored to the exact checkpoint",
+    "rollback_recovery_required": "Checkpoint restore and compensation failed; manual recovery is required",
 }
 _STATUS_NARRATIVE = {
     TaskStatus.CREATED: "The canonical task record exists; planning has not started.",

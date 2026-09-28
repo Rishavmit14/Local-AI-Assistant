@@ -36,10 +36,11 @@ describe("Astra History canonical read projection", () => {
     expect(mounted.textContent).toContain("task_290e6c92cefe4902b62b · awaiting_approval");
     expect(mounted.textContent).toContain("No outcome recorded");
     expect(mounted.textContent).toContain("Acknowledged ·");
-    expect(mounted.textContent).toContain("Internal / CLI only");
+    expect(mounted.textContent).toContain("Owner unlock required");
     expect(mounted.textContent).toContain("Session-only");
     expect(mounted.textContent).not.toContain("/private/owner/secret.txt");
-    expect([...mounted.querySelectorAll("button")].map(button => button.textContent).join(" ")).not.toMatch(/approve|execute|cancel|retry|rollback|restore/i);
+    expect(mounted.textContent).toContain("separate owner-authenticated review and execute flow");
+    expect([...mounted.querySelectorAll("button")].map(button => button.textContent).join(" ")).not.toMatch(/approve|execute|cancel|retry|restore/i);
     expect(methods).toEqual(["GET", "GET", "GET", "GET"]);
     expect(localStorage.length).toBe(0);
   });

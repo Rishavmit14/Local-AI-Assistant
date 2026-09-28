@@ -16,6 +16,7 @@ class GatewayScope(StrEnum):
     SUBMIT_APPROVAL = "submit_approval"
     REQUEST_EXECUTION = "request_execution"
     REQUEST_CANCEL = "request_cancel"
+    REQUEST_ROLLBACK = "request_rollback"
     GITHUB_READ = "github_read"
     GITHUB_WRITE = "github_write"
 

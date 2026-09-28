@@ -28,6 +28,12 @@ Interrupted restore is represented by isolation metadata state
 `rollback_in_progress` and the normal read-only recovery scanner, not by a new
 task status or parallel database.
 
+Phase 15B adds a versioned `rollback_operations` ledger in the same SQLite
+database. It stores bounded review identity, principal, plan/checkpoint IDs,
+worktree-state fingerprint, expiry, one-time state, idempotency key, and the
+bounded result; it contains no paths or checkpoint contents. Expired and stale
+reviews cannot execute, and an executing record is not replayed after a crash.
+
 SQLite uses WAL, foreign keys, a bounded busy timeout, short `BEGIN IMMEDIATE` writes, rollback on errors, and indexed common queries. `PRAGMA quick_check` detects corruption. Migrations run in deterministic transactions and never drop/recreate history.
 
 ## Privacy and presentation boundary

@@ -306,7 +306,7 @@ class AppConfig:
             )
 
         gateway_scopes = tuple(item.strip().lower() for item in values.get("LOCAL_AI_GATEWAY_SCOPES", "read_status,read_history").split(",") if item.strip())
-        allowed_gateway_scopes = {"read_status", "read_history", "create_task", "request_plan", "submit_approval", "request_execution", "request_cancel", "github_read", "github_write"}
+        allowed_gateway_scopes = {"read_status", "read_history", "create_task", "request_plan", "submit_approval", "request_execution", "request_rollback", "request_cancel", "github_read", "github_write"}
         if not gateway_scopes or not set(gateway_scopes) <= allowed_gateway_scopes:
             raise ConfigurationError("LOCAL_AI_GATEWAY_SCOPES contains an invalid or empty scope")
         if not gateway_host or not github_api_host.startswith("https://"):

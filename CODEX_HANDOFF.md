@@ -14,7 +14,73 @@ and the **Current cross-session handoff and Git policy** section below. Historic
 bootstrap instructions describe completed work; use current recovery refs and
 `ROADMAP.md` to continue automatically after each accepted checkpoint.
 
-## Current recovery handoff — 2026-09-28 — Phase 15A
+## Current recovery handoff — 2026-09-28 — Phase 15B qualified, publication in progress
+
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; capability implementation is qualified locally and
+ready for acceptance publication. Phase 15A recovery base is
+`3e467599d6e341abf77fbbb879b2dda892e9baa1`, previously verified on
+`origin/integration/astra-friday` and `origin/main`. The Phase 15B change set is locally qualified and ready for the prescribed
+capability and recovery commits/pushes.
+
+Phase 15B adds a distinct `request_rollback` server bridge, separate strong
+owner-token authentication, ten-minute volatile owner sessions, strict loopback
+Host/configured-Origin/CSRF checks, bounded login rate limiting, and exact
+TaskHistory-backed expiring reviews bound to owner, task, plan, checkpoint,
+worktree identity/fingerprint, and one-time state. Review is non-mutating.
+Execute consumes the review, rechecks state under the task lock, records
+operation/timeline audit state without changing TaskStatus, and supports
+same-key idempotent result reconstruction without a second restore. Astra
+History exposes separately gated review and execute actions. The Phase 14
+deterministic explanation surface describes the canonical audit events without
+claiming task execution or causal facts.
+
+Disposable native-Astra E2E on 2026-09-28 used only synthetic task
+`task_9ed84837b92146468271`, checkpoint
+`e29b47e6513851d7011ac1bc`, operation
+`e87f63a1114a4398b0e089696a69e70d`, and isolated API 8766/UI 5191. Owner
+unlock succeeded. Review showed the exact task/checkpoint/plan/HEAD and left
+worktree file contents, HEAD, and Git status unchanged. Separate execute
+restored `exact reviewed checkpoint state`; synthetic canonical source remained
+`base candidate state` with its original SHA-256. TaskHistory recorded
+`Rollback_started` and `Rollback_restore_succeeded`, and the rollback ledger
+recorded `Succeeded`. History and the Phase 14 explanation reconstructed the
+result; navigation and full reload reconstructed canonical history. Focused
+regressions reject stale fingerprints, accept same-key replay without another
+restore, recover a completed kernel operation when ledger finalization was
+interrupted, and reject a different key with 409. No second destructive
+rollback was performed.
+
+The two protected real task sentinels remain `awaiting_approval` with null
+outcomes. The existing candidate qualification stores remain unchanged: desktop
+action states executed/failed/expired; two enabled notify-only watches; two
+notifications (one acknowledged and one unacknowledged); research source
+`c65d4b2fae2a4bb4aeb0c5ec164c8f22` retains SHA-256
+`9513464ea182c55ebd3404086c5867b0098faaf7aab7767f521d5b1633bc0dcb`; preference
+`mem_70a17b2992b645e496bae1a6066dffee` remains active with adaptation disabled;
+Career Forge remains unqualified. Production API 8765 is healthy. Protected
+production checkout `/AI/projects/Local-AI-Assistant` stays on
+`stage-22/product-integration` at
+`e43896623978e86b7bae6502b380462b455626be` with pre-existing Pocket/Anna
+changes intact.
+
+Final validation: `scripts/maintenance/verify-repository.sh` passed all 955
+Python tests and dependency/repository checks. Frontend tests passed (98), ESLint
+passed, and TypeScript/production build passed with the existing Vite large-chunk
+advisory. Changed-file Ruff and `git diff --check` passed. The repository suite
+initially had two MCP subprocess timeouts while frontend gates ran concurrently;
+both focused tests passed alone and the serialized full suite passed. The
+existing Starlette/AnyIO deprecation warning remains.
+
+Temporary candidate credentials and the disposable runtime were removed, and
+the prior candidate API configuration was restored and health-checked at 8766.
+No token value was logged. Final acceptance gates passed; capability and recovery
+commits/pushes to the stage branch and main remain. Product matrix row 55 is
+qualified only as bounded authenticated isolated-task checkpoint rollback; this
+does not add universal undo, publication reversal, canonical repository,
+desktop, or other-store rollback. Do not start row 56.
+
+## Previous recovery handoff — 2026-09-28 — Phase 15A
 
 Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch:
 `integration/astra-friday`; Phase 15A kernel commit `712c395`, followed by the
@@ -23,8 +89,8 @@ were pushed to `origin/integration/astra-friday` and fast-forwarded to
 `origin/main`; the handoff-only recovery commit is the final verification
 checkpoint. Phase 15A adds an internal transactional rollback kernel, not
 owner-facing rollback.
-Matrix row 55 remains **PARTIAL**. Do not start Phase 15B or row 56 without the
-next explicit phase request.
+Matrix row 55 remains **PARTIAL**. Phase 15B is now active as recorded in the
+current handoff above; do not start row 56 within this capability.
 
 The kernel composes `CheckpointManager` with exact task/repository/plan and
 worktree validation, the shared task advisory lock, a uniquely labeled private

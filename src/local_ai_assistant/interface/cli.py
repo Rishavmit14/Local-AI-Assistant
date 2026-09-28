@@ -29,6 +29,10 @@ from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.interface.task_explanation import TaskExplanationService
+from local_ai_assistant.isolation.checkpoints import CheckpointManager
+from local_ai_assistant.isolation.owner_rollback import OwnerRollbackService, OwnerRollbackSessions
+from local_ai_assistant.isolation.transactional_rollback import TransactionalRollbackService
+from local_ai_assistant.isolation.worktrees import WorktreeManager
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
 from local_ai_assistant.onboarding import RepositoryOnboardingService
@@ -184,6 +188,23 @@ def build_presentation_components(
     execution_auth = (
         GatewayAuth(resolved_config.gateway.token_hash, frozenset(GatewayScope(scope) for scope in resolved_config.gateway.scopes))
         if resolved_config.gateway.enabled and resolved_config.gateway.token_hash else None
+    )
+    rollback_owner_hash = os.environ.get("LOCAL_AI_ROLLBACK_OWNER_TOKEN_HASH", "")
+    rollback_gateway_token = os.environ.get("LOCAL_AI_ROLLBACK_GATEWAY_TOKEN", "")
+    rollback_gateway_hash = os.environ.get("LOCAL_AI_ROLLBACK_GATEWAY_TOKEN_HASH", "")
+    rollback_sessions = OwnerRollbackSessions(rollback_owner_hash) if rollback_owner_hash else None
+    rollback_gateway_auth = (
+        GatewayAuth(rollback_gateway_hash, frozenset({GatewayScope.REQUEST_ROLLBACK}))
+        if rollback_gateway_hash and rollback_gateway_token else None
+    )
+    rollback_worktrees = WorktreeManager(resolved_config.paths.worktree_dir)
+    rollback_checkpoints = CheckpointManager(resolved_config.paths.isolation_dir / "checkpoints")
+    rollback_service = OwnerRollbackService(
+        history, rollback_worktrees, rollback_checkpoints,
+        TransactionalRollbackService(rollback_worktrees, rollback_checkpoints, history),
+    )
+    rollback_origins = tuple(
+        origin.rstrip("/") for origin in os.environ.get("LOCAL_AI_ROLLBACK_ALLOWED_ORIGINS", "").split(",") if origin.strip()
     )
     execution = CodeAgentExecutionService(resolved_config, history, onboarding)
     gateway = IntegrationGatewayService(
@@ -415,6 +436,11 @@ def build_presentation_components(
         capabilities=capabilities,
         task_history=history,
         isolation_root=resolved_config.paths.worktree_dir,
+        owner_rollback=rollback_service,
+        owner_rollback_sessions=rollback_sessions,
+        rollback_gateway_auth=rollback_gateway_auth,
+        rollback_gateway_token=rollback_gateway_token or None,
+        rollback_allowed_origins=rollback_origins,
         on_startup=(proactive_runtime.start if resolved_config.proactive.enabled else None),
         on_shutdown=lambda: (proactive_runtime.close(), gateway.close(), execution.close()),
     )

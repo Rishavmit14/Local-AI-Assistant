@@ -36,3 +36,13 @@ Executor submission and shutdown share a process-local admission lock. Duplicate
 in-flight task requests return the same handle, while closed admission rejects
 new submissions. Cancelled queued futures have an explicit cancellation status;
 running work is not forcibly terminated by adapter shutdown.
+
+The owner rollback capability has its independent `request_rollback` scope and
+server-side bridge token. It is never sent to Astra. The Presentation API
+accepts a separate owner unlock token digest, creates a 10-minute volatile
+HttpOnly/SameSite=Strict session, and requires an exact configured Origin plus a
+per-session CSRF header on mutations. Process restart revokes sessions. Missing
+owner, bridge, or Origin configuration fails closed. Reviews and operation
+results share TaskHistory SQLite and invoke the accepted transactional
+isolation kernel; this does not add rollback to the general execution bearer or
+make rollback available to arbitrary repositories/tasks.

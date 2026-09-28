@@ -1653,3 +1653,28 @@ checkpoint format does not capture them. TaskHistory receives bounded isolation
 events, while TaskStatus semantics remain unchanged. The CLI is routed through
 this kernel. Astra rollback UI and authenticated owner mutation remain absent;
 product matrix row 55 stays PARTIAL and Phase 15B remains required.
+
+
+## 2026-09-28 — Astra Phase 15B authenticated isolated-task rollback qualification
+
+Qualified the owner-facing History rollback flow for exactly one bounded
+capability: restoring an eligible schema-2 checkpoint in its isolated task
+worktree. The disposable native-Astra run authenticated the owner, reviewed the
+exact task/checkpoint/plan/HEAD without filesystem mutation, then separately
+executed the rollback. The worktree file returned to the exact checkpoint; the
+synthetic canonical source repository remained unchanged. Canonical rollback
+ledger and timeline events, History navigation/reload, and deterministic Phase
+14 explanation reconstruction agreed. Stale review rejection, same-key replay,
+interrupted-result reconstruction, and different-key conflict passed without a
+second destructive rollback. Both real task sentinels, other candidate stores,
+production service, and protected production checkout remained unchanged. The
+temporary owner credential, bridge credential, and disposable runtime were
+removed; prior candidate API configuration was restored.
+
+Authentication uses a separately configured owner token, a volatile ten-minute
+HttpOnly/SameSite=Strict session, CSRF protection, exact configured Origin and
+loopback Host checks, and a server-only bridge bearer scoped only to
+`request_rollback`. Review binds exact task/checkpoint/plan/worktree fingerprint
+and expires; execution consumes once and rechecks the fingerprint. This is not
+universal undo, publication/canonical repository reversal, or crash recovery.
+Phase 15B implementation and evidence are in ADR 0030 and matrix row 55.

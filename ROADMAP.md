@@ -1490,5 +1490,25 @@ model; default storage limits cap each checkpoint at 2 GiB and each task at 16
 checkpoints. Task history records bounded isolation events without changing
 `TaskStatus`. The CLI is routed through the kernel. This does not add owner
 rollback authentication, an Astra action, or publication reversal; matrix row
-55 remains PARTIAL. Phase 15B is the remaining dependency before row 55 can be
-qualified. Do not start row 56 as part of this capability.
+55 remained PARTIAL at the Phase 15A checkpoint. Phase 15B below now qualifies
+the bounded owner-authenticated isolated-task rollback path. Do not start row
+56 as part of this capability.
+
+## Astra Canonical Product Integration — Phase 15B: Authenticated owner rollback (**Qualified bounded checkpoint rollback; row 55 remains scoped**)
+
+Adds a distinct `request_rollback` server bridge, separate owner-token unlock,
+short-lived volatile session, strict configured Origin and CSRF checks,
+TaskHistory-backed exact one-time reviews, stale-state rejection, idempotent
+completion recovery, and a gated History review/execute surface. Disposable
+native-Astra qualification on 2026-09-28 proved review left the worktree
+unchanged; separately executing the reviewed task/checkpoint restored the exact
+checkpoint while preserving the synthetic canonical source repository. The
+canonical operation ledger, timeline, History navigation/reload, and deterministic
+Phase 14 explanation reconstructed the result. Stale fingerprint rejection,
+same-key idempotent replay, interrupted-result reconstruction, and different-key
+conflict passed focused regressions without a second destructive rollback.
+Full repository and frontend acceptance gates passed. This qualifies only the
+bounded owner-authenticated rollback of an eligible checkpoint in an isolated
+task worktree. It does not provide universal undo or reverse publication,
+canonical repositories, desktop actions, or other Friday stores. Do not start
+row 56 within Phase 15B.

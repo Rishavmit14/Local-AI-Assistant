@@ -37,9 +37,13 @@ Stage 8 worktree/checkpoint/isolation controls are accepted in the current branc
 Phase 15A hardens the internal task-checkpoint restore kernel: exact task/plan
 identity, per-task serialization, a private pre-restore safety checkpoint,
 verification and one compensating restore, plus recovery-scanner-visible
-in-progress/double-failure state. It adds no owner-facing rollback authority;
-product matrix row 55 remains PARTIAL until Phase 15B supplies authenticated
-owner review and execution.
+in-progress/double-failure state. Phase 15B now implements a separate owner
+unlock and rollback-only server bridge, strict Origin/CSRF checks, exact
+expiring reviews in TaskHistory, and History review/execute controls. Disposable
+native-Astra review/execute and full regression qualify bounded authenticated
+isolated-task checkpoint rollback only. General undo,
+publication/canonical repository reversal, and interruption recovery remain
+outside this qualification.
 
 Stage 11 replaces Streamlit with Friday's native presentation/event architecture and conversational voice stack. The accepted wake path is:
 

@@ -9,14 +9,16 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict
 from pathlib import Path
 from queue import Empty
+from urllib.parse import urlsplit
+
 from pydantic import BaseModel, Field, StrictBool
 
 try:
     from fastapi import FastAPI, HTTPException, Request
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import JSONResponse, StreamingResponse
     from starlette.concurrency import run_in_threadpool
 except ImportError:  # optional dependency; validated when app creation is requested
-    FastAPI = HTTPException = Request = StreamingResponse = None
+    FastAPI = HTTPException = Request = JSONResponse = StreamingResponse = None
 
 from local_ai_assistant.autonomy import ObjectiveService
 from local_ai_assistant.career_forge import (
@@ -41,7 +43,11 @@ from local_ai_assistant.gateway.publication import GitHubPublicationService
 from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.history.models import TaskFilter
 from local_ai_assistant.history.service import TaskHistoryService
-from local_ai_assistant.isolation.errors import SandboxUnavailableError
+from local_ai_assistant.isolation.errors import (
+    CheckpointError,
+    IsolationError,
+    SandboxUnavailableError,
+)
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind, MemoryState
 from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
@@ -240,6 +246,11 @@ def create_presentation_app(
     capabilities: FridayCapabilityRegistry | None = None,
     task_history: TaskHistoryService | None = None,
     isolation_root: Path | None = None,
+    owner_rollback=None,
+    owner_rollback_sessions=None,
+    rollback_gateway_auth: GatewayAuth | None = None,
+    rollback_gateway_token: str | None = None,
+    rollback_allowed_origins: tuple[str, ...] = (),
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -261,6 +272,148 @@ def create_presentation_app(
     interaction_coordinator = interactions or FridayInteractionCoordinator()
     objective_plan_lock = threading.Lock()
     objective_execution_limiter = GatewayRateLimiter(objective_execution_requests_per_minute)
+    rollback_limiter = GatewayRateLimiter(objective_execution_requests_per_minute)
+    for configured_origin in rollback_allowed_origins:
+        parsed = urlsplit(configured_origin)
+        try:
+            valid_port = parsed.port is None or 1 <= parsed.port <= 65535
+        except ValueError:
+            valid_port = False
+        if (parsed.scheme not in {"http", "https"} or parsed.hostname not in {"localhost", "127.0.0.1"}
+                or parsed.path or parsed.query or parsed.fragment or parsed.username or not valid_port
+                or configured_origin != f"{parsed.scheme}://{parsed.netloc}"):
+            raise ValueError("rollback allowed origins must be exact loopback HTTP(S) origins")
+
+    def rollback_origin(request: Request) -> None:
+        authority = request.headers.get("host", "")
+        parsed_host = urlsplit("//" + authority)
+        try:
+            valid_port = parsed_host.port is None or 1 <= parsed_host.port <= 65535
+        except ValueError:
+            valid_port = False
+        if parsed_host.hostname not in {"127.0.0.1", "localhost"} or parsed_host.username or not valid_port:
+            raise HTTPException(403, detail="local owner access required")
+        origin = request.headers.get("origin", "").rstrip("/")
+        if not origin or origin not in rollback_allowed_origins:
+            raise HTTPException(403, detail="unexpected request origin")
+
+    async def rollback_json(request: Request) -> dict:
+        raw = bytearray()
+        async for chunk in request.stream():
+            if len(raw) + len(chunk) > 8192:
+                raise HTTPException(413, detail="request too large")
+            raw.extend(chunk)
+        try:
+            value = json.loads(raw)
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(400, detail="invalid request") from exc
+        if not isinstance(value, dict):
+            raise HTTPException(400, detail="invalid request")
+        return value
+
+    def rollback_principal(request: Request, *, mutation: bool = False) -> str:
+        if owner_rollback_sessions is None:
+            raise HTTPException(503, detail="owner rollback authentication is not configured")
+        if mutation:
+            rollback_origin(request)
+        session = request.cookies.get("friday_rollback_session")
+        csrf = request.headers.get("x-friday-csrf") if mutation else None
+        if mutation and not csrf:
+            raise HTTPException(401, detail="authentication required")
+        principal = owner_rollback_sessions.principal(session, csrf)
+        if principal is None:
+            raise HTTPException(401, detail="authentication required")
+        if rollback_gateway_auth is None or rollback_gateway_token is None:
+            raise HTTPException(503, detail="rollback authority is not configured")
+        try:
+            rollback_gateway_auth.require(rollback_gateway_token, GatewayScope.REQUEST_ROLLBACK)
+        except GatewayAuthenticationError as exc:
+            raise HTTPException(503, detail="rollback authority is unavailable") from exc
+        except GatewayAuthorizationError as exc:
+            raise HTTPException(403, detail="insufficient rollback scope") from exc
+        if not rollback_limiter.allow(principal):
+            raise HTTPException(429, detail="rollback request rate limit exceeded")
+        return principal
+
+    @app.post("/api/v1/rollback/unlock")
+    async def rollback_unlock(request: Request):
+        rollback_origin(request)
+        if owner_rollback_sessions is None:
+            raise HTTPException(503, detail="owner rollback authentication is not configured")
+        body = await rollback_json(request)
+        supplied = body.get("token", "")
+        if not isinstance(supplied, str) or not 1 <= len(supplied) <= 512:
+            raise HTTPException(401, detail="authentication required")
+        try:
+            result = owner_rollback_sessions.unlock(supplied, request.client.host if request.client else "local")
+        except RuntimeError as exc:
+            raise HTTPException(429, detail="owner unlock temporarily rate limited") from exc
+        if result is None:
+            raise HTTPException(401, detail="authentication required")
+        session, csrf = result
+        response = JSONResponse({"csrf_token": csrf, "expires_in": 600})
+        response.set_cookie("friday_rollback_session", session, httponly=True, secure=request.url.scheme == "https", samesite="strict", max_age=600, path="/api/v1/rollback")
+        return response
+
+    @app.post("/api/v1/rollback/lock")
+    def rollback_lock(request: Request):
+        rollback_origin(request)
+        if owner_rollback_sessions is None:
+            raise HTTPException(503, detail="owner rollback authentication is not configured")
+        csrf = request.headers.get("x-friday-csrf")
+        if not csrf or owner_rollback_sessions.principal(request.cookies.get("friday_rollback_session"), csrf) is None:
+            raise HTTPException(401, detail="authentication required")
+        owner_rollback_sessions.revoke(request.cookies.get("friday_rollback_session"))
+        response = JSONResponse({"locked": True})
+        response.delete_cookie("friday_rollback_session", path="/api/v1/rollback")
+        return response
+
+    @app.get("/api/v1/rollback/tasks/{task_id}/checkpoints")
+    def rollback_checkpoints(task_id: str, request: Request):
+        principal = rollback_principal(request)
+        if owner_rollback is None:
+            raise HTTPException(503, detail="rollback service is unavailable")
+        try:
+            checkpoints = owner_rollback.available(task_id)
+            for item in checkpoints:
+                item.pop("label", None)
+            return {"checkpoints": checkpoints, "operations": owner_rollback.recent(task_id, principal)}
+        except KeyError as exc:
+            raise HTTPException(404, detail="task not found") from exc
+        except Exception as exc:
+            raise HTTPException(503, detail="checkpoint state unavailable") from exc
+
+    @app.post("/api/v1/rollback/tasks/{task_id}/review")
+    async def rollback_review(task_id: str, request: Request):
+        principal = rollback_principal(request, mutation=True)
+        if owner_rollback is None:
+            raise HTTPException(503, detail="rollback service is unavailable")
+        try:
+            body = await rollback_json(request)
+            record = owner_rollback.review(task_id, body["checkpoint_id"], principal)
+            return record
+        except KeyError as exc:
+            if str(exc) == "'checkpoint_id'":
+                raise HTTPException(400, detail="checkpoint identity required") from exc
+            raise HTTPException(404, detail="task not found") from exc
+        except ValueError as exc:
+            raise HTTPException(409, detail="checkpoint is not eligible for rollback") from exc
+
+    @app.post("/api/v1/rollback/operations/{operation_id}/execute")
+    async def rollback_execute(operation_id: str, request: Request):
+        principal = rollback_principal(request, mutation=True)
+        key = request.headers.get("idempotency-key", "")
+        try:
+            result = await run_in_threadpool(owner_rollback.execute, operation_id, principal, key)
+            return result
+        except KeyError as exc:
+            raise HTTPException(404, detail="review not found") from exc
+        except ValueError as exc:
+            raise HTTPException(409, detail=str(exc)) from exc
+        except (CheckpointError, IsolationError) as exc:
+            raise HTTPException(409, detail="rollback state changed; review again") from exc
+        except Exception as exc:
+            raise HTTPException(503, detail="rollback operation failed") from exc
 
     def run_objective_plan(operation: Callable[[], object]):
         # Retain admission until the synchronous worker finishes, even if its

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,7 +12,7 @@ from uuid import uuid4
 from local_ai_assistant.history.models import TERMINAL_STATUSES, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 
-from .checkpoints import CheckpointManager
+from .checkpoints import CheckpointManager, _git, _git_bytes
 from .errors import CheckpointError, IsolationError
 from .locks import task_lock
 from .models import WorktreeState
@@ -56,6 +58,9 @@ class TransactionalRollbackService:
         task_id: str,
         plan_hash: str,
         label: str,
+        *,
+        expected_current_state: str | None = None,
+        operation_id: str | None = None,
     ) -> RollbackResult:
         identity = self.worktrees.load(canonical_repository, task_id, plan_hash=plan_hash)
         canonical = canonical_repository.resolve(strict=True)
@@ -87,6 +92,8 @@ class TransactionalRollbackService:
             worktree = Path(identity.worktree).resolve(strict=True)
             if worktree == canonical:
                 raise IsolationError("Task worktree resolves to the canonical repository")
+            if expected_current_state is not None and worktree_fingerprint(worktree) != expected_current_state:
+                raise CheckpointError("Reviewed worktree state is stale")
             target = self.checkpoints.load(task_id, label, plan_hash)
             if target.schema_version < 2:
                 raise CheckpointError("Checkpoint predates transactional restore verification; create a fresh checkpoint")
@@ -99,7 +106,7 @@ class TransactionalRollbackService:
             self._event(task_id, "rollback_started", "Task checkpoint restore started", {
                 "target_checkpoint_id": target.checkpoint_id,
                 "safety_checkpoint_id": safety.checkpoint_id,
-            })
+            }, operation_id=operation_id)
             original_state = identity.state
             identity = self.worktrees.persist_state_under_lock(
                 identity, WorktreeState.ROLLBACK_IN_PROGRESS
@@ -114,7 +121,7 @@ class TransactionalRollbackService:
                     "target_checkpoint_id": target.checkpoint_id,
                     "safety_checkpoint_id": safety.checkpoint_id,
                     "error_type": type(target_error).__name__,
-                }, severity="warning")
+                }, severity="warning", operation_id=operation_id)
                 try:
                     self.checkpoints.restore(worktree, safety)
                     if not self.checkpoints.verify(worktree, safety):
@@ -125,24 +132,26 @@ class TransactionalRollbackService:
                         "target_checkpoint_id": target.checkpoint_id,
                         "safety_checkpoint_id": safety.checkpoint_id,
                         "error_type": type(recovery_error).__name__,
-                    }, severity="critical")
+                    }, severity="critical", operation_id=operation_id)
                     return RollbackResult("recovery_required", task_id, target.checkpoint_id, safety.checkpoint_id, type(recovery_error).__name__)
                 self._event(task_id, "rollback_failed_recovered", "Target restore failed; pre-restore worktree state was recovered", {
                     "target_checkpoint_id": target.checkpoint_id,
                     "safety_checkpoint_id": safety.checkpoint_id,
                     "error_type": type(target_error).__name__,
-                }, severity="warning")
+                }, severity="warning", operation_id=operation_id)
                 self.worktrees.persist_state_under_lock(identity, original_state)
                 return RollbackResult("failed_recovered", task_id, target.checkpoint_id, safety.checkpoint_id, type(target_error).__name__)
 
             self._event(task_id, "rollback_restore_succeeded", "Task worktree restored to the exact checkpoint", {
                 "target_checkpoint_id": target.checkpoint_id,
                 "safety_checkpoint_id": safety.checkpoint_id,
-            })
+            }, operation_id=operation_id)
             self.worktrees.persist_state_under_lock(identity, original_state)
             return RollbackResult("restored", task_id, target.checkpoint_id, safety.checkpoint_id)
 
-    def _event(self, task_id: str, kind: str, summary: str, metadata: dict, severity: str | None = None) -> None:
+    def _event(self, task_id: str, kind: str, summary: str, metadata: dict, severity: str | None = None, operation_id: str | None = None) -> None:
+        if operation_id:
+            metadata["owner_operation_id"] = operation_id
         self.history.record_isolation_event(
             task_id, kind, summary, status=kind, severity=severity, metadata=metadata
         )
@@ -152,3 +161,22 @@ def _git_head(repository: Path) -> str:
     from .checkpoints import _git
 
     return _git(repository, "rev-parse", "HEAD")
+
+
+def worktree_fingerprint(path: Path) -> str:
+    digest = hashlib.sha256()
+    for args in (("rev-parse", "HEAD"), ("status", "--porcelain=v1", "--untracked-files=all")):
+        digest.update(_git(path, *args).encode())
+        digest.update(b"\0")
+    digest.update(_git_bytes(path, "diff", "--binary", "HEAD"))
+    for name in _git(path, "ls-files", "--others", "--exclude-standard").splitlines():
+        file = path / name
+        if not file.resolve(strict=True).is_relative_to(path.resolve()):
+            raise CheckpointError("Untracked file escapes the task worktree")
+        digest.update(name.encode())
+        if file.is_symlink():
+            digest.update(os.readlink(file).encode())
+        elif file.is_file():
+            digest.update(hashlib.sha256(file.read_bytes()).digest())
+    digest.update(str(path.resolve()).encode())
+    return digest.hexdigest()

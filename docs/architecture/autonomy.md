@@ -5,11 +5,12 @@
 Phase 15A adds an internal task-worktree checkpoint restore kernel with a
 pre-restore safety snapshot, per-task operation lock, exact-state verification,
 one compensating restore, and recovery-scanner-visible failure/crash state.
-It is a CLI/internal capability only. No owner HTTP route, browser credential,
-Astra action, or conversational undo exists. Phase 15B must independently add
-owner authentication and explicit review/execute UX before product rollback can
-be qualified. Restore does not reverse promotion/publication, mutate the
-canonical repository, or change task lifecycle status.
+Phase 15B implements a separate owner unlock and rollback-only server bridge,
+strict Origin/CSRF checks, exact expiring reviews in TaskHistory, and History
+review/execute controls. Disposable native-Astra qualification and full
+regression now qualify only bounded authenticated isolated-task checkpoint
+rollback. Restore does not reverse promotion/publication, mutate the canonical
+repository, or change task lifecycle status.
 
 ## Stage 17 foundation
 

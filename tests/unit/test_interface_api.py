@@ -15,10 +15,14 @@ from local_ai_assistant.career_forge import (
 from local_ai_assistant.desktop import DesktopControlService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
+from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
-from local_ai_assistant.history.models import TaskStatus
-from local_ai_assistant.interface.api import _EVENT_PROGRESS_SUMMARIES, _TASK_PROGRESS_NARRATIVES, create_presentation_app
+from local_ai_assistant.interface.api import (
+    _EVENT_PROGRESS_SUMMARIES,
+    _TASK_PROGRESS_NARRATIVES,
+    create_presentation_app,
+)
 from local_ai_assistant.interface.capabilities import (
     CapabilityStatus,
     FridayCapability,
@@ -1638,6 +1642,11 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/runtime/events",
         "/api/v1/runtime/events/stream",
         "/api/v1/conversation/stream",
+        "/api/v1/rollback/unlock",
+        "/api/v1/rollback/lock",
+        "/api/v1/rollback/tasks/{task_id}/checkpoints",
+        "/api/v1/rollback/tasks/{task_id}/review",
+        "/api/v1/rollback/operations/{operation_id}/execute",
     }
     assert schema["paths"]["/api/v1/memory/preference-adaptation"].keys() == {"get", "post"}
 
