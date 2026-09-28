@@ -21,9 +21,10 @@ Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
 `870aafab8d1bf851d3090c9419579a43afa07f02`, descended from Phase 15B
 `b03da82f1a37510971f0f84a19a2176d009584db`. The capability commit is pushed
 and currently verified at both `origin/integration/astra-friday` and
-`origin/main`. This handoff-only recovery commit must now be pushed to both refs,
-fetched, and verified at the same SHA before closing. No rows 57–60 have
-started.
+`origin/main`. The handoff-only recovery commit `a5649e09623d444de42b2d90d8e9e4a7201c396e`
+was pushed and fetched; at final verification, `HEAD`,
+`origin/integration/astra-friday`, and `origin/main` all resolved to that SHA and
+the integration worktree was clean. No rows 57–60 have started.
 
 Row 56 adds one typed, exact-task, read-only `TaskRecoveryProjectionService`
 over canonical TaskHistory, claim leases, rollback ledger, isolation metadata,
@@ -46,8 +47,7 @@ back to History. Restarting only disposable API 8767 preserved the exact
 projection and canonical task/objective/event/artifact/claim/rollback and
 metadata content; native History, Objective, explanation, navigation, and
 reload reconstructed it. The temporary API, Vite server, browser tab, and isolated runtime were stopped,
-closed, and removed. Phase 16 did not create a temporary credential. Existing
-candidate API 8766 and UI 5191 were not touched. The two real task sentinels
+closed, and removed. Phase 16 did not create a temporary credential. Existing candidate API 8766 and UI 5191 were not restarted or mutated. The two real task sentinels
 remain `awaiting_approval` with null outcomes. Desktop audit states remain one
 executed, one expired, and one failed. Both existing notify-only watches remain
 enabled and both notifications remain acknowledged; the pre-existing candidate
