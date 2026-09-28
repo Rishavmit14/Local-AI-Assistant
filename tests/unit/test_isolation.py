@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 import socket
 import subprocess
 import sys
@@ -34,7 +35,7 @@ from local_ai_assistant.isolation.models import (
 )
 from local_ai_assistant.isolation.paths import contained_path, safe_identifier
 from local_ai_assistant.isolation.promotion import commit_exact, diff_hash, verify_promotion
-from local_ai_assistant.isolation.recovery import inspect_recovery
+from local_ai_assistant.isolation.recovery import inspect_recovery, inspect_task_recovery
 from local_ai_assistant.isolation.sandbox import (
     NativeProcessSandbox,
     _bubblewrap_usable,
@@ -552,6 +553,24 @@ def test_recovery_marks_interrupted_worktree_without_auto_resume(repository, tmp
         manager.cleanup(active, delete_branch=True)
     findings = inspect_recovery(manager.root)
     assert findings[0].task_id == "task-1"
+    assert findings[0].state == "recovery_required"
+
+
+def test_task_recovery_inspection_is_scoped_to_one_canonical_record(tmp_path):
+    root = tmp_path / "worktrees"
+    for repository_id, task_id, state in (
+        ("repo-target", "task-target", "ready"),
+        ("repo-other", "task-other", "executing"),
+    ):
+        metadata = root / repository_id / "metadata" / f"{task_id}.json"
+        metadata.parent.mkdir(parents=True)
+        worktree = root / repository_id / task_id
+        if state == "ready":
+            worktree.mkdir(parents=True)
+        metadata.write_text(json.dumps({"state": state, "worktree": str(worktree)}))
+    assert inspect_task_recovery(root, "task-target") == ()
+    findings = inspect_task_recovery(root, "task-other")
+    assert len(findings) == 1
     assert findings[0].state == "recovery_required"
 
 

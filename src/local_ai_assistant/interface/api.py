@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict
+from pathlib import Path
 from queue import Empty
 from pydantic import BaseModel, Field
 
@@ -27,6 +29,7 @@ from local_ai_assistant.career_forge import (
     TutorMode,
 )
 from local_ai_assistant.desktop import DesktopAction, DesktopControlService
+from local_ai_assistant.execution.history import redact
 from local_ai_assistant.gateway.auth import (
     GatewayAuth,
     GatewayAuthenticationError,
@@ -39,6 +42,8 @@ from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.history.models import TaskFilter
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.isolation.errors import SandboxUnavailableError
+from local_ai_assistant.isolation.models import WorktreeState
+from local_ai_assistant.isolation.recovery import inspect_task_recovery
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind, MemoryState
 from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
@@ -49,6 +54,40 @@ from .capabilities import FridayCapabilityRegistry
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
 from .runtime import FridayRuntime
+
+
+def _safe_progress_text(value: str | None, limit: int) -> str | None:
+    if not value:
+        return None
+    cleaned = redact(value)
+    cleaned = re.sub(r"(?<![\w:])/(?:[^\s,;]+/)*[^\s,;]+", "[private path]", cleaned)
+    cleaned = re.sub(r"(?i)\b[A-Z]:\\(?:[^\s,;]+\\)*[^\s,;]+", "[private path]", cleaned)
+    return cleaned[:limit]
+
+
+_TASK_PROGRESS_NARRATIVES = {
+    "created": "Friday has recorded the task but planning has not started.",
+    "planning": "Friday is producing the canonical plan.",
+    "awaiting_approval": "Friday has produced a canonical plan and is waiting for owner approval.",
+    "approved": "The canonical plan is approved. Execution has not yet been recorded as started.",
+    "executing": "The canonical task is recorded as executing; worker liveness is unavailable.",
+    "validating": "Execution has reached canonical validation.",
+    "reviewing": "Friday is reviewing the validated result.",
+    "reapproval_required": "The canonical task requires new owner approval before continuing.",
+    "succeeded": "The canonical task completed successfully.",
+    "failed": "The canonical task failed.",
+    "blocked": "The canonical task is blocked.",
+    "rolled_back": "The canonical task was rolled back.",
+    "cancelled": "The canonical task was cancelled.",
+}
+_EVENT_PROGRESS_SUMMARIES = {
+    "task_created": "Canonical task record created.",
+    "plan_attached": "Canonical plan artifact recorded.",
+    "plan_ready": "Canonical plan generated and recorded.",
+    "cancel_requested": "Cancellation was requested in task history.",
+    "execution_imported": "Execution evidence was imported into task history.",
+    "validation_imported": "Validation evidence was imported into task history.",
+}
 
 
 class ResearchSourceRequest(BaseModel):
@@ -191,6 +230,7 @@ def create_presentation_app(
     research: ResearchService | None = None,
     capabilities: FridayCapabilityRegistry | None = None,
     task_history: TaskHistoryService | None = None,
+    isolation_root: Path | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError(
@@ -384,6 +424,89 @@ def create_presentation_app(
             return {"objective": asdict(owner_autonomy().get(objective_id))}
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.get("/api/v1/objectives/{objective_id}/progress")
+    def objective_progress(objective_id: str):
+        """Bounded, read-only progress projection over canonical objective/task stores."""
+        if task_history is None:
+            raise HTTPException(status_code=503, detail="canonical task history is unavailable")
+        try:
+            objective = owner_autonomy().get(objective_id)
+            task = task_history.store.get_task(objective.task_id) if objective.task_id else None
+            timeline = task_history.timeline(objective.task_id) if task else ()
+            status = task.status.value if task else None
+            objective_narratives = {
+                "created": "Friday has recorded the objective; planning has not started.",
+                "planning": "Friday is producing the canonical plan.",
+                "planned": "A canonical plan is recorded; task status remains authoritative.",
+                "cancelled": "The objective is cancelled; linked task state is reported separately.",
+                "completed": "The objective is marked completed; linked task state is reported separately.",
+            }
+            events = []
+            for event in timeline[-20:]:
+                event_status = event.status.lower() if isinstance(event.status, str) else None
+                kind = event.event_type[:80]
+                summary = (
+                    _TASK_PROGRESS_NARRATIVES.get(event_status or "")
+                    or _EVENT_PROGRESS_SUMMARIES.get(kind)
+                    or f"Canonical {kind.replace('_', ' ')} event recorded."
+                )
+                events.append({"event_id": event.event_id, "timestamp": event.timestamp,
+                    "kind": kind, "subsystem": event.subsystem[:80], "status": event.status,
+                    "summary": summary})
+            latest = events[-1] if events else None
+            recovery = {"status": "unavailable" if isolation_root is None else "no_isolation_record",
+                        "summary": "Isolation recovery evidence is unavailable." if isolation_root is None else "No task isolation record was found; recovery health is unknown."}
+            if task and isolation_root is not None:
+                try:
+                    root = isolation_root.resolve()
+                    matches = sorted(root.glob(f"*/metadata/{task.task_id}.json")) if root.exists() else []
+                    if len(matches) > 1:
+                        recovery = {"status": "identity_collision", "summary": "Multiple isolation records match this task; inspection is required."}
+                    elif matches:
+                        path = matches[0].resolve(strict=True)
+                        if root not in path.parents:
+                            recovery = {"status": "path_rejected", "summary": "Isolation metadata failed its containment check."}
+                        else:
+                            metadata = json.loads(path.read_text(encoding="utf-8"))
+                            state = WorktreeState(str(metadata.get("state", ""))).value
+                            cleanup = str(metadata.get("cleanup_status", ""))
+                            findings = inspect_task_recovery(root, task.task_id)
+                            if state == WorktreeState.RECOVERY_REQUIRED.value:
+                                recovery = {"status": "recovery_required", "summary": "Recovery inspection is required."}
+                            elif state == WorktreeState.CLEANUP_PENDING.value or cleanup == WorktreeState.CLEANUP_PENDING.value:
+                                recovery = {"status": "cleanup_pending", "summary": "Canonical isolation metadata records pending cleanup; inspection is required."}
+                            elif findings:
+                                recovery = {"status": "recovery_required", "summary": "Recovery inspection is required."}
+                            elif state == "cleaned" or cleanup == "cleaned":
+                                recovery = {"status": "cleaned", "summary": "Canonical isolation metadata records cleanup as complete."}
+                            elif state:
+                                recovery = {"status": "known_isolation_state", "isolation_state": state,
+                                    "cleanup_state": cleanup or None,
+                                    "summary": "Canonical isolation metadata is available; no recovery conclusion is inferred."}
+                            else:
+                                recovery = {"status": "unavailable", "summary": "Isolation metadata has no recognized state."}
+                except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+                    recovery = {"status": "unavailable", "summary": "Isolation recovery evidence could not be read."}
+            return {"objective": {"objective_id": objective.objective_id, "text": _safe_progress_text(objective.text, 1000),
+                    "state": objective.state, "created_at": objective.created_at, "updated_at": objective.updated_at,
+                    "narrative": objective_narratives.get(objective.state, "Objective state is recorded; its meaning is unavailable.")},
+                "task": None if task is None else {"task_id": task.task_id, "status": status,
+                    "created_at": task.created_at, "updated_at": task.updated_at,
+                    "approval_state": task.approval_state, "plan_present": bool(task.plan_hash),
+                    "narrative": _TASK_PROGRESS_NARRATIVES.get(status, "Canonical task state is unavailable."),
+                    "outcome": _safe_progress_text(task.outcome, 1000),
+                    "final_decision": _safe_progress_text(task.final_decision, 200),
+                    "failure_reason": _safe_progress_text(task.failure_reason, 1000),
+                    "human_review_state": task.human_review_state,
+                    "duration_seconds": task.duration_seconds if task.duration_seconds is not None else None},
+                "sources": {"objective": "ObjectiveService", "task": "TaskHistoryService", "timeline": "TaskHistoryService.timeline", "recovery": "isolation metadata and inspect_recovery"},
+                "latest_event": latest, "timeline": events, "recovery": recovery,
+                "owner_attention": "approval_required" if status == "awaiting_approval" else "reapproval_required" if status == "reapproval_required" else "none_recorded" if task else "unavailable"}
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="objective is unavailable") from exc
+        except (OSError, HistoryDatabaseError) as exc:
+            raise HTTPException(status_code=503, detail="canonical objective progress is unavailable") from exc
 
     @app.get("/api/v1/objectives")
     def recent_objectives(limit: int = 20):

@@ -9,6 +9,7 @@
 
 .operations-objectives .op-objectives-authority{margin:20px 0;padding:14px 16px;border:1px solid #9bb7df2a;background:#0a0d13;color:#aeb9cb;font-size:12px;line-height:1.7}
 .operations-objectives .objective-console{position:relative;inset:auto;z-index:auto;width:100%;max-width:920px;box-sizing:border-box;margin:24px auto 0;padding:24px;border:1px solid #9bb7df2a;background:#080b11}
+.operations-objectives .objective-console>strong,.operations-objectives .objective-console p,.operations-objectives .objective-progress dd,.operations-objectives .objective-console li{overflow-wrap:anywhere}
 .operations-objectives .objective-console button{font-size:10px;letter-spacing:.1em;padding:9px 12px}
 .operations-objectives .objective-console input,.operations-objectives .objective-console textarea{box-sizing:border-box;width:100%;margin-top:7px;padding:10px;border:1px solid #9bb7df35;background:#0b1018;color:#e9edf5;font:inherit;font-size:12px}
 .operations-objectives .objective-service-error{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:14px 0;padding:12px;border:1px solid #e768793f;background:#35151c;color:#ffb2bb}

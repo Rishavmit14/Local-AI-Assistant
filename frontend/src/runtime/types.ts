@@ -432,6 +432,16 @@ export interface FridayActivityItem {
   objective_text: string | null;
 }
 
+export interface FridayObjectiveProgress {
+  objective: { objective_id: string; text: string; state: string; created_at: string; updated_at: string; narrative: string };
+  task: null | { task_id: string; status: string; created_at: string; updated_at: string; approval_state: string; plan_present: boolean; narrative: string; outcome: string | null; final_decision: string | null; failure_reason: string | null; human_review_state: string; duration_seconds: number | null };
+  sources: { objective: string; task: string; timeline: string; recovery: string };
+  latest_event: null | { event_id: string; timestamp: string; kind: string; subsystem: string; status: string | null; summary: string };
+  timeline: Array<{ event_id: string; timestamp: string; kind: string; subsystem: string; status: string | null; summary: string }>;
+  recovery: { status: string; summary: string; isolation_state?: string; cleanup_state?: string | null };
+  owner_attention: "approval_required" | "reapproval_required" | "none_recorded" | "unavailable";
+}
+
 export interface FridayProactiveNotification {
   notification_id: string;
   event_id: string;

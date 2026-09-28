@@ -399,6 +399,7 @@ def build_presentation_components(
         research=research,
         capabilities=capabilities,
         task_history=history,
+        isolation_root=resolved_config.paths.worktree_dir,
         on_startup=(proactive_runtime.start if resolved_config.proactive.enabled else None),
         on_shutdown=lambda: (proactive_runtime.close(), gateway.close(), execution.close()),
     )

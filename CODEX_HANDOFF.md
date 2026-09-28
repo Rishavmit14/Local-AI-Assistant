@@ -2871,3 +2871,44 @@ before this handoff-only update. The next product-matrix dependency is
 long-running objective progress (row 49, PARTIAL): a richer read-only owner
 narrative over canonical task/objective progress and recovery status, building
 on qualified Objectives / Activity and History. It is not started here.
+
+## Current recovery — Astra Phase 10 candidate qualification (2026-09-28)
+
+Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
+`integration/astra-friday`; implementation is based on Phase 9 published
+checkpoint `076f6fa0c1ce2c584be24096d8baeb22ff6de799`. Phase 10 changes are
+currently uncommitted pending this qualification's capability commit and
+remote verification. The branch's configured remote is `origin` at GitHub.
+
+Phase 10 adds the read-only objective progress projection and typed Astra
+presentation. The canonical candidate at
+`var/astra-objectives-phase4-qualification` renders objective
+`76403f1080c949efb09e4aa1a3b1351e`, task `task_90be0b53d357423885aa`, task
+state `awaiting_approval`, null outcome, approval-required narrative, latest
+plan-ready event, five bounded timeline entries, and unknown recovery. Codex
+used the native Codex in-app browser for accessibility-state, screenshot,
+navigation, and reload qualification; API state was compared with the UI.
+History reconstruction retained both pending sentinels and desktop action
+states expired/failed/executed. No owner physically observed this phase.
+
+Validation after the final implementation change: focused backend tests 6;
+focused frontend tests 13; full frontend suite 90; lint, TypeScript and
+production builds pass; `scripts/maintenance/verify-repository.sh` passes with
+928 Python tests; `git diff --check` passes. Known warnings: Starlette/AnyIO
+deprecation and Vite bundle size advisory. No browser console or direct browser
+storage inspector was exposed by the available native UI API.
+
+Candidate-data limitation: the isolated state root has `se.python=unverified`
+and lacks the expected Career Forge mission/review, so preservation of those
+records cannot be shown from this snapshot. Phase 10 changed no Career Forge
+code or state. Protected production checkout
+`/AI/projects/Local-AI-Assistant` and production API port 8765 remain untouched;
+the candidate API 8766 and Vite 5191 remain in use. Both pending task
+sentinels remain `awaiting_approval` with null outcome. Desktop records are
+unchanged: `f4a6b95dd43e442a8b62da655cdb3717` expired,
+`117688df784a409a90a2dd3bb1fd15ba` failed, and
+`17c6a5c642e443989ee17d8a24b2a3ba` executed.
+
+After acceptance and publication, record the exact recovery commit and verified
+remote HEAD here. Next product-matrix dependency is proactive
+watches/notifications (row 50, PARTIAL); do not start it in this checkpoint.

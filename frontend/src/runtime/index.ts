@@ -45,6 +45,7 @@ export type {
   FridayProactiveWatch,
   FridayProactiveWatchSnapshot,
   FridayObjective,
+  FridayObjectiveProgress,
   FridayPlanReview,
   FridayRuntimeState,
   FridayVoicePresentationSignal,

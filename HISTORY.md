@@ -1509,3 +1509,38 @@ Starlette/AnyIO deprecation warning remain. Capability commit
 matrix dependency is long-running objective progress (row 49, PARTIAL), a
 richer read-only owner narrative over existing task/objective progress and
 recovery state; it is not started here.
+
+## 2026-09-28 — Astra Long-running Objective Progress Phase 10 qualified
+
+Added a canonical read-only objective progress projection over ObjectiveService,
+TaskHistoryService, and task-scoped isolation recovery evidence. The response
+keeps objective/task lifecycle independent, maps every canonical task status to
+a deterministic narrative, bounds/sanitizes timeline and terminal fields, and
+classifies absent isolation metadata as unknown. Astra now renders objective
+and task identities, state, owner attention, latest event, bounded lifecycle,
+and recovery summary. It adds no approval, execution, rollback, restore, or
+credential authority and no ETA/percentage claim.
+
+Codex-performed local candidate UI qualification used the native Codex in-app
+browser. Candidate API/UI/API consistency was checked at `127.0.0.1:8766` and
+`127.0.0.1:5191` against existing state root
+`var/astra-objectives-phase4-qualification`. Navigation between History and
+Objectives and a full reload reconstructed objective
+`76403f1080c949efb09e4aa1a3b1351e` with task
+`task_90be0b53d357423885aa`, `awaiting_approval`, null outcome, approval
+required, the latest canonical plan-ready event, five bounded timeline entries,
+and unknown recovery. History retained both pending task sentinels and desktop
+audit states expired, failed, and executed. Browser tooling exposed rendered
+accessibility state and screenshots, but not console logs or direct storage
+inspection. No owner physically observed this phase.
+
+The candidate state snapshot lacks authoritative Career Forge records
+(`se.python=unverified`; expected mission/review absent), so Career Forge data
+preservation is not demonstrated from that candidate. Phase 10 changed no
+Career Forge code/state. Protected production API 8765 and checkout
+`/AI/projects/Local-AI-Assistant` were untouched. Focused backend tests (6),
+focused frontend tests (13), full frontend tests (90), lint, TypeScript and
+production builds, repository verification (928 Python tests), and
+`git diff --check` pass. Existing Starlette/AnyIO deprecation and Vite bundle
+size warnings remain. Matrix row 49 advances to QUALIFIED for this bounded
+read-only surface; proactive watches/notifications (row 50, PARTIAL) is next.

@@ -1216,10 +1216,46 @@ and `git diff --check` pass. Existing Vite bundle advisory and
 Starlette/AnyIO deprecation warning remain. Phase 9 capability commit
 `076f6fa0c1ce2c584be24096d8baeb22ff6de799` was pushed to and fetched from
 `origin/integration/astra-friday` as the exact branch head. The next dependency
-in the product matrix is long-running objective progress (row 49, currently
-PARTIAL): provide a richer read-only owner narrative over existing canonical
-task/objective progress and recovery status, building on Objective/Activity and
-History. It is not started in this checkpoint.
+in the product matrix was long-running objective progress (row 49, PARTIAL),
+completed by Phase 10 below.
+
+## Astra Canonical Product Integration — Phase 10: Long-running Objective Progress (**Qualified and published**)
+
+Friday now exposes a read-only `GET /api/v1/objectives/{objective_id}/progress`
+projection that keeps objective state distinct from canonical task lifecycle,
+uses deterministic narratives for every task status, bounds the event timeline,
+and reports recovery as unknown when no isolation record exists. Recovery
+inspection is scoped to the linked task and does not expose worktree paths,
+credentials, approval, execution, rollback, or restore authority. The typed
+Astra Objectives panel renders objective/task identities, status, owner
+attention, latest event, bounded lifecycle, outcome fields when present, and
+recovery summary. It makes no ETA or percentage claim.
+
+Codex-performed local candidate UI qualification used the native Codex in-app
+browser against API `127.0.0.1:8766`, Vite `127.0.0.1:5191`, and existing state
+root `var/astra-objectives-phase4-qualification`. Rendered text and the
+canonical API agreed for objective `76403f1080c949efb09e4aa1a3b1351e`, linked
+task `task_90be0b53d357423885aa`, `awaiting_approval`, null outcome, approval
+required, latest plan-ready event, bounded timeline, and unknown recovery.
+Navigation from History to Objectives and a page reload reconstructed the same
+canonical state. History retained both pending task sentinels and desktop
+action states `expired`, `failed`, and `executed`. No task was approved or
+executed and no desktop action was changed. The UI tool exposed accessibility
+state and screenshots; browser console and raw storage inspection were not
+available through that native tool.
+
+The isolated candidate snapshot does not contain the authoritative Career
+Forge baseline (`se.python=unverified`; expected mission/review absent), so
+Career Forge data preservation cannot be demonstrated from this candidate.
+Phase 10 changed no Career Forge implementation or state. The production API
+on 8765 and protected production checkout were not touched. No owner physically
+observed Phase 10; qualification is Codex-performed and deterministic.
+
+Focused backend and frontend regressions, full frontend tests, lint, TypeScript
+and production builds, and repository verification pass. Existing Vite bundle
+size advisory and Starlette/AnyIO deprecation warning remain. The next product
+matrix dependency is proactive watches/notifications (row 50, PARTIAL); it is
+not started in this checkpoint.
 
 ## Cross-stage product capabilities (**Planned unless noted**)
 

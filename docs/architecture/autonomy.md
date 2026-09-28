@@ -155,3 +155,17 @@ workspace does not expose plan contents, raw desktop target identifiers,
 recovery worktree paths, or mutating lifecycle controls. Task checkpoints and
 recovery validation remain internal/CLI-only; visibility of a pending task or
 plan does not authorize approval or execution.
+
+### Astra Phase 10 progress projection
+
+`GET /api/v1/objectives/{objective_id}/progress` is a bounded read over the
+objective service, canonical task history, and task-scoped isolation recovery
+metadata. It keeps objective and task lifecycle separate, maps task states to
+deterministic narratives, caps recent events, sanitizes terminal fields, and
+represents absent recovery metadata as unknown. Astra renders objective and
+task IDs with their respective states and records, without task approval,
+execution, retry, rollback, restore, credential, or path controls. Navigation
+and reload against the isolated candidate reconstructed the canonical
+awaiting-approval state; deterministic tests cover other task states. This
+candidate lacked the authoritative Career Forge records, so its Career Forge
+data-preservation claim is limited to unchanged Phase 10 code and state scope.

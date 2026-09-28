@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { FridayRuntimeClient } from "../runtime";
-import type { FridayActivityItem, FridayObjective, FridayPlanReview } from "../runtime";
+import type { FridayActivityItem, FridayObjective, FridayObjectiveProgress, FridayPlanReview } from "../runtime";
 import { selectObjectiveDisplay } from "../runtime/objectives";
 import { ObjectiveOutcome } from "./ObjectiveOutcome";
 
@@ -13,6 +13,7 @@ export function ObjectiveConsole() {
   const [text, setText] = useState("");
   const [repositoryId, setRepositoryId] = useState("");
   const [review, setReview] = useState<FridayPlanReview | null>(null);
+  const [progress, setProgress] = useState<FridayObjectiveProgress | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [hasSnapshot, setHasSnapshot] = useState(false);
@@ -24,10 +25,12 @@ export function ObjectiveConsole() {
       const { current } = selectObjectiveDisplay(next);
       const nextReview = current?.state === "planned" && current.task_id && current.plan_hash
         ? await client.getObjectivePlanReview(current.objective_id, signal) : null;
+      const nextProgress = current ? await client.getObjectiveProgress(current.objective_id, signal) : null;
       if (signal?.aborted || sequence !== refreshSequence.current) return;
       setObjectives(next);
       setActivity(nextActivity);
       setReview(nextReview);
+      setProgress(nextProgress);
       setError(null);
       setLoaded(true);
       setHasSnapshot(true);
@@ -87,6 +90,26 @@ export function ObjectiveConsole() {
     {!loaded ? <p aria-live="polite">Loading canonical objective state…</p> : hasSnapshot && current ? <>
       <strong>{current.text}</strong>
       <p>{current.task_state ?? current.state} · {current.task_id ? "canonical task linked" : "planning not yet linked"}</p>
+      {progress ? <section className="objective-progress" aria-label="Canonical objective progress">
+        <h3>What Friday is doing</h3>
+        <p>{progress.task?.narrative ?? progress.objective.narrative}</p>
+        <dl>
+          <div><dt>Objective id</dt><dd>{progress.objective.objective_id}</dd></div>
+          {progress.task ? <div><dt>Linked task id</dt><dd>{progress.task.task_id}</dd></div> : null}
+          <div><dt>Objective state</dt><dd>{progress.objective.state}</dd></div>
+          <div><dt>Linked task state</dt><dd>{progress.task?.status ?? "Unavailable: no canonical task record"}</dd></div>
+          <div><dt>Owner attention</dt><dd>{progress.owner_attention.replaceAll("_", " ")}</dd></div>
+          <div><dt>Recovery</dt><dd>{progress.recovery.summary}</dd></div>
+          {progress.task?.outcome && <div><dt>Outcome</dt><dd>{progress.task.outcome}</dd></div>}
+          {progress.task?.failure_reason && <div><dt>Failure detail</dt><dd>{progress.task.failure_reason}</dd></div>}
+          {progress.task?.final_decision && <div><dt>Final decision</dt><dd>{progress.task.final_decision}</dd></div>}
+          {progress.task?.duration_seconds !== null && progress.task?.duration_seconds !== undefined && <div><dt>Recorded duration</dt><dd>{progress.task.duration_seconds} seconds</dd></div>}
+        </dl>
+        <p className="objective-progress-latest">Latest recorded event: {progress.latest_event ? `${progress.latest_event.summary} · ${progress.latest_event.timestamp}` : "Unavailable: no task timeline event is recorded."}</p>
+        <details><summary>Recent canonical lifecycle ({progress.timeline.length})</summary>
+          {progress.timeline.length ? <ol>{progress.timeline.map((event) => <li key={event.event_id}><time dateTime={event.timestamp}>{event.timestamp}</time><strong>{event.kind.replaceAll("_", " ")}</strong><span>{event.summary}</span></li>)}</ol> : <p>No canonical task timeline is recorded.</p>}
+        </details>
+      </section> : null}
       {current.state === "created" ? <button type="button" onClick={() => void resume()} disabled={busy}>BEGIN PLANNING</button> : null}
       {current.state === "planning" ? <>
         <label className="objective-create-label" htmlFor="objective-repository">CONFIGURED REPOSITORY ID</label>

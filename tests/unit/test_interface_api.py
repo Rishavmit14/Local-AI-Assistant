@@ -17,7 +17,8 @@ from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
-from local_ai_assistant.interface.api import create_presentation_app
+from local_ai_assistant.history.models import TaskStatus
+from local_ai_assistant.interface.api import _EVENT_PROGRESS_SUMMARIES, _TASK_PROGRESS_NARRATIVES, create_presentation_app
 from local_ai_assistant.interface.capabilities import (
     CapabilityStatus,
     FridayCapability,
@@ -46,6 +47,16 @@ class FakeStreamingLLM:
     ):
         self.calls.append({"prompt": prompt, "system_prompt": system_prompt})
         yield from self.chunks
+
+
+def test_task_progress_narratives_cover_each_canonical_status_without_fake_metrics():
+    assert set(_TASK_PROGRESS_NARRATIVES) == {status.value for status in TaskStatus}
+    assert len(set(_TASK_PROGRESS_NARRATIVES.values())) == len(TaskStatus)
+    assert "waiting for owner approval" in _TASK_PROGRESS_NARRATIVES["awaiting_approval"]
+    assert "Execution has not" in _TASK_PROGRESS_NARRATIVES["approved"]
+    assert "liveness is unavailable" in _TASK_PROGRESS_NARRATIVES["executing"]
+    assert not any("%" in value or "ETA" in value for value in _TASK_PROGRESS_NARRATIVES.values())
+    assert _EVENT_PROGRESS_SUMMARIES["plan_ready"] == "Canonical plan generated and recorded."
 
 
 def make_client(chunks=None):
@@ -438,6 +449,74 @@ def test_activity_projects_canonical_objective_and_task_timeline_read_only(tmp_p
     assert "repository" not in rows[0]
     assert client.get("/api/v1/activity?limit=101").status_code == 400
     assert client.post("/api/v1/activity").status_code == 405
+
+
+def test_objective_progress_is_canonical_bounded_and_read_only(tmp_path):
+    history = TaskHistoryService(TaskHistoryStore(tmp_path / "tasks.sqlite3"))
+    task = history.create_task("Review a local module", tmp_path, "a" * 40, "main")
+    history.transition(task.task_id, TaskStatus.PLANNING, "planning started", subsystem="planning")
+    history.transition(task.task_id, TaskStatus.AWAITING_APPROVAL, "plan is ready", subsystem="planning")
+    history.store.add_event(task.task_id, "planning", "plan_ready", f"artifact at {tmp_path}/private/task.json", status="awaiting_approval", artifact_path=str(tmp_path / "private/task.json"))
+    autonomy = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda task_id: "b" * 64 if task_id == task.task_id else None,
+        task_state_for_task=lambda task_id: "awaiting_approval" if task_id == task.task_id else None,
+    )
+    objective = autonomy.create("Review a local module")
+    autonomy.bind_plan(objective.objective_id, task.task_id)
+    runtime = FridayRuntime("objective-progress-api")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        autonomy=autonomy, task_history=history, isolation_root=tmp_path / "worktrees",
+    ))
+
+    response = client.get(f"/api/v1/objectives/{objective.objective_id}/progress")
+    assert response.status_code == 200
+    projection = response.json()
+    assert projection["objective"]["state"] == "planned"
+    assert projection["task"]["status"] == "awaiting_approval"
+    assert projection["task"]["narrative"] == "Friday has produced a canonical plan and is waiting for owner approval."
+    assert projection["owner_attention"] == "approval_required"
+    assert projection["latest_event"]["kind"] == "plan_ready"
+    assert projection["timeline"][-1]["summary"] == projection["task"]["narrative"]
+    assert projection["recovery"]["status"] == "no_isolation_record"
+    assert "private" not in response.text and str(tmp_path) not in response.text
+    assert not any("percent" in key or "eta" in key for key in projection)
+    assert client.post(f"/api/v1/objectives/{objective.objective_id}/progress").status_code == 405
+    assert history.get(task.task_id).status is TaskStatus.AWAITING_APPROVAL
+
+    metadata_path = tmp_path / "worktrees" / "repo-id" / "metadata" / f"{task.task_id}.json"
+    metadata_path.parent.mkdir(parents=True)
+    metadata_path.write_text(json.dumps({"task_id": task.task_id, "state": "recovery_required", "worktree": str(tmp_path / "worktrees" / "repo-id" / task.task_id)}))
+    recovery = client.get(f"/api/v1/objectives/{objective.objective_id}/progress").json()["recovery"]
+    assert recovery["status"] == "recovery_required"
+    assert "inspection is required" in recovery["summary"]
+    assert "resume" not in recovery["summary"]
+    metadata_path.write_text(json.dumps({"task_id": task.task_id, "state": "cleanup_pending", "cleanup_status": "cleanup_pending", "worktree": str(tmp_path / "worktrees" / "repo-id" / task.task_id)}))
+    cleanup = client.get(f"/api/v1/objectives/{objective.objective_id}/progress").json()["recovery"]
+    assert cleanup["status"] == "cleanup_pending"
+
+
+def test_objective_progress_reports_unavailable_recovery_and_distinct_terminal_states(tmp_path):
+    history = TaskHistoryService(TaskHistoryStore(tmp_path / "tasks.sqlite3"))
+    task = history.create_task("A bounded task", tmp_path, "a" * 40, "main")
+    history.transition(task.task_id, TaskStatus.PLANNING, "planning started")
+    history.store.finalize_task(task.task_id, str(tmp_path.resolve()), TaskStatus.FAILED, outcome="canonical failure")
+    autonomy = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda task_id: "c" * 64 if task_id == task.task_id else None,
+        task_state_for_task=lambda task_id: history.get(task_id).status.value if history.get(task_id) else None,
+        task_outcome_for_task=lambda task_id: history.get(task_id).outcome if history.get(task_id) else None,
+    )
+    objective = autonomy.create("A bounded task")
+    autonomy.bind_plan(objective.objective_id, task.task_id)
+    runtime = FridayRuntime("objective-progress-unavailable")
+    client = TestClient(create_presentation_app(runtime, FridayConversationService(FakeStreamingLLM(), runtime), autonomy=autonomy, task_history=history))
+    projection = client.get(f"/api/v1/objectives/{objective.objective_id}/progress").json()
+    assert projection["task"]["status"] == "failed"
+    assert projection["task"]["narrative"] == "The canonical task failed."
+    assert projection["task"]["outcome"] == "canonical failure"
+    assert projection["recovery"]["status"] == "unavailable"
 
 
 def test_objective_api_requests_only_the_configured_canonical_planner(tmp_path):
@@ -1406,6 +1485,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
     assert "/api/v1/tasks/{task_id}/execute" not in paths
     assert "/api/v1/tasks/{task_id}/approval" not in paths
     assert "/api/v1/tasks/{task_id}/publish" not in paths
+    assert schema["paths"]["/api/v1/objectives/{objective_id}/progress"].keys() == {"get"}
 
     assert paths == {
         "/health",
@@ -1423,6 +1503,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/objectives",
         "/api/v1/activity",
         "/api/v1/objectives/{objective_id}",
+        "/api/v1/objectives/{objective_id}/progress",
         "/api/v1/objectives/{objective_id}/resume",
         "/api/v1/objectives/{objective_id}/plan",
         "/api/v1/objectives/{objective_id}/cancel",

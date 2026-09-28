@@ -32,6 +32,16 @@ const plan = {
   unresolved_questions: [],
 };
 
+const progress = {
+  objective: { objective_id: objective.objective_id, text: objective.text, state: "planned", created_at: objective.created_at, updated_at: objective.updated_at, narrative: "A canonical plan is recorded; task status remains authoritative." },
+  task: { task_id: objective.task_id, status: "awaiting_approval", created_at: objective.created_at, updated_at: objective.updated_at, approval_state: "pending", plan_present: true, narrative: "Friday has produced a canonical plan and is waiting for owner approval.", outcome: null, final_decision: null, failure_reason: null, human_review_state: "not_requested", duration_seconds: null },
+  sources: { objective: "ObjectiveService", task: "TaskHistoryService", timeline: "TaskHistoryService.timeline", recovery: "isolation metadata and inspect_recovery" },
+  latest_event: { event_id: "event-1", timestamp: objective.updated_at, kind: "plan_ready", subsystem: "planning", status: "awaiting_approval", summary: "Friday has produced a canonical plan and is waiting for owner approval." },
+  timeline: [{ event_id: "event-1", timestamp: objective.updated_at, kind: "plan_ready", subsystem: "planning", status: "awaiting_approval", summary: "Friday has produced a canonical plan and is waiting for owner approval." }],
+  recovery: { status: "no_isolation_record", summary: "No task isolation record was found; recovery health is unknown." },
+  owner_attention: "approval_required",
+};
+
 function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
@@ -71,6 +81,7 @@ describe("Astra canonical Objectives workspace", () => {
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (url === "/api/v1/objectives") return Promise.resolve(response({ objectives: [objective] }));
       if (url === `/api/v1/objectives/${objective.objective_id}/plan`) return Promise.resolve(response({ plan }));
+      if (url === `/api/v1/objectives/${objective.objective_id}/progress`) return Promise.resolve(response(progress));
       if (url === "/api/v1/activity") return Promise.resolve(response({ activity: [{ id: "task-event", occurred_at: "2026-09-27T10:02:00Z", kind: "plan_requested", summary: "Canonical timeline entry", task_id: objective.task_id, task_state: "awaiting_approval", objective_id: objective.objective_id, objective_text: objective.text }] }));
       return Promise.resolve(response({ detail: "unexpected route" }, 404));
     });
@@ -81,6 +92,10 @@ describe("Astra canonical Objectives workspace", () => {
     expect(container?.textContent).toContain("Canonical owner objective");
     expect(container?.textContent).toContain("awaiting_approval · canonical task linked");
     expect(container?.textContent).toContain("Canonical plan summary");
+    expect(container?.textContent).toContain("waiting for owner approval");
+    expect(container?.textContent).toContain(`Objective id${objective.objective_id}`);
+    expect(container?.textContent).toContain(`Linked task id${objective.task_id}`);
+    expect(container?.textContent).not.toMatch(/\b\d+%|ETA/i);
     expect(container?.textContent).toContain("Canonical timeline entry");
     expect(container?.textContent).toContain("not a complete audit export");
     expect(container?.textContent).not.toContain("Browser seeded objective");
@@ -90,6 +105,8 @@ describe("Astra canonical Objectives workspace", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/objectives", expect.anything());
     expect(fetchMock).toHaveBeenCalledWith(`/api/v1/objectives/${objective.objective_id}/plan`, expect.anything());
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/approve") || String(url).includes("/execute"))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/rollback") || String(url).includes("/restore"))).toBe(false);
+    expect(fetchMock).toHaveBeenCalledWith(`/api/v1/objectives/${objective.objective_id}/progress`, expect.anything());
     expect(localStorage.getItem("astra-vision:objectives")).toContain("Browser seeded objective");
   });
 
@@ -98,6 +115,7 @@ describe("Astra canonical Objectives workspace", () => {
     const fetchMock = vi.fn().mockImplementation((url: string) => {
       if (url === "/api/v1/objectives") return Promise.resolve(response({ objectives: [approvedObjective] }));
       if (url === `/api/v1/objectives/${objective.objective_id}/plan`) return Promise.resolve(response({ plan: { ...plan, approval: { status: "automatic", reasons: [] } } }));
+      if (url === `/api/v1/objectives/${objective.objective_id}/progress`) return Promise.resolve(response(progress));
       if (url === "/api/v1/activity") return Promise.resolve(response({ activity: [] }));
       return Promise.resolve(response({ detail: "unexpected route" }, 404));
     });
@@ -126,6 +144,7 @@ describe("Astra canonical Objectives workspace", () => {
         saved = true;
         return Promise.resolve(response({ objective: created }));
       }
+      if (url === `/api/v1/objectives/${created.objective_id}/progress`) return Promise.resolve(response({ ...progress, objective: { ...progress.objective, state: "created", narrative: "Friday has recorded the objective; planning has not started." }, task: null, latest_event: null, timeline: [], recovery: { status: "unavailable", summary: "Isolation recovery evidence is unavailable." }, owner_attention: "unavailable" }));
       if (url === "/api/v1/activity") return Promise.resolve(response({ activity: [] }));
       if (url === "/api/v1/objectives") return Promise.resolve(response({ objectives: saved ? [created] : [] }));
       return Promise.resolve(response({ detail: "unexpected route" }, 404));

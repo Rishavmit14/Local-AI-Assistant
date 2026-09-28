@@ -28,6 +28,7 @@ import type {
   FridayInteractionStatus,
   FridayDesktopAction,
   FridayObjective,
+  FridayObjectiveProgress,
   FridayPlanReview,
   FridayMemoryCreateRequest,
   FridayMemoryRecord,
@@ -613,6 +614,12 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/activity`, { signal });
     if (!response.ok) throw new Error(`activity request failed: ${response.status}`);
     return (await response.json() as { activity: FridayActivityItem[] }).activity;
+  }
+
+  async getObjectiveProgress(objectiveId: string, signal?: AbortSignal): Promise<FridayObjectiveProgress> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/progress`, { signal });
+    if (!response.ok) throw new Error(`objective progress request failed: ${response.status}`);
+    return response.json() as Promise<FridayObjectiveProgress>;
   }
 
   async getProactiveNotifications(signal?: AbortSignal): Promise<FridayProactiveNotification[]> {

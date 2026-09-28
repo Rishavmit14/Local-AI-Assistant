@@ -808,3 +808,19 @@ proved one isolated `launch_app` to
 execution, navigation/reload, and History reconstruction. The stale attempt
 remains `expired` and the first physical attempt remains `failed` in canonical
 audit history. Other desktop action classes are not thereby qualified.
+
+### Astra Phase 10 — Long-running Objective Progress
+
+`GET /api/v1/objectives/{objective_id}/progress` composes objective state from
+`ObjectiveService`, task status/outcome and a bounded timeline from canonical
+`TaskHistoryService`, and linked-task recovery classification from only that
+task's isolation metadata and recovery inspection. Missing isolation metadata
+is reported as unknown rather than healthy. Stable status mappings produce
+fixed user-facing narratives; objective state never overwrites task state.
+The typed Objectives panel renders those identities and facts and includes
+only already-redacted task outcome fields. This route and panel are read-only:
+they do not approve, execute, cancel, retry, rollback, restore, expose
+credentials, or reveal recovery paths. Recovery and isolation stay owned by
+their existing services. Codex-performed candidate navigation and reload
+reconstructed the canonical pending-approval projection; terminal task UI
+states remain deterministically tested but were not present in that candidate.
