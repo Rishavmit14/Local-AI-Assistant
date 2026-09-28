@@ -18,11 +18,13 @@ bootstrap instructions describe completed work; use current recovery refs and
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
 `integration/astra-friday`; Phase 18A recovery base was
-`6f1c09b204f1418f8d0f2c872b226b0c4eb042e`, with fetched integration/main refs
-verified at session start. Phase 18B source, tests, matrix, architecture,
-roadmap, history, qualification record, and this handoff are prepared on that
-base. The Phase 18B capability commit and publication are pending; do not treat
-the working-tree candidate as remotely accepted until its refs are verified.
+`6f1c09b204f1418f8d0f2c872b226b0c4eb042e`. Phase 18B capability commit
+`12883f070ee176944152c34f0930c9ab0bb211b2` is pushed to
+`origin/integration/astra-friday`, fast-forwarded to `main`, and verified after
+fetch at both `origin/integration/astra-friday` and `origin/main`. The current
+handoff-only recovery commit follows that capability commit. The only current
+working-tree change is this handoff update; its final recovery commit must be
+pushed/fetched to both refs and verified clean.
 
 The nine containment gates passed. A disposable transient systemd candidate ran
 as owner UID/GID 1000 with `PrivateNetwork=yes`, `PrivateUsers=no`, the same user
@@ -54,6 +56,14 @@ or first-time installation work offline. Row 58 is recorded QUALIFIED as
 **bounded integrated normal-use offline operation, Phase 18B**. Row 59 remains
 IMPLEMENTED and unqualified; row 60 was not started.
 
+During the restart experiment, the first API stop had a live browser stream and
+reached systemd's 90-second stop timeout; systemd terminated only that
+disposable candidate process. The same-state private-network candidate then
+restarted and reconstructed its durable records. Closing the browser before
+final candidate shutdown allowed a clean stop. This was candidate-only; no
+production service was involved. CodeRAG was queried offline before restart;
+post-restart CodeRAG reconstruction was not tested.
+
 Validation passed: 17 focused bridge tests; 1,064 Python tests; 105 frontend
 tests; ESLint; TypeScript/build; Ruff; `pip check`; repository verification;
 and `git diff --check`. One initial full-suite run had a single unrelated MCP
@@ -63,11 +73,14 @@ Vite large-chunk advisories remain.
 
 All temporary transient units, namespace, candidate processes, sockets, preview
 ports, and `/tmp/friday-phase18b-qual-*` state were stopped/removed. Production
-Friday 8765 and Qwen 8080 remained running; existing candidate 8766/5191 and
-protected checkout `/AI/projects/Local-AI-Assistant` were untouched. No host
-network setting changed. Next: review final diff, create and publish the Phase
-18B capability and recovery commits, fetch/verify `origin/integration/astra-friday`
-and `origin/main`, ensure clean status, then stop. Do not start row 59 or 60.
+Friday API `127.0.0.1:8765` and Qwen `127.0.0.1:8080` remained healthy and
+running. Existing candidate ports 8766/5191 were not changed. Protected
+checkout `/AI/projects/Local-AI-Assistant` remains at
+`e43896623978e86b7bae6502b380462b455626be` on
+`stage-22/product-integration`, with its pre-existing Pocket/Anna changes
+untouched. No host network setting changed. Next: commit this handoff update,
+push and fetch-verify the final recovery SHA on integration and main, verify the
+worktree is clean, then stop. Do not start row 59 or 60.
 
 ## Previous accepted recovery handoff — 2026-09-28 — Phase 18A row 24 qualification
 
