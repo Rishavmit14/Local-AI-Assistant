@@ -2875,10 +2875,12 @@ on qualified Objectives / Activity and History. It is not started here.
 ## Current recovery — Astra Phase 10 candidate qualification (2026-09-28)
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
-`integration/astra-friday`; implementation is based on Phase 9 published
-checkpoint `076f6fa0c1ce2c584be24096d8baeb22ff6de799`. Phase 10 changes are
-currently uncommitted pending this qualification's capability commit and
-remote verification. The branch's configured remote is `origin` at GitHub.
+`integration/astra-friday`; Phase 10 capability commit
+`07a509bbd60454ab3854a4470cf8041cc76fc4c7` follows Phase 9 checkpoint
+`076f6fa0c1ce2c584be24096d8baeb22ff6de799`. The capability commit is
+published to `origin/integration/astra-friday` and `origin/main`; both fetched
+refs matched the exact capability SHA before this handoff-only recovery update.
+The current handoff commit is its direct documentation-only descendant.
 
 Phase 10 adds the read-only objective progress projection and typed Astra
 presentation. The canonical candidate at
@@ -2909,6 +2911,8 @@ unchanged: `f4a6b95dd43e442a8b62da655cdb3717` expired,
 `117688df784a409a90a2dd3bb1fd15ba` failed, and
 `17c6a5c642e443989ee17d8a24b2a3ba` executed.
 
-After acceptance and publication, record the exact recovery commit and verified
-remote HEAD here. Next product-matrix dependency is proactive
-watches/notifications (row 50, PARTIAL); do not start it in this checkpoint.
+Validation and acceptance are complete. The handoff-only recovery commit must
+also be pushed to `origin/integration/astra-friday` and fast-forward `main`,
+then fetched and verified at an identical SHA. After that checkpoint, the next
+product-matrix dependency is proactive watches/notifications (row 50, PARTIAL);
+do not start it in this checkpoint.
