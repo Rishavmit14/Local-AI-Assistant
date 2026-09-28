@@ -90,6 +90,21 @@ describe("FridayRuntimeClient governed memory boundary", () => {
     ]);
   });
 
+  it("reads and explicitly updates canonical normal Conversation preference adaptation", async () => {
+    const projection = { enabled: false, scope: "normal_conversation", source: "canonical_memory", eligible_preferences: [], eligible_preferences_truncated: false, applied_preference_ids: [], context_truncated: false };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(projection), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...projection, enabled: true, applied_preference_ids: ["mem-test"] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+    await expect(client.getPreferenceAdaptation()).resolves.toMatchObject({ enabled: false, source: "canonical_memory" });
+    await expect(client.setPreferenceAdaptation(true)).resolves.toMatchObject({ enabled: true, applied_preference_ids: ["mem-test"] });
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method ?? "GET", init?.body])).toEqual([
+      ["/api/v1/memory/preference-adaptation", "GET", undefined],
+      ["/api/v1/memory/preference-adaptation", "POST", JSON.stringify({ enabled: true })],
+    ]);
+  });
+
   it("surfaces a failed memory request without synthesizing records", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })));
     await expect(new FridayRuntimeClient().getMemoryRecords()).rejects.toThrow("memory records request failed: 503");

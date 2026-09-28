@@ -521,8 +521,12 @@ and typed project/goal/person-capable relationships. Bounded hybrid retrieval
 uses deterministic lexical evidence plus lazy local BGE embeddings; the SQLite
 embedding cache is rebuildable and offline-only. Production conversation receives
 retrieved text only as labelled untrusted reference context, while deterministic
-service operations retain all memory mutation authority. See
-`docs/architecture/memory.md`.
+service operations retain all memory mutation authority. The canonical memory
+SQLite also stores an explicit default-off owner setting for bounded,
+owner-declared preference adaptation in normal text Conversation only. Applied
+records remain untrusted style guidance below the current turn and all system,
+safety, capability, and approval policy; no passive habit inference or memory
+write occurs. See `docs/architecture/memory.md` and ADR 0027.
 
 The compounding architecture is:
 

@@ -359,6 +359,7 @@ def build_presentation_components(
             for item in memory.search(prompt, limit=5)
         ),
         memory_context_with_timing=memory_context_with_timing,
+        preference_context=lambda: memory.preference_adaptation_projection().context,
         capability_context=capabilities.conversation_context,
         cognition=cognition,
         capability_router=capability_router,

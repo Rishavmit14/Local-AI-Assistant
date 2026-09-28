@@ -6,6 +6,7 @@ cache, never a reason to lose a memory record.
 
 from __future__ import annotations
 
+import json
 import math
 import sqlite3
 import struct
@@ -69,6 +70,15 @@ class MemoryRelationship:
 class RetentionResult:
     expired: int
     bounded_working: int
+
+
+@dataclass(frozen=True, slots=True)
+class PreferenceAdaptationProjection:
+    enabled: bool
+    eligible_preferences: tuple[MemoryRecord, ...]
+    applied_preferences: tuple[MemoryRecord, ...]
+    context: str
+    truncated: bool
 
 
 def _now() -> str:
@@ -139,6 +149,10 @@ class FridayMemoryService:
                 );
                 CREATE INDEX IF NOT EXISTS memory_relationship_subject_active
                     ON memory_relationships(source_subject, target_subject, state);
+                CREATE TABLE IF NOT EXISTS memory_settings (
+                    setting_key TEXT PRIMARY KEY, setting_value TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
                 """
             )
 
@@ -286,6 +300,78 @@ class FridayMemoryService:
             for _score, record in sorted(
                 scored, key=lambda item: (item[0], item[1].updated_at), reverse=True
             )[:limit]
+        )
+
+    def preference_adaptation_enabled(self) -> bool:
+        """Return the durable, owner-controlled opt-in; a missing row is off."""
+        with self._db() as db:
+            row = db.execute(
+                "SELECT setting_value FROM memory_settings WHERE setting_key=?",
+                ("normal_conversation_preferences_enabled",),
+            ).fetchone()
+        return bool(row and row[0] == "true")
+
+    def set_preference_adaptation_enabled(self, enabled: bool) -> bool:
+        """Persist the explicit owner choice in the canonical memory database."""
+        if type(enabled) is not bool:
+            raise ValueError("preference adaptation enabled state must be boolean")
+        with self._db() as db:
+            db.execute(
+                "INSERT INTO memory_settings(setting_key, setting_value, updated_at) "
+                "VALUES(?,?,?) ON CONFLICT(setting_key) DO UPDATE SET "
+                "setting_value=excluded.setting_value, updated_at=excluded.updated_at",
+                (
+                    "normal_conversation_preferences_enabled",
+                    "true" if enabled else "false",
+                    _now(),
+                ),
+            )
+        return enabled
+
+    def preference_adaptation_projection(
+        self, *, max_preferences: int = 20, max_context_characters: int = 6_000
+    ) -> PreferenceAdaptationProjection:
+        """Project eligible preferences and the exact bounded context for Conversation."""
+        if max_preferences < 1 or max_context_characters < 1:
+            raise ValueError("preference adaptation bounds must be positive")
+        enabled = self.preference_adaptation_enabled()
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT * FROM memories WHERE state=? AND (expires_at IS NULL OR expires_at>?) "
+                "ORDER BY updated_at DESC, memory_id DESC LIMIT 100",
+                (MemoryState.ACTIVE, _now()),
+            ).fetchall()
+        records = tuple(
+            record for record in (self._record(row) for row in rows)
+            if record.kind is MemoryKind.PREFERENCE
+        )
+        if not enabled:
+            return PreferenceAdaptationProjection(False, records, (), "", False)
+
+        applied: list[MemoryRecord] = []
+        entries: list[dict[str, object]] = []
+        truncated = len(records) >= 100 or len(records) > max_preferences
+        for record in records[:max_preferences]:
+            entry: dict[str, object] = {
+                "memory_id": record.memory_id,
+                "subject": record.subject[:200],
+                "content": record.content[:1_000],
+                "content_truncated": len(record.content) > 1_000,
+                "provenance": record.provenance[:200],
+                "confidence": record.confidence,
+            }
+            candidate = [*entries, entry]
+            serialized = json.dumps(candidate, ensure_ascii=False, separators=(",", ":"))
+            if len(serialized) > max_context_characters:
+                truncated = True
+                break
+            entries.append(entry)
+            applied.append(record)
+            truncated = truncated or bool(entry["content_truncated"])
+
+        context = json.dumps(entries, ensure_ascii=False, separators=(",", ":")) if entries else ""
+        return PreferenceAdaptationProjection(
+            True, records, tuple(applied), context, truncated
         )
 
     def _lexical_scores(

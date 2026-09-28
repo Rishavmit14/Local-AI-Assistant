@@ -3035,3 +3035,55 @@ remain uncommitted. Phase 12 is qualified and published; the next roadmap
 capability is deliberately not started. The accepted capability itself remains
 the recovery checkpoint if the handoff-only publication record is not yet
 present on both refs.
+
+## Current recovery — Astra owner-declared preference adaptation, Phase 13
+
+Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`; branch
+`integration/astra-friday`; base HEAD before Phase 13 implementation was
+`1636f90f0777081b6b5e4e0c0481a741dc4b5710`. Phase 12 commit
+`977aa96ec2890384bab7a2849be1f917ec92a402` is an ancestor. Phase 13 is
+qualified locally and pending its capability commit/publication. Do not begin
+the next matrix capability in this task.
+
+Phase 13 adds an explicit default-off setting to the canonical memory SQLite
+database and a bounded, read-only projection of active preference records to
+normal text Conversation only. Preference data stays in canonical Memory;
+superseded, conflicted, deleted, expired, fact, episodic, and working records
+are excluded. The Astra Memory UI displays provenance, lifecycle, eligibility,
+and supplied IDs; disabling retains the record. Context is untrusted advisory
+style guidance below the current owner turn and all system, capability, safety,
+approval, execution, security, and truthfulness rules. There is no passive
+habit/sensitive-trait inference or automatic Memory write. Research and Career
+Forge routes remain outside the adaptation path. ADR 0027 records the decision.
+
+Candidate API `127.0.0.1:8766` uses
+`var/astra-objectives-phase4-qualification`; Astra Vite is `127.0.0.1:5191`,
+local Qwen is `127.0.0.1:8080`. The sole explicitly authorized synthetic
+candidate preference is `mem_70a17b2992b645e496bae1a6066dffee`,
+`owner_astra_memory_ui`, active, confidence 1.0, no expiry or supersession.
+Baseline unrelated `2 + 2` returned `2 plus 2 equals 4` without the marker.
+After the policy wording was strengthened, an unrelated `3 times 3` question
+rendered `3 times 3 is 9. PREFERENCE-7319` in native Astra UI. The first
+candidate API restart reconstructed enabled state; the second, after disabling
+through Astra, reconstructed disabled state with the same active record and no
+applied IDs. A fresh unrelated `4 times 4` answer rendered `16` with no marker.
+The backend contains exactly that one active memory record after the turns.
+
+Phase 13 validation: 87 focused Python memory/conversation/API/routing tests;
+32 focused frontend tests; full frontend suite 96 passed; ESLint passed;
+TypeScript and production build passed; full repository verification passed
+with 937 Python tests; `git diff --check` passed. Existing warnings: Starlette /
+AnyIO deprecation and Vite large-chunk advisory. Candidate sentinels remain
+unchanged: both task IDs `task_290e6c92cefe4902b62b` and
+`task_90be0b53d357423885aa` are `awaiting_approval` with null outcomes; desktop
+states remain executed/failed/expired; two notify-only watches remain enabled,
+worker stopped; the two existing notifications remain acknowledged; Phase 12
+source `c65d4b2fae2a4bb4aeb0c5ec164c8f22` retains hash
+`9513464ea182c55ebd3404086c5867b0098faaf7aab7767f521d5b1633bc0dcb`. No Career
+Forge state was queried or used as qualification evidence.
+
+Protected production checkout `/AI/projects/Local-AI-Assistant` remained
+untouched at `e43896623978e86b7bae6502b380462b455626be`, including pre-existing
+owner voice changes; production API 8765 remained up and was not restarted.
+The candidate API is running on 8766 with adaptation disabled. Exact Phase 13
+capability SHA and remote recovery refs are to be recorded after publication.

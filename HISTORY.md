@@ -1583,3 +1583,33 @@ data. Existing deterministic evidence assembly remains unchanged. The route
 adds no web fetching, memory/learning writes, conversation-history coupling,
 model-weight changes, or action tools. Qualification used one local-model run;
 source lifecycle remains owner-provided and has no delete operation.
+
+## 2026-09-28 — Astra Phase 13 owner-declared preference adaptation
+
+Qualified bounded owner-declared preference adaptation for normal text
+Conversation. A default-off setting in canonical memory SQLite controls a
+read-only bounded projection of active preference records as untrusted advisory
+style context. The Memory workspace displays eligibility, application,
+provenance, and lifecycle and can disable use while retaining records. The
+current owner turn and all system/capability/safety/approval/security rules keep
+priority. No passive habit or sensitive-trait inference, automatic memory write,
+or action authority is introduced; Research and Career Forge routes are
+excluded.
+
+Native Astra UI qualification used exactly one explicitly authorized synthetic
+candidate preference (`mem_70a17b2992b645e496bae1a6066dffee`, provenance
+`owner_astra_memory_ui`, active). A baseline unrelated Qwen question answered
+correctly without the marker. With opt-in enabled, an unrelated multiplication
+question returned the exact `PREFERENCE-7319` marker in the rendered Astra
+conversation. Candidate restart preserved the canonical setting; disabling
+through Astra and restarting preserved the stored preference but supplied no
+IDs, and a fresh unrelated question answered correctly without the marker.
+Only that one preference record exists after the turns. Protected task, desktop,
+proactive, Phase 12 source, Career Forge, and production state were not changed.
+
+Focused preference/memory/conversation/API tests pass (87 Python); focused
+frontend Memory/client tests pass (32). Full frontend suite passes (96), lint,
+TypeScript, and production build pass. Repository verification passes (937
+Python tests); `git diff --check` passes. Existing Starlette/AnyIO deprecation
+and Vite large-chunk warnings remain. The implementation and documentation are
+ready for the Phase 13 capability commit and publication.

@@ -67,3 +67,25 @@ outside that unambiguous form receives clarification without a write. Recall is
 read-only, and forget selects exactly one matching governed record or makes no
 change. This route does not allow model output to become memory and does not
 merge durable records with active-session context.
+
+## Owner-declared preference adaptation
+
+The canonical memory SQLite database also owns a small `memory_settings` row
+for the owner's explicit normal-Conversation preference opt-in. Missing state
+means disabled. The control stores no preference text: source records remain
+ordinary provenance-bearing `MemoryKind.PREFERENCE` records and retain their
+existing lifecycle. An enabled bounded projection supplies at most 20 active,
+unexpired preference records (with a 6,000-character serialized context limit)
+to eligible normal text Conversation turns. It excludes facts, episodic and
+working records, as well as superseded, conflicted, deleted, or expired
+preferences. Reading the projection does not update memory records.
+
+The projection is advisory untrusted context, not instruction or action
+authority. The current owner turn takes precedence, and the system, capability,
+safety, approval, execution, security, and truthfulness policies remain higher
+priority. Preference context is limited to the normal text Conversation API;
+capability-routed turns such as Research and Career Forge do not receive it.
+The Astra Memory workspace displays provenance, lifecycle, eligibility, and
+which records are supplied, and offers the canonical reversible opt-in control.
+No behavior is inferred from usage and no memory is written or reinforced by
+applying preferences. See ADR 0027.

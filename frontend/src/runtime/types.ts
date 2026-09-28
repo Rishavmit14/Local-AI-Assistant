@@ -113,6 +113,25 @@ export interface FridayMemoryRecord {
   expires_at: string | null;
 }
 
+export interface FridayPreferenceAdaptationPreference {
+  memory_id: string;
+  subject: string;
+  provenance: string;
+  confidence: number;
+  state: "active";
+  expires_at: string | null;
+}
+
+export interface FridayPreferenceAdaptation {
+  enabled: boolean;
+  scope: "normal_conversation";
+  source: "canonical_memory";
+  eligible_preferences: FridayPreferenceAdaptationPreference[];
+  eligible_preferences_truncated: boolean;
+  applied_preference_ids: string[];
+  context_truncated: boolean;
+}
+
 export interface FridayMemoryRecordQuery {
   state?: FridayMemoryState;
   query?: string;

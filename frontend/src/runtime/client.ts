@@ -33,6 +33,7 @@ import type {
   FridayMemoryCreateRequest,
   FridayMemoryRecord,
   FridayMemoryRecordQuery,
+  FridayPreferenceAdaptation,
   FridayResearchSource,
   FridayResearchSourceRequest,
   FridayResearchSynthesis,
@@ -118,6 +119,20 @@ export class FridayRuntimeClient {
     });
     if (!response.ok) throw new Error(`memory remember request failed: ${response.status}`);
     return response.json() as Promise<FridayMemoryRecord>;
+  }
+
+  async getPreferenceAdaptation(signal?: AbortSignal): Promise<FridayPreferenceAdaptation> {
+    const response = await fetch(`${this.baseUrl}/api/v1/memory/preference-adaptation`, { signal });
+    if (!response.ok) throw new Error(`preference adaptation request failed: ${response.status}`);
+    return response.json() as Promise<FridayPreferenceAdaptation>;
+  }
+
+  async setPreferenceAdaptation(enabled: boolean): Promise<FridayPreferenceAdaptation> {
+    const response = await fetch(`${this.baseUrl}/api/v1/memory/preference-adaptation`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled }),
+    });
+    if (!response.ok) throw new Error(`preference adaptation update failed: ${response.status}`);
+    return response.json() as Promise<FridayPreferenceAdaptation>;
   }
 
   async forgetMemory(memoryId: string): Promise<FridayMemoryRecord> {

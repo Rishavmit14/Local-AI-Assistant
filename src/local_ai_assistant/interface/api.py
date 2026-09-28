@@ -9,7 +9,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict
 from pathlib import Path
 from queue import Empty
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 
 try:
     from fastapi import FastAPI, HTTPException, Request
@@ -101,6 +101,10 @@ class ResearchSourceRequest(BaseModel):
 class ResearchAnswerRequest(BaseModel):
     domain: str = Field(min_length=1, max_length=128)
     question: str = Field(min_length=1, max_length=4_000)
+
+
+class PreferenceAdaptationRequest(BaseModel):
+    enabled: StrictBool
 
 
 class _CancellableInteractionStream:
@@ -1512,6 +1516,38 @@ def create_presentation_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    def preference_adaptation_payload() -> dict[str, object]:
+        projection = owner_memory().preference_adaptation_projection()
+        eligible = projection.eligible_preferences
+        return {
+            "enabled": projection.enabled,
+            "scope": "normal_conversation",
+            "source": "canonical_memory",
+            "eligible_preferences": [
+                {
+                    "memory_id": record.memory_id,
+                    "subject": record.subject[:200],
+                    "provenance": record.provenance[:200],
+                    "confidence": record.confidence,
+                    "state": record.state.value,
+                    "expires_at": record.expires_at,
+                }
+                for record in eligible
+            ],
+            "eligible_preferences_truncated": len(eligible) >= 100,
+            "applied_preference_ids": [record.memory_id for record in projection.applied_preferences],
+            "context_truncated": projection.truncated,
+        }
+
+    @app.get("/api/v1/memory/preference-adaptation")
+    def memory_preference_adaptation():
+        return preference_adaptation_payload()
+
+    @app.post("/api/v1/memory/preference-adaptation")
+    def set_memory_preference_adaptation(body: PreferenceAdaptationRequest):
+        owner_memory().set_preference_adaptation_enabled(body.enabled)
+        return preference_adaptation_payload()
+
     @app.get("/api/v1/memory/recall")
     def memory_recall(subject: str, limit: int = 20):
         try:
@@ -1735,6 +1771,7 @@ def create_presentation_app(
                 system_prompt=system_prompt,
                 temperature=float(temperature),
                 max_tokens=max_tokens,
+                apply_owner_preferences=True,
             ),
             cleanup,
         )

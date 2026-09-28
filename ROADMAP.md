@@ -167,6 +167,13 @@ coverage, 729-test regression, repository verification, and live local service
 qualification prove explicit capture, read-back, and deletion with healthy
 resident voice workers. Stage 14 is now next.
 
+The later Astra Phase 13 product integration qualifies a separate bounded
+owner-declared preference application path: a canonical default-off memory
+setting controls whether active preference records are supplied as untrusted
+style context to normal text Conversation. This does not infer habits, mutate
+memory, or affect capability-routed work; see the product integration matrix
+and `docs/architecture/memory.md`.
+
 ## Stage 14 — Friday Career Forge Core V1 (**Accepted**)
 
 Build Friday's first flagship specialization: a persistent, local-first ML/AI
