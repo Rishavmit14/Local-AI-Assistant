@@ -14,60 +14,63 @@ and the **Current cross-session handoff and Git policy** section below. Historic
 bootstrap instructions describe completed work; use current recovery refs and
 `ROADMAP.md` to continue automatically after each accepted checkpoint.
 
-## Current recovery handoff — 2026-09-28 — Phase 16 row 56 qualification
+## Current recovery handoff — 2026-09-28 — Phase 17 row 57 qualification
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
-`integration/astra-friday`, Phase 16 capability commit
-`870aafab8d1bf851d3090c9419579a43afa07f02`, descended from Phase 15B
-`b03da82f1a37510971f0f84a19a2176d009584db`. The capability commit is pushed
-and currently verified at both `origin/integration/astra-friday` and
-`origin/main`. The handoff-only recovery commit `a5649e09623d444de42b2d90d8e9e4a7201c396e`
-was pushed and fetched; at final verification, `HEAD`,
-`origin/integration/astra-friday`, and `origin/main` all resolved to that SHA and
-the integration worktree was clean. No rows 57–60 have started.
+`integration/astra-friday`. Phase 16 recovery `1a3d708abb97d9912da391999c1283d8b91ef3ad`
+was clean and fetched at both `origin/integration/astra-friday` and
+`origin/main` before Phase 17. Phase 17 implementation and acceptance are
+complete locally; publish the capability commit, fast-forward/push `main`, then
+write/publish the final handoff-only recovery commit and verify fetched refs and
+clean status. Record exact SHAs here after those operations. Do not start rows
+58–60 in this task.
 
-Row 56 adds one typed, exact-task, read-only `TaskRecoveryProjectionService`
-over canonical TaskHistory, claim leases, rollback ledger, isolation metadata,
-execution artifacts, exact objective binding, and optional current-process
-worker observation. History is primary; Objectives progress and Phase 14
-explanations consume the same projection. It does not add persistence, reconcile
-on startup, prune claims, resume/retry work, retry rollback, clean isolation,
-or mutate objectives. Explicit exact-identity/digest-idempotent ArtifactImporter
-remains the existing terminal reconciliation path.
+Row 57 qualifies bounded configuration-driven local model replacement through
+the single `LocalLLM` boundary, without changing ADR 0014's one-general-purpose-
+model policy. The audit found and fixed Qwen-specific producer telemetry,
+unneeded streaming usage extension, response-shape/interrupted-stream error
+handling, inherited proxy settings, SDK retries, acceptance of remote endpoints,
+and absolute model-path diagnostics. Current Qwen defaults remain unchanged.
+Config is read at process startup; swaps require controlled restart, and live
+Conversation session state is process-local. No Astra model switch or model
+identity UI was added. Model output has no task, approval, execution, Memory
+write, mastery, or rollback authority.
 
-Focused evidence: 44 deterministic backend recovery scenarios; targeted
-History/explanation/API/isolation/artifact regressions pass; 104 frontend tests,
-ESLint, TypeScript/production build, changed-file Ruff, and `git diff --check`
-pass; `scripts/maintenance/verify-repository.sh` passed 1,000 Python tests,
-`pip check`, and repository checks. A synthetic native candidate task `task_16c0ffee1234567890ab` showed
-TaskHistory `executing`, isolation `executing`, `interrupted_lifecycle`, owner
-attention `inspect`, unknown worker liveness, and separate claim/rollback/
-cleanup/reconciliation facts. Objectives displayed the same state and linked
-back to History. Restarting only disposable API 8767 preserved the exact
-projection and canonical task/objective/event/artifact/claim/rollback and
-metadata content; native History, Objective, explanation, navigation, and
-reload reconstructed it. The temporary API, Vite server, browser tab, and isolated runtime were stopped,
-closed, and removed. Phase 16 did not create a temporary credential. Existing candidate API 8766 and UI 5191 were not restarted or mutated. The two real task sentinels
-remain `awaiting_approval` with null outcomes. Desktop audit states remain one
-executed, one expired, and one failed. Both existing notify-only watches remain
-enabled and both notifications remain acknowledged; the pre-existing candidate
-API reports its observer worker running, despite the older handoff recording it
-stopped. Research source `c65d4b2fae2a4bb4aeb0c5ec164c8f22` retains hash
+Evidence: reusable loopback A/B contract qualification (9 cases) restarted the
+same isolated Friday Conversation API against fixture A and B with different
+base URLs and model IDs and no source changes. The harness covers chat/stream,
+role prompts, synthetic Memory and Research context, failure and proxy
+isolation, no authority expansion, candidate-store byte preservation, and
+source fingerprint stability. The current Qwen bounded smoke passed health,
+chat, Conversation stream, Reasoning, Teacher, and start telemetry; usage
+metadata was absent and optional. No safe alternate was loaded: the GTX 1070
+had 735 MiB free and host swap was already in use. No model was downloaded.
+Focused regressions: 93 passed (16 LocalLLM, 19 config, 3 roles, 20
+Conversation, 26 wake telemetry, 9 swap qualification). Final gates passed:
+1,034 Python tests, 104 frontend tests, ESLint, TypeScript, production build,
+Ruff, `pip check`, repository verification, and `git diff --check`. Existing
+Starlette/AnyIO deprecation and Vite large-chunk advisories remain.
+
+Read-only post-qualification state: the two real task sentinels remain
+`awaiting_approval` with null outcomes and rollback ledger has zero operations;
+desktop audit remains one executed, one expired, one failed. The two
+notify-only watches remain enabled and both notifications acknowledged; the
+existing candidate API still reports its observer worker running. Research
+source `c65d4b2fae2a4bb4aeb0c5ec164c8f22` retains hash
 `9513464ea182c55ebd3404086c5867b0098faaf7aab7767f521d5b1633bc0dcb`. Preference
-`mem_70a17b2992b645e496bae1a6066dffee` remains active and preference adaptation
-remains disabled. Career Forge state was queried read-only; Phase 16 did not
-access or mutate it.
+`mem_70a17b2992b645e496bae1a6066dffee` remains active; adaptation is disabled.
+Career Forge store retains 16 competencies and no mission/interview/attempt
+rows. Candidate API 8766 and UI 5191 were not restarted or mutated.
 
-Protected production checkout remains `/AI/projects/Local-AI-Assistant` on
+Protected production checkout `/AI/projects/Local-AI-Assistant` remains on
 `stage-22/product-integration` at
 `e43896623978e86b7bae6502b380462b455626be` with its pre-existing Pocket/Anna
-changes. Production API 8765 was not restarted; its read-only health check
-returned 200. Protected task sentinels and candidate desktop, proactive,
-research, preference, and Career Forge stores were inspected read-only after
-qualification. Phase 15B row 55 remains bounded authenticated isolated-task
-checkpoint rollback. The integration worktree must be clean after the
-handoff-only commit and both fetched refs must match it. The next dependency is
-actual current matrix row 57, Model replaceability; do not start it in this task.
+changes. Read-only health checks returned 200 for Friday API 8765 and Qwen
+server 8080; neither was restarted. Temporary qualification processes and
+pytest-managed temporary data were cleaned up. No temporary credentials were
+created. Phase 15B row 55 and Phase 16 row 56 remain qualified at their prior
+commits. The next unresolved matrix dependency is row 58, Offline operation;
+it is explicitly not started.
 
 ## Previous recovery handoff — 2026-09-28 — Phase 15A
 

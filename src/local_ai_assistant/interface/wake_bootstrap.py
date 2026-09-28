@@ -180,6 +180,12 @@ class VoiceTurnTelemetry:
             "PROMPT_SERIALIZATION_BEGIN",
             "PROMPT_CONTEXT_ASSEMBLED",
             "PROMPT_ASSEMBLY_COMPLETE",
+            "LOCAL_LLM_GENERATION_BEGIN",
+            "LOCAL_LLM_REQUEST_DISPATCHED",
+            "LOCAL_LLM_REQUEST_ACCEPTED",
+            "LOCAL_LLM_FIRST_TOKEN",
+            "LOCAL_LLM_USAGE",
+            # Accept historic observer names when replaying compatible producers.
             "QWEN_GENERATION_BEGIN",
             "QWEN_REQUEST_DISPATCHED",
             "QWEN_REQUEST_ACCEPTED",

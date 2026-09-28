@@ -45,7 +45,10 @@ def test_chat_preserves_local_openai_client_contract(monkeypatch):
         "base_url": "http://localhost:9999/v1",
         "api_key": "local",
         "timeout": 120,
+        "max_retries": 0,
+        "http_client": llm._http_client,
     }
+    assert llm._http_client.trust_env is False
     assert llm.chat("question", system_prompt="system", max_tokens=17) == "answer"
     call = llm.client.chat.completions.calls[0]
     assert call["model"] == "model.gguf"
@@ -60,7 +63,7 @@ def test_stream_chat_yields_only_nonempty_content(monkeypatch):
     assert "".join(llm.stream_chat("question")) == "hello world"
 
 
-def test_stream_chat_reports_content_free_qwen_boundary_events(monkeypatch):
+def test_stream_chat_reports_content_free_local_model_boundary_events(monkeypatch):
     monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
     llm = client_module.LocalLLM()
     events = []
@@ -69,12 +72,12 @@ def test_stream_chat_reports_content_free_qwen_boundary_events(monkeypatch):
     assert "".join(llm.stream_chat("question")) == "hello world"
 
     assert events == [
-        ("QWEN_REQUEST_DISPATCHED", {}),
-        ("QWEN_REQUEST_ACCEPTED", {}),
-        ("QWEN_FIRST_TOKEN", {}),
+        ("LOCAL_LLM_REQUEST_DISPATCHED", {}),
+        ("LOCAL_LLM_REQUEST_ACCEPTED", {}),
+        ("LOCAL_LLM_FIRST_TOKEN", {}),
     ]
     call = llm.client.chat.completions.calls[0]
-    assert call["stream_options"] == {"include_usage": True}
+    assert "stream_options" not in call
 
 
 def test_client_wraps_transport_failures_in_application_error(monkeypatch):
@@ -89,10 +92,90 @@ def test_client_wraps_transport_failures_in_application_error(monkeypatch):
         llm.chat("question")
 
 
-def test_context_configuration_limits_requested_completion(monkeypatch):
+@pytest.mark.parametrize(
+    "failure",
+    (OSError("connection refused"), TimeoutError("request timed out"), RuntimeError("HTTP 503 server error")),
+)
+def test_client_maps_transport_timeout_and_server_failures(monkeypatch, failure):
     monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
-    config = AppConfig.from_env({"LOCAL_AI_CONTEXT_SIZE": "16"})
+    llm = client_module.LocalLLM()
+    llm.client.chat.completions.create = lambda **kwargs: (_ for _ in ()).throw(failure)
+
+    with pytest.raises(LLMError):
+        llm.chat("question")
+
+
+@pytest.mark.parametrize("context_size", (16, 64))
+def test_context_configuration_limits_requested_completion(monkeypatch, context_size):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+    config = AppConfig.from_env({"LOCAL_AI_CONTEXT_SIZE": str(context_size)})
     llm = client_module.LocalLLM(config=config)
 
-    with pytest.raises(ConfigurationError, match="configured context size 16"):
-        llm.chat("question", max_tokens=17)
+    with pytest.raises(ConfigurationError, match=f"configured context size {context_size}"):
+        llm.chat("question", max_tokens=context_size + 1)
+
+
+@pytest.mark.parametrize(
+    ("response", "message"),
+    [
+        (SimpleNamespace(choices=[]), "no chat choices"),
+        (SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=None))]), "no text chat content"),
+        (SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=7))]), "no text chat content"),
+    ],
+)
+def test_chat_rejects_malformed_text_responses(monkeypatch, response, message):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+    llm = client_module.LocalLLM()
+    llm.client.chat.completions.create = lambda **kwargs: response
+
+    with pytest.raises(LLMError, match=message):
+        llm.chat("question")
+
+
+def test_stream_maps_interrupted_transport_to_llm_error(monkeypatch):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+    llm = client_module.LocalLLM()
+
+    def interrupted(**kwargs):
+        def chunks():
+            yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="partial"))])
+            raise TimeoutError("bounded read timeout")
+        return chunks()
+
+    llm.client.chat.completions.create = interrupted
+    stream = llm.stream_chat("question")
+    assert next(stream) == "partial"
+    with pytest.raises(LLMError, match="bounded read timeout"):
+        next(stream)
+
+
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        [],
+        [SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=7))])],
+    ],
+)
+def test_stream_rejects_empty_or_invalid_output(monkeypatch, chunks):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+    llm = client_module.LocalLLM()
+    llm.client.chat.completions.create = lambda **kwargs: chunks
+
+    with pytest.raises(LLMError):
+        "".join(llm.stream_chat("question"))
+
+
+def test_model_display_identity_never_exposes_an_absolute_model_path():
+    assert client_module.safe_model_display_id(
+        "/private/model-cache/Qwen-Local-Q4.gguf"
+    ) == "Qwen-Local-Q4.gguf"
+    assert client_module.safe_model_display_id("org/model id") == "model_id"
+
+
+def test_explicit_empty_model_overrides_fail_instead_of_using_defaults(monkeypatch):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+
+    with pytest.raises(ConfigurationError, match="LOCAL_AI_MODEL"):
+        client_module.LocalLLM(model="")
+    with pytest.raises(ConfigurationError, match="LOCAL_AI_BASE_URL"):
+        client_module.LocalLLM(base_url="")

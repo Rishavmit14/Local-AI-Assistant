@@ -80,6 +80,46 @@ def test_invalid_configuration_is_explicit(environment, message):
         AppConfig.from_env(environment)
 
 
+@pytest.mark.parametrize(
+    ("environment", "message"),
+    [
+        ({"LOCAL_AI_BASE_URL": ""}, "LOCAL_AI_BASE_URL"),
+        ({"LOCAL_AI_BASE_URL": "not-a-url"}, "LOCAL_AI_BASE_URL"),
+        ({"LOCAL_AI_BASE_URL": "https://api.openai.com/v1"}, "loopback"),
+        ({"LOCAL_AI_BASE_URL": "http://user:secret@127.0.0.1:8080/v1"}, "loopback"),
+        ({"LOCAL_AI_MODEL": "  "}, "LOCAL_AI_MODEL"),
+        ({"LOCAL_AI_CONTEXT_SIZE": "0"}, "LOCAL_AI_CONTEXT_SIZE"),
+        ({"LOCAL_AI_LLM_TIMEOUT": "0"}, "LOCAL_AI_LLM_TIMEOUT"),
+    ],
+)
+def test_model_configuration_fails_closed(environment, message):
+    with pytest.raises(ConfigurationError, match=message):
+        AppConfig.from_env(environment)
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    (
+        "http://localhost:8123/v1",
+        "http://127.0.0.9:8123/v1",
+        "http://[::1]:8123/v1",
+        "https://localhost:8123/v1",
+    ),
+)
+def test_loopback_model_endpoints_are_valid(base_url):
+    config = AppConfig.from_env({"LOCAL_AI_BASE_URL": base_url})
+
+    assert config.llama.base_url == base_url
+
+
+def test_model_and_context_are_configuration_driven():
+    first = AppConfig.from_env({"LOCAL_AI_MODEL": "fixture-A", "LOCAL_AI_CONTEXT_SIZE": "16"})
+    second = AppConfig.from_env({"LOCAL_AI_MODEL": "fixture-B", "LOCAL_AI_CONTEXT_SIZE": "64"})
+
+    assert (first.llama.model, first.llama.context_size) == ("fixture-A", 16)
+    assert (second.llama.model, second.llama.context_size) == ("fixture-B", 64)
+
+
 def test_default_path_types_are_paths():
     paths = AppConfig.from_env({}).paths
     assert all(

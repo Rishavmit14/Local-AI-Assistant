@@ -6,7 +6,7 @@
 
 | Group | Variables | Preserved default |
 |---|---|---|
-| llama-server | `LOCAL_AI_BASE_URL`, `LOCAL_AI_MODEL`, `LOCAL_AI_CONTEXT_SIZE`, optional `LOCAL_AI_API_KEY` | localhost `8080`, selected Qwen GGUF metadata, 262144 context |
+| local model boundary | `LOCAL_AI_BASE_URL`, `LOCAL_AI_MODEL`, `LOCAL_AI_CONTEXT_SIZE`, `LOCAL_AI_LLM_TIMEOUT`, optional `LOCAL_AI_API_KEY` | loopback `8080`, selected Qwen GGUF, 262144 context, 120 second timeout |
 | runtime paths | `LOCAL_AI_VAR_DIR`, `LOCAL_AI_DOCUMENT_DIR`, `LOCAL_AI_RAG_DATA_DIR`, `LOCAL_AI_CODE_REPO_DIR`, `LOCAL_AI_CODE_INDEX_DIR`, `LOCAL_AI_PATCH_DIR` | ignored repository `var/` tree |
 | embeddings | `LOCAL_AI_EMBEDDING_MODEL`, `LOCAL_AI_EMBEDDING_DEVICE`, `LOCAL_AI_EMBEDDING_BATCH_SIZE` | BGE small English v1.5, CPU, batch 32 |
 | document retrieval | `LOCAL_AI_RAG_CHUNK_SIZE`, `LOCAL_AI_RAG_CHUNK_OVERLAP`, `LOCAL_AI_RAG_VECTOR_TOP_K`, `LOCAL_AI_RAG_BM25_TOP_K`, `LOCAL_AI_RAG_FINAL_TOP_K`, `LOCAL_AI_RRF_K` | 450/75 chunks, 10/10 candidates, final 5, RRF 60 |
@@ -15,7 +15,11 @@
 | runtime/tests | `LOCAL_AI_LOG_LEVEL`, `LOCAL_AI_LOG_FORMAT`, `LOCAL_AI_COMMAND_TIMEOUT`, `LOCAL_AI_TEST_MODE` | INFO, JSON, 900 seconds, false |
 | authenticated gateway/GitHub | `LOCAL_AI_GATEWAY_ENABLED`, `LOCAL_AI_GATEWAY_TOKEN_HASH`, `LOCAL_AI_GATEWAY_SCOPES`, `LOCAL_AI_GITHUB_ENABLED`, `LOCAL_AI_GITHUB_API_HOST`, optional secret `LOCAL_AI_GITHUB_TOKEN` | disabled, loopback-only, no publication credential |
 
-`LOCAL_AI_CONTEXT_SIZE` bounds completion-token requests made through `LocalLLM` so client requests cannot exceed the configured server context. `LOCAL_AI_TEST_MODE=true` suppresses embedding progress bars while retaining the same indexing and retrieval algorithms.
+The general-purpose model uses one local OpenAI-compatible chat-completions boundary. `LOCAL_AI_BASE_URL` must be HTTP(S) on a loopback host (`localhost`, `127.0.0.0/8`, or `::1`); URL credentials, query strings, fragments, remote hosts, and empty values fail at configuration time. The HTTP client ignores proxy environment variables, performs no retries, and does not fall back to a cloud or alternate model. Configure `LOCAL_AI_BASE_URL`, `LOCAL_AI_MODEL`, `LOCAL_AI_CONTEXT_SIZE`, and `LOCAL_AI_LLM_TIMEOUT` before starting Friday; changing these values takes effect on the next process start. There is no browser model switch or live hot swap. `LOCAL_AI_API_KEY` defaults to the local compatibility value `local` and is never included in model status or qualification reports.
+
+`LOCAL_AI_CONTEXT_SIZE` bounds requested completion tokens made through `LocalLLM`; it does not claim to measure tokenizer-specific prompt usage. The model identifier is configuration, not canonical product state, and changing it requires no database migration. `LOCAL_AI_TEST_MODE=true` suppresses embedding progress bars while retaining the same indexing and retrieval algorithms.
+
+The supported cognition contract is local chat-completions with system/user text messages, configured model ID, temperature, and bounded `max_tokens`; chat returns text and streaming yields non-empty delta text. Empty choices/deltas and absent usage metadata are tolerated; transport, timeout, server, malformed-response, and interrupted-stream failures become `LLMError`. Function calling, tools, multimodal input, structured JSON mode, provider reasoning fields, and tokenizer-specific APIs are not part of the required contract. A passing contract qualification proves technical boundary compatibility only; it does not establish quality parity or approve a permanent model replacement. See `scripts/qualification/qualify_model_swap.py` for the repeatable fixture/current-local procedure.
 
 Invalid integers, booleans, or overlapping chunk ranges raise `ConfigurationError` at startup. Prompts and document contents are deliberately omitted from structured logs; only operational metadata such as sizes, counts, paths, commands, and outcomes is logged.
 

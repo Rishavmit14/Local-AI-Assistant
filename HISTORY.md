@@ -1702,3 +1702,37 @@ explicit ArtifactImporter remains the only identity-checked, digest-idempotent
 terminal finalization path. This capability does not implement universal
 resume, automatic retry, rollback retry, or repair. Acceptance evidence and
 remote recovery SHA will be recorded with the Phase 16 qualification commit.
+
+## 2026-09-28 — Astra Phase 17 local model replaceability qualification
+
+Qualified product matrix row 57 as bounded configuration-driven local model
+replaceability. A repository audit confirmed `LocalLLM` is the effective
+general-purpose cognition boundary used by Conversation, Research, Career
+Forge, and planner/reviewer roles. The audit found model-specific telemetry,
+an optional streaming usage extension, insufficient malformed/interrupted
+response handling, inherited proxy behavior, unbounded SDK retries, remote URL
+acceptance, and model-path leakage in diagnostics. These were hardened while
+keeping current Qwen defaults and ADR 0014's sole-general-purpose-model policy.
+
+The reusable qualification suite sent Friday's same Conversation API through
+two separately configured loopback fixture backends, with distinct endpoint
+ports and model IDs and no source edits between restarts. It verified chat and
+streaming, roles, bounded Memory/Research context, candidate state preservation,
+failure behavior, proxy isolation, and that model output did not grant
+execution/approval authority. Fixture outputs establish protocol and wiring,
+not intelligence or quality parity. A bounded current-Qwen smoke passed
+health, chat, Conversation streaming, Reasoning, Teacher, and generation-start
+telemetry; usage metadata was absent and optional. No alternate was loaded
+because the GPU had only 735 MiB free and host swap was already in use. No model
+was downloaded and neither production Friday nor its Qwen server was restarted.
+
+Focused validation passed 93 tests (16 LocalLLM, 19 config, 3 roles, 20
+Conversation, 26 wake telemetry, 9 model-swap cases); full repository
+verification passed 1,034 Python tests, `pip check`, and repository checks.
+Frontend validation passed 104 tests, ESLint, TypeScript, and production build.
+Ruff and `git diff --check` passed. Existing Starlette/AnyIO deprecation and
+Vite large-chunk warnings remain. The final capability and recovery SHAs are
+recorded in the current handoff after publication.
+
+Row 58 Offline operation is the next unresolved dependency and remains
+unstarted.

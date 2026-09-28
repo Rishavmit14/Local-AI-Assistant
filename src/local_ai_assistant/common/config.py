@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import ipaddress
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from .errors import ConfigurationError
 
@@ -67,6 +69,54 @@ class LlamaConfig:
     context_size: int = 262_144
     api_key: str = "local"
     timeout_seconds: int = 120
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.base_url, str) or not self.base_url.strip():
+            raise ConfigurationError("LOCAL_AI_BASE_URL must not be empty")
+        try:
+            parsed = urlsplit(self.base_url)
+            hostname = parsed.hostname
+            port = parsed.port
+        except ValueError as exc:
+            raise ConfigurationError("LOCAL_AI_BASE_URL must be a valid local URL") from exc
+        local_host = False
+        if hostname:
+            normalized_host = hostname.rstrip(".").lower()
+            if normalized_host == "localhost":
+                local_host = True
+            else:
+                try:
+                    local_host = ipaddress.ip_address(normalized_host).is_loopback
+                except ValueError:
+                    local_host = False
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not hostname
+            or not local_host
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.query
+            or parsed.fragment
+            or port == 0
+        ):
+            raise ConfigurationError(
+                "LOCAL_AI_BASE_URL must use HTTP(S) on a loopback host without "
+                "URL credentials, query, or fragment"
+            )
+        if (
+            not isinstance(self.model, str)
+            or not self.model.strip()
+            or self.model != self.model.strip()
+            or len(self.model) > 512
+            or any(ord(character) < 32 for character in self.model)
+        ):
+            raise ConfigurationError("LOCAL_AI_MODEL must be a bounded non-empty identifier")
+        if type(self.context_size) is not int or self.context_size < 1:
+            raise ConfigurationError("LOCAL_AI_CONTEXT_SIZE must be a positive integer")
+        if type(self.timeout_seconds) is not int or self.timeout_seconds < 1:
+            raise ConfigurationError("LOCAL_AI_LLM_TIMEOUT must be a positive integer")
+        if not isinstance(self.api_key, str) or not self.api_key:
+            raise ConfigurationError("LOCAL_AI_API_KEY must not be empty")
 
 
 @dataclass(frozen=True, slots=True)

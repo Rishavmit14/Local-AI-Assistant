@@ -193,6 +193,17 @@ Piper, wake/VAD, embeddings, OCR, and later vision/image models are specialized
 components. ADR 0014 defines evidence required for any future general-model
 addition or replacement.
 
+Phase 17 qualifies a restart-based configuration boundary without changing the
+one-general-model policy. `LocalLLM` is the only OpenAI-compatible chat client
+for general-purpose cognition; its base URL must be loopback, its HTTP transport
+ignores proxy environment settings, and failures do not retry or fall back to a
+remote or second model. `LOCAL_AI_BASE_URL`, `LOCAL_AI_MODEL`,
+`LOCAL_AI_CONTEXT_SIZE`, and `LOCAL_AI_LLM_TIMEOUT` select the backend at process
+startup. Conversation, roles, Research, and code/planning paths continue through
+the same client contract. Model identity stays configuration, not product
+authority or persisted state. See ADR 0032 and the model-swap qualification
+procedure.
+
 Career Forge's durable boundary is a local Learner Twin and versioned ML/AI
 Engineer competency graph above the Stage 13 memory foundation. It reuses
 Friday's code intelligence, controlled tools, validation, Git isolation, history,

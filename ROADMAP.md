@@ -1538,3 +1538,25 @@ and metadata projection must remain unchanged across restart.
 
 The intended acceptance is bounded owner-visible interruption recovery, not a
 universal repair engine. No rows 57–60 are started by Phase 16.
+
+## Astra Canonical Product Integration — Phase 17: Model replaceability (row 57)
+
+Row 57 qualifies configuration-driven replacement of Friday's local
+general-purpose model through the existing `LocalLLM` OpenAI-compatible
+boundary and sequential role clients. The endpoint is loopback-only; model ID,
+context size, endpoint, and timeout are deployment configuration read at
+startup. A compatible local backend change takes effect after restart. No
+browser switch, hot swap, cloud fallback, database migration, or model-granted
+authority is introduced. ADR 0014 continues to select Qwen as Friday's sole
+current general-purpose model.
+
+Qualification uses two deterministic loopback HTTP fixture backends with
+different ports and model IDs, the same Friday Conversation API path, unchanged
+source across restart, prompt-only roles, synthetic Memory/Research evidence,
+and isolated candidate SQLite sentinels. A separate bounded smoke verifies the
+currently configured Qwen endpoint. Fixture compatibility is not real-model
+quality or permanent replacement approval. No safe concurrent alternate model
+was loaded. See ADR 0032 and `docs/qualification/model-swap.md`.
+
+Phase 17 qualifies only this bounded configuration and restart contract. The
+next unresolved capability is row 58, Offline operation; it remains unstarted.

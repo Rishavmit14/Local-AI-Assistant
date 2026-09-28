@@ -252,14 +252,14 @@ class FridayConversationService:
         )
 
         parts: list[str] = []
-        uses_qwen = not (
+        uses_local_model = not (
             (route is not None and route.response is not None)
             or (learning_directive is not None and learning_directive.response is not None)
         )
 
         try:
-            if uses_qwen:
-                self._mark("QWEN_GENERATION_BEGIN")
+            if uses_local_model:
+                self._mark("LOCAL_LLM_GENERATION_BEGIN")
             source = (
                 iter((route.response,))
                 if route is not None and route.response is not None

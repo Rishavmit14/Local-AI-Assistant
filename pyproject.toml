@@ -9,7 +9,7 @@ description = "Local-first Qwen chat, hybrid RAG, and transactional coding assis
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-dependencies = ["openai>=3,<4"]
+dependencies = ["httpx>=0.27,<1", "openai>=3,<4"]
 
 [project.optional-dependencies]
 memory = ["sentence-transformers>=5,<7"]

@@ -786,6 +786,29 @@ def test_voice_turn_telemetry_projects_content_free_latency_record():
     )}
 
 
+def test_voice_latency_accepts_model_neutral_generation_stages():
+    telemetry = VoiceTurnTelemetry()
+    for stage in (
+        "OWNER_SPEECH_ENDED",
+        "LOCAL_LLM_GENERATION_BEGIN",
+        "LOCAL_LLM_REQUEST_DISPATCHED",
+        "LOCAL_LLM_FIRST_TOKEN",
+        "FIRST_SPEAKABLE_CHUNK",
+        "TTS_SYNTHESIS_BEGIN",
+        "TTS_FIRST_AUDIO_AVAILABLE",
+        "PLAYBACK_FIRST_PCM_WRITTEN",
+    ):
+        telemetry.mark(stage)
+
+    record = telemetry.latency_snapshot()[0]
+    assert set(record["durations_ms"]) == {stage.lower() for stage in (
+        "OWNER_SPEECH_ENDED", "LOCAL_LLM_GENERATION_BEGIN",
+        "LOCAL_LLM_REQUEST_DISPATCHED", "LOCAL_LLM_FIRST_TOKEN",
+        "FIRST_SPEAKABLE_CHUNK", "TTS_SYNTHESIS_BEGIN",
+        "TTS_FIRST_AUDIO_AVAILABLE", "PLAYBACK_FIRST_PCM_WRITTEN",
+    )}
+
+
 def test_voice_turn_telemetry_includes_only_numeric_qwen_and_prompt_metrics():
     telemetry = VoiceTurnTelemetry()
     telemetry.mark("OWNER_SPEECH_ENDED")

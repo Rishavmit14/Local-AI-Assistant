@@ -1,5 +1,9 @@
+import re
 from collections.abc import Callable, Iterator, Mapping
+from dataclasses import replace
+from pathlib import PurePosixPath
 
+import httpx
 from openai import OpenAI
 
 from local_ai_assistant.common.config import AppConfig, get_config
@@ -12,6 +16,13 @@ DEFAULT_MODEL = _DEFAULTS.model
 logger = get_logger(__name__)
 
 
+def safe_model_display_id(model: str) -> str:
+    """Return a bounded basename suitable for operational logs and reports."""
+    basename = PurePosixPath(model.replace("\\", "/")).name
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", basename).strip("._-")
+    return (cleaned or "configured-local-model")[:96]
+
+
 class LocalLLM:
     def __init__(
         self,
@@ -20,18 +31,34 @@ class LocalLLM:
         *,
         config: AppConfig | None = None,
     ) -> None:
-        self.config = config or get_config()
-        self.model = model or self.config.llama.model
-        resolved_base_url = base_url or self.config.llama.base_url
+        source_config = config or get_config()
+        resolved_base_url = source_config.llama.base_url if base_url is None else base_url
+        resolved_model = source_config.llama.model if model is None else model
+        self.config = replace(
+            source_config,
+            llama=replace(
+                source_config.llama,
+                base_url=resolved_base_url,
+                model=resolved_model,
+            ),
+        )
+        self.model = self.config.llama.model
+        self.model_display_id = safe_model_display_id(self.model)
+        self._http_client = httpx.Client(
+            timeout=self.config.llama.timeout_seconds,
+            trust_env=False,
+        )
         self.client = OpenAI(
-            base_url=resolved_base_url,
+            base_url=self.config.llama.base_url,
             api_key=self.config.llama.api_key,
             timeout=self.config.llama.timeout_seconds,
+            max_retries=0,
+            http_client=self._http_client,
         )
         self._latency_observer: Callable[[str, Mapping[str, int | float]], None] | None = None
         logger.info(
             "llm_client_initialized",
-            extra={"event": "llm.client.initialized", "base_url": resolved_base_url},
+            extra={"event": "llm.client.initialized", "base_url": self.config.llama.base_url},
         )
 
     def set_latency_observer(
@@ -63,14 +90,14 @@ class LocalLLM:
             "llm_chat_started",
             extra={
                 "event": "llm.chat.started",
-                "model": self.model,
+                "model": self.model_display_id,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
                 "prompt_characters": len(prompt),
             },
         )
         try:
-            self._observe("QWEN_REQUEST_DISPATCHED")
+            self._observe("LOCAL_LLM_REQUEST_DISPATCHED")
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -80,17 +107,38 @@ class LocalLLM:
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
-            self._observe("QWEN_REQUEST_ACCEPTED")
+            self._observe("LOCAL_LLM_REQUEST_ACCEPTED")
+            content = self._chat_content(response)
         except Exception as exc:
-            logger.exception("llm_chat_failed", extra={"event": "llm.chat.failed"})
-            raise LLMError(f"Local model request failed: {exc}") from exc
-
-        content = response.choices[0].message.content or ""
+            logger.warning(
+                "llm_chat_failed",
+                extra={"event": "llm.chat.failed", "failure_type": type(exc).__name__},
+            )
+            if isinstance(exc, LLMError):
+                raise
+            raise LLMError(f"Local model request failed: {self._safe_error(exc)}") from exc
         logger.info(
             "llm_chat_completed",
             extra={"event": "llm.chat.completed", "response_characters": len(content)},
         )
         return content
+
+    @staticmethod
+    def _chat_content(response: object) -> str:
+        choices = getattr(response, "choices", None)
+        if not choices:
+            raise LLMError("Local model returned no chat choices")
+        message = getattr(choices[0], "message", None)
+        content = getattr(message, "content", None)
+        if not isinstance(content, str) or not content.strip():
+            raise LLMError("Local model returned no text chat content")
+        return content
+
+    def _safe_error(self, error: Exception) -> str:
+        message = str(error).replace(self.config.llama.api_key, "[redacted]")
+        if self.model and self.model != self.model_display_id:
+            message = message.replace(self.model, self.model_display_id)
+        return message[:400] or type(error).__name__
 
     def stream_chat(
         self,
@@ -108,10 +156,10 @@ class LocalLLM:
             )
         logger.info(
             "llm_stream_started",
-            extra={"event": "llm.stream.started", "model": self.model},
+            extra={"event": "llm.stream.started", "model": self.model_display_id},
         )
         try:
-            self._observe("QWEN_REQUEST_DISPATCHED")
+            self._observe("LOCAL_LLM_REQUEST_DISPATCHED")
             stream = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -121,35 +169,60 @@ class LocalLLM:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 stream=True,
-                stream_options={"include_usage": True},
             )
-            self._observe("QWEN_REQUEST_ACCEPTED")
+            self._observe("LOCAL_LLM_REQUEST_ACCEPTED")
         except Exception as exc:
-            logger.exception("llm_stream_failed", extra={"event": "llm.stream.failed"})
-            raise LLMError(f"Local model streaming request failed: {exc}") from exc
+            logger.warning(
+                "llm_stream_failed",
+                extra={"event": "llm.stream.failed", "failure_type": type(exc).__name__},
+            )
+            raise LLMError(
+                f"Local model streaming request failed: {self._safe_error(exc)}"
+            ) from exc
 
         first_token = True
-        for chunk in stream:
-            usage = getattr(chunk, "usage", None)
-            if usage is not None:
-                prompt_details = getattr(usage, "prompt_tokens_details", None)
-                cached_tokens = getattr(prompt_details, "cached_tokens", 0) if prompt_details else 0
-                self._observe(
-                    "QWEN_USAGE",
-                    prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
-                    cached_tokens=int(cached_tokens or 0),
-                    completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
-                )
-            if not chunk.choices:
-                continue
-
-            content = chunk.choices[0].delta.content
-
-            if content:
-                if first_token:
-                    first_token = False
-                    self._observe("QWEN_FIRST_TOKEN")
-                yield content
+        try:
+            for chunk in stream:
+                usage = getattr(chunk, "usage", None)
+                if usage is not None:
+                    prompt_details = getattr(usage, "prompt_tokens_details", None)
+                    cached_tokens = getattr(prompt_details, "cached_tokens", 0) if prompt_details else 0
+                    self._observe(
+                        "LOCAL_LLM_USAGE",
+                        prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+                        cached_tokens=int(cached_tokens or 0),
+                        completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+                    )
+                choices = getattr(chunk, "choices", None)
+                if not choices:
+                    continue
+                delta = getattr(choices[0], "delta", None)
+                content = getattr(delta, "content", None)
+                if content is None:
+                    continue
+                if not isinstance(content, str):
+                    raise LLMError("Local model returned invalid streamed text content")
+                if content:
+                    if first_token:
+                        first_token = False
+                        self._observe("LOCAL_LLM_FIRST_TOKEN")
+                    yield content
+        except Exception as exc:
+            logger.warning(
+                "llm_stream_failed",
+                extra={"event": "llm.stream.failed", "failure_type": type(exc).__name__},
+            )
+            if isinstance(exc, LLMError):
+                raise
+            raise LLMError(
+                f"Local model streaming request failed: {self._safe_error(exc)}"
+            ) from exc
+        finally:
+            close = getattr(stream, "close", None)
+            if callable(close):
+                close()
+        if first_token:
+            raise LLMError("Local model stream ended without text content")
         logger.info("llm_stream_completed", extra={"event": "llm.stream.completed"})
 
 
@@ -158,7 +231,7 @@ def main() -> int:
     configure_logging(config.runtime)
     llm = LocalLLM(config=config)
 
-    print("Local Qwen is ready.\n")
+    print("Friday's configured local model is ready.\n")
 
     for token in llm.stream_chat(
         "Explain RAG to a software engineer in five concise bullet points."
