@@ -1678,3 +1678,5 @@ loopback Host checks, and a server-only bridge bearer scoped only to
 and expires; execution consumes once and rechecks the fingerprint. This is not
 universal undo, publication/canonical repository reversal, or crash recovery.
 Phase 15B implementation and evidence are in ADR 0030 and matrix row 55.
+
+Capability commit: `b03da82f1a37510971f0f84a19a2176d009584db`, verified on both `origin/integration/astra-friday` and `origin/main`.

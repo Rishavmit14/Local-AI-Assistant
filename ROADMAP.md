@@ -1512,3 +1512,5 @@ bounded owner-authenticated rollback of an eligible checkpoint in an isolated
 task worktree. It does not provide universal undo or reverse publication,
 canonical repositories, desktop actions, or other Friday stores. Do not start
 row 56 within Phase 15B.
+
+Phase 15B accepted capability commit: `b03da82f1a37510971f0f84a19a2176d009584db`, published to `origin/integration/astra-friday` and `origin/main`.

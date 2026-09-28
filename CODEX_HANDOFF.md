@@ -17,11 +17,11 @@ bootstrap instructions describe completed work; use current recovery refs and
 ## Current recovery handoff — 2026-09-28 — Phase 15B qualified, publication in progress
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`; branch
-`integration/astra-friday`; capability implementation is qualified locally and
-ready for acceptance publication. Phase 15A recovery base is
-`3e467599d6e341abf77fbbb879b2dda892e9baa1`, previously verified on
-`origin/integration/astra-friday` and `origin/main`. The Phase 15B change set is locally qualified and ready for the prescribed
-capability and recovery commits/pushes.
+`integration/astra-friday`; Phase 15B capability commit
+`b03da82f1a37510971f0f84a19a2176d009584db` is pushed and verified on both
+`origin/integration/astra-friday` and `origin/main`. Phase 15A recovery base is
+`3e467599d6e341abf77fbbb879b2dda892e9baa1`. A final handoff-only recovery
+commit remains to be pushed to both refs.
 
 Phase 15B adds a distinct `request_rollback` server bridge, separate strong
 owner-token authentication, ten-minute volatile owner sessions, strict loopback
@@ -74,11 +74,15 @@ existing Starlette/AnyIO deprecation warning remains.
 
 Temporary candidate credentials and the disposable runtime were removed, and
 the prior candidate API configuration was restored and health-checked at 8766.
-No token value was logged. Final acceptance gates passed; capability and recovery
-commits/pushes to the stage branch and main remain. Product matrix row 55 is
+No token value was logged. Final acceptance gates passed; the capability commit is remotely recoverable.
+The handoff-only recovery commit must fast-forward both refs to one exact SHA.
+Product matrix row 55 is
 qualified only as bounded authenticated isolated-task checkpoint rollback; this
 does not add universal undo, publication reversal, canonical repository,
-desktop, or other-store rollback. Do not start row 56.
+desktop, or other-store rollback. Next roadmap dependency is interruption/crash
+recovery row 56; it is explicitly not started in this task. When resumed, begin
+with row-56 discovery against the current handoff and Phase 15A/15B architecture
+and tests; preserve row 55 unchanged.
 
 ## Previous recovery handoff — 2026-09-28 — Phase 15A
 
