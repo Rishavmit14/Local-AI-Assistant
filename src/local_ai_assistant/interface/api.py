@@ -52,6 +52,7 @@ from local_ai_assistant.memory import FridayMemoryService, MemoryKind, MemorySta
 from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
 from local_ai_assistant.proactive import ProactiveEventEngine
+from local_ai_assistant.rag.knowledge import KnowledgeIndexError, PrivateDocumentKnowledgeService
 from local_ai_assistant.research import ResearchService
 
 from .capabilities import FridayCapabilityRegistry
@@ -107,6 +108,11 @@ class ResearchSourceRequest(BaseModel):
 class ResearchAnswerRequest(BaseModel):
     domain: str = Field(min_length=1, max_length=128)
     question: str = Field(min_length=1, max_length=4_000)
+
+
+class PrivateDocumentQuestionRequest(BaseModel):
+    source_ids: list[str] = Field(min_length=1, max_length=5)
+    question: str = Field(min_length=1, max_length=2_000)
 
 
 class PreferenceAdaptationRequest(BaseModel):
@@ -243,6 +249,7 @@ def create_presentation_app(
     proactive: ProactiveEventEngine | None = None,
     proactive_worker_running: Callable[[], bool] | None = None,
     research: ResearchService | None = None,
+    document_knowledge: PrivateDocumentKnowledgeService | None = None,
     capabilities: FridayCapabilityRegistry | None = None,
     task_history: TaskHistoryService | None = None,
     isolation_root: Path | None = None,
@@ -503,6 +510,29 @@ def create_presentation_app(
         if research is None:
             raise HTTPException(status_code=404, detail="local research is unavailable")
         return research
+
+    def owner_document_knowledge() -> PrivateDocumentKnowledgeService:
+        if document_knowledge is None:
+            raise HTTPException(status_code=404, detail="private document knowledge is unavailable")
+        return document_knowledge
+
+    @app.get("/api/v1/knowledge/documents")
+    def indexed_private_documents():
+        try:
+            return owner_document_knowledge().list_sources()
+        except KnowledgeIndexError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    @app.post("/api/v1/knowledge/ask")
+    def ask_selected_private_documents(body: PrivateDocumentQuestionRequest):
+        try:
+            return owner_document_knowledge().ask(body.source_ids, body.question)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except KnowledgeIndexError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail="local document answer is unavailable") from exc
 
     @app.get("/api/v1/research/sources")
     def research_sources(

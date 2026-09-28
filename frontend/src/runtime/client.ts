@@ -41,6 +41,8 @@ import type {
   FridayResearchSourceRequest,
   FridayResearchSynthesis,
   FridayResearchAnswer,
+  FridayPrivateDocumentAnswer,
+  FridayPrivateDocumentInventory,
 } from "./types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -169,6 +171,21 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/research/sources?${params}`, { signal });
     if (!response.ok) throw new Error(`research sources request failed: ${response.status}`);
     return (await response.json() as { sources: FridayResearchSource[] }).sources;
+  }
+
+  async getPrivateDocumentInventory(signal?: AbortSignal): Promise<FridayPrivateDocumentInventory> {
+    const response = await fetch(`${this.baseUrl}/api/v1/knowledge/documents`, { signal });
+    if (!response.ok) throw new Error(`private document inventory request failed: ${await responseDetail(response)}`);
+    return response.json() as Promise<FridayPrivateDocumentInventory>;
+  }
+
+  async askSelectedPrivateDocuments(sourceIds: string[], question: string): Promise<FridayPrivateDocumentAnswer> {
+    const response = await fetch(`${this.baseUrl}/api/v1/knowledge/ask`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source_ids: sourceIds, question }),
+    });
+    if (!response.ok) throw new Error(`private document query failed: ${await responseDetail(response)}`);
+    return response.json() as Promise<FridayPrivateDocumentAnswer>;
   }
 
   async getResearchSource(sourceId: string, signal?: AbortSignal): Promise<FridayResearchSource> {

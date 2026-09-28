@@ -32,13 +32,39 @@ narrative. Astra labels this output as source evidence, reports
 the assembled result. It does not manufacture citations. A genuinely generated,
 question-specific synthesis remains absent.
 
-Private-document `LocalRAG` remains a local CLI path that indexes supported
-owner-supplied files in its configured directory; Astra does not scan or query
-that directory. `CodeRAG` is available inside the guarded repository planning
-path, but there is no general, repository-selectable Knowledge query contract
-for Astra. The Knowledge panel reports these boundaries rather than implying
-that either capability is available through this workspace. Research records
-remain separate from personal memory and active conversation context.
+Private-document indexing remains an explicit local CLI operation over
+owner-supplied TXT, MD, PDF, or DOCX files. Astra does not scan, ingest, upload,
+or reindex that directory. Its Knowledge tab reads a bounded inventory from
+`GET /api/v1/knowledge/documents`; the projection includes stable source ID,
+basename, digest, type, and chunk count, but no absolute path or document text.
+`POST /api/v1/knowledge/ask` accepts one to five exact indexed source IDs and a
+bounded question. The service verifies the persisted manifest/chunks/vector
+index and applies selected-source filtering in both vector and lexical
+retrieval before ranking. Embeddings load only from the local cache, and answer
+generation uses the existing loopback `Role.RETRIEVAL` LocalLLM client. There
+is no query/answer persistence, automatic Conversation routing, browser upload,
+or model-based indexing.
+
+The response separates generated prose from up to five bounded evidence
+excerpts carrying canonical source reference, display name, digest, chunk/page,
+and extraction method. Model citation strings are normalized to returned
+`[SOURCE n]` references; unsupported references are removed. Indexed text is
+untrusted reference data and cannot grant instruction, memory, learning, task,
+or action authority. If selected-source retrieval has no meaningful lexical
+support, generation is skipped and the route returns
+`no_local_document_evidence`. The Knowledge UI requires explicit source
+selection and labels evidence apart from the answer. Research ledger records
+and generated research answers remain separate from private-document RAG,
+personal memory, and active conversation context. `CodeRAG` remains within
+guarded repository planning; it has no general Astra Knowledge route.
+
+Phase 18A qualified one synthetic TXT document in a disposable candidate root,
+using the locally cached embedding model and candidate API/UI with the existing
+loopback Qwen endpoint. Native Astra navigation/reload reconstructed inventory;
+a grounded query returned canonical evidence, an unrelated question returned
+no evidence without model generation, and an instruction embedded in the
+document caused no authority mutation. This establishes the bounded private
+document owner path, not fact validation or the integrated offline scenario.
 
 ## Astra Phase 12: generated research interpretation
 

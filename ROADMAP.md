@@ -1560,3 +1560,23 @@ was loaded. See ADR 0032 and `docs/qualification/model-swap.md`.
 
 Phase 17 qualifies only this bounded configuration and restart contract. The
 next unresolved capability is row 58, Offline operation; it remains unstarted.
+
+
+## Astra Product Integration — Phase 18A: Private document Knowledge (row 24)
+
+Row 24 qualifies the bounded owner-selected private-document retrieval path.
+The local CLI remains the only ingestion/indexing operation. Astra Knowledge
+projects metadata from the existing local index, requires explicit indexed
+source selection, constrains retrieval to those sources, and presents generated
+answer prose separately from bounded canonical evidence. Embeddings are loaded
+from the local cache; generation uses the existing loopback `Role.RETRIEVAL`
+client. No answer/query persistence, upload, autoscan, reindex, general
+Conversation route, or authority from document text is introduced.
+
+Phase 18A native Astra qualification used one synthetic TXT file and isolated
+candidate state. A grounded Qwen answer returned normalized source evidence; an
+unrelated question abstained without model generation; navigation/reload
+reconstructed the index inventory; and document instructions caused no
+authority mutation. Unsupported extensions and absence of fact validation remain
+limitations. This does not prove integrated offline operation. Row 58 remains
+PARTIAL; Phase 18B and rows 59–60 were not started.

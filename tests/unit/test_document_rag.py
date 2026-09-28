@@ -30,11 +30,11 @@ def test_hybrid_retrieval_preserves_rrf_and_lexical_overlap_ranking():
         {"text": "AURORA-7319 launch code", "source": "one.txt", "chunk": 0},
         {"text": "unrelated text", "source": "two.txt", "chunk": 0},
     ]
-    rag.vector_search = lambda question, top_k: [
+    rag.vector_search = lambda question, top_k, allowed_sources=None: [
         {"index": 1, "rank": 1, "score": 0.9},
         {"index": 0, "rank": 2, "score": 0.8},
     ]
-    rag.bm25_search = lambda question, top_k: [
+    rag.bm25_search = lambda question, top_k, allowed_sources=None: [
         {"index": 0, "rank": 1, "score": 4.0},
         {"index": 1, "rank": 2, "score": 0.0},
     ]

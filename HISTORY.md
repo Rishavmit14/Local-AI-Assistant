@@ -1736,3 +1736,21 @@ recorded in the current handoff after publication.
 
 Row 58 Offline operation is the next unresolved dependency and remains
 unstarted.
+
+## 2026-09-28 — Astra Phase 18A private-document Knowledge qualification
+
+Added the explicit Astra Knowledge path over the existing local document index.
+Inventory is metadata-only; the owner selects indexed source IDs before asking,
+and backend vector/lexical retrieval is constrained to those sources. The
+existing local-cache embedding model and loopback `Role.RETRIEVAL` client are
+used. Generated prose and bounded canonical excerpts are separate, model source
+references are normalized, and unsupported queries return no-evidence without
+model generation. Research ledger, personal Memory, Conversation, and guarded
+CodeRAG boundaries remain separate.
+
+Native Astra qualification used only one synthetic TXT document in an isolated
+candidate root. Grounded Qwen response/evidence, unrelated-query abstention,
+navigation/reload reconstruction, and no authority effects were observed. No
+owner files were scanned. This qualifies matrix row 24's bounded query path;
+explicit CLI indexing remains required. Row 58 Offline operation remains
+PARTIAL and is not qualified by this work.

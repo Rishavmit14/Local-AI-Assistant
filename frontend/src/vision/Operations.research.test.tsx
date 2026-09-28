@@ -239,8 +239,9 @@ describe("Astra canonical Research workspace", () => {
 
     const knowledgeTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Knowledge");
     await act(async () => { knowledgeTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
-    expect(container?.textContent).toContain("INTERNAL / CLI ONLY");
-    expect(container?.textContent).toContain("Not connected to Astra");
+    expect(container?.textContent).toContain("PRIVATE DOCUMENTS · LOCAL INDEX");
+    expect(container?.textContent).toContain("Private document knowledge is unavailable");
+    expect(container?.textContent).not.toContain("Not connected to Astra");
     expect(container?.textContent).toContain("INTERNAL / GUARDED ENGINEERING PATH");
     expect(container?.textContent).not.toContain("Private knowledge · Python");
   });

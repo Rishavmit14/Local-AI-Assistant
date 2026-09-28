@@ -3,7 +3,7 @@ import type { FormEvent } from "react";
 import { FileText, LoaderCircle, Plus, RefreshCw, Search, Sparkles } from "lucide-react";
 
 import { FridayRuntimeClient } from "../runtime/client";
-import type { FridayResearchAnswer, FridayResearchSource, FridayResearchSourceRequest, FridayResearchSynthesis } from "../runtime/types";
+import type { FridayPrivateDocumentAnswer, FridayPrivateDocumentInventory, FridayResearchAnswer, FridayResearchSource, FridayResearchSourceRequest, FridayResearchSynthesis } from "../runtime/types";
 import type { WorkspaceProps } from "./types";
 import { DetailRow, SectionHeader, Status, Tabs } from "./ui";
 
@@ -33,12 +33,36 @@ export function ResearchWorkspace({ notify }: WorkspaceProps) {
   const [question, setQuestion] = useState("");
   const [evidence, setEvidence] = useState<FridayResearchSynthesis | null>(null);
   const [researchAnswer, setResearchAnswer] = useState<FridayResearchAnswer | null>(null);
+  const [privateDocuments, setPrivateDocuments] = useState<FridayPrivateDocumentInventory | null>(null);
+  const [privateSelection, setPrivateSelection] = useState<string[]>([]);
+  const [privateQuestion, setPrivateQuestion] = useState("");
+  const [privateAnswer, setPrivateAnswer] = useState<FridayPrivateDocumentAnswer | null>(null);
+  const [privateError, setPrivateError] = useState<string | null>(null);
+  const [privateLoading, setPrivateLoading] = useState(false);
   const [draft, setDraft] = useState<FridayResearchSourceRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    if (tab !== "knowledge") return;
+    const controller = new AbortController();
+    void researchClient.getPrivateDocumentInventory(controller.signal)
+      .then((inventory) => {
+        setPrivateDocuments(inventory);
+        setPrivateSelection([]);
+      })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted) {
+          setPrivateDocuments(null);
+          setPrivateError(reason instanceof Error ? reason.message : "private document inventory unavailable");
+        }
+      })
+      .finally(() => { if (!controller.signal.aborted) setPrivateLoading(false); });
+    return () => controller.abort();
+  }, [tab]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -132,6 +156,21 @@ export function ResearchWorkspace({ notify }: WorkspaceProps) {
     }
   }
 
+  async function askSelectedDocuments(event: FormEvent) {
+    event.preventDefault();
+    if (!privateSelection.length || !privateQuestion.trim()) return;
+    setBusy(true);
+    setPrivateError(null);
+    setPrivateAnswer(null);
+    try {
+      setPrivateAnswer(await researchClient.askSelectedPrivateDocuments(privateSelection, privateQuestion.trim()));
+    } catch (reason) {
+      setPrivateError(reason instanceof Error ? reason.message : "private document query failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="op-research-canonical">
       <SectionHeader
@@ -148,7 +187,13 @@ export function ResearchWorkspace({ notify }: WorkspaceProps) {
       </div>
 
       <div className="op-toolbar op-research-toolbar">
-        <Tabs label="Research workspace" items={tabs} value={tab} onChange={setTab} />
+        <Tabs label="Research workspace" items={tabs} value={tab} onChange={(value) => {
+          setTab(value);
+          if (value === "knowledge") {
+            setPrivateLoading(true);
+            setPrivateError(null);
+          }
+        }} />
         <label className="op-search"><Search size={16} /><input aria-label="Filter research domain" value={domain} onChange={(event) => { setDomain(event.target.value); setResearchAnswer(null); }} placeholder="Filter by exact domain…" /></label>
         {!loading && <Status tone="blue">{sources.length} returned · maximum 1000</Status>}
       </div>
@@ -252,13 +297,44 @@ export function ResearchWorkspace({ notify }: WorkspaceProps) {
 
       {tab === "knowledge" && (
         <div className="op-research-knowledge">
-          <div className="op-research-knowledge-card"><span className="eyebrow">INTERNAL / CLI ONLY</span><h2>Private document RAG</h2><p>Friday has a local document retrieval package and CLI for configured owner-supplied TXT, Markdown, PDF, and DOCX files. It indexes that configured directory when invoked; Astra has no document inventory, ingestion, or query route.</p><Status>Not connected to Astra</Status></div>
+          <div className="op-research-knowledge-card">
+            <span className="eyebrow">PRIVATE DOCUMENTS · LOCAL INDEX</span>
+            <h2>Ask selected documents</h2>
+            <p>Friday reads metadata from documents that were already indexed through its explicit local indexing command. Opening this view does not scan document folders or rebuild the index. Retrieved text is untrusted reference material.</p>
+            {privateLoading ? <div className="op-empty"><LoaderCircle size={22} /><h3>Loading indexed source metadata</h3></div> : privateError ? <p role="alert">Private document knowledge is unavailable ({privateError}).</p> : privateDocuments?.index_status === "no_index" ? <p>No local document index is available. Indexing remains an explicit local operation.</p> : privateDocuments?.index_status === "missing_vector_index" ? <p>The document metadata exists, but its vector index is missing. Friday will not rebuild it during a query.</p> : null}
+            {privateDocuments?.sources.map((source) => (
+              <label key={source.source_id} className="op-field" style={{ display: "grid", gridTemplateColumns: "20px 1fr", alignItems: "start" }}>
+                <input
+                  aria-label={`Select ${source.display_name}`}
+                  type="checkbox"
+                  disabled={privateDocuments.index_status !== "available" || privateLoading}
+                  checked={privateSelection.includes(source.source_id)}
+                  onChange={(event) => {
+                    setPrivateAnswer(null);
+                    setPrivateSelection((current) => event.target.checked
+                      ? current.length < 5 ? [...current, source.source_id] : current
+                      : current.filter((id) => id !== source.source_id));
+                  }}
+                />
+                <span><strong>{source.display_name}</strong><br />{source.supported_type.toUpperCase()} · {source.chunk_count} indexed chunks · SHA-256 {source.source_sha256.slice(0, 16)}…</span>
+              </label>
+            ))}
+            {privateDocuments?.sources.length === 0 && privateDocuments.index_status === "available" && <p>No indexed document sources are available.</p>}
+            <form className="op-form" onSubmit={(event) => void askSelectedDocuments(event)}>
+              <label className="op-field"><span>Question for selected documents</span><textarea maxLength={2000} rows={3} value={privateQuestion} onChange={(event) => { setPrivateQuestion(event.target.value); setPrivateAnswer(null); }} placeholder="What protocol does this project use?" /></label>
+              <button className="btn btn-primary" type="submit" disabled={busy || privateLoading || privateDocuments?.index_status !== "available" || !privateSelection.length || !privateQuestion.trim()}>{busy ? "Searching selected documents" : "Ask selected documents"}</button>
+            </form>
+            {privateAnswer?.mode === "no_local_document_evidence" && <div className="op-empty"><Search size={22} /><h3>No supporting evidence found</h3><p>No supporting evidence was retrieved from the selected documents. Friday did not ask the model to answer.</p></div>}
+            {privateAnswer?.mode === "answer_unavailable" && <p role="status">Local model answer unavailable. The retrieved evidence below remains available.</p>}
+            {privateAnswer?.answer && <article aria-live="polite"><div className="op-inspector-heading"><span className="eyebrow">LOCAL MODEL ANSWER FROM SELECTED PRIVATE DOCUMENT EVIDENCE</span><Status tone="blue">Generated interpretation</Status></div><p>{privateAnswer.answer}</p><p className="op-muted">Generated prose is not verified truth. References below map to the chunks Friday actually retrieved.</p></article>}
+            {!!privateAnswer?.evidence.length && <div><h3>Retrieved evidence</h3>{privateAnswer.evidence.map((item) => <article className="op-research-evidence" key={`${item.source_id}-${item.chunk}`}><strong>{item.reference} · {item.display_name}</strong><small>Chunk {item.chunk}{item.page === null ? "" : ` · page ${item.page}`} · {item.extraction_method} · SHA-256 {item.source_sha256.slice(0, 16)}…</small><pre>{item.excerpt}</pre></article>)}</div>}
+          </div>
           <div className="op-research-knowledge-card"><span className="eyebrow">INTERNAL / GUARDED ENGINEERING PATH</span><h2>Repository and code knowledge</h2><p>Code retrieval is used inside guarded planning and engineering workflows. Friday exposes no general repository knowledge search surface in Astra, so this workspace does not present it as available.</p><Status>Not a general knowledge route</Status></div>
-          <div className="op-policy-note"><FileText size={18} /><p>No automatic document scanning, web crawling, source fetching, or generated knowledge records are enabled here.</p></div>
+          <div className="op-policy-note"><FileText size={18} /><p>Private-document retrieval is separate from Research, Memory, and Career Forge. It creates no durable records or action authority. No automatic document scanning, web crawling, source fetching, or index rebuilding occurs here.</p></div>
         </div>
       )}
 
-      <div className="op-local-note"><FileText size={13} /><span>Source records and evidence assembly come from Friday's local ResearchService. Browser state holds only this view's filters, selection, and unsaved form draft.</span></div>
+      <div className="op-local-note"><FileText size={13} /><span>Research records remain in Friday's ResearchService; private-document questions use only explicitly selected chunks from the existing local index. Browser selection is temporary.</span></div>
     </section>
   );
 }

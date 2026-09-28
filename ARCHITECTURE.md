@@ -376,22 +376,27 @@ from active recall. No memory database or authority was added to the frontend.
 
 ### Astra Research / Knowledge presentation boundary
 
-Astra's Research workspace uses the typed Friday runtime client and the
-existing `ResearchService`/SQLite. Source-list responses project canonical
-metadata without content; content is read only for an explicitly selected
-source. Explicit owner registration carries owner-provided provenance and text
-through the governed presentation API. The current service has no source
-update/delete operation. Its synthesis endpoint assembles bounded registered
-source evidence deterministically; it does not apply the question to retrieval
-or produce generated prose, which the UI states directly. Private-document RAG
-remains internal/CLI-only and repository/code retrieval remains inside guarded
-engineering flows; Astra presents no general Knowledge query or ingestion
-authority. Research sources remain distinct from personal memory, active
-conversation context, and generated synthesis. The 2026-09-27 owner flow
-qualified canonical registration, navigation persistence, evidence assembly,
-and truthful Knowledge limits. Its 8766 API ran against an isolated
-qualification state root; Career Forge preservation was checked against the
-existing Friday authoritative store at 8765.
+Astra's Research workspace uses the typed Friday runtime client and existing
+`ResearchService`/SQLite. Source-list responses project canonical metadata
+without content; content is read only for an explicitly selected source.
+Explicit owner registration carries owner-provided provenance and text through
+the governed presentation API. Deterministic synthesis remains bounded source
+evidence and does not apply the question to retrieval or produce generated
+prose. These Research ledger paths remain separate from private-document RAG.
+
+The Knowledge tab reads a bounded metadata projection of the existing local
+document index and submits a query only with explicit indexed-source IDs.
+`PrivateDocumentKnowledgeService` constrains backend vector and lexical
+retrieval to those selected IDs before ranking. It uses cached local embeddings
+and the existing loopback `Role.RETRIEVAL` model client, and returns generated
+prose separately from bounded canonical source excerpts. It does not scan,
+ingest, upload, or reindex files; indexing remains an explicit local CLI
+operation. Document text is untrusted and has no memory, learning, task, or
+action authority. No answer/query is persisted and no general CodeRAG or
+Conversation route is added. Phase 18A's disposable synthetic-corpus Astra
+qualification verified navigation/reload, grounded evidence, no-evidence
+abstention, and lack of authority effects; the integrated offline scenario
+remains separate.
 
 Stage 15 is an owner-initiated, read-only perception boundary. Captures remain
 under configured `var/perception` state; the presentation API exposes bounded

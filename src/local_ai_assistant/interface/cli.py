@@ -44,6 +44,7 @@ from local_ai_assistant.perception import (
 from local_ai_assistant.planning.models import plan_approval_token
 from local_ai_assistant.planning.service import PlannerService
 from local_ai_assistant.proactive import EventSource, ProactiveEventEngine, ProactiveRuntime, Watch
+from local_ai_assistant.rag.knowledge import PrivateDocumentKnowledgeService
 from local_ai_assistant.research import ResearchService
 from local_ai_assistant.roles import Role, RoleOrchestrator
 
@@ -363,6 +364,7 @@ def build_presentation_components(
         FridayCapability("task_explanation", "Grounded task explanations", CapabilityStatus.INTEGRATED, True, True, True, "exact task/objective ID; read-only canonical projection", "deterministic facts only; no approval, execution, mutation, or unsupported causality"),
         FridayCapability("proactive", "Proactive notifications", CapabilityStatus.IMPLEMENTED, resolved_config.proactive.enabled, True, resolved_config.proactive.enabled, "configured local watches", "notifications only; no action authority"),
         FridayCapability("research", "Local research ledger", CapabilityStatus.IMPLEMENTED, True, True, True, "bounded local research API", "owner-provided sources only; no automatic web research"),
+        FridayCapability("private_document_knowledge", "Private document knowledge", CapabilityStatus.INTEGRATED, True, True, True, "explicitly selected indexed local documents in Research / Knowledge", "indexing remains explicit CLI; no directory scanning, automatic retrieval, or durable writes"),
         FridayCapability("code_intelligence", "Repository and code intelligence", CapabilityStatus.IMPLEMENTED, True, True, True, "CLI and guarded engineering paths", "not yet a normal conversation capability"),
         FridayCapability("github", "GitHub integration", CapabilityStatus.INTEGRATED, resolved_config.gateway.enabled, execution_auth is not None, career_publication is not None, "authenticated gateway", "requires an explicit onboarded publication mapping, GITHUB_WRITE scope, and local credential"),
     ), health={"voice": voice_capability_health})
@@ -433,6 +435,10 @@ def build_presentation_components(
         proactive=proactive,
         proactive_worker_running=lambda: proactive_runtime.is_running,
         research=research,
+        document_knowledge=PrivateDocumentKnowledgeService(
+            resolved_config,
+            llm=roles.client(Role.RETRIEVAL),
+        ),
         capabilities=capabilities,
         task_history=history,
         isolation_root=resolved_config.paths.worktree_dir,

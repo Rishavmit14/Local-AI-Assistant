@@ -189,6 +189,36 @@ export interface FridayResearchAnswer {
   citation_validation?: "not_provided";
 }
 
+export interface FridayPrivateDocumentSource {
+  source_id: string;
+  display_name: string;
+  source_sha256: string;
+  supported_type: string;
+  chunk_count: number;
+}
+
+export interface FridayPrivateDocumentInventory {
+  index_status: "no_index" | "available" | "missing_vector_index";
+  sources: FridayPrivateDocumentSource[];
+}
+
+export interface FridayPrivateDocumentEvidence {
+  reference: string;
+  source_id: string;
+  display_name: string;
+  source_sha256: string;
+  page: number | null;
+  chunk: number;
+  extraction_method: string;
+  excerpt: string;
+}
+
+export interface FridayPrivateDocumentAnswer {
+  mode: "generated_from_selected_documents" | "no_local_document_evidence" | "answer_unavailable";
+  answer: string | null;
+  evidence: FridayPrivateDocumentEvidence[];
+}
+
 export interface CareerForgeCompetency {
   competency: {
     competency_id: string;

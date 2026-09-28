@@ -130,6 +130,8 @@ class LocalRAG:
         *,
         embedder=None,
         llm: LocalLLM | None = None,
+        load_embedder: bool = True,
+        create_dirs: bool = True,
     ) -> None:
         self.config = config or get_config()
         self.document_dir = self.config.paths.document_dir
@@ -138,28 +140,14 @@ class LocalRAG:
         self.chunks_file = self.rag_data_dir / "chunks.json"
         self.manifest_file = self.rag_data_dir / "manifest.json"
 
-        self.document_dir.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
+        if create_dirs:
+            self.document_dir.mkdir(parents=True, exist_ok=True)
+            self.rag_data_dir.mkdir(parents=True, exist_ok=True)
 
-        self.rag_data_dir.mkdir(
-            parents=True,
-            exist_ok=True,
-        )
-
-        print("Loading embedding model...")
-
-        logger.info(
-            "document_rag_initializing",
-            extra={"event": "rag.initializing", "document_dir": self.document_dir},
-        )
-        self.embedder = embedder or SentenceTransformer(
-            self.config.embedding.model,
-            device=self.config.embedding.device,
-        )
-
-        self.tokenizer = self.embedder.tokenizer
+        self.embedder = embedder
+        if load_embedder and self.embedder is None:
+            self.load_embedder()
+        self.tokenizer = self.embedder.tokenizer if self.embedder is not None else None
 
         self.llm = llm or LocalLLM(config=self.config)
 
@@ -171,6 +159,18 @@ class LocalRAG:
         self.bm25_corpus: list[list[str]] = []
 
         self.manifest: dict[str, Any] = {}
+
+    def load_embedder(self):
+        """Load the configured embedding model from the local cache only."""
+        if self.embedder is None:
+            logger.info("document_embedding_loading", extra={"event": "rag.embedding.loading"})
+            self.embedder = SentenceTransformer(
+                self.config.embedding.model,
+                device=self.config.embedding.device,
+                local_files_only=True,
+            )
+            self.tokenizer = self.embedder.tokenizer
+        return self.embedder
 
     # ========================================================
     # FILE HASHING
@@ -860,7 +860,7 @@ class LocalRAG:
         )
 
         embeddings = (
-            self.embedder.encode(
+            self.load_embedder().encode(
                 texts,
                 batch_size=self.config.embedding.batch_size,
                 show_progress_bar=not self.config.runtime.test_mode,
@@ -1111,10 +1111,11 @@ class LocalRAG:
         self,
         question: str,
         top_k: int,
+        allowed_sources: set[str] | None = None,
     ):
 
         query_embedding = (
-            self.embedder.encode(
+            self.load_embedder().encode(
                 [question],
                 normalize_embeddings=True,
                 convert_to_numpy=True,
@@ -1126,17 +1127,24 @@ class LocalRAG:
             dtype=np.float32,
         )
 
-        top_k = min(
-            top_k,
-            len(self.chunks),
-        )
+        eligible = [
+            position for position, chunk in enumerate(self.chunks)
+            if allowed_sources is None or chunk.get("source") in allowed_sources
+        ]
+        if not eligible:
+            return []
+        search_index = self.index
+        positions = eligible
+        if allowed_sources is not None:
+            # Search an index containing only selected-source vectors. Filtering
+            # after a global top-k would let unrelated chunks crowd out evidence.
+            search_index = faiss.IndexFlatIP(int(self.index.d))
+            vectors = np.vstack([self.index.reconstruct(position) for position in eligible])
+            search_index.add(np.asarray(vectors, dtype=np.float32))
+            positions = eligible
 
-        scores, indices = (
-            self.index.search(
-                query_embedding,
-                top_k,
-            )
-        )
+        top_k = min(top_k, len(positions))
+        scores, indices = search_index.search(query_embedding, top_k)
 
         results = []
 
@@ -1156,7 +1164,7 @@ class LocalRAG:
 
             results.append(
                 {
-                    "index": int(index),
+                    "index": int(positions[int(index)]),
                     "rank": rank,
                     "score": float(
                         score
@@ -1174,6 +1182,7 @@ class LocalRAG:
         self,
         question: str,
         top_k: int,
+        allowed_sources: set[str] | None = None,
     ):
 
         query_tokens = (
@@ -1182,22 +1191,27 @@ class LocalRAG:
             )
         )
 
-        scores = (
-            self.bm25.get_scores(
-                query_tokens
-            )
-        )
-
-        top_k = min(
-            top_k,
-            len(self.chunks),
-        )
-
-        best_indices = (
-            np.argsort(
-                scores
-            )[::-1][:top_k]
-        )
+        eligible = [
+            position for position, chunk in enumerate(self.chunks)
+            if allowed_sources is None or chunk.get("source") in allowed_sources
+        ]
+        if not eligible:
+            return []
+        if allowed_sources is None:
+            scores = self.bm25.get_scores(query_tokens)
+            ranked = sorted(eligible, key=lambda position: (-float(scores[position]), position))
+            score_by_position = {position: float(scores[position]) for position in eligible}
+        else:
+            # Build lexical statistics from selected chunks only so even corpus
+            # frequencies from unselected files cannot influence this query.
+            selected_corpus = [self.bm25_corpus[position] for position in eligible]
+            selected_bm25 = BM25Okapi(selected_corpus)
+            selected_scores = selected_bm25.get_scores(query_tokens)
+            score_by_position = {eligible[offset]: float(selected_scores[offset]) for offset in range(len(eligible))}
+            ranked = [eligible[offset] for offset in sorted(
+                range(len(eligible)), key=lambda offset: (-float(selected_scores[offset]), eligible[offset])
+            )]
+        best_indices = ranked[:min(top_k, len(eligible))]
 
         results = []
 
@@ -1210,9 +1224,7 @@ class LocalRAG:
                 {
                     "index": int(index),
                     "rank": rank,
-                    "score": float(
-                        scores[index]
-                    ),
+                    "score": score_by_position[index],
                 }
             )
 
@@ -1225,6 +1237,7 @@ class LocalRAG:
     def retrieve(
         self,
         question: str,
+        allowed_sources: set[str] | None = None,
     ):
 
         logger.info(
@@ -1236,6 +1249,7 @@ class LocalRAG:
             self.vector_search(
                 question,
                 self.config.document_retrieval.vector_top_k,
+                allowed_sources,
             )
         )
 
@@ -1243,6 +1257,7 @@ class LocalRAG:
             self.bm25_search(
                 question,
                 self.config.document_retrieval.bm25_top_k,
+                allowed_sources,
             )
         )
 
