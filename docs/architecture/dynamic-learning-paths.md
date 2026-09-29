@@ -187,10 +187,13 @@ Forge mapping remains unchanged. Current deterministic evidence covers subject
 registration/restart, active-session conflict, contract fingerprints,
 positive/negative/replayed and concurrent assessment, assistance provenance,
 retention failure, and dependent-node sequencing/revision behavior. A disposable
-candidate used real local Qwen for teaching and one assessment, reconstructed
-the governed session/evidence after separate candidate API processes, and
-demonstrated negative assessment plus dependent-node unlock after independent
-evidence. DLP-4 is still PARTIAL: complete retention/review application E2E,
-full Python regression, repository verifier, owner-state/production checks,
-and acceptance publication remain. No visual redesign or final visual
-acceptance is included.
+candidate used three real local-Qwen requests for teaching, assessment, and
+retention reassessment; the negative-assessment API used a deterministic fixture.
+The governed session, evidence, reviews, and sequence reconstructed identically
+after separate candidate API processes. The candidate also demonstrated
+independent mastery and dependent-node eligibility. Full Python (1,146 tests),
+frontend (113 tests), ESLint, TypeScript, production build, repository
+verification, targeted Ruff, and dependency checks pass. Protected production,
+checkout, and NeuralPresence read-only checks also pass. DLP-4 remains PARTIAL
+until remote acceptance publication is complete.
+No visual redesign or final visual acceptance is included.

@@ -1,35 +1,27 @@
 # Friday recovery handoff — DLP-4 in progress
 
-## Repository state
+## Recovery state
 
-Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`
-Branch: `integration/astra-friday`
-Accepted base / current HEAD before recovery checkpoint: `4cf22b1fc645f19ba5a64123b342a4f78442a49f`
-Local `main`, `origin/main`, and `origin/integration/astra-friday` match the accepted base. No DLP-4 commit existed at recovery start. The recovered working tree is preserved at `/tmp/friday-dlp4-crash-recovery-20260930-002205`; two untracked source/test files were copied there with checksums, and complete tracked/index diffs were saved.
+Owner-provided crash note says the Linux desktop reported near-full device memory and Codex stopped responding; no independent crash log was available. Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`, branch `integration/astra-friday`. Accepted DLP-3 base: `4cf22b1fc645f19ba5a64123b342a4f78442a49f`. Local recovery checkpoint: `e1f9fbd` (`DLP-4 implementation recovery checkpoint`, not accepted/published). At recovery start HEAD, `main`, `origin/main`, and `origin/integration/astra-friday` all matched the DLP-3 base; there were no DLP-4 commits. Recovered state: 22 modified tracked files and 2 untracked source/test files. External snapshot with tracked/index diffs, checksums, and untracked copies: `/tmp/friday-dlp4-crash-recovery-20260930-002205`.
 
-## Active capability and authority
+## Capability and authority
 
-DLP-4 generalized arbitrary-domain learning execution. DLP owns curriculum, immutable versions, and sequencing. Career Forge owns dynamic subjects, explicit sessions, attempts, assistance, assessment evidence, mastery, retention, weakness, and reinforcement.
+DLP-4 generalizes execution for arbitrary curriculum nodes. DLP owns curriculum, immutable versions, and sequencing; Career Forge owns dynamic subjects, sessions, attempts, assistance, assessment evidence, mastery, retention, and reinforcement. Dynamic subjects use a semantic SHA-256 contract fingerprint and existing Career Forge learner records. Only explicit governed answers create attempts. Correct evidence advances at most one rung; independent application requires distinct correct unassisted answers. Assistance applies to the answer after that help event; later attempts are not tainted. Correct assisted evidence remains useful when the independent threshold is unmet. Contract revisions start unverified and do not inherit old support.
 
-The worktree has a Career Forge `GeneralizedLearningService`, semantic path/version/node contract fingerprints, explicit arbitrary-node handoff, local tutor/assessor routes, Learn answer controls, contract-bound evidence, and dynamic evidence projections. Independent application requires distinct unassisted correct answers. Assistance is now scoped to the answer submitted after a hint; later answers are not tainted. Correct assisted evidence remains useful; a below-threshold independent rung leaves mastery unchanged without failing assessment. Material curriculum revisions are unverified and cannot reuse prior-version evidence.
+## Qualification evidence
 
-## Recovery and validation evidence
+- Changed modules compile. Focused DLP/Career Forge/API/routing suite: 106 passed. Full Python suite: 1,146 passed. Repository verifier passed, including dependency check (`No broken requirements found`). Targeted Ruff passed.
+- Full frontend: 113 passed; ESLint passed; TypeScript passed as part of the production build. Production build passed with the known >500 kB chunk advisory. Focused Learn/runtime tests: 34 passed. Final `git diff --check`, protected checkout, NeuralPresence, and read-only Friday/Qwen health checks passed after documentation updates.
+- A disposable Career Forge/DLP candidate used exactly three real local-Qwen requests: arbitrary SQL teaching, one answer assessment, and a retention reassessment. The helped attempt/evidence retained `prompt` provenance; a fixture-backed wrong-answer API assessment created no evidence. Two distinct later unassisted correct answers advanced the candidate to `apply_independently`; DLP marked the prerequisite satisfied and its dependent node eligible.
+- Candidate restart E2E used three distinct API processes: session start, restart, answer submission/assessment, restart, then evidence/session/path/sequence reconstruction. Mission, subject, reviews, path version, and sequence remained stable and one new evidence row survived. Retention delivery/evaluation completed through the application API. No owner learner DB was opened.
+- Learn remains FUNCTIONAL ONLY. Owner final visual acceptance is deferred. Matrix rows 60 and 61 remain PARTIAL.
 
-- Recovery found 22 modified tracked files and 2 untracked files; nothing staged; HEAD already equaled the accepted DLP-3 baseline. No truncated source files were found by syntax compilation.
-- Snapshot: `/tmp/friday-dlp4-crash-recovery-20260930-002205`.
-- Memory reported 22 GiB available and 7 GiB swap in use. No DLP candidate, pytest, Vite, or repository-verifier process/listener was present. No process was stopped.
-- Protected checkout was already dirty with the owner's Pocket/Anna changes at expected HEAD `e43896623978e86b7bae6502b380462b455626be`; it was not modified. Production Friday/Qwen were listening on 8765/8080 and were not restarted. `NeuralPresence.tsx` is unchanged.
-- Changed Python modules compile. Focused DLP/Career Forge/API/routing regressions pass, including assistance scope, below-threshold evidence, replay, concurrent evaluation, retention failure, contract revision, and dependent-node gating.
-- Latest focused backend run: 106 tests passed. Focused Learn/runtime client run: 34 frontend tests passed. Full suites, lint, typecheck, build, and repository verifier remain pending.
-- Disposable candidate state used the actual local Qwen endpoint for arbitrary SQL teaching and one answer assessment. The helped answer retained `prompt` provenance on attempt and evidence. An incorrect answer created no evidence. Two later unassisted answers advanced the candidate to `apply_independently` and unlocked its dependent node.
-- A disposable candidate API was started in two distinct processes against the same candidate-only Career Forge/DLP SQLite files. The governed mission, subject, evidence, review count, and path version reconstructed identically after process restart.
-- Frontend/repository full validation and final production read-only health checks remain pending. Current Learn UI is FUNCTIONAL ONLY; owner final visual acceptance remains deferred. Matrix rows 60 and 61 remain PARTIAL.
+## Machine/protected state
 
-## Exact next work
+At initial recovery, memory showed 22 GiB available and 7 GiB swap in use. No DLP candidate, pytest, Vite, or verifier process/listener was found; no process was stopped. Candidate API processes used for qualification were explicitly terminated. Final read-only checks returned HTTP 200 from production Friday `127.0.0.1:8765` and Qwen `127.0.0.1:8080`; neither was restarted or reconfigured. The protected checkout `/AI/projects/Local-AI-Assistant` was already dirty with the owner's Pocket/Anna files at expected HEAD `e43896623978e86b7bae6502b380462b455626be`; it remains unchanged. `frontend/src/vision/NeuralPresence.tsx` remains unchanged.
 
-1. Run the focused backend regression again after the concurrency test and inspect its exact count; then run frontend unit tests, ESLint, TypeScript, and production build serially.
-2. Create a local DLP-4 recovery checkpoint commit after the coherent focused suite passes; do not publish until final qualification passes.
-3. Continue with due retention delivery/evaluation reconstruction and route/Conversation edge coverage using disposable state only; never open owner Career Forge state.
-4. Run the full Python suite and `scripts/maintenance/verify-repository.sh` serially, then targeted Ruff, `pip check`, and `git diff --check`. Record actual counts and any limitations in canonical docs/matrix.
-5. Perform final read-only production Friday/Qwen health checks, protected checkout and `NeuralPresence.tsx` comparisons; review scope/status, then create and publish the accepted DLP-4 commit per stage-branch/main policy and fetch-verify exact remote HEADs.
-6. Audit the next canonical roadmap dependency and record one recommendation. Do not start it in this DLP-4 task.
+## Remaining work / next actions
+
+1. Review the final scope/status and create the DLP-4 acceptance commit on `integration/astra-friday`.
+2. Push the configured remote and apply the repository fast-forward policy to `main`; verify fetched branch and `main` both point to the accepted recovery commit and the accepted worktree is clean. Do not force-push.
+3. Report actual acceptance SHA, remote refs, validation, limitations, and one recommended next roadmap dependency; then stop this DLP-4 task.

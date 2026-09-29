@@ -4,7 +4,12 @@ from threading import Barrier, Thread
 import pytest
 
 from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
-from local_ai_assistant.career_forge.models import AssistanceLevel, AttemptEvaluation, MasteryLevel, TutorMode
+from local_ai_assistant.career_forge.models import (
+    AssistanceLevel,
+    AttemptEvaluation,
+    MasteryLevel,
+    TutorMode,
+)
 from local_ai_assistant.career_forge.service import CareerForgeService
 from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
 

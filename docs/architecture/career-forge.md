@@ -408,9 +408,12 @@ Career Forge missions, attempts, assistance, evidence, mastery, and retention
 records. Correct rubric-bound assessments create evidence; each evidence item
 can advance one mastery rung once. Incorrect, uncertain, malformed, or replayed
 assessments do not create qualifying evidence. Independent application requires
-distinct unassisted correct questions. DLP sequencing reads only categorical
-Career Forge projections, and a revised path version cannot inherit mastery
-automatically. DLP-4 remains under qualification; see
+distinct unassisted correct questions. Assistance provenance applies to the
+answer following that assistance event; subsequent answers may qualify as
+independent. A correct assisted answer remains useful evidence and does not
+make an assessment fail when the independent threshold is unmet. DLP sequencing
+reads only categorical Career Forge projections, and a revised path version
+cannot inherit mastery automatically. DLP-4 remains under qualification; see
 `docs/architecture/dynamic-learning-paths.md`.
 
 PROGRESS also derives a read-only readiness projection from those same

@@ -1,3 +1,30 @@
+## 2026-09-30 — DLP-4 generalized arbitrary-domain learning qualified
+
+Completed DLP-4 on the DLP integration branch. Career Forge now owns
+path/version/node-bound dynamic subjects, explicit sessions and attempts,
+assistance provenance, bounded local assessment, contract-bound evidence,
+one-rung mastery advancement, retention reviews, and the read-only evidence
+projection used by DLP sequencing. Assistance applies to the answer after the
+help event; later independent answers are not tainted. Correct assisted
+evidence remains useful when the independent-application threshold is unmet.
+Material path revisions start unverified, and only Career Forge evidence can
+make a dependent node eligible.
+
+Qualification passed: 1,146 Python tests, 113 frontend tests, ESLint,
+TypeScript, production build, repository verification, targeted Ruff, and
+dependency checks. Three bounded real local-Qwen requests covered arbitrary SQL
+teaching, answer assessment, and retention reassessment. Disposable application
+checks covered a fixture-backed wrong answer with no evidence, assisted
+attempt/evidence provenance, replay/concurrency behavior, independent mastery,
+dependent-node eligibility, retention delivery/evaluation, and reconstruction
+of the same session, evidence, reviews, path version, and sequence across three
+candidate API processes, with answer submission/evaluation after the first
+restart and evidence recovery after the second. Owner Career Forge state and
+production services were untouched. Learn remains FUNCTIONAL ONLY; owner final visual acceptance is
+deferred. Matrix rows 60 and 61 remain PARTIAL. The accepted implementation and
+its publication recovery commit are recorded by Git; no DLP-4 acceptance was
+present at recovery start.
+
 ## 2026-09-29 — DLP-3 owner learning-path integration accepted
 
 Added persistent current-path selection and explicit draft activation/archive to
