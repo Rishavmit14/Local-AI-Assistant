@@ -48,6 +48,8 @@ from local_ai_assistant.isolation.errors import (
     IsolationError,
     SandboxUnavailableError,
 )
+from local_ai_assistant.learning_paths import CurriculumValidationError, LearningPathService
+from local_ai_assistant.learning_paths.service import CurriculumGenerationError
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind, MemoryState
 from local_ai_assistant.onboarding import RepositoryOnboardingError
 from local_ai_assistant.perception import ActiveWindowService, ScreenCaptureService
@@ -108,6 +110,118 @@ class ResearchSourceRequest(BaseModel):
 class ResearchAnswerRequest(BaseModel):
     domain: str = Field(min_length=1, max_length=128)
     question: str = Field(min_length=1, max_length=4_000)
+
+
+class LearningPathCurriculumRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    goal: str = Field(min_length=1, max_length=2_000)
+    mode: str = Field(default="topic", max_length=40)
+    target_level: str = Field(default="unspecified", min_length=1, max_length=100)
+    target_profile: list[str] = Field(default_factory=list, max_length=20)
+    target_date: str | None = None
+    hours_per_week: float | None = None
+    target_feasibility: str = "not_assessed"
+    state: str = "draft"
+    summary: str = Field(default="", max_length=2_000)
+    modules: list[dict]
+    nodes: list[dict]
+    prerequisites: list[dict]
+    milestones: list[dict]
+
+
+class LearningPathGenerateRequest(BaseModel):
+    goal: str = Field(min_length=1, max_length=2_000)
+    mode: str = Field(default="topic", max_length=40)
+    target_level: str = Field(default="unspecified", min_length=1, max_length=100)
+    target_profile: list[str] = Field(default_factory=list, max_length=20)
+    target_date: str | None = None
+    hours_per_week: float | None = None
+
+
+class LearningPathRevisionRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=100)
+    provenance: str = Field(default="owner_edit", min_length=1, max_length=100)
+    curriculum: dict
+
+
+class LearningPathView(BaseModel):
+    path_id: str
+    title: str
+    goal: str
+    mode: str
+    target_level: str
+    target_profile: list[str]
+    target_date: str | None
+    hours_per_week: float | None
+    target_feasibility: str
+    state: str
+    current_version: int
+    created_at: str
+    updated_at: str
+
+
+class LearningPathModuleView(BaseModel):
+    module_id: str
+    title: str
+    objective: str
+    estimated_hours: float | None = None
+
+
+class LearningPathNodeView(BaseModel):
+    node_id: str
+    module_id: str
+    title: str
+    type: str
+    objectives: list[str]
+    evidence_requirements: list[str] = Field(default_factory=list)
+    competency_key: str | None = None
+    estimated_hours: float | None = None
+
+
+class LearningPathPrerequisiteView(BaseModel):
+    prerequisite_node_id: str
+    node_id: str
+
+
+class LearningPathMilestoneView(BaseModel):
+    milestone_id: str
+    title: str
+    node_id: str
+    project_ref: str | None = None
+    description: str | None = None
+
+
+class LearningPathVersionView(BaseModel):
+    path_id: str
+    version: int
+    reason: str
+    provenance: str
+    summary: str
+    created_at: str
+    metadata: dict[str, object]
+    modules: list[LearningPathModuleView]
+    nodes: list[LearningPathNodeView]
+    prerequisites: list[LearningPathPrerequisiteView]
+    milestones: list[LearningPathMilestoneView]
+    topological_order: list[str]
+
+
+class LearningPathCreatedView(BaseModel):
+    path: LearningPathView
+    version: LearningPathVersionView
+
+
+class LearningPathDetailView(BaseModel):
+    path: LearningPathView
+    current: LearningPathVersionView
+
+
+class LearningPathListView(BaseModel):
+    paths: list[LearningPathView]
+
+
+class LearningPathVersionsView(BaseModel):
+    versions: list[LearningPathVersionView]
 
 
 class PrivateDocumentQuestionRequest(BaseModel):
@@ -237,6 +351,7 @@ def create_presentation_app(
     on_startup: Callable[[], None] | None = None,
     memory: FridayMemoryService | None = None,
     career_forge: CareerForgeService | None = None,
+    learning_paths: LearningPathService | None = None,
     practice_lab: PracticeLabService | None = None,
     perception: ScreenCaptureService | None = None,
     active_window: ActiveWindowService | None = None,
@@ -1986,6 +2101,102 @@ def create_presentation_app(
         except BaseException:
             cleanup()
             raise
+
+    def learning_path_service() -> LearningPathService:
+        if learning_paths is None:
+            raise HTTPException(503, detail="learning paths are unavailable")
+        return learning_paths
+
+    def learning_path_projection(path):
+        return asdict(path)
+
+    def learning_path_error(exc: Exception):
+        if isinstance(exc, CurriculumValidationError):
+            raise HTTPException(422, detail=str(exc)) from exc
+        if isinstance(exc, KeyError):
+            raise HTTPException(404, detail="learning path not found") from exc
+        if isinstance(exc, CurriculumGenerationError):
+            raise HTTPException(502, detail="local curriculum generation failed") from exc
+        raise exc
+
+    @app.post("/api/v1/learning-paths", response_model=LearningPathCreatedView)
+    def create_learning_path(request: LearningPathCurriculumRequest):
+        service = learning_path_service()
+        try:
+            payload = request.model_dump() if hasattr(request, "model_dump") else request.dict()
+            path = service.create(payload)
+            version = service.repository.version(path.path_id, path.current_version)
+            return {"path": learning_path_projection(path), "version": asdict(version)}
+        except (CurriculumValidationError, KeyError, CurriculumGenerationError) as exc:
+            learning_path_error(exc)
+
+    @app.post("/api/v1/learning-paths/generate", response_model=LearningPathCreatedView)
+    def generate_learning_path(request: LearningPathGenerateRequest):
+        service = learning_path_service()
+        try:
+            path = service.generate(
+                request.goal,
+                mode=request.mode,
+                target_level=request.target_level,
+                target_profile=request.target_profile,
+                target_date=request.target_date,
+                hours_per_week=request.hours_per_week,
+            )
+            version = service.repository.version(path.path_id, path.current_version)
+            return {"path": learning_path_projection(path), "version": asdict(version)}
+        except (CurriculumValidationError, KeyError, CurriculumGenerationError) as exc:
+            learning_path_error(exc)
+
+    @app.get("/api/v1/learning-paths", response_model=LearningPathListView)
+    def list_learning_paths(limit: int = 100):
+        if not 1 <= limit <= 200:
+            raise HTTPException(422, detail="limit must be between 1 and 200")
+        service = learning_path_service()
+        return {"paths": [learning_path_projection(path) for path in service.repository.list(limit)]}
+
+    @app.get("/api/v1/learning-paths/{path_id}/versions", response_model=LearningPathVersionsView)
+    def list_learning_path_versions(path_id: str):
+        service = learning_path_service()
+        try:
+            service.repository.get(path_id)
+            return {"versions": [asdict(item) for item in service.repository.versions(path_id)]}
+        except KeyError as exc:
+            learning_path_error(exc)
+
+    @app.get("/api/v1/learning-paths/{path_id}/versions/{version}", response_model=LearningPathVersionView)
+    def get_learning_path_version(path_id: str, version: int):
+        service = learning_path_service()
+        try:
+            return asdict(service.repository.version(path_id, version))
+        except KeyError as exc:
+            learning_path_error(exc)
+
+    @app.get("/api/v1/learning-paths/{path_id}", response_model=LearningPathDetailView)
+    def get_learning_path(path_id: str):
+        service = learning_path_service()
+        try:
+            path = service.repository.get(path_id)
+            return {
+                "path": learning_path_projection(path),
+                "current": asdict(service.repository.version(path_id, path.current_version)),
+            }
+        except KeyError as exc:
+            learning_path_error(exc)
+
+    @app.post("/api/v1/learning-paths/{path_id}/versions", response_model=LearningPathCreatedView)
+    def revise_learning_path(path_id: str, request: LearningPathRevisionRequest):
+        service = learning_path_service()
+        try:
+            path = service.revise(
+                path_id,
+                request.curriculum,
+                reason=request.reason,
+                provenance=request.provenance,
+            )
+            version = service.repository.version(path_id, path.current_version)
+            return {"path": learning_path_projection(path), "version": asdict(version)}
+        except (CurriculumValidationError, KeyError) as exc:
+            learning_path_error(exc)
 
     return app
 

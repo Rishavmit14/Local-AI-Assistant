@@ -1,5 +1,25 @@
 # Project History
 
+## 2026-09-29 — DLP-1 Dynamic Learning Paths core
+
+Added a dedicated SQLite-backed `LearningPathService` with immutable version
+snapshots, modules, learning nodes, prerequisite edges, structural project
+milestones, target profile/pace metadata, deterministic DAG validation, and
+stable topological order. Friday's existing local
+`Role.CURRICULUM_DESIGNER` proposes JSON only; parsing and validation gate all
+canonical writes, with no cloud fallback. Create, generate, list, detail,
+version history, and validated revision routes are available through the local
+presentation API. DLP owns no Career Forge learner state, evidence, mastery,
+missions, or project execution. Matrix row 61 records DLP separately and remains
+PARTIAL; row 60 remains PARTIAL. Owner UI, adaptive sequencing, diagnostics, and
+owner-path qualification remain out of scope. The focused DLP/API/config suite
+passed; full qualification passed 1,116 Python tests, 107 frontend tests,
+repository verification, Ruff, `pip check`, ESLint, TypeScript, and production
+build. A bounded local-Qwen SQL proposal validated and reconstructed after
+service restart in temporary state (4 modules, 12 nodes, 11 edges); no owner
+Career Forge state or production Friday/Qwen configuration changed. The local
+API exposes explicit OpenAPI request/response models. DLP-2 remains separate.
+
 ## 2026-09-29 — UX-60A NeetCode-led product shell rescue
 
 Recovered an interrupted uncommitted frontend edit on `integration/astra-friday`

@@ -32,6 +32,9 @@ def test_roles_use_one_model_with_bounded_prompt_only_context():
     assert "minimum useful progressive hint" in model.calls[-1][1]["system_prompt"]
     assert orchestrator.client(Role.INTERVIEWER).chat("question") == "ok"
     assert "without supplying the answer" in model.calls[-1][1]["system_prompt"]
+    orchestrator.client(Role.CURRICULUM_DESIGNER).chat("propose curriculum")
+    assert "Propose curricula from the supplied owner goal" in model.calls[-1][1]["system_prompt"]
+    assert "never mutate canonical curriculum or learner mastery" in model.calls[-1][1]["system_prompt"]
 
 
 def test_stream_failure_is_recorded_and_history_is_bounded():

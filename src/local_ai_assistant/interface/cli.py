@@ -33,6 +33,8 @@ from local_ai_assistant.isolation.checkpoints import CheckpointManager
 from local_ai_assistant.isolation.owner_rollback import OwnerRollbackService, OwnerRollbackSessions
 from local_ai_assistant.isolation.transactional_rollback import TransactionalRollbackService
 from local_ai_assistant.isolation.worktrees import WorktreeManager
+from local_ai_assistant.learning_paths import LearningPathService
+from local_ai_assistant.learning_paths.service import LocalCurriculumGenerator
 from local_ai_assistant.llm.client import LocalLLM
 from local_ai_assistant.memory import FridayMemoryService
 from local_ai_assistant.onboarding import RepositoryOnboardingService
@@ -151,6 +153,10 @@ def build_presentation_components(
         embedding_device=resolved_config.embedding.device,
     )
     career_forge = CareerForgeService(resolved_config.paths.career_forge_db)
+    learning_paths = LearningPathService(
+        resolved_config.paths.learning_paths_db,
+        generator=LocalCurriculumGenerator(roles.client(Role.CURRICULUM_DESIGNER)),
+    )
     practice_lab = PracticeLabService(career_forge, resolved_config.paths.career_forge_lab_dir)
     perception = ScreenCaptureService(resolved_config.paths.perception_dir)
     perception.set_vision_classifier(LocalVisionClassifier(resolved_config.paths.vision_cache_dir))
@@ -423,6 +429,7 @@ def build_presentation_components(
         ),
         memory=memory,
         career_forge=career_forge,
+        learning_paths=learning_paths,
         practice_lab=practice_lab,
         perception=perception,
         active_window=ActiveWindowService(),

@@ -1648,3 +1648,24 @@ required network asset. **Row 60 remains PARTIAL**: it tracks whole-product
 owner qualification, including future Dynamic Learning Paths and integrated
 owner flows. The next recommended design/engineering step is DLP-1 after this
 UX-60A recovery boundary; it is not started here.
+
+## Dynamic Learning Paths — DLP-1 core foundation (row 61, PARTIAL)
+
+DLP-1 establishes a separate local SQLite authority for versioned learning-path
+curricula above Career Forge. It includes modules, nodes, explicit prerequisite
+edges, project milestone references, goal/mode/target metadata, a deterministic
+cycle-rejecting validator and stable topological ordering, local
+`CURRICULUM_DESIGNER` proposal generation, and typed create/list/detail/history/
+revision routes. Every candidate passes deterministic validation before
+transactional persistence; invalid or failed model proposals create no state.
+Career Forge owns all attempts, evidence and mastery, and DLP-1 does not mutate
+or project learner progress. No browser authority, generated progress claim,
+automatic completion, adaptive replanning, diagnostic engine, or owner UI is
+included. Row 60 remains PARTIAL. See
+`docs/architecture/dynamic-learning-paths.md`.
+
+This foundation is **IMPLEMENTED** and passed bounded candidate local-Qwen
+generation/restart qualification plus the full relevant acceptance gates. It
+does not qualify owner-facing learning-path usability. The next DLP dependency
+after this bounded DLP-1 task is DLP-2 evidence integration and adaptive
+sequencing; it is not part of DLP-1.

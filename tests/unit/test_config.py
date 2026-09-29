@@ -54,6 +54,7 @@ def test_environment_configuration_resolves_all_runtime_paths(tmp_path):
     assert config.paths.worktree_dir == (tmp_path / "worktrees").resolve()
     assert config.paths.vision_cache_dir == (tmp_path / "vision-cache").resolve()
     assert config.paths.desktop_control_db == (tmp_path / "desktop.sqlite3").resolve()
+    assert config.paths.learning_paths_db == (tmp_path / "learning-paths/paths.sqlite3").resolve()
     assert config.desktop_control.allowed_apps == ("org.gnome.Terminal",)
     assert config.desktop_control.allowed_origins == ("https://docs.python.org",)
     assert config.desktop_control.allowed_file_roots == ((tmp_path / "shared").resolve(),)

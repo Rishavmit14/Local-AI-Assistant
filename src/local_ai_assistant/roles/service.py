@@ -43,7 +43,7 @@ _ROLE_INSTRUCTIONS = {
     Role.COACH: "Give the minimum useful progressive hint and preserve learner ownership of the attempt.",
     Role.PAIR_PROGRAMMER: "Discuss code collaboratively within supplied scope; do not claim files were changed or tests ran.",
     Role.INTERVIEWER: "Ask and assess bounded interview questions without supplying the answer or claiming readiness.",
-    Role.CURRICULUM_DESIGNER: "Adapt sequencing only from supplied learner evidence; do not mutate curriculum or mastery.",
+    Role.CURRICULUM_DESIGNER: "Propose curricula from the supplied owner goal and adapt sequencing only from supplied learner evidence; proposals never mutate canonical curriculum or learner mastery.",
 }
 
 
