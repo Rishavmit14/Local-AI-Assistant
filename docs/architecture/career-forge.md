@@ -30,8 +30,9 @@ canonical Conversation. The Learn shell presents Career Forge projections in a
 NeetCode-led dark roadmap/practice layout with readable topic cards and direct
 mission navigation. Its product labels are Overview, Roadmap, Practice,
 Interview and Progress; these are presentation routes over existing service
-read models and commands. Dynamic Learning Paths is a future authority and is
-not inferred from the current competency graph or browser state.
+read models and commands. Dynamic Learning Paths has a separate backend
+authority above Career Forge; its owner-facing integration is still future
+work and is not inferred from the current competency graph or browser state.
 
 The durable product information architecture has four Career Forge surfaces:
 

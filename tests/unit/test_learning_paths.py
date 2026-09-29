@@ -4,6 +4,7 @@ import stat
 import pytest
 from fastapi.testclient import TestClient
 
+from local_ai_assistant.career_forge.service import CareerForgeService
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.runtime import FridayRuntime
@@ -11,6 +12,10 @@ from local_ai_assistant.learning_paths import (
     CurriculumValidationError,
     CurriculumValidator,
     LearningPathService,
+)
+from local_ai_assistant.learning_paths.evidence import (
+    CareerForgeEvidenceProjection,
+    CompetencyEvidence,
 )
 from local_ai_assistant.learning_paths.service import (
     CurriculumGenerationError,
@@ -237,3 +242,136 @@ def test_api_generation_failure_does_not_create_path_or_touch_career_forge(tmp_p
         response = client.post("/api/v1/learning-paths/generate", json={"goal": "Synthetic goal"})
     assert response.status_code == 502
     assert service.repository.list() == ()
+
+
+def test_typed_sequence_and_adaptation_api(tmp_path):
+    service = LearningPathService(tmp_path / "candidate.sqlite3")
+    runtime = FridayRuntime("learning-path-sequence-api")
+    app = create_presentation_app(
+        runtime, FridayConversationService(object(), runtime), learning_paths=service,
+    )
+    with TestClient(app) as client:
+        created = client.post("/api/v1/learning-paths", json=curriculum()).json()
+        path_id = created["path"]["path_id"]
+        sequence = client.get(f"/api/v1/learning-paths/{path_id}/sequence")
+        assert sequence.status_code == 200
+        assert sequence.json()["path_state"] == "draft"
+        assert sequence.json()["nodes"][0]["evidence_state"] == "unmapped"
+        adapted = client.post(f"/api/v1/learning-paths/{path_id}/adapt")
+        assert adapted.status_code == 200
+        assert adapted.json()["path"]["current_version"] == 2
+        assert adapted.json()["version"]["adaptation"]["evidence_available"] is False
+
+
+def test_evidence_sequencing_adaptation_is_deterministic_and_versioned(tmp_path):
+    class Provider:
+        def competency_evidence(self, ids):
+            return {
+                "se.python": CompetencyEvidence("se.python", "apply_independently", "current", "scheduled", 2, (), False),
+                "se.engineering": CompetencyEvidence("se.engineering", "unverified", "unverified", "not_scheduled", 0, (), False),
+            }
+
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.python"
+    proposal["nodes"][1]["competency_key"] = "se.engineering"
+    service = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=Provider())
+    path = service.create(proposal)
+    first = service.repository.version(path.path_id, 1)
+    projection = service.sequence(path.path_id)
+    by_id = {item["node_id"]: item for item in projection["nodes"]}
+    assert by_id["arrays"]["decision"] == "SKIP_ALREADY_SUPPORTED"
+    assert by_id["arrays"]["evidence"]["independent_correct_attempts"] == 2
+    assert by_id["pointers"]["decision"] == "DIAGNOSTIC_FIRST"
+    assert by_id["window"]["decision"] == "BLOCKED"
+    assert projection["candidate_next_nodes"] == ["pointers", "trees"]
+    applied = service.apply_adaptation(path.path_id)
+    assert applied.current_version == 2
+    assert service.repository.version(path.path_id, 1) == first
+    assert service.repository.version(path.path_id, 2).reason == "evidence_adaptation"
+    assert service.repository.version(path.path_id, 2).adaptation["decisions"]
+    restarted = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=Provider()).sequence(path.path_id)
+    assert restarted["version"] == 2
+    assert restarted["nodes"] == projection["nodes"]
+    assert restarted["candidate_next_nodes"] == projection["candidate_next_nodes"]
+
+
+def test_partial_mastery_recommends_diagnostic_instead_of_satisfying(tmp_path):
+    class Provider:
+        def competency_evidence(self, ids):
+            return {"se.python": CompetencyEvidence("se.python", "recognize", "current", "scheduled", 1, (), False)}
+
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.python"
+    service = LearningPathService(tmp_path / "partial.sqlite3", evidence_provider=Provider())
+    path = service.create(proposal)
+    node = service.sequence(path.path_id)["nodes"][0]
+    assert node["evidence_state"] == "needs_diagnostic"
+    assert node["decision"] == "DIAGNOSTIC_FIRST"
+
+
+def test_unmapped_and_unavailable_evidence_fail_closed(tmp_path):
+    service = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=object())
+    path = service.create(curriculum())
+    result = service.sequence(path.path_id)
+    assert result["evidence_available"] is False
+    assert all(item["evidence_state"] == "unmapped" for item in result["nodes"])
+    assert result["candidate_next_nodes"] == ["arrays"]
+
+    class BrokenProvider:
+        def competency_evidence(self, ids):
+            raise OSError("candidate provider unavailable")
+
+    mapped = curriculum()
+    mapped["nodes"][0]["competency_key"] = "se.python"
+    other = LearningPathService(tmp_path / "mapped.sqlite3", evidence_provider=BrokenProvider())
+    mapped_path = other.create(mapped)
+    blocked = other.sequence(mapped_path.path_id)
+    assert blocked["nodes"][0]["evidence_state"] == "unavailable"
+    assert blocked["nodes"][0]["decision"] == "DEFER"
+    assert blocked["candidate_next_nodes"] == []
+
+    class MalformedProvider:
+        def competency_evidence(self, ids):
+            return {"se.python": {"mastery": "apply_independently"}}
+
+    malformed = LearningPathService(tmp_path / "malformed.sqlite3", evidence_provider=MalformedProvider())
+    malformed_path = malformed.create(mapped)
+    assert malformed.sequence(malformed_path.path_id)["nodes"][0]["evidence_state"] == "unavailable"
+
+
+@pytest.mark.parametrize(
+    ("confidence", "expected", "dependent"),
+    [("weak", "REINFORCE_FIRST", "BLOCKED"), ("stale", "REVIEW_FIRST", "BLOCKED")],
+)
+def test_weak_or_stale_direct_evidence_changes_local_sequencing(tmp_path, confidence, expected, dependent):
+    class Provider:
+        def competency_evidence(self, ids):
+            due = confidence == "stale"
+            return {"se.python": CompetencyEvidence("se.python", "apply_independently", confidence, "due" if due else "failed", 1, ("retention concern",), due)}
+
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.python"
+    proposal["prerequisites"] = [edge for edge in proposal["prerequisites"] if edge["node_id"] != "trees"]
+    service = LearningPathService(tmp_path / f"{confidence}.sqlite3", evidence_provider=Provider())
+    path = service.create(proposal)
+    nodes = {item["node_id"]: item for item in service.sequence(path.path_id)["nodes"]}
+    assert nodes["arrays"]["decision"] == expected
+    assert nodes["pointers"]["decision"] == dependent
+    assert "trees" in service.sequence(path.path_id)["candidate_next_nodes"]
+
+
+def test_career_forge_adapter_and_sequence_do_not_mutate_learner_database(tmp_path):
+    db = tmp_path / "cf.sqlite3"
+    cf = CareerForgeService(db)
+    before = db.read_bytes()
+    adapter = CareerForgeEvidenceProjection(cf)
+    result = adapter.competency_evidence({"se.python", "unknown.key"})
+    assert set(result) == {"se.python"}
+    assert result["se.python"].confidence == "unverified"
+    service = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=adapter)
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.python"
+    path = service.create(proposal)
+    service.sequence(path.path_id)
+    service.apply_adaptation(path.path_id)
+    assert db.read_bytes() == before

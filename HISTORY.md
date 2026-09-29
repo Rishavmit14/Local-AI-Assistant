@@ -1,5 +1,32 @@
 # Project History
 
+## 2026-09-29 — DLP-2 Career Forge evidence integration and adaptive sequencing
+
+Added a bounded read-only `CareerForgeEvidenceProjection` over the canonical
+Career Forge confidence, weak-area, and retention-review projections. DLP maps
+current/reinforced `APPLY_INDEPENDENTLY`-or-higher evidence to supported;
+weak, stale/due, below-threshold, unverified, unknown, and unavailable evidence
+remain distinct.
+Direct unsupported prerequisites block their dependents while independent
+branches remain candidates. Deterministic sequence output includes candidate
+ordering, blockers, decisions, explanations, diagnostic/review/reinforcement
+recommendations, and evidence-backed counts. No Qwen call is needed.
+
+Added typed sequence and adaptation APIs. Applying the low-impact adaptation
+persists the same curriculum graph as a new immutable DLP version with bounded
+decision provenance; it never marks a lesson complete or changes Career Forge
+state. Tests cover evidence states, provider failure, direct blocking and
+branch availability, deterministic ordering, immutability, restart
+reconstruction, and byte-equivalent candidate Career Forge SQLite state. Row
+61 remains PARTIAL; row 60 remains PARTIAL. Owner creation/UI, governed
+diagnostic execution, review handoff, integrated learning/project flows, and
+owner E2E remain DLP-3 scope. Final gates passed: 1,123 Python tests,
+repository verification, targeted Ruff, `pip check`, and `git diff --check`.
+Frontend tests/build were not rerun because no frontend files changed; no Qwen
+inference or production restart was needed. Candidate Friday and Qwen health
+were HTTP 200 at final read-only check. Protected production checkout remained
+at its recorded HEAD with the pre-existing Pocket/Anna worktree changes.
+
 ## 2026-09-29 — DLP-1 Dynamic Learning Paths core
 
 Added a dedicated SQLite-backed `LearningPathService` with immutable version

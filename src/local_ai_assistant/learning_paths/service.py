@@ -77,13 +77,119 @@ class LearningPathService:
         *,
         validator: CurriculumValidator | None = None,
         generator: LocalCurriculumGenerator | None = None,
+        evidence_provider=None,
     ):
         self.repository = LearningPathRepository(database)
         self.validator = validator or CurriculumValidator()
         self.generator = generator
+        self.evidence_provider = evidence_provider
+
+    def sequence(self, path_id: str):
+        """Compute a deterministic evidence-aware, non-mutating path projection."""
+        from .evidence import evidence_state
+
+        detail = self.detail(path_id)
+        path, version = detail["path"], detail["current"]
+        mapped = {str(n["competency_key"]) for n in version.nodes if n.get("competency_key")}
+        available = self.evidence_provider is not None
+        try:
+            evidence = self.evidence_provider.competency_evidence(mapped) if available else {}
+            if not isinstance(evidence, dict):
+                raise TypeError("evidence projection must be a mapping")
+            from local_ai_assistant.career_forge.models import MasteryLevel
+
+            from .evidence import CompetencyEvidence
+            valid_confidence = {"unverified", "weak", "stale", "current", "reinforced"}
+            for key, item in evidence.items():
+                if (key not in mapped or not isinstance(item, CompetencyEvidence) or item.competency_id != key
+                        or item.mastery not in {level.value for level in MasteryLevel}
+                        or item.confidence not in valid_confidence
+                        or not isinstance(item.independent_correct_attempts, int)
+                        or item.independent_correct_attempts < 0
+                        or not isinstance(item.weak_reasons, tuple)
+                        or any(not isinstance(reason, str) for reason in item.weak_reasons)):
+                    raise ValueError("invalid evidence projection")
+        except Exception:
+            evidence, available = {}, False
+        states = {key: evidence_state(evidence.get(key)) for key in mapped}
+        incoming: dict[str, list[str]] = {n["node_id"]: [] for n in version.nodes}
+        for edge in version.prerequisites:
+            incoming[edge["node_id"]].append(edge["prerequisite_node_id"])
+        node_by_id = {n["node_id"]: n for n in version.nodes}
+        module_order = {m["module_id"]: i for i, m in enumerate(version.modules)}
+        topo_index = {node_id: i for i, node_id in enumerate(version.topological_order)}
+        result = []
+        candidates = []
+        path_can_sequence = path.state not in {"paused", "completed", "archived"}
+        for node_id in version.topological_order:
+            node = node_by_id[node_id]
+            competency = node.get("competency_key")
+            state = (states.get(str(competency), "unmapped") if available else "unavailable") if competency else "unmapped"
+            prereq_blockers = [p for p in incoming[node_id] if self._node_state(node_by_id[p], states) != "satisfied"]
+            blocked = bool(prereq_blockers)
+            decision = "SKIP_ALREADY_SUPPORTED" if state == "satisfied" else (
+                "DEFER" if state == "unavailable" or not path_can_sequence else
+                "BLOCKED" if blocked else "REVIEW_FIRST" if state == "needs_review" else
+                "DIAGNOSTIC_FIRST" if state in {"needs_diagnostic", "unmapped"} else
+                "REINFORCE_FIRST" if state == "unsatisfied" else "ELIGIBLE"
+            )
+            eligible = not blocked and decision not in {"SKIP_ALREADY_SUPPORTED", "DEFER"}
+            reason = ("Path lifecycle does not allow sequencing." if not path_can_sequence and state != "satisfied" else
+                      f"Blocked by direct prerequisite(s): {', '.join(prereq_blockers)}." if blocked else
+                      "Current independent Career Forge evidence supports this competency." if decision == "SKIP_ALREADY_SUPPORTED" else
+                      "Career Forge retention evidence is due or stale; review before dependent work." if state == "needs_review" else
+                      "Career Forge evidence is unavailable; sequencing is deferred without assuming satisfaction." if state == "unavailable" else
+                      "No canonical evidence is available; a short diagnostic is recommended." if state in {"needs_diagnostic", "unmapped"} else
+                      ("Career Forge evidence does not yet support independent application. " +
+                       ("Weak-area signals: " + "; ".join(evidence[str(competency)].weak_reasons) + "."
+                        if competency and str(competency) in evidence and evidence[str(competency)].weak_reasons else "")) if state == "unsatisfied" else
+                      "All direct prerequisites are supported by current canonical evidence.")
+            result.append({"node_id": node_id, "competency_id": competency, "evidence_state": state,
+                           "evidence": ({"mastery": evidence[str(competency)].mastery,
+                                         "confidence": evidence[str(competency)].confidence,
+                                         "retention": evidence[str(competency)].retention,
+                                         "independent_correct_attempts": evidence[str(competency)].independent_correct_attempts,
+                                         "weak_reasons": list(evidence[str(competency)].weak_reasons),
+                                         "review_due": evidence[str(competency)].review_due}
+                                        if competency and str(competency) in evidence else None),
+                           "decision": decision, "eligible": eligible, "blockers": prereq_blockers,
+                "recommendation": "defer" if state == "unavailable" else "review" if state == "needs_review" else "diagnostic" if state in {"needs_diagnostic", "unmapped"} else "reinforce" if state == "unsatisfied" else None,
+                           "reason": reason})
+            if eligible:
+                candidates.append(node_id)
+        candidates.sort(key=lambda node_id: (module_order.get(node_by_id[node_id]["module_id"], 10**6), topo_index[node_id], node_id))
+        return {"path_id": path.path_id, "version": version.version, "path_state": path.state, "evidence_available": available,
+                "nodes": result, "candidate_next_nodes": candidates,
+                "progress": {"mapped": len(evidence), "supported": sum(v == "satisfied" for v in states.values()),
+                             "not_supported": sum(v in {"unsatisfied", "needs_diagnostic", "needs_review"} for v in states.values()),
+                             "unmapped_nodes": sum(not n.get("competency_key") or (available and str(n.get("competency_key")) not in evidence) for n in version.nodes),
+                             "unavailable_nodes": sum(bool(n.get("competency_key")) and not available for n in version.nodes)}}
+
+    @staticmethod
+    def _node_state(node, states):
+        key = node.get("competency_key")
+        return states.get(str(key), "unmapped") if key else "unmapped"
+
+    def apply_adaptation(self, path_id: str):
+        """Persist an auditable evidence-adaptation snapshot without deleting curriculum."""
+        projection = self.sequence(path_id)
+        detail = self.detail(path_id)
+        current = detail["current"]
+        payload = {**current.metadata, "summary": f"Evidence adaptation preview: {sum(n['decision'] == 'SKIP_ALREADY_SUPPORTED' for n in projection['nodes'])} already-supported; {sum(n['decision'] == 'REVIEW_FIRST' for n in projection['nodes'])} review; {sum(n['decision'] == 'DIAGNOSTIC_FIRST' for n in projection['nodes'])} diagnostic recommendations.",
+                   "modules": list(current.modules), "nodes": list(current.nodes), "prerequisites": list(current.prerequisites),
+                   "milestones": list(current.milestones), "reason": "evidence_adaptation", "provenance": "career_forge_evidence_projection",
+                   "adaptation": {"source_version": current.version, "evidence_available": projection["evidence_available"],
+                                  "decisions": [{"node_id": n["node_id"], "decision": n["decision"],
+                                                 "evidence_state": n["evidence_state"], "evidence": n["evidence"]}
+                                                for n in projection["nodes"]],
+                                  "summary": "Historical sequencing annotation only; Career Forge remains current learner-state authority."}}
+        adaptation = payload.pop("adaptation")
+        return self.revise(path_id, payload, reason="evidence_adaptation",
+                           provenance="career_forge_evidence_projection", adaptation=adaptation)
 
     def create(self, proposal: dict[str, Any]):
         value = canonical_curriculum(proposal)
+        value["adaptation"] = {}
         order = self.validator.validate(value)
         now = datetime.now(UTC).isoformat()
         value["created_at"] = now
@@ -132,11 +238,13 @@ class LearningPathService:
             return "uncertain"
 
     def revise(
-        self, path_id: str, proposal: dict[str, Any], *, reason: str, provenance: str = "owner_edit"
+        self, path_id: str, proposal: dict[str, Any], *, reason: str, provenance: str = "owner_edit",
+        adaptation: dict[str, Any] | None = None,
     ):
         current = self.repository.get(path_id)
         value = canonical_curriculum(
-            {**proposal, "path_id": path_id, "reason": reason, "provenance": provenance}
+            {**proposal, "path_id": path_id, "reason": reason, "provenance": provenance,
+             "adaptation": adaptation or {}}
         )
         order = self.validator.validate(value)
         now = datetime.now(UTC).isoformat()

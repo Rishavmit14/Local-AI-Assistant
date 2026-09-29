@@ -1646,10 +1646,11 @@ contract and the observed public NeetCode reference. UX-60A adds no Dynamic
 Learning Paths backend, owner mastery mutation, second conversation store, or
 required network asset. **Row 60 remains PARTIAL**: it tracks whole-product
 owner qualification, including future Dynamic Learning Paths and integrated
-owner flows. The next recommended design/engineering step is DLP-1 after this
-UX-60A recovery boundary; it is not started here.
+owner flows. At the UX-60A recovery boundary, DLP-1 was the next engineering
+step. DLP-1 and the evidence-aware DLP-2 backend phase are now complete; owner
+integration remains the next DLP dependency.
 
-## Dynamic Learning Paths — DLP-1 core foundation (row 61, PARTIAL)
+## Dynamic Learning Paths — DLP-1/2 backend foundation (row 61, PARTIAL)
 
 DLP-1 establishes a separate local SQLite authority for versioned learning-path
 curricula above Career Forge. It includes modules, nodes, explicit prerequisite
@@ -1658,14 +1659,20 @@ cycle-rejecting validator and stable topological ordering, local
 `CURRICULUM_DESIGNER` proposal generation, and typed create/list/detail/history/
 revision routes. Every candidate passes deterministic validation before
 transactional persistence; invalid or failed model proposals create no state.
-Career Forge owns all attempts, evidence and mastery, and DLP-1 does not mutate
-or project learner progress. No browser authority, generated progress claim,
-automatic completion, adaptive replanning, diagnostic engine, or owner UI is
-included. Row 60 remains PARTIAL. See
+Career Forge owns all attempts, evidence and mastery. DLP-2 adds a read-only
+Career Forge evidence adapter and deterministic sequencing: only current or
+reinforced independent-application evidence supports a mapped node; stale,
+weak, below-threshold, or unverified evidence yields review, reinforcement, or diagnostic
+recommendations. Direct prerequisite failures block dependent nodes without
+blocking unrelated branches. Sequence projections expose stable candidates,
+reasons, and evidence-backed counts. Adaptation writes a new immutable DLP
+version with historical decision provenance and never mutates Career Forge.
+Provider failure defers mapped nodes. No browser authority, automatic
+completion, diagnostic execution, or owner UI is included. Row 60 remains
+PARTIAL. See
 `docs/architecture/dynamic-learning-paths.md`.
 
-This foundation is **IMPLEMENTED** and passed bounded candidate local-Qwen
-generation/restart qualification plus the full relevant acceptance gates. It
-does not qualify owner-facing learning-path usability. The next DLP dependency
-after this bounded DLP-1 task is DLP-2 evidence integration and adaptive
-sequencing; it is not part of DLP-1.
+The backend foundation is **IMPLEMENTED** and passed deterministic candidate
+evidence/adaptation and restart qualification plus the relevant acceptance
+gates. It does not qualify owner-facing learning-path usability. Next is DLP-3
+Owner Learning Path Integration; backend status does not establish owner use.

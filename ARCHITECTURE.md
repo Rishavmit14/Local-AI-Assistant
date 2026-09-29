@@ -425,7 +425,7 @@ Physical Astra qualification covered save, reload, conversational recall,
 correction, service restart/recovery, confirmed forget, and verified absence
 from active recall. No memory database or authority was added to the frontend.
 
-## Dynamic Learning Paths — DLP-1 core authority
+## Dynamic Learning Paths — DLP-1/2 authority
 
 DLP is the curriculum sequencing authority above Career Forge. Its local
 `LearningPathService` stores path metadata and immutable version snapshots in
@@ -442,10 +442,16 @@ DAG validation succeeds. Local model failure has no fabricated or cloud
 fallback. DLP owns no mastery, attempts, evidence, mission, retention, readiness,
 project execution, browser state, or next-learner-node authority. Career Forge
 remains their canonical owner and is not mutated by path generation or reads.
-The API provides create, local generation, list, detail, version history, and
-validated revision. This is an implemented backend foundation, not an owner
-UI or adaptive sequencing qualification; matrix row 61 is PARTIAL and row 60
-remains PARTIAL.
+The API provides create, local generation, list, detail, version history,
+validated revision, evidence-aware sequencing, and versioned low-impact
+adaptation. Sequencing reuses a bounded read-only Career Forge projection:
+independent-application mastery with current/reinforced confidence supports a
+node, while stale/weak/unverified evidence leads to review, reinforcement, or
+diagnostic recommendations. Direct unsupported prerequisites block dependent
+nodes while unrelated branches remain candidates. Adaptation records decision
+provenance in a new immutable version and never writes Career Forge learner
+state. This remains backend functionality, not owner UI or end-to-end path
+qualification; matrix row 61 is PARTIAL and row 60 remains PARTIAL.
 
 ### Astra Research / Knowledge presentation boundary
 

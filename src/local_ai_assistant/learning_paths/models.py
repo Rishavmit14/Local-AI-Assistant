@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Any
 from uuid import uuid4
@@ -39,6 +39,7 @@ class LearningPathVersion:
     prerequisites: tuple[dict[str, str], ...]
     milestones: tuple[dict[str, Any], ...]
     topological_order: tuple[str, ...]
+    adaptation: dict[str, Any] = field(default_factory=dict)
 
 
 def canonical_curriculum(payload: dict[str, Any]) -> dict[str, Any]:
@@ -66,6 +67,7 @@ def canonical_curriculum(payload: dict[str, Any]) -> dict[str, Any]:
         "nodes": payload.get("nodes", []),
         "prerequisites": payload.get("prerequisites", []),
         "milestones": payload.get("milestones", []),
+        "adaptation": payload.get("adaptation", {}),
     }
 
 
@@ -86,6 +88,7 @@ def version_from_json(path_id: str, version: int, data: str) -> LearningPathVers
         tuple(value["prerequisites"]),
         tuple(value["milestones"]),
         tuple(value["topological_order"]),
+        value.get("adaptation", {}),
     )
 
 
@@ -117,6 +120,7 @@ def version_payload(curriculum: dict[str, Any], version: int, order: tuple[str, 
             "prerequisites": curriculum["prerequisites"],
             "milestones": curriculum["milestones"],
             "topological_order": order,
+            "adaptation": curriculum.get("adaptation", {}),
         },
         sort_keys=True,
         separators=(",", ":"),

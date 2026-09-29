@@ -1,4 +1,4 @@
-# Dynamic Learning Paths — DLP-1 core authority
+# Dynamic Learning Paths — DLP-1/2 core authority
 
 ## Responsibility
 
@@ -27,7 +27,8 @@ is introduced in this phase.
 
 Snapshots include path metadata, modules, nodes, prerequisite edges, milestone
 references, stable topological order, revision reason, provenance, summary,
-and creation time. Module order is descriptive only. Edges alone establish
+and creation time. Module order does not establish prerequisites; DLP-2 uses it
+only as a deterministic candidate tie-break. Edges alone establish
 prerequisites, including cross-module dependencies. Milestone project
 references are opaque structural references and create no project or
 publication side effects.
@@ -48,9 +49,8 @@ and diagnostic. Invalid create/revise
 requests fail before persistence; the database transaction prevents partial
 canonical records.
 
-The projection exposes structural lifecycle and target feasibility only. It
-does not calculate learner progress, mastery, readiness, or a next learner
-node. A target profile describes destination outcomes. Date/pace feasibility
+The structural path projection does not calculate mastery or readiness. A
+target profile describes destination outcomes. Date/pace feasibility
 is `not_assessed` without both inputs, `exceeds_requested_pace` when supplied
 module estimates exceed available requested hours, and otherwise `uncertain`;
 it is not a schedule optimizer or promise.
@@ -72,12 +72,55 @@ detail, history, and validated revision. Typed request and response models are
 published in OpenAPI. Generation persists only after proposal parsing and
 validation. No browser state is canonical.
 
+## DLP-2 evidence projection and sequencing
+
+`CareerForgeEvidenceProjection` is the only DLP evidence boundary. It delegates
+to Career Forge's read-only `learner_confidence()`, `weak_areas()`, and
+`retention_reviews()` projections and returns bounded mastery/confidence/
+retention categories, independent correct-attempt counts, weak-area reasons,
+and due-review flags. It never returns answer bodies or writes Career Forge
+state. Unknown competency keys are absent from the projection. Provider failure
+is represented as unavailable; mapped nodes are deferred and cannot become
+eligible on an assumed pass.
+
+Sequencing maps `APPLY_INDEPENDENTLY` or higher mastery plus `current` or
+`reinforced` confidence to satisfied. This reuses Career Forge's mastery ladder
+and categorical confidence policy; lower mastery rungs and unverified evidence
+recommend a diagnostic, and none satisfy prerequisites. `stale` or due
+retention becomes review-first. `weak` evidence becomes reinforcement-first
+for that node. No diagnostic recommendation is a result: unmapped or
+insufficiently evidenced nodes may recommend a diagnostic, but only Career
+Forge assessments can create new truth.
+
+Each DLP edge is a direct prerequisite gate: its source node must be currently
+satisfied by Career Forge evidence before the dependent is eligible. A weak,
+stale, unverified, or unmapped direct prerequisite blocks that dependent; it
+does not globally block unrelated branches. DLP does not create a parallel
+interleaving engine. Candidate order is module order, then the stored stable
+topological order, then node ID. All valid candidates are returned. Already
+supported nodes remain in the curriculum and are annotated
+`SKIP_ALREADY_SUPPORTED`; this is a sequencing decision, never Career Forge
+mastery or completion.
+
+`GET /api/v1/learning-paths/{path_id}/sequence` is a deterministic, read-only
+projection with typed per-node decisions/reasons, direct blockers, candidate
+next nodes, and categorical evidence-backed counts. Unmapped and unavailable
+nodes are counted separately from supported competencies. Path lifecycle and
+version are included; no automatic completion or goal change is made.
+`POST /api/v1/learning-paths/{path_id}/adapt` writes a new immutable path
+version with the same graph plus bounded decision/provenance annotations. The
+annotation is historical only; opening the path recomputes from current Career
+Forge projections. Prior versions remain unchanged. Projection and adaptation
+create no attempts, reviews, missions, evidence, or mastery writes.
+
+Restart reconstruction uses the persisted DLP version and a fresh Career Forge
+projection, yielding the same sequencing decisions for unchanged evidence.
+Provider errors fail closed for mapped nodes while leaving the structural path
+readable. Curriculum text remains untrusted data and confers no tool authority.
+
 ## Future seams and limits
 
-Career Forge evidence may later be projected read-only to inform prerequisite
-satisfaction. DLP must not duplicate Learner Twin storage or author its answer.
-DLP-1 has no evidence-aware sequencing, adaptive replanning, diagnostic engine,
-owner editing UI, visual roadmap, review queue, automatic mission/project
-creation, or full owner-path qualification. Those require later roadmap work;
-row 60 remains PARTIAL. The backend capability has independent matrix tracking
-under row 61.
+DLP-2 does not provide governed diagnostic execution, owner editing UI, visual
+roadmap, review delivery, automatic mission/project creation, or full owner-
+path qualification. Those require later roadmap work; row 60 remains PARTIAL.
+The backend capability has independent matrix tracking under row 61.

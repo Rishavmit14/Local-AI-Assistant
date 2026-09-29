@@ -1620,6 +1620,8 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/learning-paths/{path_id}",
         "/api/v1/learning-paths/{path_id}/versions",
         "/api/v1/learning-paths/{path_id}/versions/{version}",
+        "/api/v1/learning-paths/{path_id}/sequence",
+        "/api/v1/learning-paths/{path_id}/adapt",
         "/api/v1/knowledge/documents",
         "/api/v1/knowledge/ask",
         "/api/v1/proactive/notifications",

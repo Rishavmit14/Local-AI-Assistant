@@ -204,6 +204,7 @@ class LearningPathVersionView(BaseModel):
     prerequisites: list[LearningPathPrerequisiteView]
     milestones: list[LearningPathMilestoneView]
     topological_order: list[str]
+    adaptation: dict[str, object] = Field(default_factory=dict)
 
 
 class LearningPathCreatedView(BaseModel):
@@ -222,6 +223,43 @@ class LearningPathListView(BaseModel):
 
 class LearningPathVersionsView(BaseModel):
     versions: list[LearningPathVersionView]
+
+
+class LearningPathEvidenceView(BaseModel):
+    mastery: str
+    confidence: str
+    retention: str
+    independent_correct_attempts: int
+    weak_reasons: list[str]
+    review_due: bool
+
+
+class LearningPathNodeSequenceView(BaseModel):
+    node_id: str
+    competency_id: str | None
+    evidence_state: str
+    evidence: LearningPathEvidenceView | None
+    decision: str
+    eligible: bool
+    blockers: list[str]
+    recommendation: str | None
+    reason: str
+
+
+class LearningPathSequenceView(BaseModel):
+    path_id: str
+    version: int
+    path_state: str
+    evidence_available: bool
+    nodes: list[LearningPathNodeSequenceView]
+    candidate_next_nodes: list[str]
+    progress: dict[str, int]
+
+
+class LearningPathAdaptationView(BaseModel):
+    path: LearningPathView
+    version: LearningPathVersionView
+    sequence: LearningPathSequenceView
 
 
 class PrivateDocumentQuestionRequest(BaseModel):
@@ -2181,6 +2219,31 @@ def create_presentation_app(
                 "current": asdict(service.repository.version(path_id, path.current_version)),
             }
         except KeyError as exc:
+            learning_path_error(exc)
+
+    @app.get("/api/v1/learning-paths/{path_id}/sequence", response_model=LearningPathSequenceView)
+    def sequence_learning_path(path_id: str):
+        service = learning_path_service()
+        if service.evidence_provider is None and career_forge is not None:
+            from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
+            service.evidence_provider = CareerForgeEvidenceProjection(career_forge)
+        try:
+            return service.sequence(path_id)
+        except KeyError as exc:
+            learning_path_error(exc)
+
+    @app.post("/api/v1/learning-paths/{path_id}/adapt", response_model=LearningPathAdaptationView)
+    def adapt_learning_path(path_id: str):
+        service = learning_path_service()
+        if service.evidence_provider is None and career_forge is not None:
+            from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
+            service.evidence_provider = CareerForgeEvidenceProjection(career_forge)
+        try:
+            path = service.apply_adaptation(path_id)
+            return {"path": learning_path_projection(path),
+                    "version": asdict(service.repository.version(path_id, path.current_version)),
+                    "sequence": service.sequence(path_id)}
+        except (CurriculumValidationError, KeyError) as exc:
             learning_path_error(exc)
 
     @app.post("/api/v1/learning-paths/{path_id}/versions", response_model=LearningPathCreatedView)

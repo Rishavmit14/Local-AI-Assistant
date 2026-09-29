@@ -1,6 +1,6 @@
 # Friday Product Experience V1
 
-**Owner contract, 2026-09-29.** UX-60A establishes the product shell. This document does not implement Dynamic Learning Paths or qualify matrix row 60.
+**Owner contract, 2026-09-29.** UX-60A establishes the product shell. This document does not implement the Dynamic Learning Paths owner experience or qualify matrix row 60.
 
 ## Product model
 
@@ -22,6 +22,6 @@ Navigation uses semantic landmarks, visible active and focus states, labels, key
 
 ## Next learning authority
 
-Dynamic Learning Paths is a first-class curriculum-sequencing capability above the current Career Forge state model. DLP-1 establishes persistent versioned path records, modules/nodes, prerequisites, deterministic graph validation, a local curriculum-generation contract, and typed create/read/revision projections. It is a backend foundation and does not yet provide an owner UI or adaptive learner sequencing. Later phases may add evidence-aware replanning, pathway visualization, review integration, and owner qualification. DLP must not change owner mastery merely because a path was generated or viewed.
+Dynamic Learning Paths is a first-class curriculum-sequencing capability above the current Career Forge state model. DLP-1 establishes persistent versioned path records, modules/nodes, prerequisites, deterministic graph validation, a local curriculum-generation contract, and typed create/read/revision projections. DLP-2 adds deterministic sequencing from a bounded read-only Career Forge evidence projection and immutable evidence-adaptation annotations. Current independent-application evidence may satisfy a mapped node; weak/stale/unverified evidence recommends reinforcement, review, or diagnostic steps without producing evidence or changing mastery. DLP remains a backend foundation without an owner UI, governed diagnostic execution, review delivery, or owner-path qualification. Later phases may add pathway visualization, review handoff, and integrated owner flows. DLP must not change owner mastery merely because a path was generated, projected, or adapted.
 
-Matrix row 60 tracks whole-product experience completeness and remains **PARTIAL** after UX-60A and DLP-1. Dynamic Learning Paths has independent capability tracking in row 61 because it introduces new persisted learning authority and qualification distinct from navigation or shell completeness.
+Matrix row 60 tracks whole-product experience completeness and remains **PARTIAL** after UX-60A and DLP-2. Dynamic Learning Paths has independent capability tracking in row 61 because it introduces new persisted learning authority and qualification distinct from navigation or shell completeness.
