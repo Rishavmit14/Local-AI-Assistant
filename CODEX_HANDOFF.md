@@ -4,9 +4,9 @@ Repository: `/AI/projects/Local-AI-Assistant-terra-integration`, branch
 `integration/astra-friday`. The last accepted/published baseline before DLP-1
 was `9c5ab0d947abfb6b10d345b68baf183c90635ca1`. The fully validated DLP-1
 implementation commit is `e8b982b368644ef6f1b9c875972106d693fbc1ea`. This
-handoff refresh is the final recovery commit; resolve its exact SHA with
-`git rev-parse HEAD`. Publish that commit on `integration/astra-friday` and
-`main`, then fetch and verify both remote refs.
+task's recovery point is the current branch `HEAD`; resolve its exact SHA with
+`git rev-parse HEAD`. The fetched `origin/integration/astra-friday` and
+`origin/main` refs must match that SHA.
 
 ## DLP-1 candidate
 
@@ -49,7 +49,7 @@ unchanged from the accepted UX-60A baseline.
 
 ## Exact continuation
 
-Publish this handoff's exact commit (resolve via `git rev-parse HEAD`) on
-`integration/astra-friday`, fast-forward/push `main` to the same recovery
-commit, fetch and verify both remote refs, and leave the integration worktree
-clean. Stop after DLP-1; do not start DLP-2 in this task.
+Publish the current branch `HEAD` on `integration/astra-friday`,
+fast-forward/push `main` to the same recovery commit, fetch and verify both
+remote refs, and leave the integration worktree clean. Stop after DLP-1; do not
+start DLP-2 in this task.
