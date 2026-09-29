@@ -1,10 +1,10 @@
-# Friday recovery handoff — DLP-3 qualified candidate; publication pending
+# Friday recovery handoff — DLP-3 accepted
 
 Repository/worktree: `/AI/projects/Local-AI-Assistant-terra-integration`.
-Branch: `integration/astra-friday`. Starting accepted DLP-2 recovery commit:
-`d654dff79e95bc9a209a0124a5a3de58fc1de461` (also initial `origin/main` and
-`origin/integration/astra-friday`). DLP-3 implementation and qualification gates pass locally. Resolve current HEAD
-with `git rev-parse HEAD`; changes are awaiting commit and remote publication.
+Branch: `integration/astra-friday`. DLP-3 accepted recovery commit:
+`a39a98ef91dd805ba80ab5e7c5970e7bbd0ac1bc`. The integration branch, `main`,
+`origin/integration/astra-friday`, and `origin/main` were fetched and verified at
+this commit. Worktree is clean. DLP-3 is published and remotely recoverable.
 
 ## DLP-3 implementation
 
@@ -30,7 +30,7 @@ with `git rev-parse HEAD`; changes are awaiting commit and remote publication.
   Current Learn UI is a functional integration shell; owner final visual
   acceptance remains deferred.
 
-## Final candidate evidence and publication gate
+## Qualification and recovery evidence
 
 A bounded real local-Qwen Conversation request created and persisted one
 validated 4-module/12-node DSA path. In isolated candidate state,
@@ -60,11 +60,9 @@ acceptance remains deferred.
 
 ## Exact remaining dependency
 
-Finish final diff and owner-state audit, commit DLP-3, push
-`integration/astra-friday`, fast-forward/push `main`, fetch and verify both
-remote refs and the clean worktree. Preserve the functional-only UI status.
-Then stop and recommend DLP-4: generalized arbitrary-domain teaching and
-assessment/evidence/retention authority. Current Career Forge maps only its
-bounded 16 competencies and Practice Lab exercises; arbitrary DLP nodes cannot
-yet complete `teach → practice → assess → evidence → retention → adapt` without
-fabricating mastery. Do not start DLP-4 in the DLP-3 task.
+DLP-3 acceptance is complete; the next roadmap dependency is DLP-4:
+generalized arbitrary-domain teaching and assessment/evidence/retention
+authority. Current Career Forge maps only its bounded 16 competencies and
+Practice Lab exercises; arbitrary DLP nodes cannot yet complete
+`teach → practice → assess → evidence → retention → adapt` without fabricating
+mastery. Do not begin DLP-4 as part of DLP-3.
