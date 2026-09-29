@@ -30,7 +30,8 @@ remain compatible. Learn shows the existing Career Forge Overview, Roadmap,
 Practice, Interview and Progress; Projects, Knowledge, Automate, History,
 Memory, Perception and Developer / Diagnostics keep their canonical service
 boundaries. Home and `#conversation` share `FridayRuntimeStore`. Ask Friday
-returns to Home with a route back to the prior workspace; no automatic page
+returns to Home, focuses the composer in a stacked smaller layout, and offers
+a route back to the prior workspace; no automatic page
 context is claimed. No Dynamic Learning Paths backend or owner learner-state
 change was made. Matrix row 60 stays PARTIAL. Next recommended dependency is
 DLP-1, deliberately not started in this rescue.

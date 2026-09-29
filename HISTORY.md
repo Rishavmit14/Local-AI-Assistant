@@ -26,7 +26,8 @@ Learn, Roadmap, Practice availability, Projects, Knowledge, Automate, History,
 Notifications, Settings, Developer / Diagnostics, command palette and a
 smaller-width layout. The candidate had no active Practice mission; unavailable
 exercise state was shown truthfully. No production service or owner learning
-state was changed. Publication/recovery SHA is the shared fetched HEAD of
+state was changed. A smaller-window correction makes Ask Friday focus the
+canonical composer when the brain and Conversation stack. Publication/recovery SHA is the shared fetched HEAD of
 `integration/astra-friday` and `main` after UX-60A push verification.
 
 
