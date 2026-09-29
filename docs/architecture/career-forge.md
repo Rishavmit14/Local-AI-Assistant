@@ -25,6 +25,14 @@ projections and bounded mission controls over the existing Career Forge API. It
 does not create a second runtime, voice pipeline, model client, session model,
 or desktop frontend.
 
+UX-60A retains the original Astra Ultra brain as Home's presence alongside
+canonical Conversation. The Learn shell presents Career Forge projections in a
+NeetCode-led dark roadmap/practice layout with readable topic cards and direct
+mission navigation. Its product labels are Overview, Roadmap, Practice,
+Interview and Progress; these are presentation routes over existing service
+read models and commands. Dynamic Learning Paths is a future authority and is
+not inferred from the current competency graph or browser state.
+
 The durable product information architecture has four Career Forge surfaces:
 
 1. **LEARN**: the current mission, concepts, diagrams, code, notebook/data

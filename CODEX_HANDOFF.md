@@ -1,80 +1,76 @@
 # Friday current recovery handoff
 
-Repository: `Local-AI-Assistant`; integration worktree:
-`/AI/projects/Local-AI-Assistant-terra-integration`.
+Repository: `/AI/projects/Local-AI-Assistant-terra-integration` on
+`integration/astra-friday`. The accepted pre-UX Phase 19 recovery HEAD was
+`aae600a823e03cdb4d0e24c9d20cee71bd5857ff`. UX-60A is the current
+capability checkpoint; recover its exact commit from the common verified
+`HEAD`, `origin/integration/astra-friday` and `origin/main` refs. The final
+publication verification and actual test counts are in the UX-60A History entry
+and Git history. The accepted worktree is clean after publication.
 
-## Accepted state — Phase 19 / row 59
+## UX-60A recovery
 
-Phase 19 qualifies **bounded Local Intelligence Sovereignty**. Capability
-commit `a7010a3213e3938929813f0a4feec6e8d931c8a0` implements the candidate
-Owner Sovereign boundary; qualification commit
-`794f60508d720ec8b0ce61040815821d626e62b6` records the bounded row-59
-acceptance. Handoff checkpoint `d3a32c7f6bad45c0cb71234860463c11c7bd247a`
-was pushed and fetch-verified at both `origin/integration/astra-friday` and
-`origin/main`. This final handoff-only commit is its direct descendant and is
-also pushed/fetch-verified at both refs. The canonical current revision is the
-exact common SHA returned by `git rev-parse HEAD origin/integration/astra-friday
-origin/main` after fetch.
+The interrupted earlier UX session had no staged files or new commits. Eleven
+tracked files and four untracked files were preserved in external rescue
+snapshot `/tmp/friday-ux60a-pre-redirection-XvBcif` (mode 0700), including
+unstaged/staged patches, untracked tar, status, HEAD, commit list and checksums.
+It contains no known secret material. KEEP: compatible product routes,
+canonical workspace wording, Settings disclosure and History simplification.
+MODIFY: the partial shell's generic Home and blue engineering-heavy styling;
+Home now mounts the exact Astra Ultra brain alongside the canonical Friday
+Conversation, and Learn uses the NeetCode-led dark, scannable layout. REVERT
+SELECTIVELY: none was necessary. `NeuralPresence.tsx` and its supporting
+`Vision.css` were unchanged from `aae600a`; no brain component restore was
+required. `docs/product/NEETCODE_UX_REFERENCE.md` records observed public
+reference pages and originality boundaries.
 
-All native and integrated Phase 19 checks passed. Full repository verification
-passed (1,099 Python tests, package/CLI/artifact checks, and `pip check`); full
-frontend validation passed (105 tests, ESLint, TypeScript, and production
-build); changed Python files passed targeted Ruff; `git diff --check` and
-installed systemd unit verification passed. Global Ruff reports 36 diagnostics
-across 21 unchanged files; no global mass-fix was applied.
+The persistent primary navigation is Home, Learn, Projects, Knowledge,
+Automate and History, with Notifications and Settings. Existing hash routes
+remain compatible. Learn shows the existing Career Forge Overview, Roadmap,
+Practice, Interview and Progress; Projects, Knowledge, Automate, History,
+Memory, Perception and Developer / Diagnostics keep their canonical service
+boundaries. Home and `#conversation` share `FridayRuntimeStore`. Ask Friday
+returns to Home with a route back to the prior workspace; no automatic page
+context is claimed. No Dynamic Learning Paths backend or owner learner-state
+change was made. Matrix row 60 stays PARTIAL. Next recommended dependency is
+DLP-1, deliberately not started in this rescue.
 
-The exact scope and limits are in
-`docs/qualification/owner-sovereign-mode.md`, ADR 0033, and row 59 of
-`docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`. In brief: privileged file,
-transient-systemd, broker-restart, and private-network probes passed with sudo
-timestamps invalidated; the enrolled credential remained available after
-broker restart; the service ran under owner UID/GID in a distinct network
-namespace and host user namespace; external and host-loopback probes were
-denied. Practice Lab, same-UID process, API/client, and model-facing boundaries
-have deterministic negative coverage. A real local-Qwen E2E passed synthetic
-Research, Memory-backed Conversation, Career Forge cognition/evaluation,
-CodeRAG/planning, Reviewer/Security, and local recovery after optional external
-adapter failure. The broker policy trusted only the qualification probe;
-production Friday does not use it, and production administrative UI/API
-integration remains unqualified. No owner private documents or Career Forge
-state were used.
-This does not qualify all Friday capabilities, first-install offline behavior,
-browser-process network isolation, or confidentiality from trusted root.
+## Validation and limits
 
-The integration worktree is clean on `integration/astra-friday`; local `main`
-and both fetched remote refs point to the same published recovery head. The
-Owner Sovereign status command reports `available`; its broker service and
-socket are active, while the disposable user probe and transient qualification
-units are inactive/absent. Production health checks returned `ok` for Friday
-API and Qwen.
+Native browser inspection covered current public NeetCode Home, Roadmap topic
+panel, Practice, Courses and a public lesson; candidate Friday Home and brain
+states, Conversation, Learn Overview and Roadmap, Practice availability,
+Projects, Knowledge, Automate, History, Notifications, Settings,
+Developer / Diagnostics, command palette and a smaller window. The candidate
+presentation API on loopback port 5192 uses disposable
+`/tmp/friday-ux60a-state`; candidate Vite on 5193 proxies it. Production
+Friday/Qwen were not restarted or changed. The production API remains older
+than this integration candidate, so UX-60A browser qualification uses the
+isolated candidate rather than treating older-production 404s as product data.
+Current Career Forge Practice has no active mission in the candidate, so its
+unavailable state is truthful; no owner mission was started for design review.
 
-## Protected runtime invariants
+Final gates passed: 107 frontend tests, ESLint, TypeScript, production build,
+1,099 Python tests, repository package/CLI/artifact checks, `pip check`,
+targeted Ruff, and `git diff --check`. Fetched remote-ref and clean-worktree
+verification complete publication. One MCP subprocess test
+had a 15-second timeout despite an approximately 11-second measured cold CLI
+startup. Its timeout is 45 seconds while the EOF/protocol assertions remain.
+A full-suite source-fingerprint assertion also failed once because source files
+were edited during that run; the final stable-source verification passed.
 
-- Production checkout `/AI/projects/Local-AI-Assistant` is protected; retain
-  its pre-existing Pocket/Anna owner changes exactly.
-- Production Friday `127.0.0.1:8765` and local Qwen `127.0.0.1:8080` must remain
-  running and unmodified.
-- Owner Career Forge state and private documents remain untouched.
-- Protected checkout remains on `stage-22/product-integration` at
-  `e43896623978e86b7bae6502b380462b455626be`; preserve its six modified and
-  four untracked Pocket/Anna voice files.
-- No host networking, firewall, route, DNS, or NetworkManager changes were made.
-- The candidate policy trusts only
-  `friday-owner-sovereign-probe.service` (owner UID/GID 1000). Do not add the
-  production Friday unit to this qualification policy.
-- The candidate probe was stopped after evidence capture; the persistent
-  system broker/socket and encrypted credential are the Owner Sovereign runtime
-  itself, not disposable test state.
+## Protected production and next step
 
-## Next dependency and stop boundary
+Protected production checkout `/AI/projects/Local-AI-Assistant` remains on
+`stage-22/product-integration` at
+`e43896623978e86b7bae6502b380462b455626be` with its pre-existing
+Pocket/Anna voice changes. Preserve that checkout. Production Friday
+`127.0.0.1:8765` and Qwen `127.0.0.1:8080` remain owner runtime services;
+no restart was required for UX-60A. Owner Career Forge and private documents
+were not mutated. Phase 19 Owner Sovereign evidence remains candidate-bounded;
+production privileged integration is not qualified.
 
-Do not start matrix row 60 implementation. After row 59 is committed and
-remotely recoverable, stop at the requested boundary. The next product-design
-step is to reread `FRIDAY_PRODUCT_BRAINSTORM.md` and write the final
-owner-facing product/UI and Dynamic Learning Paths specification before any
-row-60 implementation.
-
-Fresh sessions must read `AGENTS.md`, this handoff, `ROADMAP.md`,
-`ARCHITECTURE.md`, `HISTORY.md`, `FRIDAY_PRODUCT_BASELINE.md`, the matrix, ADR
-0014, ADR 0033, and the Phase 19 qualification report. Repository/runtime truth
-overrides older session snapshots.
+Stop after publishing and fetch-verifying UX-60A. DLP-1 and row 61 are outside
+this rescue. Fresh sessions must reconstruct current truth from Git, this
+handoff, product contract, roadmap, architecture, history, matrix and host
+runtime rather than the old UX transcript.

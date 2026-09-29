@@ -17,6 +17,13 @@ natural conversational and voice interface, and Career Forge surfaces project
 the same local Learner Twin and interaction ownership. The durable information
 architecture is LEARN, MAP, PROJECTS, and PROGRESS:
 
+UX-60A refines the presentation of that unified product: the accepted Astra
+Ultra neural brain remains Friday's cinematic presence on Home beside the one
+canonical Conversation, while Learn uses a dense, readable, NeetCode-led
+roadmap/practice/course interaction language. This is an original Friday shell,
+not a separate learning application, conversation store or backend authority.
+The owner-facing label is **Learn**; internal Career Forge names remain.
+
 - LEARN is the current mission and the appropriate concepts or practical work.
 - MAP is the complete ML/AI Engineer graph, prerequisites, and evidenced mastery.
 - PROJECTS holds FraudShield, Neural Systems Lab, Local Knowledge Assistant, and

@@ -174,9 +174,9 @@ export function ResearchWorkspace({ notify }: WorkspaceProps) {
   return (
     <section className="op-research-canonical">
       <SectionHeader
-        eyebrow="FRIDAY / LOCAL RESEARCH"
-        title="Research"
-        description="Owner-provided evidence in Friday's local research ledger. Sources remain distinct from generated understanding, memory, and conversation."
+        eyebrow="YOUR KNOWLEDGE"
+        title="Knowledge"
+        description="Explore your registered research and ask questions of selected private documents."
         actions={<button className="btn btn-primary" onClick={() => setDraft(emptyDraft())}><Plus size={16} />Register a source</button>}
       />
 

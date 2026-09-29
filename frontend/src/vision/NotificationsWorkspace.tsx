@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, CheckCheck, Radio, RefreshCw, ShieldCheck } from "lucide-react";
+import { Bell, CheckCheck, Radio, RefreshCw } from "lucide-react";
 
 import { FridayRuntimeClient } from "../runtime";
 import type { FridayProactiveNotification, FridayProactiveWatch } from "../runtime";
@@ -105,7 +105,7 @@ export function NotificationsWorkspace() {
 
   return <section className="op-notifications-canonical">
     <SectionHeader
-      eyebrow="FRIDAY / CANONICAL PROACTIVE EVENTS"
+      eyebrow="YOUR UPDATES"
       title="Notifications"
       description="Read what Friday's configured observers recorded. Acknowledgement records your response; it does not approve or execute an action."
       actions={<button className="btn" type="button" onClick={() => void refresh()} disabled={refreshing}>
@@ -113,10 +113,10 @@ export function NotificationsWorkspace() {
       </button>}
     />
 
-    <div className="op-notifications-authority" role="note">
-      <ShieldCheck size={17}/>
+    <details className="op-notifications-authority">
+      <summary>About notifications and watches</summary>
       <p>Proactive events are informational. No schedules, watch rules, tasks, desktop actions, or other automations can be created or run here. The displayed relevance value is the engine's policy score, not urgency or severity.</p>
-    </div>
+    </details>
 
     {error ? <div className="op-notifications-error" role="alert">
       <p>Friday's canonical notification and watch projection could not refresh ({error}).{hasSnapshot ? " The last confirmed projection remains visible." : " No canonical state is available yet."}</p>

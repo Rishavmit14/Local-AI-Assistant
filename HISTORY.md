@@ -1,5 +1,35 @@
 # Project History
 
+## 2026-09-29 — UX-60A NeetCode-led product shell rescue
+
+Recovered an interrupted uncommitted frontend edit on `integration/astra-friday`
+at accepted Phase 19 HEAD `aae600a`; saved unstaged, staged, untracked and
+commit-manifest evidence outside the repository before correction. No partial
+commit existed. Retained the compatible route, workspace wording and Settings
+work; redirected Home to remount the unchanged Astra Ultra `NeuralPresence`
+beside the canonical Friday Conversation. The protected brain component and
+original `Vision.css` have no diff from the accepted visual baseline. Public
+NeetCode Home, Roadmap, Practice, Courses and lesson pages were inspected in a
+rendered browser; `docs/product/NEETCODE_UX_REFERENCE.md` records Friday's
+original adoption of their learning hierarchy, density and dark product
+patterns. Learn uses existing Career Forge authority and readable roadmap
+cards, without generating Dynamic Learning Paths or changing owner mastery.
+The shell retains legacy deep routes and discloses technical views under
+Settings. Matrix row 60 remains PARTIAL. A cold MCP CLI import was measured at
+about 11 seconds; its EOF/protocol subprocess test timeout was enlarged to
+allow workstation load variation while preserving its failure condition.
+Final validation passed 107 frontend tests, ESLint, TypeScript, production
+build, 1,099 Python tests, package/CLI/artifact checks, `pip check`, targeted
+Ruff and `git diff --check`. Native candidate browser review covered Home's
+unchanged animated brain and cognitive-state reaction, canonical Conversation,
+Learn, Roadmap, Practice availability, Projects, Knowledge, Automate, History,
+Notifications, Settings, Developer / Diagnostics, command palette and a
+smaller-width layout. The candidate had no active Practice mission; unavailable
+exercise state was shown truthfully. No production service or owner learning
+state was changed. Publication/recovery SHA is the shared fetched HEAD of
+`integration/astra-friday` and `main` after UX-60A push verification.
+
+
 ## 2026-09-27 — Astra Canonical Product Integration Phase 3 qualified
 
 Replaced Astra's browser-local Research examples/notes with the typed

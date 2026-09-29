@@ -1631,6 +1631,20 @@ candidate broker; no production admin UI/API integration is qualified. This
 also does not qualify every Friday capability, all privileged operations,
 browser-process containment, or first-time installation offline; trusted root
 remains in the trust base. See
-`docs/qualification/owner-sovereign-mode.md` and ADR 0033. Row 60 remains
-unchanged and not started; before it, reopen `FRIDAY_PRODUCT_BRAINSTORM.md`
-and design the final owner-facing product/UI and Dynamic Learning Paths spec.
+`docs/qualification/owner-sovereign-mode.md` and ADR 0033.
+
+UX-60A rescues the interrupted frontend shell from the accepted `aae600a`
+baseline. It keeps the exact Astra Ultra `NeuralPresence` implementation and
+its supporting `Vision.css` presentation, then places it beside canonical
+Conversation on Home. The persistent Home, Learn, Projects, Knowledge,
+Automate, History, Notifications and Settings navigation preserves older hash
+routes. Learn presents the existing Career Forge Overview, Roadmap, Practice,
+Interview and Progress with a NeetCode-led dark, scannable visual system; all
+mastery and next-action content remains canonical. Settings discloses Memory,
+Perception and Developer / Diagnostics. `docs/product/` records the product
+contract and the observed public NeetCode reference. UX-60A adds no Dynamic
+Learning Paths backend, owner mastery mutation, second conversation store, or
+required network asset. **Row 60 remains PARTIAL**: it tracks whole-product
+owner qualification, including future Dynamic Learning Paths and integrated
+owner flows. The next recommended design/engineering step is DLP-1 after this
+UX-60A recovery boundary; it is not started here.

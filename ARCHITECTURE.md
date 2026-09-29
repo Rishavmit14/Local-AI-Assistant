@@ -364,6 +364,19 @@ evidence automatically.
 
 ### Astra presentation integration foundation
 
+UX-60A wraps these existing projections in one Friday product shell. Home mounts
+the unchanged Astra Ultra `NeuralPresence` and the existing
+`FridayRuntimeStore` Conversation together. Persistent navigation groups the
+canonical projections as Home, Learn, Projects, Knowledge, Automate, History,
+Notifications and Settings; previous hash routes remain valid. Learn's Overview,
+Roadmap, Practice, Interview and Progress tabs use Career Forge read models and
+action APIs without browser-owned mastery or Dynamic Learning Paths state.
+Settings discloses Memory, Perception and Developer / Diagnostics without
+removing any technical evidence. `docs/product/FRIDAY_PRODUCT_EXPERIENCE_SPEC_V1.md`
+records the NeetCode-led visual reference and the protected brain identity.
+No new frontend authority, model, remote asset dependency, or backend service
+is introduced by this shell.
+
 The Astra visual workspace consumes Friday only through `frontend/src/presentation`:
 a typed presentation adapter maps the existing `CareerForgeJourney` read model
 into Astra views, while explicit action methods retain the existing canonical

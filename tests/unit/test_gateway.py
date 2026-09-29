@@ -6,8 +6,8 @@ import io
 import json
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from threading import Event
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 
 import pytest
@@ -17,14 +17,15 @@ from local_ai_assistant.gateway.auth import (
     GatewayAuthenticationError,
     GatewayAuthorizationError,
 )
+from local_ai_assistant.gateway.evidence import review_summary, validation_summary
 from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
 from local_ai_assistant.gateway.github import (
     FakeGitHubTransport,
+    GitHubHttpTransport,
     bind_ci_status,
     validate_mappings,
     validate_remote,
     verify_webhook_signature,
-    GitHubHttpTransport,
 )
 from local_ai_assistant.gateway.mcp import MCPGateway
 from local_ai_assistant.gateway.mcp_server import MCPProtocolServer
@@ -34,11 +35,10 @@ from local_ai_assistant.gateway.models import (
     GatewayScope,
     RepositoryMapping,
 )
-from local_ai_assistant.gateway.service import IntegrationGatewayService
-from local_ai_assistant.gateway.evidence import review_summary, validation_summary
 from local_ai_assistant.gateway.publication import GitHubPublicationService
-from local_ai_assistant.history.service import TaskHistoryService
+from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.models import TaskStatus
+from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 
 
@@ -284,9 +284,16 @@ def test_execution_claim_blocks_second_gateway_until_executor_completion(tmp_pat
     gateway.history.store.transition(task.task_id, TaskStatus.APPROVED, "test")
 
     class Executor:
-        def __init__(self): self.callbacks, self.calls = [], []
-        def execute_task(self, item): self.calls.append(item.task_id); return {"task_id": item.task_id}
-        def on_completion(self, _task_id, callback): self.callbacks.append(callback); return True
+        def __init__(self):
+            self.callbacks, self.calls = [], []
+
+        def execute_task(self, item):
+            self.calls.append(item.task_id)
+            return {"task_id": item.task_id}
+
+        def on_completion(self, _task_id, callback):
+            self.callbacks.append(callback)
+            return True
 
     executor = Executor()
     gateway.executor = executor
@@ -392,10 +399,14 @@ def test_production_github_transport_constructs_constrained_requests(monkeypatch
 
 
 def test_mcp_stdio_protocol_subprocess_initialize_and_enumeration(tmp_path):
-    import os, subprocess, sys
+    import os
+    import subprocess
+    import sys
     payload = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\"}\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n"
     env = {**os.environ, "PYTHONPATH": "src"}
-    proc = subprocess.run([sys.executable, "-c", "from local_ai_assistant.gateway.cli import main; main()", "mcp-stdio"], input=payload, text=True, capture_output=True, env=env, timeout=15)
+    # A cold import on the owner workstation takes about 11 seconds; allow load
+    # variation while still failing a protocol server that does not exit on EOF.
+    proc = subprocess.run([sys.executable, "-c", "from local_ai_assistant.gateway.cli import main; main()", "mcp-stdio"], input=payload, text=True, capture_output=True, env=env, timeout=45)
     assert proc.returncode == 0
     lines = [json.loads(line) for line in proc.stdout.splitlines()]
     names = {item["name"] for item in lines[1]["result"]["tools"]}
