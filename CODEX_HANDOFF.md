@@ -5,25 +5,21 @@ Repository: `Local-AI-Assistant`; integration worktree:
 
 ## Accepted state — Phase 19 / row 59
 
-Phase 19 qualifies **bounded Local Intelligence Sovereignty**. The current
-capability and qualification changes are being finalized from base
-`d25df6e52630273821121956497581c5458d4937` on branch
-`integration/astra-friday`. The exact accepted recovery SHA and remote refs must
-be updated here after commit/push verification.
+Phase 19 qualifies **bounded Local Intelligence Sovereignty**. Capability
+commit `a7010a3213e3938929813f0a4feec6e8d931c8a0` implements the candidate
+Owner Sovereign boundary; qualification commit
+`794f60508d720ec8b0ce61040815821d626e62b6` records the bounded row-59
+acceptance. At the handoff update, branch `integration/astra-friday`, local
+`main`, fetched `origin/integration/astra-friday`, and fetched `origin/main`
+all pointed to the qualification commit; the handoff-only update is its
+descendant and must be pushed/fetch-verified to both remote refs.
 
-The fetched `origin/integration/astra-friday` and `origin/main` both resolved to
-the base SHA at recovery. Working changes include the Owner Sovereign broker,
-credential enrollment/update/revoke, native qualification probe, Phase 19 local
-Qwen E2E, focused tests, and canonical documentation. Do not discard or reset
-these changes. Qualification output showed enrollment available and all native
-and integrated Phase 19 checks passed. Full repository verification passed
-(1,099 Python tests, package/CLI/artifact checks, and `pip check`); full frontend
-validation passed (105 tests, ESLint, TypeScript, and production build); changed
-Python files passed targeted Ruff; `git diff --check` and installed systemd
-unit verification passed. Global Ruff reports 36 diagnostics across 21
-unchanged files; no global mass-fix was applied. Remaining work is final diff
-review, accepted commits, push/fetch verification, and final protected-state
-checks.
+All native and integrated Phase 19 checks passed. Full repository verification
+passed (1,099 Python tests, package/CLI/artifact checks, and `pip check`); full
+frontend validation passed (105 tests, ESLint, TypeScript, and production
+build); changed Python files passed targeted Ruff; `git diff --check` and
+installed systemd unit verification passed. Global Ruff reports 36 diagnostics
+across 21 unchanged files; no global mass-fix was applied.
 
 The exact scope and limits are in
 `docs/qualification/owner-sovereign-mode.md`, ADR 0033, and row 59 of
