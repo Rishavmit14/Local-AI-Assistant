@@ -6,6 +6,7 @@ authority boundary: it can call only adapters explicitly registered here.
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -17,6 +18,8 @@ from local_ai_assistant.career_forge import (
     PracticeLabService,
     TutorMode,
 )
+from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
+from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
 from local_ai_assistant.learning_paths.service import CurriculumGenerationError, LearningPathService
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
@@ -357,12 +360,64 @@ class TaskExplanationConversationAdapter:
 class LearningPathConversationAdapter:
     """Explicit, deterministic owner intent for canonical learning paths."""
 
-    def __init__(self, service: LearningPathService):
+    def __init__(self, service: LearningPathService, career_forge: CareerForgeService | None = None):
         self.service = service
+        self.generalized = GeneralizedLearningService(career_forge) if career_forge else None
 
     def route(self, text: str) -> CapabilityRoute | None:
         normalized = " ".join(text.strip().lower().split())
         normalized = re.sub(r"^(?:hey\s+)?friday[, ]+", "", normalized)
+        if self.generalized is not None and re.search(r"\bteach me (?:the )?next topic\b", normalized):
+            path = self.service.current()
+            if path is None:
+                return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths",
+                    "Select an active learning path in Learn before asking me to teach its next topic.")
+            named_path = re.search(r"\bin my (.+?) path\b", normalized)
+            if named_path:
+                requested_path = re.sub(r"[^a-z0-9 ]", "", named_path.group(1)).strip()
+                path_identity = re.sub(r"[^a-z0-9 ]", "", f"{path.title} {path.goal}".lower())
+                if requested_path not in path_identity:
+                    return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths",
+                        f"That request names '{named_path.group(1)}', but your current path is '{path.title}'. Select the intended path first.")
+            if path.state != "active":
+                return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths",
+                    "Activate your current learning path in Learn before starting its next topic.")
+            sequence = self.service.sequence(path.path_id)
+            candidates = sequence.get("candidate_next_nodes", [])
+            version = self.service.repository.version(path.path_id, path.current_version)
+            node_by_id = {node["node_id"]: node for node in version.nodes}
+            node_id = next((item for item in candidates if item in node_by_id), None)
+            if node_id is None:
+                return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths",
+                    "There is no eligible next topic in this path yet. Check its prerequisites in Learn.")
+            node = node_by_id[node_id]
+            if node.get("competency_key"):
+                return CapabilityRoute(ConversationIntent.INVOCATION, "learning_paths",
+                    f"'{node.get('title', node_id)}' uses an existing Career Forge competency. Start its governed diagnostic from Learn so the mapped evidence flow stays attached to this path.")
+            prerequisite_titles = [node_by_id[item].get("title", item)
+                for item in node.get("prerequisites", []) if item in node_by_id]
+            subject = self.generalized.register(
+                path_id=path.path_id, path_version=path.current_version, node=node,
+                path_context=f"Path goal: {path.goal}. Topic: {node.get('title', node_id)}.",
+                prerequisite_context="Prerequisites: " + (", ".join(prerequisite_titles) or "none"),
+            )
+            try:
+                mission = self.generalized.start_session(subject.subject_id)
+            except ValueError as exc:
+                return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths", str(exc))
+            mission = self.generalized.career_forge.update_resume(mission.mission_id, {
+                **mission.resume_point, "phase": "question", "question_id": "conversation_topic_check",
+            })
+            context = (
+                f"Teach arbitrary DLP topic '{node.get('title', node_id)}' from the current path. "
+                "Explain the mental model and one small example, then ask one bounded question and wait. "
+                "Do not claim mastery, create evidence, or assess the learner in this teaching turn. "
+                "The explicit Career Forge assessment flow records attempts and evidence. "
+                f"Path goal: {path.goal}. Objectives: {json.dumps(node.get('objectives', []), ensure_ascii=False)}. "
+                f"Evidence requirements: {json.dumps(node.get('evidence_requirements', []), ensure_ascii=False)}."
+            )
+            return CapabilityRoute(ConversationIntent.INVOCATION, "learning_paths",
+                system_context=context, mode=f"career_forge:dynamic:{mission.mission_id}")
         create_prefixes = ("create a learning path for ", "create a learning path to learn ",
                            "build me a roadmap to learn ", "teach me ", "i want to learn ")
         goal = None
@@ -443,9 +498,11 @@ class FridayConversationCapabilityRouter:
                  task_explanation: TaskExplanationService | None = None,
                  learning_paths: LearningPathService | None = None) -> None:
         self.registry = registry
+        if learning_paths is not None and learning_paths.evidence_provider is None:
+            learning_paths.evidence_provider = CareerForgeEvidenceProjection(career_forge)
         self.adapters = {
             "task_explanation": TaskExplanationConversationAdapter(task_explanation),
-            **({"learning_paths": LearningPathConversationAdapter(learning_paths)} if learning_paths else {}),
+            **({"learning_paths": LearningPathConversationAdapter(learning_paths, career_forge)} if learning_paths else {}),
             "career_forge": CareerForgeConversationAdapter(career_forge, practice_lab),
             "persistent_memory": MemoryConversationAdapter(memory),
         }

@@ -1,68 +1,35 @@
-# Friday recovery handoff — DLP-3 accepted
+# Friday recovery handoff — DLP-4 in progress
 
-Repository/worktree: `/AI/projects/Local-AI-Assistant-terra-integration`.
-Branch: `integration/astra-friday`. DLP-3 accepted recovery commit:
-`a39a98ef91dd805ba80ab5e7c5970e7bbd0ac1bc`. The integration branch, `main`,
-`origin/integration/astra-friday`, and `origin/main` were fetched and verified at
-this commit. Worktree is clean. DLP-3 is published and remotely recoverable.
+## Repository state
 
-## DLP-3 implementation
+Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`
+Branch: `integration/astra-friday`
+Accepted base / current HEAD before recovery checkpoint: `4cf22b1fc645f19ba5a64123b342a4f78442a49f`
+Local `main`, `origin/main`, and `origin/integration/astra-friday` match the accepted base. No DLP-4 commit existed at recovery start. The recovered working tree is preserved at `/tmp/friday-dlp4-crash-recovery-20260930-002205`; two untracked source/test files were copied there with checksums, and complete tracked/index diffs were saved.
 
-- DLP SQLite now stores one canonical selected path. Selection does not alter
-  curriculum or learner evidence. Explicit activation atomically selects and
-  activates a draft/paused path; archiving the selected path clears selection.
-- Deterministic Conversation intents create local Curriculum Designer paths,
-  list paths, report current/next state, and open a saved path. Explicit
-  `teach me <topic>` routes to DLP except the qualified generic “teach me
-  machine learning” Career Forge route. Friday wake prefixes, common week/month
-  targets, and hours/week are bounded metadata inputs. Failed generation saves
-  nothing.
-- Typed APIs expose current/select/activate/archive, sequence, and governed
-  mapped-node handoffs. Handoffs validate active lifecycle, competency mapping,
-  sequencing/recommendation, and active-mission conflicts. Diagnostics start a
-  canonical Career Forge mission and claim no assessment result. Due reviews,
-  weak-area reinforcement, and Practice Lab reuse their existing services.
-- Learn reads canonical path list/detail/sequence, shows server decisions and
-  reasons, and offers mapped actions only for active mapped nodes. Unmapped
-  arbitrary-domain nodes stay visibly unsupported. No browser mastery,
-  completion, evidence, or selection authority was added.
-- `NeuralPresence.tsx`, CSS aesthetics, and NeetCode references were not changed.
-  Current Learn UI is a functional integration shell; owner final visual
-  acceptance remains deferred.
+## Active capability and authority
 
-## Qualification and recovery evidence
+DLP-4 generalized arbitrary-domain learning execution. DLP owns curriculum, immutable versions, and sequencing. Career Forge owns dynamic subjects, explicit sessions, attempts, assistance, assessment evidence, mastery, retention, weakness, and reinforcement.
 
-A bounded real local-Qwen Conversation request created and persisted one
-validated 4-module/12-node DSA path. In isolated candidate state,
-selection/activation survived API restart. Native candidate Learn displayed the
-path and server sequence. A synthetic `se.python` mapped path used canonical
-Career Forge diagnostic and Practice Lab handoffs; mastery remained `unverified`.
-The protected production Career Forge DB was not opened.
+The worktree has a Career Forge `GeneralizedLearningService`, semantic path/version/node contract fingerprints, explicit arbitrary-node handoff, local tutor/assessor routes, Learn answer controls, contract-bound evidence, and dynamic evidence projections. Independent application requires distinct unassisted correct answers. Assistance is now scoped to the answer submitted after a hint; later answers are not tainted. Correct assisted evidence remains useful; a below-threshold independent rung leaves mastery unchanged without failing assessment. Material curriculum revisions are unverified and cannot reuse prior-version evidence.
 
-Final Python regression passed: **1,130 tests**. The required repository
-verifier passed on the candidate: its complete Python suite, CLI/compile checks,
-tracked-artifact scan, and `pip check`. Latest frontend gates passed: **111
-frontend tests**, ESLint, TypeScript, and production build. Focused backend
-routing/API/handoff tests passed after the bounded target-level parser update;
-targeted Ruff, `pip check`, and `git diff --check` passed. Vite reports its
-existing >500 kB chunk advisory; build succeeds.
+## Recovery and validation evidence
 
-The local Qwen failure path is covered deterministically; no cloud fallback is
-present. Candidate state remains under `/tmp/friday-dlp3-candidate-d654dff`.
-Production Friday `127.0.0.1:8765` and Qwen `127.0.0.1:8080` returned HTTP 200;
-neither was restarted or reconfigured. Protected checkout
-`/AI/projects/Local-AI-Assistant` remains at
-`e43896623978e86b7bae6502b380462b455626be` on
-`stage-22/product-integration`; its pre-existing Pocket/Anna files remain
-untouched. `NeuralPresence.tsx` is unchanged. Matrix rows 60 and 61 remain
-PARTIAL. Current Learn UI is a functional integration shell; owner final visual
-acceptance remains deferred.
+- Recovery found 22 modified tracked files and 2 untracked files; nothing staged; HEAD already equaled the accepted DLP-3 baseline. No truncated source files were found by syntax compilation.
+- Snapshot: `/tmp/friday-dlp4-crash-recovery-20260930-002205`.
+- Memory reported 22 GiB available and 7 GiB swap in use. No DLP candidate, pytest, Vite, or repository-verifier process/listener was present. No process was stopped.
+- Protected checkout was already dirty with the owner's Pocket/Anna changes at expected HEAD `e43896623978e86b7bae6502b380462b455626be`; it was not modified. Production Friday/Qwen were listening on 8765/8080 and were not restarted. `NeuralPresence.tsx` is unchanged.
+- Changed Python modules compile. Focused DLP/Career Forge/API/routing regressions pass, including assistance scope, below-threshold evidence, replay, concurrent evaluation, retention failure, contract revision, and dependent-node gating.
+- Latest focused backend run: 106 tests passed. Focused Learn/runtime client run: 34 frontend tests passed. Full suites, lint, typecheck, build, and repository verifier remain pending.
+- Disposable candidate state used the actual local Qwen endpoint for arbitrary SQL teaching and one answer assessment. The helped answer retained `prompt` provenance on attempt and evidence. An incorrect answer created no evidence. Two later unassisted answers advanced the candidate to `apply_independently` and unlocked its dependent node.
+- A disposable candidate API was started in two distinct processes against the same candidate-only Career Forge/DLP SQLite files. The governed mission, subject, evidence, review count, and path version reconstructed identically after process restart.
+- Frontend/repository full validation and final production read-only health checks remain pending. Current Learn UI is FUNCTIONAL ONLY; owner final visual acceptance remains deferred. Matrix rows 60 and 61 remain PARTIAL.
 
-## Exact remaining dependency
+## Exact next work
 
-DLP-3 acceptance is complete; the next roadmap dependency is DLP-4:
-generalized arbitrary-domain teaching and assessment/evidence/retention
-authority. Current Career Forge maps only its bounded 16 competencies and
-Practice Lab exercises; arbitrary DLP nodes cannot yet complete
-`teach → practice → assess → evidence → retention → adapt` without fabricating
-mastery. Do not begin DLP-4 as part of DLP-3.
+1. Run the focused backend regression again after the concurrency test and inspect its exact count; then run frontend unit tests, ESLint, TypeScript, and production build serially.
+2. Create a local DLP-4 recovery checkpoint commit after the coherent focused suite passes; do not publish until final qualification passes.
+3. Continue with due retention delivery/evaluation reconstruction and route/Conversation edge coverage using disposable state only; never open owner Career Forge state.
+4. Run the full Python suite and `scripts/maintenance/verify-repository.sh` serially, then targeted Ruff, `pip check`, and `git diff --check`. Record actual counts and any limitations in canonical docs/matrix.
+5. Perform final read-only production Friday/Qwen health checks, protected checkout and `NeuralPresence.tsx` comparisons; review scope/status, then create and publish the accepted DLP-4 commit per stage-branch/main policy and fetch-verify exact remote HEADs.
+6. Audit the next canonical roadmap dependency and record one recommendation. Do not start it in this DLP-4 task.

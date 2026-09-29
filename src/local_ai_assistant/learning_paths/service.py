@@ -104,9 +104,19 @@ class LearningPathService:
         detail = self.detail(path_id)
         path, version = detail["path"], detail["current"]
         mapped = {str(n["competency_key"]) for n in version.nodes if n.get("competency_key")}
+        dynamic_evidence = {}
+        if self.evidence_provider is not None and hasattr(self.evidence_provider, "dynamic_node_evidence"):
+            for node in version.nodes:
+                if node.get("competency_key"):
+                    continue
+                item = self.evidence_provider.dynamic_node_evidence(path_id, version.version, node)
+                if item is not None:
+                    dynamic_evidence[node["node_id"]] = item
+                    mapped.add(item.competency_id)
         available = self.evidence_provider is not None
         try:
             evidence = self.evidence_provider.competency_evidence(mapped) if available else {}
+            evidence.update({item.competency_id: item for item in dynamic_evidence.values()})
             if not isinstance(evidence, dict):
                 raise TypeError("evidence projection must be a mapping")
             from local_ai_assistant.career_forge.models import MasteryLevel
@@ -129,6 +139,12 @@ class LearningPathService:
         for edge in version.prerequisites:
             incoming[edge["node_id"]].append(edge["prerequisite_node_id"])
         node_by_id = {n["node_id"]: n for n in version.nodes}
+        node_competency = {
+            node_id: (str(node["competency_key"]) if node.get("competency_key") else
+                      dynamic_evidence[node_id].competency_id if node_id in dynamic_evidence else None)
+            for node_id, node in node_by_id.items()
+        }
+        node_states = {node_id: states.get(key, "unmapped") if key else "unmapped" for node_id, key in node_competency.items()}
         module_order = {m["module_id"]: i for i, m in enumerate(version.modules)}
         topo_index = {node_id: i for i, node_id in enumerate(version.topological_order)}
         result = []
@@ -136,9 +152,9 @@ class LearningPathService:
         path_can_sequence = path.state not in {"paused", "completed", "archived"}
         for node_id in version.topological_order:
             node = node_by_id[node_id]
-            competency = node.get("competency_key")
+            competency = node_competency[node_id]
             state = (states.get(str(competency), "unmapped") if available else "unavailable") if competency else "unmapped"
-            prereq_blockers = [p for p in incoming[node_id] if self._node_state(node_by_id[p], states) != "satisfied"]
+            prereq_blockers = [p for p in incoming[node_id] if node_states[p] != "satisfied"]
             blocked = bool(prereq_blockers)
             decision = "SKIP_ALREADY_SUPPORTED" if state == "satisfied" else (
                 "DEFER" if state == "unavailable" or not path_can_sequence else
@@ -175,7 +191,7 @@ class LearningPathService:
                 "nodes": result, "candidate_next_nodes": candidates,
                 "progress": {"mapped": len(evidence), "supported": sum(v == "satisfied" for v in states.values()),
                              "not_supported": sum(v in {"unsatisfied", "needs_diagnostic", "needs_review"} for v in states.values()),
-                             "unmapped_nodes": sum(not n.get("competency_key") or (available and str(n.get("competency_key")) not in evidence) for n in version.nodes),
+                           "unmapped_nodes": sum(node_competency[n["node_id"]] is None or (available and node_competency[n["node_id"]] not in evidence) for n in version.nodes),
                              "unavailable_nodes": sum(bool(n.get("competency_key")) and not available for n in version.nodes)}}
 
     @staticmethod

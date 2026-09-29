@@ -231,3 +231,59 @@ def test_explicit_learning_path_intent_is_deterministic_and_does_not_capture_gen
     assert adapter.route("What's next in my current learning path?").response.endswith("Choose one in Learn first.")
     # Existing qualified behavior remains: generic teach language is not a DLP intent.
     assert adapter.route("Teach me machine learning") is None
+
+
+def test_conversation_teaches_and_assesses_next_arbitrary_path_topic(tmp_path):
+    import json
+
+    from local_ai_assistant.learning_paths import LearningPathService
+    from local_ai_assistant.learning_paths.service import LocalCurriculumGenerator
+    from tests.fixtures.learning_path_curricula import curriculum
+
+    class Model:
+        def chat(self, prompt, **kwargs):
+            return json.dumps(curriculum())
+
+    class Tutor:
+        def __init__(self):
+            self.calls = []
+
+        def stream_chat(self, prompt, system_prompt="", temperature=0.2, max_tokens=1024):
+            self.calls.append((prompt, system_prompt))
+            if "Return first line exactly ASSESSMENT:" in system_prompt:
+                yield "ASSESSMENT: correct\nThe answer explains the objective."
+            else:
+                yield "An array stores ordered values. How would you retrieve its first element?"
+
+    registry = FridayCapabilityRegistry((
+        FridayCapability("learning_paths", "Learning paths", CapabilityStatus.INTEGRATED, True, True, True, "local", None),
+        FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED, True, True, True, "local", None),
+        FridayCapability("persistent_memory", "Persistent memory", CapabilityStatus.INTEGRATED, True, True, True, "local", None),
+        FridayCapability("task_explanation", "Task explanations", CapabilityStatus.INTEGRATED, True, True, True, "local", None),
+    ))
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    paths = LearningPathService(tmp_path / "paths.sqlite3", generator=LocalCurriculumGenerator(Model()))
+    proposal = curriculum("dsa")
+    proposal["title"] = "SQL Optimization"
+    proposal["goal"] = "Learn SQL optimization"
+    draft = paths.create(proposal)
+    paths.activate(draft.path_id)
+    router = FridayConversationCapabilityRouter(registry, career_forge=forge,
+        memory=FridayMemoryService(tmp_path / "memory.sqlite3", embed=lambda values: [[1.0] for _ in values]),
+        learning_paths=paths)
+    tutor = Tutor()
+    conversation = FridayConversationService(tutor, FridayRuntime("dynamic-conversation"), capability_router=router)
+
+    teaching = "".join(conversation.stream_response("Teach me the next topic in my SQL optimization path."))
+    assert "array" in teaching.lower()
+    assert "career_forge:dynamic:" in conversation.session.snapshot()["capability_mode"]
+    assert forge.progress().evidence == ()
+    attempt = "".join(conversation.stream_response("An array keeps values in order and the first is at index zero."))
+    assert "recorded" in attempt.lower()
+    assessed = "".join(conversation.stream_response("Check my answer"))
+    assert "ASSESSMENT: correct" in assessed
+    assert len(forge.progress().evidence) == 1
+    from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
+
+    subject_id = forge.resume().resume_point["subject_id"]
+    assert GeneralizedLearningService(forge).get(subject_id).mastery.value == "recognize"

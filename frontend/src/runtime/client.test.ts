@@ -470,4 +470,18 @@ describe("FridayRuntimeClient learning path boundary", () => {
     expect(fetchMock.mock.calls[2][0]).toBe("/api/v1/learning-paths/p1/select");
     expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "POST" });
   });
+
+  it("binds dynamic attempts to the path version and sends them to Career Forge", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({attempt_id:"a1",evaluation:"pending",evidence_created:false,mastery:"unverified"}),{status:200}))
+      .mockResolvedValueOnce(new Response(JSON.stringify({attempt_id:"a1",evaluation:"correct",feedback:"Good.",evidence_id:"e1",mastery:"recognize"}),{status:200}));
+    vi.stubGlobal("fetch",fetchMock);
+    const client=new FridayRuntimeClient();
+    const attempt=await client.recordDynamicLearningAttempt("dlp:p1:1:n1:hash","Explain the idea","My answer");
+    const result=await client.evaluateDynamicLearningAttempt("dlp:p1:1:n1:hash",attempt.attempt_id);
+    expect(result.evidence_id).toBe("e1");
+    expect(fetchMock.mock.calls[0][0]).toContain("/career-forge/dynamic-learning/dlp%3Ap1%3A1%3An1%3Ahash/attempts");
+    expect(fetchMock.mock.calls[0][1]?.method).toBe("POST");
+    expect(fetchMock.mock.calls[1][1]?.method).toBe("POST");
+  });
 });

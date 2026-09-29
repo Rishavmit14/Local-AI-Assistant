@@ -255,7 +255,8 @@ export interface LearningPathSequence {
   candidate_next_nodes: string[]; nodes: Array<{node_id:string;competency_id:string|null;evidence_state:string;evidence:unknown;decision:string;eligible:boolean;blockers:string[];recommendation:string|null;reason:string}>;
 }
 export type LearningPathHandoff = {
-  action: "mission" | "diagnostic" | "review" | "reinforcement" | "practice";
+  action: "mission" | "diagnostic" | "dynamic_learning" | "review" | "reinforcement" | "practice";
+  subject_id?: string;
   mission?: CareerForgeMission;
   resumed?: boolean;
   review?: CareerForgeJourney["progress"]["retention_reviews"][number];
@@ -265,6 +266,8 @@ export type LearningPathHandoff = {
   title?: string;
   completion_claimed: false;
 };
+export interface DynamicLearningAttemptResult { attempt_id: string; evaluation: string; evidence_created: false; mastery: string }
+export interface DynamicLearningEvaluation { attempt_id: string; evaluation: "correct" | "incorrect" | "uncertain"; feedback: string; evidence_id: string | null; mastery: string }
 
 export interface CareerForgeMissionBrief {
   competency_id: string;

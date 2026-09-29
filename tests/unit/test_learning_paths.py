@@ -377,6 +377,47 @@ def test_career_forge_adapter_and_sequence_do_not_mutate_learner_database(tmp_pa
     assert db.read_bytes() == before
 
 
+def test_dynamic_career_forge_evidence_unlocks_dependents_and_is_version_bound(tmp_path):
+    from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
+    from local_ai_assistant.career_forge.models import MasteryLevel
+
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    provider = CareerForgeEvidenceProjection(forge)
+    paths = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=provider)
+    path = paths.activate(paths.create(curriculum("dsa")).path_id)
+    projection = paths.sequence(path.path_id)
+    first = next(node for node in projection["nodes"] if node["node_id"] == "arrays")
+    assert first["decision"] == "DIAGNOSTIC_FIRST"
+    assert "pointers" not in projection["candidate_next_nodes"]
+
+    node = next(node for node in paths.detail(path.path_id)["current"].nodes if node["node_id"] == "arrays")
+    learning = GeneralizedLearningService(forge)
+    subject = learning.register(path_id=path.path_id, path_version=1, node=node)
+    learning.start_session(subject.subject_id)
+    for rung in range(4):
+        attempt = learning.record_attempt(subject.subject_id, f"application-{rung}",
+                                          f"Owner explanation with distinct application {rung}.")
+        result = learning.assess_attempt(
+            subject.subject_id, attempt.attempt_id,
+            "ASSESSMENT: correct\nThe response demonstrates the node objective.",
+        )
+    assert result["mastery"] == MasteryLevel.APPLY_INDEPENDENTLY
+    projected = paths.sequence(path.path_id)
+    assert next(n for n in projected["nodes"] if n["node_id"] == "arrays")["decision"] == "SKIP_ALREADY_SUPPORTED"
+    assert "pointers" in projected["candidate_next_nodes"]
+
+    current = paths.detail(path.path_id)["current"]
+    revised_nodes = [dict(item) for item in current.nodes]
+    revised_nodes[0]["objectives"] = ["Compare multi-column index plans and estimate scan cost"]
+    revised = paths.revise(path.path_id, {
+        **current.metadata, "modules": list(current.modules), "nodes": revised_nodes,
+        "prerequisites": list(current.prerequisites), "milestones": list(current.milestones),
+    }, reason="material_contract_change")
+    after_revision = paths.sequence(path.path_id)
+    assert after_revision["version"] == revised.current_version
+    assert next(n for n in after_revision["nodes"] if n["node_id"] == "arrays")["decision"] == "DIAGNOSTIC_FIRST"
+
+
 def test_owner_selection_activation_and_restart_are_canonical(tmp_path):
     db = tmp_path / "paths.sqlite3"
     service = LearningPathService(db)

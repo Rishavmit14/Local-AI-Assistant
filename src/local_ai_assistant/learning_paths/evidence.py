@@ -52,7 +52,54 @@ class CareerForgeEvidenceProjection:
             for key in sorted(known) if key in confidence
         }
 
-
+    def dynamic_node_evidence(self, path_id: str, path_version: int, node: dict) -> CompetencyEvidence | None:
+        """Read a registered arbitrary node through Career Forge's evidence store."""
+        with self.career_forge._db() as db:
+            exists = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dynamic_learning_subjects'"
+            ).fetchone()
+            if not exists:
+                return None
+            row = db.execute(
+                "SELECT s.competency_id,l.mastery FROM dynamic_learning_subjects s "
+                "JOIN learner_competencies l USING(competency_id) WHERE s.path_id=? AND s.path_version=? AND s.node_id=? "
+                "ORDER BY s.created_at DESC LIMIT 1",
+                (path_id, path_version, str(node["node_id"])),
+            ).fetchone()
+            if row is None:
+                return None
+            competency_id, mastery_value = str(row[0]), str(row[1])
+            due = db.execute(
+                "SELECT 1 FROM retention_reviews WHERE competency_id=? "
+                "AND state IN ('scheduled','delivered') AND due_at<=? LIMIT 1",
+                (competency_id, datetime.now(UTC).isoformat()),
+            ).fetchone() is not None
+            latest_review = db.execute(
+                "SELECT state,evaluation FROM retention_reviews WHERE competency_id=? "
+                "AND state='completed' ORDER BY evaluated_at DESC,created_at DESC LIMIT 1",
+                (competency_id,),
+            ).fetchone()
+            independent = int(db.execute(
+                "SELECT COUNT(*) FROM lesson_attempts a JOIN missions m USING(mission_id) "
+                "WHERE m.competency_id=? AND a.evaluation='correct' AND a.assistance_level IS NULL",
+                (competency_id,),
+            ).fetchone()[0])
+        weak = bool(latest_review and latest_review[0] == "completed" and latest_review[1] in {"incorrect", "uncertain"})
+        mastery = MasteryLevel(mastery_value)
+        if mastery is MasteryLevel.UNVERIFIED:
+            confidence, retention = "unverified", "not_scheduled"
+        elif weak:
+            confidence, retention = "weak", "failed"
+        elif due:
+            confidence, retention = "stale", "due"
+        elif latest_review and latest_review[0] == "completed" and latest_review[1] == "correct":
+            confidence, retention = "reinforced", "passed"
+        else:
+            confidence, retention = "current", "scheduled"
+        return CompetencyEvidence(
+            competency_id, mastery.value, confidence, retention, independent,
+            ("failed retention reassessment",) if weak else (), due,
+        )
 def evidence_state(evidence: CompetencyEvidence | None) -> str:
     if evidence is None:
         return "unmapped"

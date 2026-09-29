@@ -22,6 +22,7 @@ export function presentCareerForgeJourney(
       competency: mission.competency_id,
       state: mission.state,
       resumePhase: resumePhase(mission.resume_point),
+      subjectId: typeof mission.resume_point.subject_id === "string" ? mission.resume_point.subject_id : undefined,
     } : null,
     next: brief && nextCompetency ? {
       title: brief.title,

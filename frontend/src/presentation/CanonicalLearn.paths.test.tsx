@@ -44,9 +44,32 @@ describe("Learn Dynamic Learning Paths integration", () => {
     expect(activate).toHaveBeenCalledWith("p2");
     const diagnostic=[...container.querySelectorAll("button")].find(b=>b.textContent?.includes("Begin Career Forge diagnostic"));
     await act(async()=>{diagnostic?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(handoff).toHaveBeenCalledWith("p2","n1","diagnostic");
+    expect(handoff).toHaveBeenCalledWith("p2","n1","diagnostic",1);
     expect(onHandoff).toHaveBeenCalledOnce();
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("offers a governed session for an unmapped active path topic", async () => {
+    const arbitraryDetail: LearningPathDetail = {
+      ...detail(path("p4", true, "active")),
+      current: { ...detail(path("p4", true, "active")).current,
+        nodes: [{node_id:"n1",module_id:"m1",title:"Rust lifetimes",type:"lesson",objectives:["Explain borrowing"],evidence_requirements:["Apply borrowing rules"],competency_key:null,estimated_hours:1}] },
+    };
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([path("p4",true,"active")]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(arbitraryDetail);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue({
+      path_id:"p4",version:1,path_state:"active",evidence_available:true,candidate_next_nodes:["n1"],
+      nodes:[{node_id:"n1",competency_id:null,evidence_state:"unmapped",evidence:null,decision:"DIAGNOSTIC_FIRST",eligible:true,blockers:[],recommendation:"diagnostic",reason:"No canonical evidence is available."}],
+    });
+    const handoff=vi.spyOn(FridayRuntimeClient.prototype,"handoffLearningPathNode").mockResolvedValue({action:"dynamic_learning",subject_id:"subject-1",completion_claimed:false});
+    const onHandoff=vi.fn();
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff,activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    expect(container.textContent).toContain("contract-bound Career Forge learning subject");
+    const start=[...container.querySelectorAll("button")].find(button=>button.textContent==="Start governed learning session");
+    await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(handoff).toHaveBeenCalledWith("p4","n1","diagnostic",1);
+    expect(onHandoff).toHaveBeenCalledOnce();
   });
 
   it("surfaces path generation failure without adding a path", async () => {

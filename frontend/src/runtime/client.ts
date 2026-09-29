@@ -9,6 +9,8 @@ import type {
   FridayProactiveNotification,
   FridayProactiveWatchSnapshot,
   CareerForgeMission,
+  DynamicLearningAttemptResult,
+  DynamicLearningEvaluation,
   CareerForgePublicEvidenceCandidate,
   CodeAttentionQuestion,
   PracticeLab,
@@ -87,7 +89,9 @@ export class FridayRuntimeClient {
   async selectLearningPath(pathId:string):Promise<LearningPath>{const r=await fetch(`${this.baseUrl}/api/v1/learning-paths/${encodeURIComponent(pathId)}/select`,{method:"POST"});if(!r.ok)throw new Error(`path selection failed: ${r.status}`);return r.json() as Promise<LearningPath>;}
   async activateLearningPath(pathId:string):Promise<LearningPath>{const r=await fetch(`${this.baseUrl}/api/v1/learning-paths/${encodeURIComponent(pathId)}/activate`,{method:"POST"});if(!r.ok)throw new Error(`path activation failed: ${r.status}`);return r.json() as Promise<LearningPath>;}
   async generateLearningPath(goal:string):Promise<LearningPathDetail>{const r=await fetch(`${this.baseUrl}/api/v1/learning-paths/generate`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({goal})});if(!r.ok)throw new Error(`path creation failed: ${await responseDetail(r)}`);return r.json() as Promise<LearningPathDetail>;}
-  async handoffLearningPathNode(pathId:string,nodeId:string,action:"mission"|"diagnostic"|"review"|"reinforcement"|"practice"):Promise<LearningPathHandoff>{const r=await fetch(`${this.baseUrl}/api/v1/learning-paths/${encodeURIComponent(pathId)}/handoff`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({node_id:nodeId,action})});if(!r.ok)throw new Error(await responseDetail(r));return r.json() as Promise<LearningPathHandoff>;}
+  async handoffLearningPathNode(pathId:string,nodeId:string,action:"mission"|"diagnostic"|"review"|"reinforcement"|"practice",pathVersion?:number):Promise<LearningPathHandoff>{const r=await fetch(`${this.baseUrl}/api/v1/learning-paths/${encodeURIComponent(pathId)}/handoff`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({node_id:nodeId,action,path_version:pathVersion})});if(!r.ok)throw new Error(await responseDetail(r));return r.json() as Promise<LearningPathHandoff>;}
+  async recordDynamicLearningAttempt(subjectId:string,questionId:string,response:string):Promise<DynamicLearningAttemptResult>{const r=await fetch(`${this.baseUrl}/api/v1/career-forge/dynamic-learning/${encodeURIComponent(subjectId)}/attempts`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({question_id:questionId,response,mode:"teach_back"})});if(!r.ok)throw new Error(await responseDetail(r));return r.json() as Promise<DynamicLearningAttemptResult>;}
+  async evaluateDynamicLearningAttempt(subjectId:string,attemptId:string):Promise<DynamicLearningEvaluation>{const r=await fetch(`${this.baseUrl}/api/v1/career-forge/dynamic-learning/${encodeURIComponent(subjectId)}/attempts/${encodeURIComponent(attemptId)}/evaluate`,{method:"POST"});if(!r.ok)throw new Error(await responseDetail(r));return r.json() as Promise<DynamicLearningEvaluation>;}
 
   async getState(signal?: AbortSignal): Promise<FridayRuntimeSnapshot> {
     const response = await fetch(

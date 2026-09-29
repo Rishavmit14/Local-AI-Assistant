@@ -12,6 +12,7 @@ export interface CareerForgeSummaryView {
     competency: string;
     state: string;
     resumePhase: string | null;
+    subjectId?: string;
   } | null;
   next: {
     title: string;

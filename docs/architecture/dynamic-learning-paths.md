@@ -126,7 +126,7 @@ path qualification. Those require later roadmap work; row 60 remains PARTIAL.
 The backend capability has independent matrix tracking under row 61.
 
 
-## DLP-3 owner integration (candidate; qualification pending)
+## DLP-3 owner integration (accepted; remotely recoverable)
 
 The DLP repository also persists one selected path ID in an additive owner-state
 SQLite table. Selection changes no curriculum or learner evidence. Draft paths
@@ -147,6 +147,50 @@ graph and refuses an unrelated active mission. Diagnostics start only a canonica
 Career Forge mission and never report an assessment result. Review, reinforcement,
 and Practice Lab calls reuse their existing Career Forge/Practice Lab services.
 No unmapped node can create a mission. DLP still never writes Career Forge
-mastery, evidence, attempts, reviews, or completion. These DLP-3 integrations
-remain candidate behavior until owner-flow and full acceptance evidence is
-recorded.
+mastery, evidence, attempts, reviews, or completion. These bounded DLP-3
+integrations were qualified and accepted at recovery commit
+`4cf22b1fc645f19ba5a64123b342a4f78442a49f`. Arbitrary-domain teaching/evidence
+and final owner visual acceptance remain outside DLP-3; rows 60 and 61 remain
+PARTIAL.
+
+## DLP-4 generalized execution (active; not qualified)
+
+Arbitrary unmapped nodes now have an initial functional path into Career Forge.
+`GeneralizedLearningService` stores a Career Forge-owned subject keyed by path,
+immutable path version, node, and SHA-256 learning-contract fingerprint. The
+fingerprint covers node type, sorted objectives, evidence requirements, and the
+assessment contract; cosmetic title edits do not invalidate evidence. The
+Career Forge database stores only a bounded contract snapshot and uses its
+existing mission, attempt, evidence, mastery, and retention tables. DLP remains
+the canonical curriculum authority.
+
+Explicit Learn handoff registers the subject and creates a resumable Career
+Forge session without evidence or mastery. The local tutor receives bounded
+path goal, objective, evidence requirement, and direct prerequisite context.
+An explicit question/answer submission creates a pending Career Forge attempt;
+the assessment route uses Friday's configured local model and a strict
+`ASSESSMENT:` parser. Only a correct result creates contract-bound evidence.
+Evidence replay is rejected, one result advances at most one rung, and
+independent application additionally requires distinct correct unassisted
+questions. Dynamic evidence schedules the existing Career Forge retention
+reviews; delivered review outcomes affect weak/current sequencing projections.
+
+The read-only Career Forge evidence adapter recognizes registered dynamic
+subjects for the exact current path version. A material revision has a new
+subject identity and starts unverified; old evidence remains historical. Direct
+prerequisites remain blocking until current evidence supports independent
+application. Assistance provenance attaches to the answer submitted after a
+hint; it does not taint later answers after that attempt is recorded. Correct
+assisted evidence remains useful and a missing independent threshold leaves the
+current mastery rung unchanged rather than failing the assessment. Fixed Career
+Forge mapping remains unchanged. Current deterministic evidence covers subject
+registration/restart, active-session conflict, contract fingerprints,
+positive/negative/replayed and concurrent assessment, assistance provenance,
+retention failure, and dependent-node sequencing/revision behavior. A disposable
+candidate used real local Qwen for teaching and one assessment, reconstructed
+the governed session/evidence after separate candidate API processes, and
+demonstrated negative assessment plus dependent-node unlock after independent
+evidence. DLP-4 is still PARTIAL: complete retention/review application E2E,
+full Python regression, repository verifier, owner-state/production checks,
+and acceptance publication remain. No visual redesign or final visual
+acceptance is included.

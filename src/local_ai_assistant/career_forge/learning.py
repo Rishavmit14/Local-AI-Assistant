@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .generalized import GeneralizedLearningService
 from .models import AssistanceLevel, AttemptEvaluation, LessonPhase, TutorMode
 from .service import CareerForgeService, Mission
 
@@ -32,6 +33,8 @@ class CareerForgeLearningLoop:
         mission = self.service.mission(mission_id)
         if mission.state != "active":
             return None
+        if mode_name == "dynamic":
+            return self._prepare_dynamic(prompt, mission)
         tutor_mode = TutorMode(mode_name)
         text = prompt.strip().lower()
         phase = str(mission.resume_point.get("phase", "why_it_matters"))
@@ -83,8 +86,37 @@ class CareerForgeLearningLoop:
                 "Summarize only these recorded assistance and evaluated attempts: " + recorded + ". Do not infer unrecorded struggles or claim mastery."))
         return None
 
+    def _prepare_dynamic(self, prompt: str, mission: Mission) -> LearningDirective | None:
+        subject_id = str(mission.resume_point.get("subject_id", ""))
+        if not subject_id:
+            return None
+        generalized = GeneralizedLearningService(self.service)
+        text = prompt.strip().lower()
+        if self._is_evaluation_request(text):
+            attempt = self.service.latest_attempt(mission.mission_id, pending_only=True)
+            if attempt is None:
+                return LearningDirective(mission.mission_id, "no_attempt", "",
+                    response="I need your explicit answer to the current topic question before I can evaluate it.")
+            return LearningDirective(mission.mission_id, "dynamic_evaluate",
+                generalized.assessment_prompt(subject_id, attempt.attempt_id), attempt.attempt_id)
+        if self._is_hint_request(text) or "show me an example" in text or "give me an example" in text:
+            return LearningDirective(mission.mission_id, "dynamic_tutor",
+                "Give one bounded hint or example for the active dynamic topic, then ask the learner to try. Do not provide an assessment or claim mastery.")
+        if self._looks_like_attempt(text):
+            question_id = str(mission.resume_point.get("question_id", "conversation_topic_check"))
+            attempt = generalized.record_attempt(subject_id, question_id, prompt, mode=TutorMode.TEACH_BACK)
+            return LearningDirective(mission.mission_id, "dynamic_attempt", "", attempt.attempt_id,
+                response="I recorded that as an explicit attempt for this topic. Say ‘check my answer’ for a bounded assessment.")
+        return None
+
     def complete(self, directive: LearningDirective, response: str) -> None:
-        if directive.action == "assistance" and directive.assistance_level is not None:
+        if directive.action == "dynamic_evaluate" and directive.attempt_id is not None:
+            mission = self.service.mission(directive.mission_id)
+            subject_id = str(mission.resume_point["subject_id"])
+            GeneralizedLearningService(self.service).assess_attempt(subject_id, directive.attempt_id, response)
+            # Assessment feedback is emitted as part of the same local-model turn;
+            # persistence remains solely in the bounded evaluator authority.
+        elif directive.action == "assistance" and directive.assistance_level is not None:
             self.service.offer_assistance(directive.mission_id, TutorMode.HINT, directive.assistance_level, response)
         elif directive.action in {"evaluate", "teach_back_evaluate"} and directive.attempt_id is not None:
             evaluation, feedback = self.parse_evaluation(response)

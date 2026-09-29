@@ -33,8 +33,10 @@ from local_ai_assistant.interface.events import FridayEventType
 from local_ai_assistant.interface.interaction import FridayInteractionCoordinator
 from local_ai_assistant.interface.runtime import FridayRuntime
 from local_ai_assistant.interface.states import FridayRuntimeState
+from local_ai_assistant.learning_paths import LearningPathService
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 from local_ai_assistant.perception import ActiveWindowContext, ScreenCaptureService, VisualLabel
+from tests.fixtures.learning_path_curricula import curriculum
 
 
 class FakeStreamingLLM:
@@ -138,6 +140,85 @@ def test_health_identifies_presentation_service():
         "service": "friday-presentation",
         "api_version": "v1",
     }
+
+
+def test_dynamic_learning_handoff_attempt_and_assessment_use_career_forge_authority(tmp_path):
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    paths = LearningPathService(tmp_path / "paths.sqlite3")
+    draft = paths.create(curriculum("dsa"))
+    paths.activate(draft.path_id)
+    runtime = FridayRuntime("dynamic-learning-api")
+    conversation = FridayConversationService(
+        FakeStreamingLLM(["ASSESSMENT: correct\nThe answer explains the objective."]), runtime,
+    )
+    client = TestClient(create_presentation_app(
+        runtime, conversation, career_forge=forge, learning_paths=paths,
+    ))
+
+    stale = client.post(
+        f"/api/v1/learning-paths/{draft.path_id}/handoff",
+        json={"node_id": "arrays", "action": "diagnostic", "path_version": 2},
+    )
+    assert stale.status_code == 409
+    wrong_node = client.post(
+        f"/api/v1/learning-paths/{draft.path_id}/handoff",
+        json={"node_id": "missing", "action": "diagnostic", "path_version": 1},
+    )
+    assert wrong_node.status_code == 404
+    handoff = client.post(
+        f"/api/v1/learning-paths/{draft.path_id}/handoff",
+        json={"node_id": "arrays", "action": "diagnostic", "path_version": 1},
+    )
+    assert handoff.status_code == 200
+    subject_id = handoff.json()["subject_id"]
+    mission = handoff.json()["mission"]
+    assert mission["resume_point"]["learning_context"] == "dynamic_dlp"
+
+    tutor = client.post(
+        f"/api/v1/career-forge/missions/{mission['mission_id']}/tutor",
+        json={"message": "Teach me this topic and ask one question.", "mode": "explain"},
+    )
+    assert tutor.status_code == 200
+    assert "Arrays" in conversation.llm.calls[-1]["system_prompt"]
+    assert "contract-bound evidence count: 0" in conversation.llm.calls[-1]["system_prompt"]
+
+    attempt = client.post(
+        f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
+        json={"question_id": "Explain the goal", "response": "A clear owner response."},
+    )
+    assert attempt.status_code == 200
+    assert attempt.json()["evidence_created"] is False
+    assessed = client.post(
+        f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts/{attempt.json()['attempt_id']}/evaluate",
+    )
+    assert assessed.status_code == 200
+    assert assessed.json()["evaluation"] == "correct"
+    assert assessed.json()["mastery"] == "recognize"
+
+    current = paths.detail(draft.path_id)["current"]
+    revised_nodes = [dict(item) for item in current.nodes]
+    revised_nodes[0]["objectives"] = ["Explain memory layout and constant-time indexed lookup"]
+    paths.revise(draft.path_id, {
+        **current.metadata, "modules": list(current.modules), "nodes": revised_nodes,
+        "prerequisites": list(current.prerequisites), "milestones": list(current.milestones),
+    }, reason="candidate_contract_revision")
+    stale_attempt = client.post(
+        f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
+        json={"question_id": "stale", "response": "Do not assess old contract."},
+    )
+    assert stale_attempt.status_code == 409
+
+    paths.archive(draft.path_id)
+    archived = client.post(
+        f"/api/v1/learning-paths/{draft.path_id}/handoff",
+        json={"node_id": "arrays", "action": "diagnostic", "path_version": 1},
+    )
+    assert archived.status_code == 409
+    archived_attempt = client.post(
+        f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
+        json={"question_id": "archived", "response": "Do not assess archived path."},
+    )
+    assert archived_attempt.status_code == 409
 
 
 def test_objective_planning_keeps_health_and_cancellation_responsive(tmp_path):
@@ -1668,7 +1749,9 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/missions/{mission_id}/resume",
         "/api/v1/career-forge/missions/{mission_id}/assistance",
         "/api/v1/career-forge/missions/{mission_id}/evidence",
-        "/api/v1/career-forge/missions/{mission_id}/tutor",
+            "/api/v1/career-forge/missions/{mission_id}/tutor",
+            "/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
+            "/api/v1/career-forge/dynamic-learning/{subject_id}/attempts/{attempt_id}/evaluate",
         "/api/v1/career-forge/missions/{mission_id}/contextual-tutor",
             "/api/v1/career-forge/missions/{mission_id}/desktop-actions",
             "/api/v1/career-forge/missions/{mission_id}/objective",

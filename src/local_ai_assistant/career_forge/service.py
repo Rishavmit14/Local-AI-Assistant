@@ -390,6 +390,8 @@ class CareerForgeService:
                     "UPDATE mission_evidence SET competency_id=(SELECT competency_id FROM missions "
                     "WHERE missions.mission_id=mission_evidence.mission_id)"
                 )
+            if "contract_fingerprint" not in evidence_columns:
+                db.execute("ALTER TABLE mission_evidence ADD COLUMN contract_fingerprint TEXT")
             attempt_columns = {row[1] for row in db.execute("PRAGMA table_info(lesson_attempts)")}
             if "assessed_competency_id" not in attempt_columns:
                 db.execute("ALTER TABLE lesson_attempts ADD COLUMN assessed_competency_id TEXT")
@@ -530,8 +532,19 @@ class CareerForgeService:
         *,
         resume_point: dict[str, object] | None = None,
     ) -> Mission:
-        if competency_id not in self.graph:
-            raise KeyError(competency_id)
+        with self._db() as db:
+            if competency_id not in self.graph:
+                registered = db.execute(
+                    "SELECT 1 FROM dynamic_learning_subjects WHERE competency_id=?",
+                    (competency_id,),
+                ).fetchone()
+                if not registered:
+                    raise KeyError(competency_id)
+            elif db.execute(
+                "SELECT 1 FROM missions WHERE state='active' "
+                "AND json_extract(resume_json,'$.learning_context')='dynamic_dlp' LIMIT 1"
+            ).fetchone():
+                raise ValueError("a dynamic Career Forge learning session is active")
         if not isinstance(title, str) or not title.strip():
             raise ValueError("mission title must not be empty")
         now, mission_id = _now(), "mission_" + uuid.uuid4().hex
@@ -562,7 +575,10 @@ class CareerForgeService:
             raise ValueError("mission resume point must be an object")
         current = self.mission(mission_id)
         resume_point = dict(resume_point)
-        for key in ("reinforcement", "reasons", "interrupted_mission_id", "baseline", "code_attention"):
+        for key in (
+            "reinforcement", "reasons", "interrupted_mission_id", "baseline", "code_attention",
+            "learning_context", "subject_id", "path_id", "path_version", "node_id", "contract_fingerprint",
+        ):
             if key in current.resume_point and key not in resume_point:
                 resume_point[key] = current.resume_point[key]
         with self._db() as db:
@@ -579,6 +595,12 @@ class CareerForgeService:
             raise ValueError("evidence type and content must not be empty")
         mission = self.mission(mission_id)
         competency_id = competency_id or mission.competency_id
+        mission_context = mission.resume_point
+        contract_fingerprint = (
+            str(mission_context["contract_fingerprint"])
+            if mission_context.get("learning_context") == "dynamic_dlp"
+            else None
+        )
         if competency_id != mission.competency_id and competency_id not in self._prerequisites(mission.competency_id):
             raise ValueError("cross-context evidence requires a mission prerequisite")
         if source_attempt_id is not None:
@@ -589,9 +611,9 @@ class CareerForgeService:
         with self._db() as db:
             db.execute(
                 "INSERT INTO mission_evidence "
-                "(evidence_id, mission_id, evidence_type, content, assistance_level, artifact_ref, created_at, source_attempt_id, competency_id) "
-                "VALUES(?,?,?,?,?,?,?,?,?)",
-                (evidence_id, mission_id, evidence_type.strip(), content.strip(), assistance_level, artifact_ref, _now(), source_attempt_id, competency_id),
+                "(evidence_id, mission_id, evidence_type, content, assistance_level, artifact_ref, created_at, source_attempt_id, competency_id, contract_fingerprint) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (evidence_id, mission_id, evidence_type.strip(), content.strip(), assistance_level, artifact_ref, _now(), source_attempt_id, competency_id, contract_fingerprint),
             )
         return evidence_id
 
@@ -1116,7 +1138,18 @@ class CareerForgeService:
 
     def retention_review_prompt(self, review_id: str) -> str:
         review = self.retention_review(review_id)
-        return mission_brief(self.graph[review.competency_id]).verification
+        if review.competency_id in self.graph:
+            return mission_brief(self.graph[review.competency_id]).verification
+        with self._db() as db:
+            row = db.execute(
+                "SELECT contract_json FROM dynamic_learning_subjects WHERE competency_id=?",
+                (review.competency_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(review.competency_id)
+        contract = json.loads(row[0])
+        objectives = "; ".join(contract["objectives"])
+        return f"Reassess retention for {contract['title']}. Explain or apply: {objectives}. Use no assistance."
 
     def deliver_retention_review(self, review_id: str) -> tuple[RetentionReview, str]:
         """Deliver one due review without creating evidence or changing mastery."""
@@ -1144,7 +1177,7 @@ class CareerForgeService:
                 raise ValueError("retention review is no longer available")
         delivered = RetentionReview(review.review_id, review.competency_id, review.evidence_id,
                                     review.mastery, review.due_at, "delivered", review.created_at)
-        prompt = mission_brief(self.graph[review.competency_id]).verification
+        prompt = self.retention_review_prompt(review.review_id)
         return delivered, prompt
 
     def evaluate_retention_review(
@@ -1197,6 +1230,14 @@ class CareerForgeService:
                 "SELECT m.competency_id, COUNT(*) FROM mission_assistance a "
                 "JOIN missions m ON m.mission_id=a.mission_id GROUP BY m.competency_id"
             ))
+            dynamic_titles = {
+                str(row[0]): str(row[1]) for row in db.execute(
+                    "SELECT competency_id,json_extract(contract_json,'$.title') "
+                    "FROM dynamic_learning_subjects"
+                )
+            } if db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dynamic_learning_subjects'"
+            ).fetchone() else {}
         review_counts = {str(row[0]): int(row[1]) for row in review_rows}
         for row in review_rows:
             last_seen[str(row[0])] = max(last_seen.get(str(row[0]), ""), str(row[2]))
@@ -1207,7 +1248,8 @@ class CareerForgeService:
                 f"{failures} failed retention review{'s' if failures != 1 else ''}" if failures else "",
                 f"{unresolved} unresolved latest attempt{'s' if unresolved != 1 else ''}" if unresolved else "",
             )))
-            areas.append(WeakArea(competency_id, self.graph[competency_id].title, failures, unresolved,
+            title = self.graph[competency_id].title if competency_id in self.graph else dynamic_titles.get(competency_id, competency_id)
+            areas.append(WeakArea(competency_id, title, failures, unresolved,
                                   int(assistance_counts.get(competency_id, 0)), reasons, last_seen[competency_id]))
         areas.sort(key=lambda item: (-(item.retention_failures + item.unresolved_retries), item.competency_id))
         return tuple(areas[:limit])
@@ -1218,22 +1260,35 @@ class CareerForgeService:
         if evaluation is AttemptEvaluation.PENDING or not isinstance(feedback, str) or not feedback.strip():
             raise ValueError("a final evaluation and feedback are required")
         attempt = self.attempt(attempt_id)
-        if attempt.evaluation is not AttemptEvaluation.PENDING:
-            raise ValueError("attempt has already been evaluated")
         if evidence_type is not None and evaluation is not AttemptEvaluation.CORRECT:
             raise ValueError("only a correct assessment may carry evidence")
         retry_needed = evaluation is not AttemptEvaluation.CORRECT
         with self._db() as db:
-            db.execute("UPDATE lesson_attempts SET evaluation=?, evidence_type=?, feedback=?, retry_needed=?, evaluated_at=? WHERE attempt_id=?", (
+            changed = db.execute("UPDATE lesson_attempts SET evaluation=?, evidence_type=?, feedback=?, retry_needed=?, evaluated_at=? WHERE attempt_id=? AND evaluation='pending'", (
                 evaluation, evidence_type, feedback.strip(), int(retry_needed), _now(), attempt_id,
-            ))
-        if evidence_type:
-            self.record_evidence(attempt.mission_id, evidence_type, attempt.response,
-                                 assistance_level=attempt.assistance_level,
-                                 source_attempt_id=attempt.attempt_id)
-        phase = LessonPhase.TEACH_BACK if evaluation is AttemptEvaluation.CORRECT else LessonPhase.QUESTION
-        self.update_resume(attempt.mission_id, {"phase": phase, "question_id": attempt.question_id, "attempt_id": attempt_id},
-                           assistance_level=attempt.assistance_level)
+            )).rowcount
+            if changed != 1:
+                raise ValueError("attempt has already been evaluated")
+            mission_row = db.execute("SELECT competency_id,resume_json,state FROM missions WHERE mission_id=?", (attempt.mission_id,)).fetchone()
+            if mission_row is None or mission_row[2] != "active":
+                raise ValueError("attempt mission is no longer active")
+            context = json.loads(mission_row[1])
+            if evidence_type:
+                evidence_id = "evidence_" + uuid.uuid4().hex
+                db.execute(
+                    "INSERT INTO mission_evidence "
+                    "(evidence_id,mission_id,evidence_type,content,assistance_level,artifact_ref,created_at,source_attempt_id,competency_id,contract_fingerprint) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    (evidence_id, attempt.mission_id, evidence_type, attempt.response,
+                     attempt.assistance_level.value if attempt.assistance_level else None, None,
+                     _now(), attempt_id, mission_row[0],
+                     context.get("contract_fingerprint") if context.get("learning_context") == "dynamic_dlp" else None),
+                )
+            context.update({"phase": LessonPhase.TEACH_BACK if evaluation is AttemptEvaluation.CORRECT else LessonPhase.QUESTION,
+                            "question_id": attempt.question_id, "attempt_id": attempt_id})
+            db.execute("UPDATE missions SET resume_json=?,assistance_level=?,updated_at=? WHERE mission_id=? AND state='active'",
+                       (json.dumps(context), attempt.assistance_level.value if attempt.assistance_level else None,
+                        _now(), attempt.mission_id))
         return self.attempt(attempt_id)
 
     def mission_loop(self, mission_id: str) -> tuple[str, ...]:

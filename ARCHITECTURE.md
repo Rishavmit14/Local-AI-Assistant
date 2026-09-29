@@ -982,14 +982,19 @@ recovery reads do not trigger reconciliation. Row 56 is bounded to truthful
 owner-visible inspection and adds no universal resume, retry, cleanup, or
 rollback authority.
 
-## Dynamic Learning Paths owner integration (candidate)
+## Dynamic Learning Paths owner integration (DLP-3 accepted; DLP-4 active)
 
 DLP persists curriculum versions and the owner's selected path in its separate
 local SQLite authority. Conversation recognition is deterministic for explicit
 path operations; validated local `CURRICULUM_DESIGNER` output remains proposal
 only. Learn renders typed DLP list/detail/sequence responses. Career Forge owns
 all assessment, attempts, evidence, mastery, retention, review, and reinforcement
-state; mapped handoffs re-enter those services, while unmapped nodes remain
-non-executable. Candidate DLP-3 behavior is described in
-`docs/architecture/dynamic-learning-paths.md`; this does not yet establish
-product qualification.
+state. DLP-3's bounded owner integration is accepted at
+`4cf22b1fc645f19ba5a64123b342a4f78442a49f`. DLP-4 adds Career Forge-owned
+dynamic subjects bound to immutable path/node contracts; explicit sessions,
+local assessment, evidence, mastery, retention, and sequence projection reuse
+the existing Career Forge learner authority. Arbitrary nodes without a
+registered dynamic subject remain unverified and cannot unlock dependents.
+DLP-4 implementation and qualification are active; see
+`docs/architecture/dynamic-learning-paths.md`. Owner final visual acceptance
+remains deferred, and rows 60/61 remain PARTIAL.
