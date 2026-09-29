@@ -1,11 +1,12 @@
 # Friday current recovery handoff
 
 Repository: `/AI/projects/Local-AI-Assistant-terra-integration`, branch
-`integration/astra-friday`. DLP-1 is implemented and fully validated in the
-working tree. The last accepted/published baseline before this candidate is
-`9c5ab0d947abfb6b10d345b68baf183c90635ca1`; the DLP-1 commit and remote
-publication are pending. Final acceptance must record the recovery SHA and
-verify `origin/integration/astra-friday` and `origin/main` at that exact commit.
+`integration/astra-friday`. The last accepted/published baseline before DLP-1
+was `9c5ab0d947abfb6b10d345b68baf183c90635ca1`. The fully validated DLP-1
+implementation commit is `e8b982b65e5b42b08755b0e2158e51c02dd85ec4`. This
+handoff refresh is the final recovery commit; resolve its exact SHA with
+`git rev-parse HEAD`. Publish that commit on `integration/astra-friday` and
+`main`, then fetch and verify both remote refs.
 
 ## DLP-1 candidate
 
@@ -48,9 +49,7 @@ unchanged from the accepted UX-60A baseline.
 
 ## Exact continuation
 
-Finish the accepted publication/recovery gate for the validated DLP-1 candidate:
-review staged scope, commit on `integration/astra-friday`, push that branch,
-fast-forward/push `main` to the same accepted recovery commit, fetch and verify
-both remote refs, and leave the integration worktree clean. Record final
-recovery SHA/status here after publication. Stop after DLP-1; do not start DLP-2
-in this task.
+Publish this handoff's exact commit (resolve via `git rev-parse HEAD`) on
+`integration/astra-friday`, fast-forward/push `main` to the same recovery
+commit, fetch and verify both remote refs, and leave the integration worktree
+clean. Stop after DLP-1; do not start DLP-2 in this task.
