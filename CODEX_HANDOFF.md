@@ -2,7 +2,7 @@
 
 ## Recovery state
 
-Owner-provided crash note says the Linux desktop reported near-full device memory and Codex stopped responding; no independent crash log was available. Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`, branch `integration/astra-friday`. Accepted DLP-3 base: `4cf22b1fc645f19ba5a64123b342a4f78442a49f`. Local recovery checkpoint: `e1f9fbd` (`DLP-4 implementation recovery checkpoint`, not accepted/published). At recovery start HEAD, `main`, `origin/main`, and `origin/integration/astra-friday` all matched the DLP-3 base; there were no DLP-4 commits. Recovered state: 22 modified tracked files and 2 untracked source/test files. External snapshot with tracked/index diffs, checksums, and untracked copies: `/tmp/friday-dlp4-crash-recovery-20260930-002205`.
+Owner-provided crash note says the Linux desktop reported near-full device memory and Codex stopped responding; no independent crash log was available. Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`, branch `integration/astra-friday`. Accepted DLP-3 base: `4cf22b1fc645f19ba5a64123b342a4f78442a49f`. Local recovery checkpoint: `e1f9fbd` (`DLP-4 implementation recovery checkpoint`). DLP-4 was accepted as `4a420217bcddca42aa2655c3379b196729a43432`. At publication verification, local `HEAD`, local `main`, `origin/main`, and `origin/integration/astra-friday` all resolved to that acceptance commit. At recovery start those refs instead matched the DLP-3 base, and there were no DLP-4 commits. Recovered state: 22 modified tracked files and 2 untracked source/test files. External snapshot with tracked/index diffs, checksums, and untracked copies: `/tmp/friday-dlp4-crash-recovery-20260930-002205`.
 
 ## Capability and authority
 
@@ -20,8 +20,6 @@ DLP-4 generalizes execution for arbitrary curriculum nodes. DLP owns curriculum,
 
 At initial recovery, memory showed 22 GiB available and 7 GiB swap in use. No DLP candidate, pytest, Vite, or verifier process/listener was found; no process was stopped. Candidate API processes used for qualification were explicitly terminated. Final read-only checks returned HTTP 200 from production Friday `127.0.0.1:8765` and Qwen `127.0.0.1:8080`; neither was restarted or reconfigured. The protected checkout `/AI/projects/Local-AI-Assistant` was already dirty with the owner's Pocket/Anna files at expected HEAD `e43896623978e86b7bae6502b380462b455626be`; it remains unchanged. `frontend/src/vision/NeuralPresence.tsx` remains unchanged.
 
-## Remaining work / next actions
+## Recovery completion
 
-1. Review the final scope/status and create the DLP-4 acceptance commit on `integration/astra-friday`.
-2. Push the configured remote and apply the repository fast-forward policy to `main`; verify fetched branch and `main` both point to the accepted recovery commit and the accepted worktree is clean. Do not force-push.
-3. Report actual acceptance SHA, remote refs, validation, limitations, and one recommended next roadmap dependency; then stop this DLP-4 task.
+DLP-4 implementation, regression, product candidate evidence, protected-state checks, documentation, commit, push, fast-forward, and remote-HEAD verification are complete. The exact latest recovery pointer is authoritative in Git; the accepted DLP-4 implementation SHA above remains the capability commit. No DLP-4 work remains in this task. The next recommended dependency is the remaining owner-facing Learn review/reinforcement answer flows, keeping rows 60 and 61 PARTIAL until their broader owner qualification passes. Do not begin that dependency in this recovery task.

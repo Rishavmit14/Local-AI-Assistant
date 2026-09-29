@@ -22,8 +22,10 @@ candidate API processes, with answer submission/evaluation after the first
 restart and evidence recovery after the second. Owner Career Forge state and
 production services were untouched. Learn remains FUNCTIONAL ONLY; owner final visual acceptance is
 deferred. Matrix rows 60 and 61 remain PARTIAL. The accepted implementation and
-its publication recovery commit are recorded by Git; no DLP-4 acceptance was
-present at recovery start.
+its publication recovery commit are recorded by Git; DLP-4 was accepted as
+`4a420217bcddca42aa2655c3379b196729a43432` and verified on
+`integration/astra-friday`, `main`, `origin/integration/astra-friday`, and
+`origin/main`. No DLP-4 acceptance was present at recovery start.
 
 ## 2026-09-29 — DLP-3 owner learning-path integration accepted
 
