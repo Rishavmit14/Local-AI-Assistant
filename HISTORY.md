@@ -1798,6 +1798,21 @@ required process/sandbox isolation evidence. This is a product/security design
 decision only: credential code, enrollment, live qualification, and row 59
 acceptance remain pending, and row 60 was not started.
 
+## 2026-09-29 — Owner Sovereign credential boundary clarified
+
+The owner withdrew the requirement that unrestricted trusted root be
+technically unable to recover its own administrator credential. That
+confidentiality claim is incompatible with general root-equivalent authority on
+this host. The accepted boundary is against routine propagation through model
+prompts, tools, APIs, browser/document/research inputs, logs, history, and
+untrusted sandboxes. Friday's trusted administrative runtime is part of the
+machine's highest-trust computing base; compromise may expose the credential
+and cause full machine compromise, a risk the owner knowingly accepts. Systemd
+host-key encryption remains the candidate persistent store, with no claim
+against root. Candidate policy excludes production Friday. Enrollment and
+qualification remain pending; no credential has been enrolled and row 60
+remains untouched.
+
 Validation passed: 17 focused bridge tests; full Python suite (1,064 tests);
 full frontend suite (105 tests); ESLint; TypeScript and production build; Ruff;
 `pip check`; repository verification (1,064 tests and tracked-artifact checks);
@@ -1812,3 +1827,25 @@ state were stopped and removed. Production Friday/Qwen, the existing candidate,
 the protected checkout, and host networking remained untouched. See the current
 handoff for the accepted recovery SHA and next dependency; row 59 and row 60
 must not be started as part of this qualification.
+
+## 2026-09-29 — Phase 19 bounded Local Intelligence Sovereignty qualification
+
+Owner Sovereign enrollment succeeded and remained available through a broker
+restart. After invalidating sudo timestamps, the trusted broker created,
+verified, and removed a disposable root-owned file; created, inspected, and
+removed a transient system service; and created and removed a normal-owner
+private-network namespace anchor. Host user-namespace identity was preserved,
+network-namespace identity differed, and external/host-loopback probes failed
+closed. Fixture coverage proves update/revoke behavior and checks secret absence
+from argv, environment, audit/result output, API/client protocol, and protected
+Bubblewrap views. Practice Lab and role negative controls passed.
+
+The integrated local-Qwen scenario passed Conversation, synthetic Research,
+Memory-backed Conversation, Career Forge cognition/evaluation, CodeRAG/planner
+against a disposable repository, Reviewer/Security, and an optional external
+adapter denial followed by immediate local Conversation recovery. It used only
+synthetic state, did not scan owner documents, and did not persist a generated
+plan. These results qualify only the bounded row 59 claim in the product matrix;
+they do not establish universal offline or all-capability qualification.
+Validation and accepted recovery SHA are recorded in the current handoff and
+`docs/qualification/owner-sovereign-mode.md`. Row 60 was not started.

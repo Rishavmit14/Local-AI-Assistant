@@ -200,10 +200,20 @@ The broker exposes no raw-secret retrieval API, authenticates the configured
 Friday runtime process over private Unix IPC, and runs general local
 administrative operations only within an already-authorized owner task. Root
 privilege alone is not a confirmation trigger; consequence and ambiguity still
-govern the existing risk policy. The secret never enters model/API/history/log
-surfaces or untrusted sandbox processes. The accepted design and current
-qualification state are in ADR 0033 and
+govern the existing risk policy. Normal executor pathways do not propagate the
+secret into model/API/history/log surfaces or untrusted sandbox processes.
+Unrestricted trusted root may recover or disclose it; compromise can expose
+owner data, change security configuration, and compromise the full machine, a
+risk the owner knowingly accepts. The accepted design and current qualification
+state are in ADR 0033 and
 `docs/architecture/owner-sovereign-mode.md`.
+
+Phase 19 qualified the bounded candidate local administrative boundary and an
+integrated synthetic local-Qwen sovereignty scenario. Production
+`friday-local-ai.service` is not trusted by the candidate broker; this evidence
+does not qualify production administrative UI/API integration, expand the
+trusted-root threat model, or qualify every product capability. See
+`docs/qualification/owner-sovereign-mode.md`.
 
 Phase 17 qualifies a restart-based configuration boundary without changing the
 one-general-model policy. `LocalLLM` is the only OpenAI-compatible chat client

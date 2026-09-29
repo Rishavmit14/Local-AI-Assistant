@@ -1,6 +1,6 @@
 # ADR 0033: Owner Sovereign Administration
 
-- Status: accepted product/security design; implementation and qualification pending
+- Status: accepted; bounded candidate Owner Sovereign boundary qualified for Phase 19; production integration unqualified
 - Date: 2026-09-29
 
 ## Context
@@ -30,11 +30,10 @@ protect against a privileged compromise of this installation.
   Friday runtime may use the enrolled administrator credential for general
   local operations. Root privilege alone does not trigger confirmation.
 - Store only the encrypted credential at rest using systemd's host-key
-  credential encryption. A root-owned system service loads it with
-  `LoadCredentialEncrypted`; plaintext is available only inside that trusted
-  service's protected credential directory and process memory. Do not store the
-  password in Secret Service, application databases, config, environment, or
-  ordinary files.
+  credential encryption. A root-owned system service decrypts it internally;
+  plaintext is available only in that trusted service's memory and the
+  short-lived credential-use path. Do not store the password in Secret Service,
+  application databases, config, environment, or ordinary files.
 - The system service exposes a private Unix-socket executor. It authenticates
   the exact trusted Friday service process, not merely UID 1000, before
   accepting a request. Isolated learner/autonomous subprocesses cannot access
@@ -51,6 +50,11 @@ protect against a privileged compromise of this installation.
 - Privileged output is untrusted. The controller returns only bounded,
   redacted result data appropriate to the owner task; sensitive/raw output is
   not automatically copied into model context, history, or browser state.
+- The trusted administrative runtime is part of the machine's highest-trust
+  computing base. Unrestricted root can ultimately recover or disclose the
+  credential; normal interfaces and untrusted components must not expose it,
+  but this design does not claim confidentiality against a malicious or
+  compromised trusted root executor.
 - Enrollment, update, and revoke are local hidden-input operations. Revoke
   removes the encrypted credential and disables broker access. The vault
   becomes available across Friday restarts and host boots; operations require
@@ -58,15 +62,32 @@ protect against a privileged compromise of this installation.
 
 ## Accepted risk and consequences
 
-Compromise of Friday's trusted controller or administrator broker can result in
-full local machine compromise. The owner knowingly accepts this tradeoff for
-uninterrupted local autonomy. Host-key encryption protects stored credential
-material at rest from ordinary owner-user file reads; it is not a defense
-against root, host-key theft, or a compromised trusted broker. This design does
-not weaken global sudoers or polkit policy and does not add `NOPASSWD: ALL`.
+Owner Sovereign Mode intentionally makes Friday's trusted administrative
+runtime part of the machine's highest-trust computing base. Compromise can
+result in full machine compromise, owner-data access, credential disclosure,
+security configuration changes, and arbitrary root execution. The owner
+knowingly accepts this risk for uninterrupted full local autonomy. Host-key
+encryption protects stored credential material at rest from ordinary untrusted
+processes; it is not a defense against root, host-key theft, or a compromised
+trusted broker. The normal credential API permits privileged use but has no
+raw-secret export operation. This design does not weaken global sudoers or
+polkit policy and does not add `NOPASSWD: ALL`.
 
-Qualification must prove same-UID sandbox denial, exact trusted-process IPC
-authorization, no secret leakage, timestamp-independent sudo operation,
-restart recovery, update/revoke, and root/systemd/PrivateNetwork actions. The
-capability remains unqualified until that evidence and the complete repository
-acceptance gates pass. Row 59 remains IMPLEMENTED; no new matrix row is added.
+Phase 19 qualification proved the enrolled runtime can use the persisted
+credential after broker restart and with sudo timestamps invalidated; perform
+root-owned file, transient systemd, and `PrivateNetwork=yes` actions; and deny
+same-UID, Practice Lab, and untrusted model/document paths access to the
+credential or broker. Fixture tests cover update and revoke lifecycle. The
+integrated local-Qwen scenario exercised Conversation, synthetic Research,
+Memory, Career Forge cognition/evaluation, CodeRAG/planning, Reviewer/Security,
+authority negative controls, and optional external-adapter failure followed
+by local recovery. See `docs/qualification/owner-sovereign-mode.md`.
+
+This is a bounded candidate qualification, not a claim that every Friday
+capability, administrative action, or first-install path has been proven
+offline. The candidate policy trusts only the disposable qualification probe;
+production `friday-local-ai.service` is not trusted by this broker and has no
+qualified administrative UI/API integration. Trusted root remains inside the
+highest-trust computing base and can recover the credential. Row 59 is
+QUALIFIED only within the scope stated in the product integration matrix; no
+new matrix row is added.

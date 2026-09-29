@@ -1617,10 +1617,20 @@ already local. Web research, GitHub, external APIs, package/model acquisition,
 and first-install operation remain internet-dependent or outside this proof.
 See `docs/qualification/offline-operation.md` for topology and evidence.
 
-Row 59 Local Intelligence Sovereignty remains **IMPLEMENTED** and is not
-qualified by this bounded scenario. Owner Sovereign Mode is a cross-cutting
-row-59 prerequisite under implementation, not a new matrix row. Its owner
-contract and architecture are recorded in ADR 0033 and
-`docs/architecture/owner-sovereign-mode.md`; the credential broker, trusted
-process IPC, enrollment, and native qualification remain incomplete. Row 60
-remains unchanged and not started.
+Row 59 Local Intelligence Sovereignty is **QUALIFIED (bounded Phase 19 local
+reasoning plus candidate Owner Sovereign boundary)**. The owner-enrolled
+credential broker passed candidate-only native root-file, transient-systemd,
+broker-restart, and private-network qualification with sudo timestamps
+invalidated. Practice Lab and untrusted model/document inputs cannot retrieve
+the credential. The integrated local-Qwen E2E exercised Conversation,
+Research, Memory, Career Forge cognition/evaluation, CodeRAG/planning, and
+Reviewer/Security, including an optional external-adapter denial followed by
+local Conversation recovery. All state in that E2E was synthetic and
+disposable. Production `friday-local-ai.service` is not trusted by the
+candidate broker; no production admin UI/API integration is qualified. This
+also does not qualify every Friday capability, all privileged operations,
+browser-process containment, or first-time installation offline; trusted root
+remains in the trust base. See
+`docs/qualification/owner-sovereign-mode.md` and ADR 0033. Row 60 remains
+unchanged and not started; before it, reopen `FRIDAY_PRODUCT_BRAINSTORM.md`
+and design the final owner-facing product/UI and Dynamic Learning Paths spec.

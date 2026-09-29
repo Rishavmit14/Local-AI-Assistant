@@ -551,6 +551,12 @@ credential for broad local administration. Root privilege is not itself a
 reason to interrupt an already-authorized owner task. The credential is
 available only to trusted execution code and must not be exposed through model
 prompts/tools, APIs, browser state, history, logs, or untrusted subprocesses.
+The trusted administrative runtime is part of the machine's highest-trust
+computing base; unrestricted root authority may ultimately recover or disclose
+the credential. The owner knowingly accepts credential disclosure, owner-data
+access, security changes, arbitrary root execution, and full machine compromise
+if that trusted component is compromised. This accepted risk does not permit
+normal interfaces to export the raw credential.
 
 Model text alone still does not execute. Administrative operations remain tied
 to the owner's task intent and Friday's existing controller/validation/audit
@@ -559,6 +565,14 @@ as described above, not the presence of sudo. Credential enrollment, update,
 and revocation are explicit local owner operations. Compromise of Friday's
 trusted runtime may result in full machine compromise; the owner accepts this
 tradeoff for uninterrupted local autonomy.
+
+Phase 19 qualified an encrypted systemd-host-key credential vault and
+root-owned broker through a candidate restricted to the configured owner
+probe. Production `friday-local-ai.service` is not trusted by that broker, and
+no production credential UI/API integration is qualified. Qualification does
+not establish that every administrative operation or every Friday capability
+is complete; see `docs/qualification/owner-sovereign-mode.md` for the tested
+scope and limits.
 
 ## FRI-DESK-005 — Package installation
 
