@@ -15,8 +15,11 @@ PARTIAL; row 60 remains PARTIAL. Owner UI, adaptive sequencing, diagnostics, and
 owner-path qualification remain out of scope. The focused DLP/API/config suite
 passed; full qualification passed 1,116 Python tests, 107 frontend tests,
 repository verification, Ruff, `pip check`, ESLint, TypeScript, and production
-build. A bounded local-Qwen SQL proposal validated and reconstructed after
-service restart in temporary state (4 modules, 12 nodes, 11 edges); no owner
+build. Early local-Qwen smoke attempts exposed an unsupported proposed node type
+(rejected before persistence) and a separate model timeout (also before
+persistence). The proposal contract was tightened to enumerate types and bound
+output; the final bounded SQL-path smoke validated and reconstructed after
+service restart in temporary state (4 modules, 12 nodes, 11 edges). No owner
 Career Forge state or production Friday/Qwen configuration changed. The local
 API exposes explicit OpenAPI request/response models. DLP-2 remains separate.
 
