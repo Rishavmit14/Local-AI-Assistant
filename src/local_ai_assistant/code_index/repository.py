@@ -96,6 +96,7 @@ class CodeRAG:
         self.embedder = embedder or SentenceTransformer(
             self.config.embedding.model,
             device=self.config.embedding.device,
+            local_files_only=True,
         )
 
         self.llm = llm or LocalLLM(config=self.config)

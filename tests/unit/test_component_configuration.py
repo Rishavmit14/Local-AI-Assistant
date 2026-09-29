@@ -1,6 +1,9 @@
 from dataclasses import replace
 from types import SimpleNamespace
 
+import pytest
+
+from local_ai_assistant.code_index import repository as code_repository
 from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.common.config import AppConfig, EmbeddingConfig, PathConfig
 from local_ai_assistant.rag.documents import LocalRAG
@@ -51,4 +54,22 @@ def test_code_rag_uses_injected_paths_and_chunk_settings(tmp_path):
         (1, 120),
         (101, 220),
         (201, 250),
+    ]
+
+
+def test_code_rag_embedding_load_is_local_only_and_fails_closed(tmp_path, monkeypatch):
+    config = configured_for(tmp_path)
+    calls = []
+
+    def missing_cached_model(*args, **kwargs):
+        calls.append((args, kwargs))
+        raise OSError("cached model unavailable")
+
+    monkeypatch.setattr(code_repository, "SentenceTransformer", missing_cached_model)
+
+    with pytest.raises(OSError, match="cached model unavailable"):
+        CodeRAG(config=config, llm=FakeLLM())
+
+    assert calls == [
+        ((config.embedding.model,), {"device": "cpu", "local_files_only": True})
     ]

@@ -82,6 +82,69 @@ has been pushed and fetch-verified on integration and main; the worktree is
 clean. The next unresolved matrix dependency is row 59, Local Intelligence
 Sovereignty. Do not start row 59 or row 60 in this task.
 
+## Phase 19 recovery — row 59 sovereignty audit in progress (2026-09-29)
+
+The accepted recovery remains `f46e2eaa78b506f4908965d318fc1a45ac9e4fb0` on
+`integration/astra-friday`; fetched integration and main refs were verified at
+that SHA before work. Unaccepted Phase 19 changes are limited to the CodeRAG
+hardening, its regression test, and this recovery note: its SentenceTransformer load is explicitly
+`local_files_only=True`, and the test verifies a cache miss propagates without
+fallback. Focused configuration, embedding, role, LocalLLM and vision tests
+passed (57 tests); full repository verification passed (1,065 Python tests),
+frontend tests passed (105), ESLint, TypeScript/build, `pip check`, and
+`git diff --check` passed. Global Ruff reports 33 diagnostics across 18
+unchanged files; both changed Python files pass Ruff. No production or owner
+runtime/state was changed.
+
+Read-only Phase 19 audit confirmed the active general-purpose client is
+LocalLLM at loopback `127.0.0.1:8080`, with one model exposed by production
+Qwen; all conversation, research interpretation, private Knowledge, Career
+Forge teacher/evaluation/interview, and planner/reviewer/security/coder roles
+use that client through RoleOrchestrator/RoleClient. Memory, Research,
+Knowledge, Career Forge, objectives, task history, rollback, desktop actions,
+and proactive records use owner-local SQLite/files. OCR is local Tesseract;
+Vision loads only an explicitly requested cached snapshot with
+`local_files_only=True`; speech workers load configured local assets. GitHub
+publication is an optional authenticated external action; the current product
+has no autonomous web research source path. Source/config searches found no
+other direct cloud model SDK or general-purpose provider fallback. The only
+runtime model-loader gap found was CodeRAG's embedding loader, now hardened.
+
+The owner started transient system unit `friday-phase19-netns.service` with
+`PrivateNetwork=yes`, `PrivateUsers=no`, UID/GID 1000, and
+`NoNewPrivileges=yes`. A transient joined probe verified UID/GID 1000, shared
+host user namespace, and a distinct network namespace. External TCP and DNS
+were denied; loopback ports 8765, 8080, 8766, and 5191 were unreachable. One
+initial diagnostic probe omitted `PrivateNetwork=yes` on the joining unit and
+therefore ran in the host network namespace; it only performed TCP connect
+checks, sent no application payload, and was discarded. The corrected probe
+passed all egress checks.
+
+The exact Practice Lab Bubblewrap capability passed, and
+`PracticeLabService.availability()` returned available. One disposable real
+Practice Lab execution used the existing Bubblewrap `NetworkPolicy.DENY` path;
+the learner could not reach external IPs, DNS, host Friday/Qwen, or candidate
+adapter ports. Thus all nine Phase 18B.1 containment gates passed. No fallback
+or host network change was used.
+
+Phase 19's candidate API and adapter have not started. The transient namespace
+anchor and fixed Qwen relay have since been terminated; systemd collected both
+units and `/tmp/friday-phase19-qual.k7DGQ5` was removed. Host interface/address
+and route snapshots remain unchanged. Production listeners on `127.0.0.1:8765`
+and `127.0.0.1:8080` remain present. Candidate qualification did not proceed.
+
+The owner has requested persistent sudo-credential enrollment and unrestricted
+root execution. That design is paused before implementation because an
+unrestricted model-callable root executor that returns command output cannot
+also guarantee the requested credential isolation from Qwen: arbitrary root
+commands can read or extract the credential and return it through stdout. This
+also conflicts with the current product baseline's explicit confirmation rule
+for sudo/root changes. No credential was enrolled and no privileged-executor
+code was added. Row 59 remains IMPLEMENTED and unqualified; row 60 remains
+untouched. Preserve the CodeRAG hardening and regression changes above.
+Production API and Qwen remained healthy; protected production checkout and
+owner Pocket/Anna changes remain untouched. Row 59 remains IMPLEMENTED.
+
 ## Previous accepted recovery handoff — 2026-09-28 — Phase 18A row 24 qualification
 
 Worktree `/AI/projects/Local-AI-Assistant-terra-integration`, branch
