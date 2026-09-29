@@ -9,10 +9,12 @@ Phase 19 qualifies **bounded Local Intelligence Sovereignty**. Capability
 commit `a7010a3213e3938929813f0a4feec6e8d931c8a0` implements the candidate
 Owner Sovereign boundary; qualification commit
 `794f60508d720ec8b0ce61040815821d626e62b6` records the bounded row-59
-acceptance. At the handoff update, branch `integration/astra-friday`, local
-`main`, fetched `origin/integration/astra-friday`, and fetched `origin/main`
-all pointed to the qualification commit; the handoff-only update is its
-descendant and must be pushed/fetch-verified to both remote refs.
+acceptance. Handoff checkpoint `d3a32c7f6bad45c0cb71234860463c11c7bd247a`
+was pushed and fetch-verified at both `origin/integration/astra-friday` and
+`origin/main`. This final handoff-only commit is its direct descendant and is
+also pushed/fetch-verified at both refs. The canonical current revision is the
+exact common SHA returned by `git rev-parse HEAD origin/integration/astra-friday
+origin/main` after fetch.
 
 All native and integrated Phase 19 checks passed. Full repository verification
 passed (1,099 Python tests, package/CLI/artifact checks, and `pip check`); full
@@ -39,6 +41,13 @@ state were used.
 This does not qualify all Friday capabilities, first-install offline behavior,
 browser-process network isolation, or confidentiality from trusted root.
 
+The integration worktree is clean on `integration/astra-friday`; local `main`
+and both fetched remote refs point to the same published recovery head. The
+Owner Sovereign status command reports `available`; its broker service and
+socket are active, while the disposable user probe and transient qualification
+units are inactive/absent. Production health checks returned `ok` for Friday
+API and Qwen.
+
 ## Protected runtime invariants
 
 - Production checkout `/AI/projects/Local-AI-Assistant` is protected; retain
@@ -46,6 +55,9 @@ browser-process network isolation, or confidentiality from trusted root.
 - Production Friday `127.0.0.1:8765` and local Qwen `127.0.0.1:8080` must remain
   running and unmodified.
 - Owner Career Forge state and private documents remain untouched.
+- Protected checkout remains on `stage-22/product-integration` at
+  `e43896623978e86b7bae6502b380462b455626be`; preserve its six modified and
+  four untracked Pocket/Anna voice files.
 - No host networking, firewall, route, DNS, or NetworkManager changes were made.
 - The candidate policy trusts only
   `friday-owner-sovereign-probe.service` (owner UID/GID 1000). Do not add the
