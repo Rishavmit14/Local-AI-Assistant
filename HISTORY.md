@@ -1784,6 +1784,20 @@ first-time install can run offline. Owner-authorized web research, GitHub,
 external APIs, downloads, and acquisition of uncached assets remain outside
 the claim. Row 59 remains IMPLEMENTED and unqualified; row 60 was not started.
 
+## 2026-09-29 — Owner Sovereign Mode product-contract decision
+
+The owner clarified that sudo/root use alone must not trigger additional
+confirmation or repeated password entry for an already-authorized local task.
+`FRIDAY_PRODUCT_BASELINE.md` now applies consequence, ambiguity, and
+reversibility-based confirmation. ADR 0033 accepts an explicit enrollment model
+with a root-owned broker and systemd host-key encrypted credential storage;
+GNOME Secret Service was rejected as the sole credential boundary after a
+synthetic same-UID process successfully retrieved an item over the user session
+bus. The repository architecture records the accepted compromise risk and
+required process/sandbox isolation evidence. This is a product/security design
+decision only: credential code, enrollment, live qualification, and row 59
+acceptance remain pending, and row 60 was not started.
+
 Validation passed: 17 focused bridge tests; full Python suite (1,064 tests);
 full frontend suite (105 tests); ESLint; TypeScript and production build; Ruff;
 `pip check`; repository verification (1,064 tests and tracked-artifact checks);

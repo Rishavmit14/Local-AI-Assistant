@@ -142,17 +142,23 @@ future sessions through this mandatory bootstrap, not just the originating chat.
   ordinary engineering/service/Git work; retain human review for genuinely
   high-risk actions beyond that scope. Friday's own runtime permission and
   isolation controls are not relaxed by Codex's engineering authorization.
-- Local Friday runtime credentials, authentication material, least-privilege
-  scopes, and local service configuration required to implement, qualify, test,
-  operate, or advance the canonical roadmap are ordinary authorized engineering
-  work. Generate them securely; keep plaintext only in protected local state;
-  never commit, publish, print, or log them; and grant only the capability
-  currently required. Retain a documented local revoke/disable path. This
-  authorization does not weaken bearer authentication, authorization checks,
-  exact-plan approval/binding, isolation/worktree ownership, validation,
-  rollback, audit/task history, Git authority, or fail-closed defaults. It does
-  not cover unavailable external credentials/accounts, paid services, public
-  exposure, destructive security changes, or other genuinely high-risk actions.
+- Local Friday runtime credentials, authentication material, and local service
+  configuration required for the canonical roadmap are ordinary authorized
+  engineering work. Generate them securely; never commit, publish, print, or
+  log plaintext credentials; and retain a documented local revoke/disable path.
+  **Owner Sovereign Mode**, when explicitly enabled by the owner, is the
+  documented exception to least-privilege credential scopes: Friday's trusted
+  administrator broker may persist and use the enrolled local sudo credential
+  for broad local administration. Root privilege alone is not a confirmation
+  trigger; consequence, ambiguity, and reversibility govern confirmation as
+  defined by `FRIDAY_PRODUCT_BASELINE.md`. This does not grant the model raw
+  credential access or direct execution authority, and it does not weaken
+  bearer authentication, owner-task authorization, exact-plan/scope binding,
+  isolation/worktree ownership, validation, rollback, audit/task history, Git
+  authority, or fail-closed defaults. Do not add global `NOPASSWD: ALL`, blanket
+  polkit grants, or a world-readable administrator socket. It does not cover
+  unavailable external credentials/accounts, paid services, public exposure,
+  or unrelated high-risk actions.
 - Preserve practical rollback points before risky changes. Do not casually
   reset, clean, or stash unaccepted work, force-push accepted history, or carry
   unaccepted implementation into the next capability. If capacity interrupts

@@ -32,7 +32,13 @@ Controlled `read_file`, `list_tree`, `search_code`, `find_symbol`, `find_referen
 
 Typed registry metadata, permission classes, strict tool-choice/observation records, plan-token/repository/HEAD binding, multi-file patch parsing, symbol effects, inspect-only/new/delete/rename/dependency/protected scope enforcement, structured file/symbol edits, pre/post-apply Git-diff checks, bounded loop/repair/reapproval stops, planned plus final tests, human review, timeouts/process cleanup, redacted atomic JSON audit history, execution CLI, and coding-agent integration are implemented. Scope increases require a separately validated plan and renewed approval; they are never silently accepted.
 
-Controlled shell begins with an allowlist; approval/block rules cover sudo, destructive removal, force push, `curl|bash`, credentials, and destructive DB operations. Add timeouts, child cleanup, cancellation, audit logs, optional Docker/bubblewrap/firejail, and CPU/RAM/disk limits.
+The accepted Stage 4 coding-agent shell begins with an allowlist and its
+historical policy blocks sudo, destructive removal, force push, `curl|bash`,
+credentials, and destructive DB operations. That bounded coding-tool surface is
+distinct from the cross-cutting Owner Sovereign Mode administrator capability
+now specified for row 59; see ADR 0033. Add timeouts, child cleanup,
+cancellation, audit logs, optional Docker/bubblewrap/firejail, and CPU/RAM/disk
+limits.
 
 ## Stage 5 — Validation, tests, review, security, confidence (**Done**)
 
@@ -1612,5 +1618,9 @@ and first-install operation remain internet-dependent or outside this proof.
 See `docs/qualification/offline-operation.md` for topology and evidence.
 
 Row 59 Local Intelligence Sovereignty remains **IMPLEMENTED** and is not
-qualified by this bounded scenario. Row 60 remains unchanged. Neither row was
-started.
+qualified by this bounded scenario. Owner Sovereign Mode is a cross-cutting
+row-59 prerequisite under implementation, not a new matrix row. Its owner
+contract and architecture are recorded in ADR 0033 and
+`docs/architecture/owner-sovereign-mode.md`; the credential broker, trusted
+process IPC, enrollment, and native qualification remain incomplete. Row 60
+remains unchanged and not started.

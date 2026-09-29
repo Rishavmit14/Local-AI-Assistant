@@ -193,6 +193,18 @@ Piper, wake/VAD, embeddings, OCR, and later vision/image models are specialized
 components. ADR 0014 defines evidence required for any future general-model
 addition or replacement.
 
+Owner Sovereign Mode is the owner-authorized local administrator path. It uses a
+root-owned systemd credential broker with systemd host-key encrypted storage;
+the owner-session Secret Service is not a sufficient process-identity boundary.
+The broker exposes no raw-secret retrieval API, authenticates the configured
+Friday runtime process over private Unix IPC, and runs general local
+administrative operations only within an already-authorized owner task. Root
+privilege alone is not a confirmation trigger; consequence and ambiguity still
+govern the existing risk policy. The secret never enters model/API/history/log
+surfaces or untrusted sandbox processes. The accepted design and current
+qualification state are in ADR 0033 and
+`docs/architecture/owner-sovereign-mode.md`.
+
 Phase 17 qualifies a restart-based configuration boundary without changing the
 one-general-model policy. `LocalLLM` is the only OpenAI-compatible chat client
 for general-purpose cognition; its base URL must be loopback, its HTTP transport

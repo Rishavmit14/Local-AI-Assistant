@@ -82,19 +82,18 @@ has been pushed and fetch-verified on integration and main; the worktree is
 clean. The next unresolved matrix dependency is row 59, Local Intelligence
 Sovereignty. Do not start row 59 or row 60 in this task.
 
-## Phase 19 recovery — row 59 sovereignty audit in progress (2026-09-29)
+## Phase 19 recovery — row 59 sovereignty in progress (2026-09-29)
 
-The accepted recovery remains `f46e2eaa78b506f4908965d318fc1a45ac9e4fb0` on
-`integration/astra-friday`; fetched integration and main refs were verified at
-that SHA before work. Unaccepted Phase 19 changes are limited to the CodeRAG
-hardening, its regression test, and this recovery note: its SentenceTransformer load is explicitly
-`local_files_only=True`, and the test verifies a cache miss propagates without
-fallback. Focused configuration, embedding, role, LocalLLM and vision tests
-passed (57 tests); full repository verification passed (1,065 Python tests),
-frontend tests passed (105), ESLint, TypeScript/build, `pip check`, and
-`git diff --check` passed. Global Ruff reports 33 diagnostics across 18
-unchanged files; both changed Python files pass Ruff. No production or owner
-runtime/state was changed.
+The CodeRAG local-only embedding hardening is checkpointed at
+`1125622022f04aec056fca2ded7b58aa017e56e4` on
+`integration/astra-friday` and `main`, fetched and verified at both refs. It
+sets `local_files_only=True` and has a regression proving a cache miss
+propagates without fallback. Focused configuration, embedding, role, LocalLLM
+and vision tests passed (57); full repository verification passed (1,065
+Python tests); frontend tests passed (105); ESLint, TypeScript/build,
+`pip check`, and `git diff --check` passed. Global Ruff reports 33 diagnostics
+across 18 unchanged files; the changed Python files passed targeted Ruff. No
+production or owner runtime/state was changed by this checkpoint.
 
 Read-only Phase 19 audit confirmed the active general-purpose client is
 LocalLLM at loopback `127.0.0.1:8080`, with one model exposed by production
@@ -133,17 +132,32 @@ units and `/tmp/friday-phase19-qual.k7DGQ5` was removed. Host interface/address
 and route snapshots remain unchanged. Production listeners on `127.0.0.1:8765`
 and `127.0.0.1:8080` remain present. Candidate qualification did not proceed.
 
-The owner has requested persistent sudo-credential enrollment and unrestricted
-root execution. That design is paused before implementation because an
-unrestricted model-callable root executor that returns command output cannot
-also guarantee the requested credential isolation from Qwen: arbitrary root
-commands can read or extract the credential and return it through stdout. This
-also conflicts with the current product baseline's explicit confirmation rule
-for sudo/root changes. No credential was enrolled and no privileged-executor
-code was added. Row 59 remains IMPLEMENTED and unqualified; row 60 remains
-untouched. Preserve the CodeRAG hardening and regression changes above.
-Production API and Qwen remained healthy; protected production checkout and
-owner Pocket/Anna changes remain untouched. Row 59 remains IMPLEMENTED.
+The owner has clarified that Owner Sovereign Mode removes root privilege alone
+as a confirmation trigger while preserving task authorization, model/executor
+separation, secret isolation, and consequence-based risk policy. Product
+baseline, architecture, AGENTS policy, and ADR 0033 now record that decision;
+the design selects a root-owned broker with systemd host-key encrypted
+credentials. GNOME Secret Service was rejected as the sole vault because the
+same-UID user session bus does not provide the required process identity
+boundary. This machine's systemd TPM probe reports partial support with
+firmware/driver unavailable; the selected host key is not TPM-sealed.
+
+The credential service and privileged executor are not implemented or
+qualified. No credential was enrolled. The namespace anchor, Qwen relay,
+systemd transient units, and `/tmp/friday-phase19-qual.k7DGQ5` state were
+removed. Host interface/address and routes remain unchanged. Production Friday
+API and Qwen remain healthy/listening; protected checkout
+`/AI/projects/Local-AI-Assistant` remains at
+`e43896623978e86b7bae6502b380462b455626be` on
+`stage-22/product-integration` with existing Pocket/Anna work untouched.
+
+Current worktree is this integration checkout on `integration/astra-friday`,
+HEAD `1125622022f04aec056fca2ded7b58aa017e56e4`, with product-contract/ADR
+documentation changes in progress. Row 59 remains IMPLEMENTED and unqualified;
+row 60 remains untouched. Next: validate and checkpoint the contract/ADR,
+finish broker/credential-store feasibility and process-identity threat tests,
+then implement AdministratorCredentialService and PrivilegedExecutor before
+the single hidden local enrollment gate.
 
 ## Previous accepted recovery handoff — 2026-09-28 — Phase 18A row 24 qualification
 

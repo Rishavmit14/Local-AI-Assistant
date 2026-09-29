@@ -44,6 +44,12 @@ For product behavior and owner experience:
 
 If an earlier V1 restriction conflicts with an explicitly strengthened target requirement in this baseline, preserve the historical record but implement the stronger target unless doing so would violate a safety invariant.
 
+The current owner decision for **Owner Sovereign Mode** is authoritative over
+older product prose that treated sudo/root use itself as a confirmation trigger.
+Privilege is an execution mechanism, not a consequence-risk classification.
+Existing task authority, model/executor separation, secret isolation, and
+consequence-based safeguards remain in force.
+
 ## 1.2 Mandatory agent behavior
 
 Before modifying code, an agent must:
@@ -514,20 +520,45 @@ unless real risk or ambiguity exists.
 
 ## FRI-DESK-004 — Risk-sensitive confirmations
 
-Additional confirmation remains appropriate for:
+Additional confirmation is based on consequence, ambiguity, and reversibility.
+The need to use sudo/root, by itself, is not a confirmation trigger. When the
+owner has clearly requested ordinary local administration as part of an already
+authorized task, Friday may use the enrolled credential without an additional
+approval or password prompt.
+
+Additional confirmation remains appropriate when the action's consequences
+include:
 
 - irreversible deletion;
 - destructive filesystem operations;
-- sudo/root changes;
-- credential/security changes;
+- credential/security changes with unclear scope or intent;
 - force push;
-- production deployment;
+- production deployment when deployment intent was not already explicit;
 - payments;
 - smart-contract deployment;
 - destructive database migration;
-- privacy-sensitive publication.
+- privacy-sensitive publication;
+- disk formatting/wiping, disabling encryption, deleting unrelated owner data,
+  or destroying backups.
 
 Prefer reversible alternatives where possible.
+
+## FRI-ADMIN-001 — Owner Sovereign Mode
+
+When explicitly enabled by the owner, Friday's trusted local runtime may
+persistently retain and use the owner's enrolled local administrator
+credential for broad local administration. Root privilege is not itself a
+reason to interrupt an already-authorized owner task. The credential is
+available only to trusted execution code and must not be exposed through model
+prompts/tools, APIs, browser state, history, logs, or untrusted subprocesses.
+
+Model text alone still does not execute. Administrative operations remain tied
+to the owner's task intent and Friday's existing controller/validation/audit
+path. Additional confirmation follows consequence, ambiguity, or irreversibility
+as described above, not the presence of sudo. Credential enrollment, update,
+and revocation are explicit local owner operations. Compromise of Friday's
+trusted runtime may result in full machine compromise; the owner accepts this
+tradeoff for uninterrupted local autonomy.
 
 ## FRI-DESK-005 — Package installation
 
@@ -1204,10 +1235,16 @@ Ask for confirmation when:
 
 - destructive and not safely reversible;
 - target ambiguous;
-- root privilege required;
+- root privilege is required for an action whose consequences independently
+  meet a confirmation criterion;
 - credentials/secrets affected;
 - publication/financial/security consequence exists;
 - architecture explicitly requires approval.
+
+Root privilege alone does not require confirmation under Owner Sovereign Mode.
+Direct owner intent authorizes ordinary local administrative work within the
+requested task; high-impact consequences continue to use the risk-sensitive
+policy above.
 
 ## 20.3 Remember trusted preferences
 

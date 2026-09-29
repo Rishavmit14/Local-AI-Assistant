@@ -1,5 +1,10 @@
 # ADR 0020: Local owner runtime credentials are operational configuration
 
+> Administrator-credential storage and broad local root authority were not part
+> of this decision. ADR 0033 is the accepted Owner Sovereign Mode exception for
+> that capability; this ADR continues to govern scoped Friday gateway/runtime
+> credentials.
+
 ## Status
 
 Accepted

@@ -686,6 +686,19 @@ These should be reproduced or disproved before root cause is assigned.
 - Multi-general-model orchestration is deferred.
 - Final qualification must be owner-facing end-to-end.
 
+## 2026-09-29 — Owner Sovereign Mode
+
+The owner explicitly selected persistent local administrator authority for
+Friday. Root is an execution mechanism, not a risk classification: routine
+operations required by an already-authorized owner task should not cause
+repeated password or confirmation prompts. Confirmation remains consequence
+based for irreversible, ambiguous, destructive, privacy-sensitive, financial,
+or external actions. Friday's trusted runtime may use the enrolled credential;
+Qwen and untrusted sandbox/browser/document paths must not receive it. The
+owner accepts that compromise of the trusted Friday administrator runtime may
+lead to full machine compromise. ADR 0033 and the product baseline contain the
+operative contract; implementation remains pending.
+
 ---
 
 # 29. How Future Agents Should Use This History
