@@ -1,0 +1,8 @@
+{
+  "owner_uid": 1000,
+  "owner_gid": 1000,
+  "system_units": [],
+  "user_units": [
+    "friday-owner-sovereign-probe.service"
+  ]
+}

@@ -1,0 +1,21 @@
+[Unit]
+Description=Friday Owner Sovereign administrator broker
+Requires=friday-admin-broker.socket
+After=local-fs.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+UMask=0077
+ExecStart=/usr/bin/python3 /run/friday-admin/broker.py
+Restart=on-failure
+RestartSec=1s
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=no
+PrivateUsers=no
+
+# This service is a root-equivalent authority boundary. Its executable,
+# configuration, socket, and credential store must be root-owned. The owner
+# explicitly accepts host compromise if this trusted broker is compromised.

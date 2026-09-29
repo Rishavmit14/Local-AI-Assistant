@@ -1,0 +1,13 @@
+[Unit]
+Description=Friday Owner Sovereign administrator broker socket
+
+[Socket]
+ListenStream=/run/friday-admin/broker.sock
+SocketUser=root
+SocketGroup=@OWNER_GID@
+SocketMode=0660
+DirectoryMode=0750
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

@@ -67,6 +67,7 @@ local-ai-isolation = "local_ai_assistant.isolation.cli:main"
 local-ai-gateway = "local_ai_assistant.gateway.cli:main"
 local-ai-presentation = "local_ai_assistant.interface.cli:main"
 local-ai-perception = "local_ai_assistant.perception.cli:main"
+friday-admin = "local_ai_assistant.admin.enrollment:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
