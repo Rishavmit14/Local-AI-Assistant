@@ -84,6 +84,19 @@ class LearningPathService:
         self.generator = generator
         self.evidence_provider = evidence_provider
 
+    def select(self, path_id: str):
+        return self.repository.select(path_id)
+
+    def current(self):
+        path_id = self.repository.current_path_id()
+        return self.repository.get(path_id) if path_id else None
+
+    def activate(self, path_id: str):
+        return self.repository.activate(path_id, datetime.now(UTC).isoformat())
+
+    def archive(self, path_id: str):
+        return self.repository.set_state(path_id, "archived", datetime.now(UTC).isoformat())
+
     def sequence(self, path_id: str):
         """Compute a deterministic evidence-aware, non-mutating path projection."""
         from .evidence import evidence_state

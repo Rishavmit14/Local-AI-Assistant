@@ -124,3 +124,29 @@ DLP-2 does not provide governed diagnostic execution, owner editing UI, visual
 roadmap, review delivery, automatic mission/project creation, or full owner-
 path qualification. Those require later roadmap work; row 60 remains PARTIAL.
 The backend capability has independent matrix tracking under row 61.
+
+
+## DLP-3 owner integration (candidate; qualification pending)
+
+The DLP repository also persists one selected path ID in an additive owner-state
+SQLite table. Selection changes no curriculum or learner evidence. Draft paths
+can be explicitly activated; paused paths may be resumed. Archived paths cannot
+be selected, and archiving the current path clears the selection. State changes
+are local metadata updates, not curriculum versions or completion claims.
+
+The deterministic Conversation adapter recognizes explicit path creation, list,
+current-path, next-candidate, and open-by-name requests before Career Forge's
+generic teaching adapter. Generic “teach me machine learning” retains the
+existing Career Forge route. Explicit creation calls the existing local
+Curriculum Designer and reports only after validated persistence; failure leaves
+no path. Learn reads typed list, detail, and sequence APIs and presents
+server-authored decisions/reasons.
+
+Mapped-node handoff validates the competency against Career Forge's canonical
+graph and refuses an unrelated active mission. Diagnostics start only a canonical
+Career Forge mission and never report an assessment result. Review, reinforcement,
+and Practice Lab calls reuse their existing Career Forge/Practice Lab services.
+No unmapped node can create a mission. DLP still never writes Career Forge
+mastery, evidence, attempts, reviews, or completion. These DLP-3 integrations
+remain candidate behavior until owner-flow and full acceptance evidence is
+recorded.

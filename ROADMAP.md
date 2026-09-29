@@ -1650,7 +1650,7 @@ owner flows. At the UX-60A recovery boundary, DLP-1 was the next engineering
 step. DLP-1 and the evidence-aware DLP-2 backend phase are now complete; owner
 integration remains the next DLP dependency.
 
-## Dynamic Learning Paths — DLP-1/2 backend foundation (row 61, PARTIAL)
+## Dynamic Learning Paths — DLP-1/3 owner integration (row 61, PARTIAL)
 
 DLP-1 establishes a separate local SQLite authority for versioned learning-path
 curricula above Career Forge. It includes modules, nodes, explicit prerequisite
@@ -1667,12 +1667,4 @@ recommendations. Direct prerequisite failures block dependent nodes without
 blocking unrelated branches. Sequence projections expose stable candidates,
 reasons, and evidence-backed counts. Adaptation writes a new immutable DLP
 version with historical decision provenance and never mutates Career Forge.
-Provider failure defers mapped nodes. No browser authority, automatic
-completion, diagnostic execution, or owner UI is included. Row 60 remains
-PARTIAL. See
-`docs/architecture/dynamic-learning-paths.md`.
-
-The backend foundation is **IMPLEMENTED** and passed deterministic candidate
-evidence/adaptation and restart qualification plus the relevant acceptance
-gates. It does not qualify owner-facing learning-path usability. Next is DLP-3
-Owner Learning Path Integration; backend status does not establish owner use.
+Provider failure defers mapped nodes. DLP-3 adds persistent owner path selection in the DLP SQLite boundary, draft-to-active lifecycle transitions, deterministic explicit Conversation creation/list/current/next intents, and Learn list/detail/sequence projection through typed APIs. Mapped diagnostic, eligible mission, due review, reinforcement and Practice Lab handoffs re-enter Career Forge or Practice Lab authority; unmapped nodes remain visibly unsupported. A bounded real local-Qwen conversation creation smoke, candidate Learn selection and sequence inspection, mapped diagnostic/Practice Lab handoff, and selected-path restart reconstruction have passed. Career Forge due-review/reinforcement service handoffs have deterministic integration tests; full browser interaction for those flows, final diff review, publication, and acceptance recovery remain. Final Python/frontend/repository gates pass locally. Row 60 remains PARTIAL; row 61 remains PARTIAL because arbitrary-domain teaching/evidence execution and final owner visual acceptance remain outstanding. See `docs/architecture/dynamic-learning-paths.md`.

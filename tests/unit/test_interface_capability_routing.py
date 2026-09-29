@@ -4,6 +4,8 @@ from local_ai_assistant.career_forge import (
     PracticeLabService,
     TutorMode,
 )
+from local_ai_assistant.history.service import TaskHistoryService
+from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.interface.capabilities import (
     CapabilityStatus,
     FridayCapability,
@@ -15,8 +17,6 @@ from local_ai_assistant.interface.capability_routing import (
 )
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.runtime import FridayRuntime
-from local_ai_assistant.history.service import TaskHistoryService
-from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.interface.task_explanation import TaskExplanationService
 from local_ai_assistant.memory import FridayMemoryService
 
@@ -198,3 +198,36 @@ def test_career_forge_progress_questions_use_durable_governed_records(tmp_path):
     assert "temporary active-session context" in current
     assert "Verify Python" in resumed
     assert not llm.calls
+
+
+def test_explicit_learning_path_intent_is_deterministic_and_does_not_capture_generic_teach(tmp_path):
+    import json
+
+    from local_ai_assistant.interface.capability_routing import LearningPathConversationAdapter
+    from local_ai_assistant.learning_paths import LearningPathService
+    from local_ai_assistant.learning_paths.service import LocalCurriculumGenerator
+    from tests.fixtures.learning_path_curricula import curriculum
+
+    class Model:
+        def chat(self, prompt, **kwargs):
+            return json.dumps(curriculum())
+
+    service = LearningPathService(tmp_path / "paths.sqlite3", generator=LocalCurriculumGenerator(Model()))
+    adapter = LearningPathConversationAdapter(service)
+    created = adapter.route("Friday, create a learning path for DSA.")
+    assert created and "Created" in created.response and "draft" in created.response
+    assert len(service.repository.list()) == 1
+    assert adapter.route("Teach me DSA.")
+    deadline = adapter.route("Teach me NLP from beginner to advanced in 12 weeks.")
+    assert deadline and len(service.repository.list()) == 3
+    assert service.repository.list()[-1].mode == "goal_timeframe"
+    assert service.repository.list()[-1].target_date is not None
+    assert service.repository.list()[-1].target_level == "advanced"
+    assert adapter.route("Build me a roadmap to learn GenAI in four months.")
+    assert service.repository.list()[-1].mode == "goal_timeframe"
+    assert adapter.route("I like learning DSA.") is None
+    assert adapter.route("What is DSA?") is None
+    assert adapter.route("Show my learning paths")
+    assert adapter.route("What's next in my current learning path?").response.endswith("Choose one in Learn first.")
+    # Existing qualified behavior remains: generic teach language is not a DLP intent.
+    assert adapter.route("Teach me machine learning") is None

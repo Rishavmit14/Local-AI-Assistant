@@ -51,7 +51,9 @@ class LearningPathRepository:
                     FOREIGN KEY(path_id) REFERENCES learning_paths(path_id) ON DELETE CASCADE
                 );
                 CREATE TABLE IF NOT EXISTS learning_path_schema_version (singleton INTEGER PRIMARY KEY CHECK(singleton=1), version INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS learning_path_owner_state (singleton INTEGER PRIMARY KEY CHECK(singleton=1), current_path_id TEXT, FOREIGN KEY(current_path_id) REFERENCES learning_paths(path_id));
             """)
+            db.execute("INSERT OR IGNORE INTO learning_path_owner_state(singleton,current_path_id) VALUES (1,NULL)")
             # Keep a tiny explicit version marker for forward-compatible migrations.
             row = db.execute(
                 "SELECT version FROM learning_path_schema_version WHERE singleton=1"
@@ -170,3 +172,55 @@ class LearningPathRepository:
                 (path_id,),
             ).fetchall()
         return tuple(self.version(path_id, row["version"]) for row in numbers)
+
+    def current_path_id(self) -> str | None:
+        with self._lock, closing(self._connect()) as db:
+            row = db.execute("SELECT current_path_id FROM learning_path_owner_state WHERE singleton=1").fetchone()
+        return row["current_path_id"]
+
+    def select(self, path_id: str) -> LearningPath:
+        with self._lock, closing(self._connect()) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                if db.execute("SELECT 1 FROM learning_paths WHERE path_id=? AND state!='archived'", (path_id,)).fetchone() is None:
+                    raise KeyError(path_id)
+                db.execute("UPDATE learning_path_owner_state SET current_path_id=? WHERE singleton=1", (path_id,))
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+        return self.get(path_id)
+
+    def set_state(self, path_id: str, state: str, now: str) -> LearningPath:
+        if state not in {"draft", "active", "paused", "completed", "archived"}:
+            raise ValueError("unsupported learning path state")
+        with self._lock, closing(self._connect()) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                if db.execute("SELECT 1 FROM learning_paths WHERE path_id=?", (path_id,)).fetchone() is None:
+                    raise KeyError(path_id)
+                db.execute("UPDATE learning_paths SET state=?,updated_at=? WHERE path_id=?", (state, now, path_id))
+                if state == "archived":
+                    db.execute("UPDATE learning_path_owner_state SET current_path_id=NULL WHERE singleton=1 AND current_path_id=?", (path_id,))
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+        return self.get(path_id)
+
+    def activate(self, path_id: str, now: str) -> LearningPath:
+        with self._lock, closing(self._connect()) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                row = db.execute("SELECT state FROM learning_paths WHERE path_id=?", (path_id,)).fetchone()
+                if row is None:
+                    raise KeyError(path_id)
+                if row["state"] not in {"draft", "paused"}:
+                    raise ValueError(f"A {row['state']} learning path cannot be started.")
+                db.execute("UPDATE learning_paths SET state='active',updated_at=? WHERE path_id=?", (now, path_id))
+                db.execute("UPDATE learning_path_owner_state SET current_path_id=? WHERE singleton=1", (path_id,))
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+        return self.get(path_id)

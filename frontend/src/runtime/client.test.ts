@@ -455,3 +455,19 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
     );
   });
 });
+
+describe("FridayRuntimeClient learning path boundary", () => {
+  it("reads canonical current path and sequencing, and requests explicit selection", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ paths: [] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response("null", { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ path_id: "p1" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+    expect(await client.getLearningPaths()).toEqual([]);
+    expect(await client.getCurrentLearningPath()).toBeNull();
+    await client.selectLearningPath("p1");
+    expect(fetchMock.mock.calls[2][0]).toBe("/api/v1/learning-paths/p1/select");
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "POST" });
+  });
+});

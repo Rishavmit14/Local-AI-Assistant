@@ -144,6 +144,24 @@ class LearningPathRevisionRequest(BaseModel):
     curriculum: dict
 
 
+class LearningPathHandoffRequest(BaseModel):
+    node_id: str = Field(min_length=1, max_length=100)
+    action: str = Field(pattern="^(mission|diagnostic|review|reinforcement|practice)$")
+    review_id: str | None = None
+
+
+class LearningPathHandoffView(BaseModel):
+    action: str
+    mission: dict[str, object] | None = None
+    resumed: bool | None = None
+    review: dict[str, object] | None = None
+    prompt: str | None = None
+    mission_id: str | None = None
+    exercise_id: str | None = None
+    title: str | None = None
+    completion_claimed: bool = False
+
+
 class LearningPathView(BaseModel):
     path_id: str
     title: str
@@ -158,6 +176,7 @@ class LearningPathView(BaseModel):
     current_version: int
     created_at: str
     updated_at: str
+    selected: bool = False
 
 
 class LearningPathModuleView(BaseModel):
@@ -2190,7 +2209,103 @@ def create_presentation_app(
         if not 1 <= limit <= 200:
             raise HTTPException(422, detail="limit must be between 1 and 200")
         service = learning_path_service()
-        return {"paths": [learning_path_projection(path) for path in service.repository.list(limit)]}
+        current_id = service.repository.current_path_id()
+        return {"paths": [{**learning_path_projection(path), "selected": path.path_id == current_id} for path in service.repository.list(limit) if path.state != "archived"]}
+
+    @app.get("/api/v1/learning-paths/current", response_model=LearningPathDetailView | None)
+    def current_learning_path():
+        service = learning_path_service()
+        path = service.current()
+        if path is None:
+            return None
+        return {"path": {**learning_path_projection(path), "selected": True},
+                "current": asdict(service.repository.version(path.path_id, path.current_version))}
+
+    @app.post("/api/v1/learning-paths/{path_id}/select", response_model=LearningPathView)
+    def select_learning_path(path_id: str):
+        try:
+            return {**learning_path_projection(learning_path_service().select(path_id)), "selected": True}
+        except KeyError as exc:
+            learning_path_error(exc)
+
+    @app.post("/api/v1/learning-paths/{path_id}/activate", response_model=LearningPathView)
+    def activate_learning_path(path_id: str):
+        try:
+            return {**learning_path_projection(learning_path_service().activate(path_id)), "selected": learning_path_service().repository.current_path_id() == path_id}
+        except KeyError as exc:
+            learning_path_error(exc)
+        except ValueError as exc:
+            raise HTTPException(409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/learning-paths/{path_id}/archive", response_model=LearningPathView)
+    def archive_learning_path(path_id: str):
+        try:
+            return {**learning_path_projection(learning_path_service().archive(path_id)), "selected": False}
+        except KeyError as exc:
+            learning_path_error(exc)
+
+    @app.post("/api/v1/learning-paths/{path_id}/handoff", response_model=LearningPathHandoffView)
+    def handoff_learning_path_node(path_id: str, request: LearningPathHandoffRequest):
+        if career_forge is None:
+            raise HTTPException(503, detail="Career Forge handoff is unavailable")
+        service = learning_path_service()
+        try:
+            detail = service.detail(path_id)
+            if detail["path"].state != "active":
+                raise HTTPException(409, detail="Start this learning path in Learn before handing a node to Career Forge.")
+            node = next((n for n in detail["current"].nodes if n["node_id"] == request.node_id), None)
+            if node is None:
+                raise HTTPException(404, detail="learning path node not found")
+            competency_id = node.get("competency_key")
+            if not competency_id or competency_id not in career_forge.graph:
+                raise HTTPException(409, detail="This node is unmapped; Career Forge cannot assess or record mastery for it.")
+            active = career_forge.resume()
+            if request.action not in {"review", "reinforcement"} and active is not None and active.competency_id != competency_id:
+                raise HTTPException(409, detail=f"Career Forge already has the active mission '{active.title}'. Resume or finish it before starting this node.")
+            if request.action == "review":
+                reviews = career_forge.retention_reviews(limit=100)
+                review = next((r for r in reviews if r.competency_id == competency_id and r.state == "scheduled" and (request.review_id is None or r.review_id == request.review_id)), None)
+                if review is None:
+                    raise HTTPException(409, detail="No matching scheduled Career Forge review is available.")
+                review, prompt = career_forge.deliver_retention_review(review.review_id)
+                return {"action":"review","review":asdict(review),"prompt":prompt,"completion_claimed":False}
+            if request.action == "reinforcement":
+                try:
+                    mission = career_forge.start_reinforcement(competency_id)
+                except ValueError as exc:
+                    raise HTTPException(409, detail=str(exc)) from exc
+                return {"action":"reinforcement","mission":asdict(mission),"completion_claimed":False}
+            if request.action == "practice":
+                if practice_lab is None or active is None:
+                    raise HTTPException(409, detail="Start or resume the mapped Career Forge mission before opening Practice Lab.")
+                try:
+                    lab = practice_lab.open(active.mission_id)
+                except ValueError as exc:
+                    raise HTTPException(409, detail=str(exc)) from exc
+                return {"action":"practice","mission_id":active.mission_id,"exercise_id":lab.exercise.exercise_id,"title":lab.exercise.title,"completion_claimed":False}
+            if active is not None:
+                return {"action":"mission","mission":asdict(active),"resumed":True,"completion_claimed":False}
+            if service.evidence_provider is None:
+                from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
+                service.evidence_provider = CareerForgeEvidenceProjection(career_forge)
+            sequence = service.sequence(path_id)
+            state = next(n for n in sequence["nodes"] if n["node_id"] == request.node_id)
+            if request.action == "mission" and state["decision"] != "ELIGIBLE":
+                raise HTTPException(409, detail=f"Career Forge handoff is unavailable: {state['reason']}")
+            if request.action == "diagnostic" and state["decision"] not in {"DIAGNOSTIC_FIRST", "ELIGIBLE"}:
+                raise HTTPException(409, detail=f"Diagnostic is not the current recommendation: {state['reason']}")
+            try:
+                canonical_brief = career_forge.mission_brief_for(competency_id)
+                mission = career_forge.start_mission(
+                    competency_id,
+                    canonical_brief.title,
+                    resume_point={"phase": "question", "question_id": "mission_verification"},
+                )
+            except (KeyError, ValueError) as exc:
+                raise HTTPException(409, detail=str(exc)) from exc
+            return {"action":"diagnostic" if request.action == "diagnostic" else "mission","mission":asdict(mission),"completion_claimed":False}
+        except KeyError as exc:
+            learning_path_error(exc)
 
     @app.get("/api/v1/learning-paths/{path_id}/versions", response_model=LearningPathVersionsView)
     def list_learning_path_versions(path_id: str):

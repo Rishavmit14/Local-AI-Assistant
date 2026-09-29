@@ -981,3 +981,15 @@ digest-idempotent explicit artifact-import path remains unchanged; startup and
 recovery reads do not trigger reconciliation. Row 56 is bounded to truthful
 owner-visible inspection and adds no universal resume, retry, cleanup, or
 rollback authority.
+
+## Dynamic Learning Paths owner integration (candidate)
+
+DLP persists curriculum versions and the owner's selected path in its separate
+local SQLite authority. Conversation recognition is deterministic for explicit
+path operations; validated local `CURRICULUM_DESIGNER` output remains proposal
+only. Learn renders typed DLP list/detail/sequence responses. Career Forge owns
+all assessment, attempts, evidence, mastery, retention, review, and reinforcement
+state; mapped handoffs re-enter those services, while unmapped nodes remain
+non-executable. Candidate DLP-3 behavior is described in
+`docs/architecture/dynamic-learning-paths.md`; this does not yet establish
+product qualification.

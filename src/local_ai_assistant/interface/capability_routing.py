@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
 from local_ai_assistant.career_forge import (
@@ -16,6 +17,7 @@ from local_ai_assistant.career_forge import (
     PracticeLabService,
     TutorMode,
 )
+from local_ai_assistant.learning_paths.service import CurriculumGenerationError, LearningPathService
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind
 
 from .capabilities import CapabilityStatus, FridayCapabilityRegistry
@@ -352,15 +354,98 @@ class TaskExplanationConversationAdapter:
         return None
 
 
+class LearningPathConversationAdapter:
+    """Explicit, deterministic owner intent for canonical learning paths."""
+
+    def __init__(self, service: LearningPathService):
+        self.service = service
+
+    def route(self, text: str) -> CapabilityRoute | None:
+        normalized = " ".join(text.strip().lower().split())
+        normalized = re.sub(r"^(?:hey\s+)?friday[, ]+", "", normalized)
+        create_prefixes = ("create a learning path for ", "create a learning path to learn ",
+                           "build me a roadmap to learn ", "teach me ", "i want to learn ")
+        goal = None
+        explicit = False
+        for prefix in create_prefixes:
+            if normalized.startswith(prefix):
+                suffix = normalized[len(prefix):]
+                if prefix == "teach me " and "machine learning" in suffix:
+                    continue
+                explicit = True
+                goal = suffix
+                goal = re.sub(r"\s+from beginner to advanced.*$", "", goal)
+                goal = re.sub(r"\s+(?:in|over)\s+(?:\d{1,2}|one|two|three|four|five|six)\s+(?:weeks?|months?).*$", "", goal)
+                goal = goal.strip(" .?!")
+                break
+        if not explicit:
+            match = re.match(r"create a (\d{1,2})-week (.+?) path[.!?]*$", normalized)
+            if match:
+                explicit = True
+                weeks = int(match.group(1))
+                goal = re.sub(r"\s+interview preparation$", " interview preparation", match.group(2)).strip()
+                normalized += f" in {weeks} weeks"
+        if explicit and goal:
+            try:
+                timeframe = re.search(r"\b(?:in|over)\s+(\d{1,2}|one|two|three|four|five|six)\s+(weeks?|months?)\b", normalized)
+                time_value = timeframe.group(1) if timeframe else None
+                week_count = ({"one":1,"two":2,"three":3,"four":4,"five":5,"six":6}[time_value]
+                              if time_value in {"one", "two", "three", "four", "five", "six"}
+                              else int(time_value) if time_value else None)
+                pace = re.search(r"\b(\d{1,2}(?:\.\d)?)\s+hours?\s+(?:per|a)\s+week\b", normalized)
+                level = re.search(r"\bfrom\s+(?:beginner|novice)\s+to\s+(beginner|intermediate|advanced|expert)\b", normalized)
+                target_level = level.group(1) if level else "unspecified"
+                interview = "interview" in normalized and (timeframe is not None or "deadline" in normalized)
+                target_date = ((datetime.now(UTC) + (timedelta(weeks=week_count) if timeframe.group(2).startswith("week") else timedelta(days=round(week_count * 30.4)))).date().isoformat() if timeframe else None)
+                path = self.service.generate(goal, mode="deadline_interview" if interview else "goal_timeframe" if timeframe else "topic",
+                    target_level=target_level, target_date=target_date,
+                    hours_per_week=float(pace.group(1)) if pace else None)
+                version = self.service.repository.version(path.path_id, path.current_version)
+                return CapabilityRoute(ConversationIntent.INVOCATION, "learning_paths",
+                    f"Created '{path.title}' as a draft learning path ({len(version.modules)} modules, {len(version.nodes)} nodes). It is saved as {path.path_id}. Open Learn to review and start it.")
+            except (CurriculumGenerationError, ValueError):
+                return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths",
+                    "I couldn't create that learning path from the local curriculum proposal. No path was saved; you can try a more specific topic.")
+        if any(p in normalized for p in ("show my learning paths", "list my learning paths", "what learning paths do i have")):
+            paths = self.service.repository.list()
+            if not paths:
+                return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths", "You don't have any saved learning paths yet. Ask me to create one, for example: ‘Create a learning path for DSA.’")
+            current = self.service.repository.current_path_id()
+            return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths", "Your learning paths: " + "; ".join(f"{p.title} ({p.state}{', current' if p.path_id == current else ''})" for p in paths) + ".")
+        current = self.service.current()
+        if any(p in normalized for p in ("what learning path am i on", "what path am i currently following", "what's my current learning path", "what is my current learning path")):
+            return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths", f"Your current learning path is '{current.title}' ({current.state})." if current else "You haven't selected a current learning path yet. Choose one in Learn.")
+        if any(p in normalized for p in ("what's next in my current learning path", "what is next in my current learning path", "what's next in my learning path", "why is this topic blocked", "why do i need review first")):
+            if current is None:
+                return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths", "No current learning path is selected. Choose one in Learn first.")
+            sequence = self.service.sequence(current.path_id)
+            by_id = {n["node_id"]: n for n in sequence["nodes"]}
+            nodes = self.service.repository.version(current.path_id, current.current_version).nodes
+            title = {n["node_id"]: n["title"] for n in nodes}
+            if sequence["candidate_next_nodes"]:
+                return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths", "Next candidates: " + "; ".join(f"{title[i]} — {by_id[i]['reason']}" for i in sequence["candidate_next_nodes"]) + ".")
+            return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths", "There are no eligible next nodes in this path right now. " + "; ".join(f"{title[n['node_id']]}: {n['reason']}" for n in sequence["nodes"][:5]))
+        if normalized.startswith(("open my ", "open the ")) and "learning path" in normalized:
+            paths = self.service.repository.list()
+            match = next((p for p in paths if p.title.lower() in normalized or p.goal.lower() in normalized), None)
+            if match:
+                self.service.select(match.path_id)
+                return CapabilityRoute(ConversationIntent.INVOCATION, "learning_paths", f"Selected '{match.title}' as your current learning path. Open Learn to continue.")
+            return CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths", "I couldn't match that learning path to a saved path. Ask to see your learning paths.")
+        return None
+
+
 class FridayConversationCapabilityRouter:
     """Classify deterministic intents and dispatch only registered adapters."""
 
     def __init__(self, registry: FridayCapabilityRegistry, *, career_forge: CareerForgeService,
                  memory: FridayMemoryService, practice_lab: PracticeLabService | None = None,
-                 task_explanation: TaskExplanationService | None = None) -> None:
+                 task_explanation: TaskExplanationService | None = None,
+                 learning_paths: LearningPathService | None = None) -> None:
         self.registry = registry
         self.adapters = {
             "task_explanation": TaskExplanationConversationAdapter(task_explanation),
+            **({"learning_paths": LearningPathConversationAdapter(learning_paths)} if learning_paths else {}),
             "career_forge": CareerForgeConversationAdapter(career_forge, practice_lab),
             "persistent_memory": MemoryConversationAdapter(memory),
         }

@@ -239,6 +239,33 @@ export interface CareerForgeMission {
   assistance_level: string | null;
 }
 
+export interface LearningPath {
+  path_id: string; title: string; goal: string; mode: string; target_level: string;
+  target_profile: string[]; target_date: string | null; hours_per_week: number | null;
+  target_feasibility: string; state: string; current_version: number;
+  created_at: string; updated_at: string; selected: boolean;
+}
+export interface LearningPathNode {
+  node_id: string; module_id: string; title: string; type: string; objectives: string[];
+  evidence_requirements: string[]; competency_key: string | null; estimated_hours: number | null;
+}
+export interface LearningPathDetail { path: LearningPath; current: { path_id: string; version: number; summary: string; modules: Array<{module_id:string;title:string;objective:string;estimated_hours:number|null}>; nodes: LearningPathNode[] } }
+export interface LearningPathSequence {
+  path_id: string; version: number; path_state: string; evidence_available: boolean;
+  candidate_next_nodes: string[]; nodes: Array<{node_id:string;competency_id:string|null;evidence_state:string;evidence:unknown;decision:string;eligible:boolean;blockers:string[];recommendation:string|null;reason:string}>;
+}
+export type LearningPathHandoff = {
+  action: "mission" | "diagnostic" | "review" | "reinforcement" | "practice";
+  mission?: CareerForgeMission;
+  resumed?: boolean;
+  review?: CareerForgeJourney["progress"]["retention_reviews"][number];
+  prompt?: string;
+  mission_id?: string;
+  exercise_id?: string;
+  title?: string;
+  completion_claimed: false;
+};
+
 export interface CareerForgeMissionBrief {
   competency_id: string;
   title: string;

@@ -375,3 +375,136 @@ def test_career_forge_adapter_and_sequence_do_not_mutate_learner_database(tmp_pa
     service.sequence(path.path_id)
     service.apply_adaptation(path.path_id)
     assert db.read_bytes() == before
+
+
+def test_owner_selection_activation_and_restart_are_canonical(tmp_path):
+    db = tmp_path / "paths.sqlite3"
+    service = LearningPathService(db)
+    first = service.create(curriculum())
+    second_data = curriculum()
+    second_data["title"] = "Another path"
+    second = service.create(second_data)
+    assert service.current() is None
+    service.select(first.path_id)
+    assert service.current().path_id == first.path_id
+    service.activate(first.path_id)
+    restarted = LearningPathService(db)
+    assert restarted.current().path_id == first.path_id
+    assert restarted.current().state == "active"
+    with pytest.raises(ValueError):
+        restarted.activate(first.path_id)
+    restarted.select(second.path_id)
+    restarted.archive(second.path_id)
+    assert restarted.current() is None
+
+
+def test_selection_and_lifecycle_api(tmp_path):
+    service = LearningPathService(tmp_path / "paths.sqlite3")
+    runtime = FridayRuntime("learning-path-selection")
+    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=service)
+    with TestClient(app) as client:
+        created = client.post("/api/v1/learning-paths", json=curriculum()).json()["path"]
+        path_id = created["path_id"]
+        assert client.get("/api/v1/learning-paths/current").json() is None
+        assert client.post(f"/api/v1/learning-paths/{path_id}/select").json()["selected"]
+        assert client.get("/api/v1/learning-paths/current").json()["path"]["path_id"] == path_id
+        assert client.post(f"/api/v1/learning-paths/{path_id}/activate").json()["state"] == "active"
+        assert client.post(f"/api/v1/learning-paths/{path_id}/activate").status_code == 409
+
+
+def test_mapped_diagnostic_handoff_uses_career_forge_without_claiming_mastery(tmp_path):
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.python"
+    paths = LearningPathService(tmp_path / "paths.sqlite3")
+    path = paths.create(proposal)
+    path = paths.activate(path.path_id)
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    runtime = FridayRuntime("dlp-handoff")
+    from local_ai_assistant.career_forge import PracticeLabService
+    lab = PracticeLabService(forge, tmp_path / "lab")
+    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge, practice_lab=lab)
+    with TestClient(app) as client:
+        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"diagnostic"})
+        assert response.status_code == 200
+        assert response.json()["completion_claimed"] is False
+        assert forge.resume().competency_id == "se.python"
+        assert forge.competencies()[0].mastery.value == "unverified"
+        practice = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"practice"})
+        assert practice.status_code == 200 and practice.json()["completion_claimed"] is False
+        unmapped = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"pointers","action":"diagnostic"})
+        assert unmapped.status_code == 409
+        draft = paths.create({**proposal, "title":"Draft mapped path"})
+        not_started = client.post(f"/api/v1/learning-paths/{draft.path_id}/handoff", json={"node_id":"arrays","action":"diagnostic"})
+        assert not_started.status_code == 409 and "Start this learning path" in not_started.json()["detail"]
+
+
+def test_mapped_handoff_refuses_to_replace_an_unrelated_active_mission(tmp_path):
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.engineering"
+    paths = LearningPathService(tmp_path / "paths.sqlite3")
+    path = paths.create(proposal)
+    paths.activate(path.path_id)
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    current = forge.start_mission("se.python", "Python foundations")
+    runtime = FridayRuntime("dlp-handoff-conflict")
+    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge)
+    with TestClient(app) as client:
+        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"diagnostic"})
+        assert response.status_code == 409
+        assert "active mission" in response.json()["detail"]
+        assert forge.resume().mission_id == current.mission_id
+
+
+def test_review_handoff_delivers_existing_due_review_without_changing_mastery(tmp_path):
+    from local_ai_assistant.career_forge.models import MasteryLevel
+
+    paths = LearningPathService(tmp_path / "paths.sqlite3")
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.python"
+    path = paths.create(proposal)
+    paths.activate(path.path_id)
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    mission = forge.start_mission("se.python", "Python foundations")
+    evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained function defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    review = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
+    runtime = FridayRuntime("dlp-review-handoff")
+    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge)
+    with TestClient(app) as client:
+        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"review"})
+    assert response.status_code == 200
+    assert response.json()["review"]["state"] == "delivered"
+    assert response.json()["prompt"]
+    assert forge.competencies()[0].mastery is MasteryLevel.RECOGNIZE
+    assert forge.evidence_history()[0].evidence_id == evidence
+
+
+def test_reinforcement_handoff_reuses_career_forge_interruption_policy(tmp_path):
+    from local_ai_assistant.career_forge.models import AttemptEvaluation, MasteryLevel
+
+    paths = LearningPathService(tmp_path / "paths.sqlite3")
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.python"
+    path = paths.create(proposal)
+    paths.activate(path.path_id)
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    foundation = forge.start_mission("se.python", "Python foundations")
+    evidence = forge.record_evidence(foundation.mission_id, "explanation", "Explained function defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    interrupted = forge.start_mission("se.engineering", "Software engineering")
+    review = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
+    forge.deliver_retention_review(review.review_id)
+    forge.evaluate_retention_review(review.review_id, "Wrong", AttemptEvaluation.INCORRECT, "Revisit function default lifetime.")
+    runtime = FridayRuntime("dlp-reinforce-handoff")
+    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge)
+    with TestClient(app) as client:
+        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"reinforcement"})
+    assert response.status_code == 200
+    assert response.json()["action"] == "reinforcement"
+    assert forge.resume().competency_id == "se.python"
+    assert forge.resume().resume_point["interrupted_mission_id"] == interrupted.mission_id
+    assert forge.competencies()[0].mastery is MasteryLevel.RECOGNIZE

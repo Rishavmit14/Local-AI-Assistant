@@ -362,6 +362,7 @@ def build_presentation_components(
         FridayCapability("voice", "Voice", CapabilityStatus.INTEGRATED, resolved_config.wake.enabled, True, resolved_config.wake.enabled, "Hey Friday when wake is configured", "requires the local microphone and wake workers"),
         FridayCapability("persistent_memory", "Persistent memory", CapabilityStatus.INTEGRATED, True, True, True, "conversation retrieval and explicit memory controls", "Friday cannot silently write durable memory"),
         FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED, True, True, True, "LEARN, MAP, PROJECTS, INTERVIEW, PROGRESS, and bounded local API", "real GitHub publication still requires configured local credentials and an onboarded repository"),
+        FridayCapability("learning_paths", "Learning Paths", CapabilityStatus.INTEGRATED, True, True, True, "explicit local curriculum creation and canonical Learn path projection", "generation requires the local Curriculum Designer; mapped learner evidence remains Career Forge authority"),
         FridayCapability("practice_lab", "Practice Lab", CapabilityStatus.INTEGRATED, True, True, practice_lab.availability()[0], "syntax-highlighted Python Lab with bounded execution and explicit code/screen context", "Python execution only; retained-screen tutoring requires an explicit private capture"),
         FridayCapability("perception", "Screen perception", CapabilityStatus.IMPLEMENTED, True, True, True, "explicit capture API and perception panel", "not attached to normal conversation context"),
         FridayCapability("ocr", "OCR", CapabilityStatus.IMPLEMENTED, resolved_config.ocr.enabled, True, resolved_config.ocr.enabled, "explicit captured-screen API", "OCR results are not attached to normal conversation context"),
@@ -386,6 +387,7 @@ def build_presentation_components(
         memory=memory,
         practice_lab=practice_lab,
         task_explanation=task_explanation,
+        learning_paths=learning_paths,
     )
     def memory_context_with_timing(prompt: str, mark) -> str:
         return "\n".join(

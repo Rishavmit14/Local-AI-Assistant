@@ -1,3 +1,11 @@
+## 2026-09-29 — DLP-3 owner learning-path integration candidate
+
+Added persistent current-path selection and explicit draft activation/archive to
+the DLP SQLite authority; deterministic Conversation creation and status intents;
+typed current/select/activate/archive and mapped-node handoff routes; and a
+functional Learn path list/detail/sequence projection with truthful unmapped and
+Career Forge handoff states. A bounded local-Qwen Conversation creation smoke, native Learn path projection, candidate restart reconstruction, and mapped diagnostic/Practice Lab owner flow passed. Final gates pass (1,130 Python tests, 111 frontend tests, ESLint, TypeScript, production build, repository verification, targeted Ruff, `pip check`, and diff check). Due-review/reinforcement use existing Career Forge authority and have deterministic service integration tests; full browser answer flows, final diff review and remote publication remain. Matrix rows 60 and 61 remain PARTIAL.
+
 # Project History
 
 ## 2026-09-29 — DLP-2 Career Forge evidence integration and adaptive sequencing
