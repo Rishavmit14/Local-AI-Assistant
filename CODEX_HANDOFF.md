@@ -3,7 +3,7 @@
 Repository: `/AI/projects/Local-AI-Assistant-terra-integration`, branch
 `integration/astra-friday`. The last accepted/published baseline before DLP-1
 was `9c5ab0d947abfb6b10d345b68baf183c90635ca1`. The fully validated DLP-1
-implementation commit is `e8b982b65e5b42b08755b0e2158e51c02dd85ec4`. This
+implementation commit is `e8b982b368644ef6f1b9c875972106d693fbc1ea`. This
 handoff refresh is the final recovery commit; resolve its exact SHA with
 `git rev-parse HEAD`. Publish that commit on `integration/astra-friday` and
 `main`, then fetch and verify both remote refs.
