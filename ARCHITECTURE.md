@@ -443,15 +443,19 @@ fallback. DLP owns no mastery, attempts, evidence, mission, retention, readiness
 project execution, browser state, or next-learner-node authority. Career Forge
 remains their canonical owner and is not mutated by path generation or reads.
 The API provides create, local generation, list, detail, version history,
-validated revision, evidence-aware sequencing, and versioned low-impact
-adaptation. Sequencing reuses a bounded read-only Career Forge projection:
+validated revision, evidence-aware sequencing, and learner-requested versioned
+replanning. Sequencing reuses a bounded read-only Career Forge projection:
 independent-application mastery with current/reinforced confidence supports a
 node, while stale/weak/unverified evidence leads to review, reinforcement, or
 diagnostic recommendations. Direct unsupported prerequisites block dependent
 nodes while unrelated branches remain candidates. Adaptation records decision
 provenance in a new immutable version and never writes Career Forge learner
 state. Learn now provides functional path selection, review delivery and answer
-submission, and reinforcement handoff over these canonical services. Explicit
+submission, reinforcement handoff, and learner-requested evidence replanning
+over these canonical services. Replanning records an immutable, explainable
+revision, removes only safe future cross-path-equivalent work, preserves active
+sessions and project prerequisites, and uses Career Forge's existing
+review/reinforcement recommendations. Explicit
 owner-authored equivalence keys may resolve arbitrary DLP nodes across paths
 only when assessment fingerprints match and Career Forge evidence satisfies
 the target mastery rung. Sequencing projects source provenance read-only; it

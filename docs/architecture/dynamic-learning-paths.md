@@ -127,11 +127,35 @@ projection with typed per-node decisions/reasons, direct blockers, candidate
 next nodes, and categorical evidence-backed counts. Unmapped and unavailable
 nodes are counted separately from supported competencies. Path lifecycle and
 version are included; no automatic completion or goal change is made.
-`POST /api/v1/learning-paths/{path_id}/adapt` writes a new immutable path
-version with the same graph plus bounded decision/provenance annotations. The
-annotation is historical only; opening the path recomputes from current Career
-Forge projections. Prior versions remain unchanged. Projection and adaptation
-create no attempts, reviews, missions, evidence, or mastery writes.
+`POST /api/v1/learning-paths/{path_id}/adapt` is an explicit replan boundary for
+an active path after Career Forge or path evidence has changed. It reads the
+current typed sequence projection and makes deterministic policy decisions; no
+LLM proposes or mutates the graph. With no decisive new evidence, or when the
+result is semantically unchanged, no new version is written. Weak evidence
+selects Career Forge's existing reinforcement action, partial evidence keeps a
+diagnostic first, and due/stale retention keeps review first. These decisions
+are persisted in a new immutable version so the learner can inspect why the
+next work changed; Career Forge still owns review, reinforcement, assessment,
+evidence, and mastery.
+
+Acceleration may prune an unstarted target-path node only when the current
+projection says `SKIP_ALREADY_SUPPORTED` from exact owner-declared cross-path
+equivalence and includes qualifying Career Forge source provenance. Same-path
+history is not treated as an activity to erase. Active-session nodes, project
+and capstone milestones, and their direct prerequisite nodes are protected.
+When an eligible node is pruned, its incoming/outgoing relationships are
+reconnected through the same prerequisite DAG and the full graph passes the
+canonical validator before commit. The old snapshot remains immutable and the
+new revision records the omitted node and source-evidence reference; this means
+"requirement satisfied by prior evidence," never "activity completed here."
+Project assignments remain linked to their original milestone and version.
+
+The adapted snapshot stores the resulting sequence decisions, trigger,
+provenance, removed future requirements, and a learner-facing explanation.
+Repeating a replan against the same evidence and graph is idempotent. Opening
+the path or rebuilding the API recomputes decisions from current Career Forge
+projections; no attempts, reviews, missions, evidence, or mastery are copied or
+created by adaptation itself. Failed evidence-provider reads fail closed.
 
 Restart reconstruction uses the persisted DLP version and a fresh Career Forge
 projection, yielding the same sequencing decisions for unchanged evidence.
@@ -194,12 +218,14 @@ unrelated path revision only while the node contract still matches and the
 path remains active.
 
 This is a compact functional control inside the current interim Learn layout,
-not the deferred visual redesign. There is no arbitrary JSON editor, drag and
-drop, module authoring/deletion, optionality flag (the canonical node model has
-none), project-record editing, or multi-user merge workflow. Row 61 remains
-PARTIAL pending major adaptive replanning,
-broader production owner qualification, project task execution/artifact
-submission/assessment browser qualification, and final owner visual acceptance.
+not the deferred visual redesign. The learner explicitly requests a replan;
+assessment submission and page refresh do not silently rewrite the path. There
+is no arbitrary JSON editor, drag and drop, module authoring/deletion,
+optionality flag (the canonical node model has none), project-record editing,
+or multi-user merge workflow. Row 61 remains PARTIAL pending broader production
+owner qualification, project task execution/artifact submission/assessment
+browser qualification, and final owner visual acceptance. The final
+NeetCode-style redesign remains deferred.
 
 
 ## DLP-3 owner integration (accepted; remotely recoverable)

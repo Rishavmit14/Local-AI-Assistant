@@ -1,24 +1,21 @@
-# Friday recovery handoff — Cross-path evidence equivalence
+# Friday recovery handoff — Adaptive learning replanning
 
 ## Current work
 
-- Worktree: `/home/kumar-rishav/.codex/worktrees/friday-cross-path-evidence/Local-AI-Assistant-terra-integration`
-- Branch: `stage-22/cross-path-evidence-equivalence`
-- Base SHA: `2d2ec4c43c50846d94b6512dce8a1adb22080e61`
-- Capability commit: `248046a72856be5833d247c892a4ec3088bf84b2` (`stage-22: qualify cross-path evidence equivalence`).
-- Recovery: capability commit is pushed; this documentation-only follow-up records final publication verification.
-- Scope: owner-authored equivalence keys, exact assessment-contract matching, source-provenance projection, target mastery floors, and milestone exclusions. See ADR 0036 and `docs/architecture/dynamic-learning-paths.md`.
-- `NeuralPresence.tsx` was not changed. Protected production checkout `/AI/projects/Local-AI-Assistant` remains on `stage-22/product-integration`, HEAD `e43896623978e86b7bae6502b380462b455626be`, with pre-existing Pocket/Anna work; do not modify it.
+- Worktree: `/home/kumar-rishav/.codex/worktrees/friday-adaptive-replanning/Local-AI-Assistant-terra-integration`
+- Branch: `stage-22/adaptive-learning-replanning`
+- Base/HEAD before acceptance: `9d7ad6ecf41a6db6b24b0e3d779685b509f653ee`; implementation and docs are uncommitted pending final gates.
+- Scope: deterministic, learner-requested DLP replanning from canonical Career Forge evidence; safely prune only exact-equivalent supported future nodes; route weak/low/stale evidence to existing reinforcement/diagnostic/review; immutable version provenance and learner-facing Learn action. See ADR 0037 and `docs/architecture/dynamic-learning-paths.md`.
+- `NeuralPresence.tsx` was not changed. Protected production checkout `/AI/projects/Local-AI-Assistant` remains on `stage-22/product-integration`, HEAD `e43896623978e86b7bae6502b380462b455626be`, with existing Pocket/Anna work. Friday and production Qwen were healthy and neither was restarted or mutated.
 
-## Qualification
+## Evidence and validation
 
-- Full Python suite: 1,162 passed; one existing Starlette/AnyIO BlockingPortal deprecation warning.
-- Full frontend suite: 120 passed. ESLint, TypeScript/production build, Ruff, `pip check`, and repository verification passed. Existing Vite large-chunk advisory remains.
-- Native browser qualification used disposable candidate state and local Qwen: assessed source evidence, explicit owner key, target reuse with original provenance, and changed-contract / higher-mastery negative controls. No evidence or mastery was copied or inflated.
-- Project/capstone browser execution and artifact assessment, broader owner qualification, and final visual acceptance remain open. Row 61 stays PARTIAL; these are part of remaining DLP/product work, not acceptance claims for this bounded capability.
-- Production Friday `/health` and Qwen `/v1/models` were healthy during qualification. Neither was restarted or mutated. Candidate API/UI and disposable records were stopped/removed; verify ports and final health before publication.
+- Full repository verifier: 1,168 passed, one existing Starlette/AnyIO deprecation warning; compileall, CLI checks, `pip check`, and tracked artifact checks passed.
+- Full frontend suite: 121 passed; ESLint, TypeScript, and production build passed. Vite retains its existing large-chunk advisory. Ruff and `git diff --check` passed.
+- Isolated native browser journeys with local Qwen qualified successful cross-path acceleration and weak-assessment remediation; both reloaded and reconstructed the persisted version and explanation. The initial insufficient answer was rejected. Deterministic tests cover changed assessment contracts, higher proficiency floor, milestones, projects, graph validation, no-evidence behavior, and version history.
+- Candidate API/UI processes and ports 8766/8767/5191/5192 are stopped. Production Qwen remained reachable; production Friday was not restarted.
+- Row 61 remains PARTIAL: broader owner qualification, browser-driven project task execution/artifact submission/assessment, and final visual acceptance remain open. Do not start the next major roadmap slice in this session.
 
-## Publication and next dependency
+## Exact next dependency
 
-- Publication verified: `stage-22/cross-path-evidence-equivalence`, `main`, and `integration/astra-friday` all resolved to `248046a72856be5833d247c892a4ec3088bf84b2` after fetch. The local `main` checkout was fast-forwarded to that commit. This follow-up is documentation-only.
-- Next canonical dependency: major adaptive replanning. Continue the retained roadmap order and include remaining browser-driven project execution/artifact/assessment and owner qualification where specified. Do not claim row 61 complete until its full retained scope is qualified.
+After accepted publication, record the recovery SHA and verify `stage-22/adaptive-learning-replanning`, `main`, and fetched `origin` refs agree with a clean accepted worktree. The next DLP/product dependency is browser-driven project task execution, artifact submission, and assessment, followed by broader owner qualification; preserve the final visual acceptance gap and row-61 PARTIAL status.

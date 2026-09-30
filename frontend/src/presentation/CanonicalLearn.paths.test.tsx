@@ -50,6 +50,25 @@ describe("Learn Dynamic Learning Paths integration", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
+  it("shows an evidence-driven replan action and the server-authored reason", async () => {
+    const currentPath=path("adaptive",true,"active");
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([currentPath]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(detail(currentPath));
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue({...sequence,path_id:"adaptive"});
+    const adapt=vi.spyOn(FridayRuntimeClient.prototype,"adaptLearningPath").mockResolvedValue({
+      path:{...currentPath,current_version:2},
+      version:{...detail(currentPath).current,version:2,adaptation:{summary:"Prior evidence cleared a redundant lesson; your project remains required."}},
+      sequence:{...sequence,path_id:"adaptive",version:2},
+    });
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    const button=[...container.querySelectorAll("button")].find(item=>item.textContent==="Update learning plan from new evidence");
+    expect(button).toBeTruthy();
+    await act(async()=>{button?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(adapt).toHaveBeenCalledWith("adaptive");
+    expect(container.textContent).toContain("Prior evidence cleared a redundant lesson; your project remains required.");
+  });
+
   it("offers a governed session for an unmapped active path topic", async () => {
     const arbitraryDetail: LearningPathDetail = {
       ...detail(path("p4", true, "active")),

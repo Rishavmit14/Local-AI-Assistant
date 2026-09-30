@@ -44,7 +44,11 @@ class CareerForgeEvidenceProjection:
             key: CompetencyEvidence(
                 competency_id=key,
                 mastery=confidence[key].mastery.value,
-                confidence=confidence[key].status,
+                # An assessed failed attempt is useful weak evidence even
+                # before the first mastery rung exists; it should select
+                # governed reinforcement rather than look like no assessment.
+                confidence=("weak" if key in weak and confidence[key].status == "unverified"
+                            else confidence[key].status),
                 retention=confidence[key].retention_state,
                 independent_correct_attempts=confidence[key].independent_correct_attempts,
                 weak_reasons=tuple(weak[key].reasons) if key in weak else (),
@@ -140,23 +144,30 @@ class CareerForgeEvidenceProjection:
         # a cross-path decay or supersession policy here.
         canonical = next((item for item in self.career_forge.learner_confidence()
                           if item.competency_id == competency_id), None)
+        weak_area = next((item for item in self.career_forge.weak_areas(limit=100)
+                          if item.competency_id == competency_id), None)
         if canonical is not None:
-            confidence, retention = canonical.status, canonical.retention_state
+            confidence = ("weak" if canonical.status == "unverified" and weak_area
+                          else canonical.status)
+            retention = canonical.retention_state
+        elif weak_area and mastery is MasteryLevel.UNVERIFIED:
+            confidence = "weak"
         return CompetencyEvidence(
             competency_id, mastery.value, confidence, retention, independent,
             (("failed retention reassessment",) if weak else
+             weak_area.reasons if weak_area and confidence == "weak" else
              ((canonical.reason,) if canonical is not None and canonical.status == "weak" else ())),
             due, source,
         )
 def evidence_state(evidence: CompetencyEvidence | None, required_mastery: str = MasteryLevel.APPLY_INDEPENDENTLY.value) -> str:
     if evidence is None:
         return "unmapped"
+    if evidence.confidence == "weak":
+        return "unsatisfied"
     if evidence.confidence == "unverified" or evidence.mastery == MasteryLevel.UNVERIFIED:
         return "needs_diagnostic"
     if evidence.confidence == "stale" or evidence.review_due:
         return "needs_review"
-    if evidence.confidence == "weak":
-        return "unsatisfied"
     ladder = tuple(MasteryLevel)
     if ladder.index(MasteryLevel(evidence.mastery)) < ladder.index(MasteryLevel(required_mastery)):
         return "needs_diagnostic"

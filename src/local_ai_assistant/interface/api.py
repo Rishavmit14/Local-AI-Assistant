@@ -2926,7 +2926,7 @@ def create_presentation_app(
             return {"path": learning_path_projection(path),
                     "version": asdict(service.repository.version(path_id, path.current_version)),
                     "sequence": service.sequence(path_id)}
-        except (CurriculumValidationError, KeyError) as exc:
+        except (CurriculumValidationError, KeyError, LearningPathRevisionConflict) as exc:
             learning_path_error(exc)
 
     @app.post("/api/v1/learning-paths/{path_id}/versions", response_model=LearningPathCreatedView)

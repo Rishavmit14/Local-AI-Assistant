@@ -369,8 +369,35 @@ def test_typed_sequence_and_adaptation_api(tmp_path):
         assert sequence.json()["nodes"][0]["evidence_state"] == "unmapped"
         adapted = client.post(f"/api/v1/learning-paths/{path_id}/adapt")
         assert adapted.status_code == 200
-        assert adapted.json()["path"]["current_version"] == 2
-        assert adapted.json()["version"]["adaptation"]["evidence_available"] is False
+        assert adapted.json()["path"]["current_version"] == 1
+        assert adapted.json()["version"]["adaptation"] == {}
+
+
+def test_learning_path_api_persists_replan_and_replays_without_version_churn(tmp_path):
+    class Provider:
+        def competency_evidence(self, ids):
+            return {"se.python": CompetencyEvidence(
+                "se.python", "apply_independently", "current", "scheduled", 2, (), False,
+            )}
+
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.python"
+    service = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=Provider())
+    runtime = FridayRuntime("learning-path-api-replan")
+    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=service)
+    with TestClient(app) as client:
+        created = client.post("/api/v1/learning-paths", json=proposal).json()
+        path_id = created["path"]["path_id"]
+        client.post(f"/api/v1/learning-paths/{path_id}/activate")
+        first = client.post(f"/api/v1/learning-paths/{path_id}/adapt")
+        assert first.status_code == 200
+        assert first.json()["path"]["current_version"] == 2
+        assert first.json()["version"]["provenance"] == "adaptive_planner"
+        assert first.json()["version"]["adaptation"]["trigger"] == "explicit_replan_from_current_career_forge_evidence"
+        assert first.json()["sequence"]["version"] == 2
+        second = client.post(f"/api/v1/learning-paths/{path_id}/adapt")
+        assert second.status_code == 200
+        assert second.json()["path"]["current_version"] == 2
 
 
 def test_evidence_sequencing_adaptation_is_deterministic_and_versioned(tmp_path):
@@ -385,7 +412,7 @@ def test_evidence_sequencing_adaptation_is_deterministic_and_versioned(tmp_path)
     proposal["nodes"][0]["competency_key"] = "se.python"
     proposal["nodes"][1]["competency_key"] = "se.engineering"
     service = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=Provider())
-    path = service.create(proposal)
+    path = service.activate(service.create(proposal).path_id)
     first = service.repository.version(path.path_id, 1)
     projection = service.sequence(path.path_id)
     by_id = {item["node_id"]: item for item in projection["nodes"]}
@@ -397,8 +424,9 @@ def test_evidence_sequencing_adaptation_is_deterministic_and_versioned(tmp_path)
     applied = service.apply_adaptation(path.path_id)
     assert applied.current_version == 2
     assert service.repository.version(path.path_id, 1) == first
-    assert service.repository.version(path.path_id, 2).reason == "evidence_adaptation"
+    assert service.repository.version(path.path_id, 2).reason == "adaptive_replan"
     assert service.repository.version(path.path_id, 2).adaptation["decisions"]
+    assert service.apply_adaptation(path.path_id).current_version == 2
     restarted = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=Provider()).sequence(path.path_id)
     assert restarted["version"] == 2
     assert restarted["nodes"] == projection["nodes"]
@@ -463,11 +491,62 @@ def test_weak_or_stale_direct_evidence_changes_local_sequencing(tmp_path, confid
     proposal["nodes"][0]["competency_key"] = "se.python"
     proposal["prerequisites"] = [edge for edge in proposal["prerequisites"] if edge["node_id"] != "trees"]
     service = LearningPathService(tmp_path / f"{confidence}.sqlite3", evidence_provider=Provider())
-    path = service.create(proposal)
+    path = service.activate(service.create(proposal).path_id)
     nodes = {item["node_id"]: item for item in service.sequence(path.path_id)["nodes"]}
     assert nodes["arrays"]["decision"] == expected
     assert nodes["pointers"]["decision"] == dependent
     assert "trees" in service.sequence(path.path_id)["candidate_next_nodes"]
+    adapted = service.apply_adaptation(path.path_id)
+    assert adapted.current_version == 2
+    version = service.repository.version(path.path_id, 2)
+    assert version.adaptation["decisions"][0]["recommendation"] == ("review" if confidence == "stale" else "reinforce")
+    assert service.apply_adaptation(path.path_id).current_version == 2
+
+
+def test_successful_retention_review_replans_from_review_first_to_supported(tmp_path):
+    class Provider:
+        confidence = "stale"
+
+        def competency_evidence(self, ids):
+            return {"se.python": CompetencyEvidence(
+                "se.python", "apply_independently", self.confidence,
+                "due" if self.confidence == "stale" else "passed", 2, (),
+                self.confidence == "stale",
+            )}
+
+    provider = Provider()
+    proposal = curriculum()
+    proposal["nodes"][0]["competency_key"] = "se.python"
+    service = LearningPathService(tmp_path / "retention.sqlite3", evidence_provider=provider)
+    path = service.activate(service.create(proposal).path_id)
+    assert service.sequence(path.path_id)["nodes"][0]["decision"] == "REVIEW_FIRST"
+    assert service.apply_adaptation(path.path_id).current_version == 2
+    provider.confidence = "reinforced"
+    assert service.sequence(path.path_id)["nodes"][0]["decision"] == "SKIP_ALREADY_SUPPORTED"
+    revised = service.apply_adaptation(path.path_id)
+    assert revised.current_version == 3
+    assert service.repository.version(path.path_id, 3).adaptation["decisions"][0]["decision"] == "SKIP_ALREADY_SUPPORTED"
+
+
+def test_failed_dynamic_assessment_selects_governed_reinforcement_without_mastery_change(tmp_path):
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    evidence = CareerForgeEvidenceProjection(forge)
+    paths = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=evidence)
+    path = paths.activate(paths.create(curriculum()).path_id)
+    node = next(item for item in paths.detail(path.path_id)["current"].nodes if item["node_id"] == "arrays")
+    learning = GeneralizedLearningService(forge)
+    subject = learning.register(path_id=path.path_id, path_version=1, node=node)
+    learning.start_session(subject.subject_id)
+    attempt = learning.record_attempt(subject.subject_id, "first-explanation", "The answer confuses the concept.")
+    assessed = learning.assess_attempt(subject.subject_id, attempt.attempt_id, "ASSESSMENT: incorrect\nThe objective was not demonstrated.")
+    assert assessed["evaluation"] == "incorrect"
+    assert learning.get(subject.subject_id).mastery == "unverified"
+    sequence = paths.sequence(path.path_id)
+    arrays = next(item for item in sequence["nodes"] if item["node_id"] == "arrays")
+    assert arrays["evidence"]["confidence"] == "weak"
+    assert arrays["decision"] == "REINFORCE_FIRST"
+    assert paths.apply_adaptation(path.path_id).current_version == 2
+    assert learning.get(subject.subject_id).mastery == "unverified"
 
 
 def test_career_forge_adapter_and_sequence_do_not_mutate_learner_database(tmp_path):
@@ -481,7 +560,7 @@ def test_career_forge_adapter_and_sequence_do_not_mutate_learner_database(tmp_pa
     service = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=adapter)
     proposal = curriculum()
     proposal["nodes"][0]["competency_key"] = "se.python"
-    path = service.create(proposal)
+    path = service.activate(service.create(proposal).path_id)
     service.sequence(path.path_id)
     service.apply_adaptation(path.path_id)
     assert db.read_bytes() == before
@@ -535,6 +614,123 @@ def test_dynamic_career_forge_evidence_unlocks_dependents_and_is_version_bound(t
     after_revision = paths.sequence(path.path_id)
     assert after_revision["version"] == revised.current_version
     assert next(n for n in after_revision["nodes"] if n["node_id"] == "arrays")["decision"] == "DIAGNOSTIC_FIRST"
+
+
+def test_cross_path_replan_removes_only_supported_future_node_and_preserves_graph(tmp_path):
+    class Provider:
+        def competency_evidence(self, ids):
+            return {}
+
+        def dynamic_node_evidence(self, path_id, path_version, node, *, equivalent_sources=None):
+            if node["node_id"] == "arrays":
+                return CompetencyEvidence(
+                    "node:arrays", "apply_independently", "current", "scheduled", 2, (), False,
+                    {"path_id": "source-path", "path_version": 2, "node_id": "arrays",
+                     "evidence_id": "evidence-1", "attempt_id": "attempt-1", "artifact_ref": None,
+                     "created_at": "2026-09-30T00:00:00+00:00", "evaluation": "correct",
+                     "evaluation_authority": "career_forge_local_assessment"},
+                )
+            return None
+
+    proposal = curriculum()
+    proposal["nodes"][0]["equivalence_key"] = "arrays-contract"
+    service = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=Provider())
+    path = service.activate(service.create(proposal).path_id)
+    before = service.repository.version(path.path_id, 1)
+    revised = service.apply_adaptation(path.path_id)
+    current = service.repository.version(path.path_id, 2)
+    assert revised.current_version == 2
+    assert "arrays" not in {node["node_id"] for node in current.nodes}
+    assert {node["node_id"] for node in before.nodes} == {"arrays", "pointers", "window", "trees", "graphs", "dynamic"}
+    assert {(edge["prerequisite_node_id"], edge["node_id"]) for edge in current.prerequisites} >= {
+        ("pointers", "window"), ("trees", "graphs"), ("graphs", "dynamic")
+    }
+    assert current.adaptation["removed_future_nodes"] == ["arrays"]
+    assert current.provenance == "adaptive_planner"
+    assert service.apply_adaptation(path.path_id).current_version == 2
+
+
+def test_replan_preserves_the_node_owned_by_an_active_learning_session(tmp_path):
+    from types import SimpleNamespace
+
+    class Provider:
+        career_forge = SimpleNamespace(resume=lambda: SimpleNamespace(resume_point={"path_id": "active", "node_id": "arrays"}))
+
+        def competency_evidence(self, ids):
+            return {}
+
+        def dynamic_node_evidence(self, path_id, path_version, node, *, equivalent_sources=None):
+            if node["node_id"] != "arrays":
+                return None
+            return CompetencyEvidence(
+                "node:arrays", "apply_independently", "current", "scheduled", 2, (), False,
+                {"path_id": "source", "path_version": 1, "node_id": "arrays", "evidence_id": "e1",
+                 "attempt_id": "a1", "artifact_ref": None, "created_at": "now", "evaluation": "correct",
+                 "evaluation_authority": "career_forge_local_assessment"},
+            )
+
+    proposal = curriculum()
+    proposal["path_id"] = "active"
+    proposal["nodes"][0]["equivalence_key"] = "arrays"
+    service = LearningPathService(tmp_path / "active.sqlite3", evidence_provider=Provider())
+    path = service.activate(service.create(proposal).path_id)
+    assert path.path_id == "active"
+    updated = service.apply_adaptation(path.path_id)
+    assert updated.current_version == 2
+    assert "arrays" in {node["node_id"] for node in service.repository.version(path.path_id, 2).nodes}
+    assert service.repository.version(path.path_id, 2).adaptation["removed_future_nodes"] == []
+
+
+def test_cross_path_replan_preserves_project_and_owner_authored_curriculum(tmp_path):
+    class Provider:
+        def competency_evidence(self, ids):
+            return {}
+
+        def dynamic_node_evidence(self, path_id, path_version, node, *, equivalent_sources=None):
+            return CompetencyEvidence(
+                f"node:{node['node_id']}", "apply_independently", "current", "scheduled", 2, (), False,
+                {"path_id": "source", "path_version": 1, "node_id": node["node_id"],
+                 "evidence_id": "evidence", "attempt_id": "attempt", "artifact_ref": None,
+                 "created_at": "2026-09-30T00:00:00+00:00", "evaluation": "correct",
+                 "evaluation_authority": "career_forge_local_assessment"},
+            ) if node.get("equivalence_key") else None
+
+    proposal = curriculum("genai")
+    # The final node is a mandatory path-specific capstone.
+    proposal["milestones"] = [{
+        "milestone_id": "capstone", "title": "Required capstone", "node_id": "capstone",
+        "project_ref": "fraudshield", "description": "Mandatory integration work", "kind": "capstone",
+        "assignment_reason": "Demonstrate the integrated system", "competency_keys": ["se.python"],
+        "prerequisite_node_ids": ["evaluation"], "expected_outcome": "A tested project",
+        "evidence_expectations": ["Validated artifacts", "Owner explanation"],
+    }]
+    for node in proposal["nodes"]:
+        if node["node_id"] == "capstone":
+            continue
+        node["equivalence_key"] = f"equiv-{node['node_id']}"
+    next(node for node in proposal["nodes"] if node["node_id"] == "capstone")["type"] = "capstone"
+    service = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=Provider())
+    path = service.activate(service.create(proposal).path_id)
+    service.manual_edit(path.path_id, expected_version=1, operation={"type": "add_node", "node": {
+        "node_id": "owner-added", "module_id": "foundations", "title": "Owner lesson", "type": "lesson",
+        "objectives": ["Owner-defined scope"], "evidence_requirements": [], "competency_key": None,
+        "equivalence_key": None, "estimated_hours": 1,
+    }})
+    edited = service.repository.version(path.path_id, 2)
+    service.repository.link_project_assignment(path.path_id, 2, "capstone", "project-candidate", "2026-09-30T00:00:00+00:00")
+    replanned = service.apply_adaptation(path.path_id)
+    current = service.repository.version(path.path_id, replanned.current_version)
+    node_ids = {node["node_id"] for node in current.nodes}
+    assert "owner-added" in node_ids
+    assert "capstone" in node_ids
+    assert "evaluation" in node_ids
+    assert all(item["node_id"] in {node["node_id"] for node in edited.nodes} for item in current.milestones)
+    assert service.repository.version(path.path_id, 2).nodes == edited.nodes
+    assert service.repository.project_assignment(path.path_id, current.version, "capstone")["project_id"] == "project-candidate"
+    recovered = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=Provider())
+    assert recovered.repository.get(path.path_id).current_version == current.version
+    assert recovered.repository.version(path.path_id, current.version).adaptation == current.adaptation
+    assert recovered.repository.project_assignment(path.path_id, current.version, "capstone")["project_id"] == "project-candidate"
 
 
 def test_owner_selection_activation_and_restart_are_canonical(tmp_path):

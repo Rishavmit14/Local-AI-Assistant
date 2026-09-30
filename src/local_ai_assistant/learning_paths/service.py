@@ -228,21 +228,153 @@ class LearningPathService:
         return states.get(str(key), "unmapped") if key else "unmapped"
 
     def apply_adaptation(self, path_id: str):
-        """Persist an auditable evidence-adaptation snapshot without deleting curriculum."""
+        """Apply one deterministic, evidence-backed revision to future learning."""
         projection = self.sequence(path_id)
         detail = self.detail(path_id)
         current = detail["current"]
-        payload = {**current.metadata, "summary": f"Evidence adaptation preview: {sum(n['decision'] == 'SKIP_ALREADY_SUPPORTED' for n in projection['nodes'])} already-supported; {sum(n['decision'] == 'REVIEW_FIRST' for n in projection['nodes'])} review; {sum(n['decision'] == 'DIAGNOSTIC_FIRST' for n in projection['nodes'])} diagnostic recommendations.",
-                   "modules": list(current.modules), "nodes": list(current.nodes), "prerequisites": list(current.prerequisites),
-                   "milestones": list(current.milestones), "reason": "evidence_adaptation", "provenance": "career_forge_evidence_projection",
-                   "adaptation": {"source_version": current.version, "evidence_available": projection["evidence_available"],
-                                  "decisions": [{"node_id": n["node_id"], "decision": n["decision"],
-                                                 "evidence_state": n["evidence_state"], "evidence": n["evidence"]}
-                                                for n in projection["nodes"]],
-                                  "summary": "Historical sequencing annotation only; Career Forge remains current learner-state authority."}}
-        adaptation = payload.pop("adaptation")
-        return self.revise(path_id, payload, reason="evidence_adaptation",
-                           provenance="career_forge_evidence_projection", adaptation=adaptation)
+        if current.version != projection["version"]:
+            raise LearningPathRevisionConflict("The learning path changed while evidence was being evaluated; refresh and replan again.")
+        if not projection["evidence_available"]:
+            return detail["path"]
+        if detail["path"].state != "active":
+            raise CurriculumValidationError("activate this learning path before adapting its future plan")
+        has_decisive_evidence = any(
+            item.get("evidence") and (
+                item["evidence"].get("mastery") != "unverified"
+                or item["evidence"].get("confidence") in {"weak", "stale", "current", "reinforced"}
+            )
+            for item in projection["nodes"]
+        )
+        if not has_decisive_evidence:
+            return detail["path"]
+
+        nodes = [dict(item) for item in current.nodes]
+        prerequisites = [dict(item) for item in current.prerequisites]
+        milestones = [dict(item) for item in current.milestones]
+        milestone_nodes = {str(item["node_id"]) for item in milestones}
+        protected_project_requirements = milestone_nodes | {
+            str(node_id) for item in milestones for node_id in item.get("prerequisite_node_ids", [])
+        }
+        forge = getattr(self.evidence_provider, "career_forge", None)
+        session = forge.resume() if forge is not None else None
+        resume = session.resume_point if session is not None else {}
+        active_node = resume.get("node_id") if resume.get("path_id") == path_id else None
+
+        # Cross-path equivalent evidence satisfies the requirement but does not
+        # claim that its target-path activity occurred. Preserve the old version
+        # and its source provenance, and omit only unstarted future activities.
+        decisions = {item["node_id"]: item for item in projection["nodes"]}
+        removable = {
+            node_id for node_id, item in decisions.items()
+            if item["decision"] == "SKIP_ALREADY_SUPPORTED"
+            and item.get("evidence") and item["evidence"].get("equivalent_source")
+            and node_id not in protected_project_requirements
+            and node_id != active_node
+        }
+        if len(removable) >= len(nodes):
+            # Keep one already-supported requirement so the path remains a
+            # navigable curriculum instead of becoming an empty archive.
+            keep = next((node_id for node_id in current.topological_order if node_id in removable), None)
+            if keep is not None:
+                removable.remove(keep)
+        for node_id in current.topological_order:
+            if node_id not in removable:
+                continue
+            incoming = [edge["prerequisite_node_id"] for edge in prerequisites if edge["node_id"] == node_id]
+            outgoing = [edge["node_id"] for edge in prerequisites if edge["prerequisite_node_id"] == node_id]
+            prerequisites = [edge for edge in prerequisites if edge["node_id"] != node_id and edge["prerequisite_node_id"] != node_id]
+            prerequisites.extend(
+                {"prerequisite_node_id": before, "node_id": after}
+                for before in incoming for after in outgoing if before != after
+            )
+            nodes = [node for node in nodes if node["node_id"] != node_id]
+        prerequisites = list({
+            (edge["prerequisite_node_id"], edge["node_id"]): edge
+            for edge in prerequisites
+        }.values())
+
+        # Keep all owner-authored modules, node contracts, and project links.
+        # A weak/failed or due-retention signal changes the next governed action
+        # (reinforcement/review/diagnostic) in the projection without inventing
+        # a new competency, assessment, or mastery record.
+        # Record decisions for the resulting graph, including newly unblocked
+        # nodes. This makes an immediate replay compare equal and remain a no-op.
+        resulting_incoming: dict[str, list[str]] = {node["node_id"]: [] for node in nodes}
+        for edge in prerequisites:
+            resulting_incoming[edge["node_id"]].append(edge["prerequisite_node_id"])
+        sequence_by_node = {item["node_id"]: item for item in projection["nodes"]}
+        evidence_state_by_node = {node_id: item["evidence_state"] for node_id, item in sequence_by_node.items()}
+        decisions_payload = []
+        for node_id in current.topological_order:
+            if node_id in removable:
+                continue
+            item = sequence_by_node[node_id]
+            state = item["evidence_state"]
+            blocked = any(evidence_state_by_node[p] != "satisfied" for p in resulting_incoming[node_id])
+            decision = (
+                "BLOCKED" if blocked else
+                "SKIP_ALREADY_SUPPORTED" if state == "satisfied" else
+                "DEFER" if state == "unavailable" else
+                "REVIEW_FIRST" if state == "needs_review" else
+                "DIAGNOSTIC_FIRST" if state in {"needs_diagnostic", "unmapped"} else
+                "REINFORCE_FIRST" if state == "unsatisfied" else "ELIGIBLE"
+            )
+            decisions_payload.append({
+                "node_id": node_id, "decision": decision, "evidence_state": state,
+                "recommendation": item["recommendation"], "evidence": item["evidence"],
+            })
+        removed = sorted(removable)
+        reasons = []
+        if removed:
+            reasons.append(
+                f"Your prior Career Forge evidence satisfies {len(removed)} equivalent requirement(s), "
+                "so Friday removed the redundant future lesson(s)."
+            )
+        reinforcement_count = sum(item["decision"] == "REINFORCE_FIRST" for item in decisions_payload)
+        review_count = sum(item["decision"] == "REVIEW_FIRST" for item in decisions_payload)
+        diagnostic_count = sum(item["decision"] == "DIAGNOSTIC_FIRST" for item in decisions_payload)
+        if reinforcement_count:
+            reasons.append(f"Career Forge identified a gap; reinforcement is next for {reinforcement_count} topic(s).")
+        if review_count:
+            reasons.append(f"A due or stale retention review remains ahead of {review_count} topic(s).")
+        if diagnostic_count:
+            reasons.append(f"A diagnostic is recommended for {diagnostic_count} topic(s) below their required evidence level.")
+        if removed and milestones:
+            reasons.append("Your required project and capstone milestones remain in the path.")
+        summary = " ".join(reasons) or "Friday checked current Career Forge evidence; the future plan is unchanged."
+        adaptation = {
+            "source_version": current.version,
+            "trigger": "explicit_replan_from_current_career_forge_evidence",
+            "evidence_available": True,
+            "removed_future_nodes": removed,
+            "removed_requirements": [
+                {"node_id": node_id, "title": next(node["title"] for node in current.nodes if node["node_id"] == node_id),
+                 "equivalent_source": decisions[node_id]["evidence"]["equivalent_source"]}
+                for node_id in removed
+            ],
+            "decisions": decisions_payload,
+            "summary": summary,
+            "provenance": "adaptive_planner",
+        }
+        # Identical evidence and graph state must not inflate path versions.
+        if list(current.nodes) == nodes and list(current.prerequisites) == prerequisites:
+            previous = current.adaptation.get("decisions", [])
+            previous_by_node = {item.get("node_id"): item for item in previous}
+            current_node_ids = {node["node_id"] for node in nodes}
+            previous_remaining = [previous_by_node[node_id] for node_id in decisions
+                                 if node_id in current_node_ids and node_id in previous_by_node]
+            previously_removed = set(current.adaptation.get("removed_future_nodes", []))
+            if (previous_remaining == decisions_payload
+                    and not removed and not (previously_removed & current_node_ids)):
+                return detail["path"]
+        payload = {
+            **current.metadata, "summary": summary, "modules": list(current.modules),
+            "nodes": nodes, "prerequisites": prerequisites, "milestones": milestones,
+        }
+        return self.revise(
+            path_id, payload, reason="adaptive_replan", provenance="adaptive_planner",
+            adaptation=adaptation, expected_version=current.version,
+        )
 
     def create(self, proposal: dict[str, Any]):
         value = canonical_curriculum(proposal)

@@ -2048,6 +2048,31 @@ they do not establish universal offline or all-capability qualification.
 Validation and accepted recovery SHA are recorded in the current handoff and
 `docs/qualification/owner-sovereign-mode.md`. Row 60 was not started.
 
+## 2026-09-30 — Stage 22 deterministic adaptive learning replanning
+
+Accepted learner-requested, deterministic evidence replanning for active Dynamic
+Learning Paths. Weak assessment signals route to existing Career Forge
+reinforcement, insufficient evidence retains diagnostic-first sequencing, and
+due/stale retention routes to review. Exact qualifying owner-declared cross-path
+equivalence may remove safe unstarted future requirements after canonical DAG
+validation; active learning, project/capstone milestones, and their direct
+prerequisites remain protected. Immutable path history, source evidence, project
+assignments, and Career Forge authority are preserved. No new attempt, mission,
+review, evidence, or mastery is created by replanning. Learn exposes the explicit
+update action and learner-facing persisted reason.
+
+Qualification: targeted learning-path regression (44 passed), frontend Learn
+path regression (11 passed), full repository verifier (1,168 passed, one existing
+Starlette/AnyIO deprecation warning), and full frontend suite (121 passed),
+ESLint, TypeScript, production build, Ruff, and `pip check` passed. Isolated
+native-browser journeys with local Qwen qualified successful evidence-based
+acceleration and weak-assessment remediation; both reconstructed after browser
+reload. The Vite large-chunk advisory remains. Publication is recorded in
+`CODEX_HANDOFF.md`. Row 61 remains
+PARTIAL for broader owner qualification, browser project task/artifact/assessment
+execution, and final visual acceptance. Friday and production Qwen were not
+restarted or mutated.
+
 ## 2026-09-30 — Stage 22 cross-path evidence equivalence
 
 Accepted explicitly owner-declared cross-path reuse for arbitrary Dynamic

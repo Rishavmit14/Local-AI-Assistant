@@ -1697,9 +1697,11 @@ submission, or UI-driven evidence review was claimed. Deterministic API fixtures
 covered task-success gating, correct/incorrect/uncertain review, evidence
 provenance, idempotent replay, and unchanged mastery. A separate single request
 to local Qwen exercised the bounded Reviewer parser; it is not claimed as
-end-to-end browser assessment. Overall rows 60 and 61 remain PARTIAL. Remaining row-61 gaps after the
-separately qualified cross-path evidence capability are major adaptive
-replanning, broader owner qualification, browser-driven project task
+end-to-end browser assessment. Adaptive replanning is now separately qualified
+through deterministic backend/frontend regression and isolated browser journeys
+for successful cross-path acceleration and weak-assessment remediation, including
+reload reconstruction. Overall rows 60 and 61 remain PARTIAL. Remaining row-61
+gaps are broader owner qualification, browser-driven project task
 execution/artifact submission/assessment, and final visual acceptance.
 
 ### Manual curriculum editing with prerequisite protection — QUALIFIED (bounded candidate path)
@@ -1726,8 +1728,7 @@ and project/capstone anchor protection. The browser candidate had no assigned
 project, so browser task execution/artifact submission/assessment is not
 claimed.
 
-This sub-capability does not close row 61. Major adaptive replanning,
-broader production owner qualification,
+This sub-capability does not close row 61. Broader production owner qualification,
 browser-driven project task execution/artifact submission/assessment, and final
 visual acceptance remain open.
 
@@ -1763,6 +1764,6 @@ request exposed that the endpoint routed through general conversation and
 returned unrelated task-routing text. The endpoint now uses Friday's existing
 sequential Reviewer role over the same local Qwen model; subsequent browser
 assessments returned valid labels. This does not close browser project
-execution/assessment, major adaptive replanning, broader production
+execution/assessment, broader production
 qualification, or final visual acceptance. Row 61 remains PARTIAL. See ADR 0036
 and `docs/architecture/dynamic-learning-paths.md`.
