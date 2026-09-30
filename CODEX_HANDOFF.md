@@ -19,10 +19,12 @@
 
 ## Publication and exact next dependency
 
-Fetched remote refs `stage-22/adaptive-learning-replanning`, `main`, and
-`integration/astra-friday` all resolve to
-`ebfe61f27863ed626e881bcad125406acf148cf7`. The stage worktree is clean at
-that commit. The separate local main checkout
+The accepted capability commit is
+`ebfe61f27863ed626e881bcad125406acf148cf7`; the recovery documentation commit
+is `0b6364c9b5869a00153e1843ca3665dcda3e9e72`. Fetched remote refs
+`stage-22/adaptive-learning-replanning`, `main`, and `integration/astra-friday`
+all contain both commits, and the stage worktree is clean at the current
+published tip. The separate local main checkout
 `/AI/projects/Local-AI-Assistant-terra-integration` has an uncommitted
 `ROADMAP.md` edit. It was preserved untouched; main was fast-forward published
 directly from the clean stage worktree. Reconcile that local checkout before
