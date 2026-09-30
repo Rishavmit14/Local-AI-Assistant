@@ -4,7 +4,8 @@
 
 - Worktree: `/home/kumar-rishav/.codex/worktrees/friday-adaptive-replanning/Local-AI-Assistant-terra-integration`
 - Branch: `stage-22/adaptive-learning-replanning`
-- Base/HEAD before acceptance: `9d7ad6ecf41a6db6b24b0e3d779685b509f653ee`; implementation and docs are uncommitted pending final gates.
+- Base: `9d7ad6ecf41a6db6b24b0e3d779685b509f653ee`.
+- Accepted capability commit: `ebfe61f27863ed626e881bcad125406acf148cf7` (`stage-22: qualify adaptive learning replanning`).
 - Scope: deterministic, learner-requested DLP replanning from canonical Career Forge evidence; safely prune only exact-equivalent supported future nodes; route weak/low/stale evidence to existing reinforcement/diagnostic/review; immutable version provenance and learner-facing Learn action. See ADR 0037 and `docs/architecture/dynamic-learning-paths.md`.
 - `NeuralPresence.tsx` was not changed. Protected production checkout `/AI/projects/Local-AI-Assistant` remains on `stage-22/product-integration`, HEAD `e43896623978e86b7bae6502b380462b455626be`, with existing Pocket/Anna work. Friday and production Qwen were healthy and neither was restarted or mutated.
 
@@ -16,6 +17,18 @@
 - Candidate API/UI processes and ports 8766/8767/5191/5192 are stopped. Production Qwen remained reachable; production Friday was not restarted.
 - Row 61 remains PARTIAL: broader owner qualification, browser-driven project task execution/artifact submission/assessment, and final visual acceptance remain open. Do not start the next major roadmap slice in this session.
 
-## Exact next dependency
+## Publication and exact next dependency
 
-After accepted publication, record the recovery SHA and verify `stage-22/adaptive-learning-replanning`, `main`, and fetched `origin` refs agree with a clean accepted worktree. The next DLP/product dependency is browser-driven project task execution, artifact submission, and assessment, followed by broader owner qualification; preserve the final visual acceptance gap and row-61 PARTIAL status.
+Fetched remote refs `stage-22/adaptive-learning-replanning`, `main`, and
+`integration/astra-friday` all resolve to
+`ebfe61f27863ed626e881bcad125406acf148cf7`. The stage worktree is clean at
+that commit. The separate local main checkout
+`/AI/projects/Local-AI-Assistant-terra-integration` has an uncommitted
+`ROADMAP.md` edit. It was preserved untouched; main was fast-forward published
+directly from the clean stage worktree. Reconcile that local checkout before
+using it as a clean workspace.
+
+Next DLP/product dependency: browser-driven project task execution, artifact
+submission, and assessment, followed by broader owner qualification. Keep final
+visual acceptance open and row 61 PARTIAL; do not start the next major roadmap
+slice until this accepted checkpoint is recovered from clean refs.
