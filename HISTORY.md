@@ -2047,3 +2047,27 @@ plan. These results qualify only the bounded row 59 claim in the product matrix;
 they do not establish universal offline or all-capability qualification.
 Validation and accepted recovery SHA are recorded in the current handoff and
 `docs/qualification/owner-sovereign-mode.md`. Row 60 was not started.
+
+## 2026-09-30 — Stage 22 cross-path evidence equivalence
+
+Accepted explicitly owner-declared cross-path reuse for arbitrary Dynamic
+Learning Path nodes. Reuse requires a matching assessment contract and
+qualifying current Career Forge evidence; the projection preserves source path,
+revision, node, attempt, evidence and artifact provenance and never copies or
+rewrites mastery, evidence, attempts, relationships, or prerequisites. Owner
+policy selects `apply_independently`, `transfer_debug`, or `teach_defend` as the
+minimum acceptable mastery rung. Project/capstone milestones cannot declare or
+receive cross-path equivalence. The dynamic assessor now invokes the local
+Reviewer role on the accepted Qwen model for deterministic assessment output.
+See ADR 0036 and the current handoff for boundaries and qualification details.
+
+Validation: full Python suite (1,162 passed, one existing Starlette/AnyIO
+BlockingPortal deprecation warning); full frontend suite (120 passed); ESLint,
+TypeScript/production build, Ruff, `pip check`, and
+`scripts/maintenance/verify-repository.sh` passed. Native browser qualification
+used disposable learner state and actual local Qwen assessments: source
+assessment, explicit owner key, target skip with source provenance, and negative
+controls for changed contract and higher mastery requirement. Project/capstone
+browser task execution and artifact assessment, broad owner qualification, and
+final visual acceptance remain open; roadmap row 61 remains PARTIAL. Friday and
+Qwen production services were not restarted or mutated.

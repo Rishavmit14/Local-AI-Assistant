@@ -18,6 +18,7 @@ class CompetencyEvidence:
     independent_correct_attempts: int
     weak_reasons: tuple[str, ...]
     review_due: bool
+    equivalent_source: dict | None = None
 
 
 class LearningEvidenceProvider(Protocol):
@@ -52,7 +53,10 @@ class CareerForgeEvidenceProjection:
             for key in sorted(known) if key in confidence
         }
 
-    def dynamic_node_evidence(self, path_id: str, path_version: int, node: dict) -> CompetencyEvidence | None:
+    def dynamic_node_evidence(
+        self, path_id: str, path_version: int, node: dict, *,
+        equivalent_sources: set[tuple[str, str]] | None = None,
+    ) -> CompetencyEvidence | None:
         """Read evidence for the same unchanged node contract across path revisions."""
         from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
 
@@ -69,9 +73,41 @@ class CareerForgeEvidenceProjection:
                 "AND s.contract_fingerprint=? ORDER BY s.path_version DESC,s.created_at DESC LIMIT 1",
                 (path_id, str(node["node_id"]), fingerprint),
             ).fetchone()
+            source = None
+            if row is None and equivalent_sources:
+                candidates = []
+                for source_path, source_node in sorted(equivalent_sources):
+                    candidates.extend(db.execute(
+                        "SELECT s.subject_id,s.competency_id,s.path_id,s.path_version,s.node_id,l.mastery "
+                        "FROM dynamic_learning_subjects s JOIN learner_competencies l USING(competency_id) "
+                        "WHERE s.path_id=? AND s.node_id=? AND s.contract_fingerprint=? "
+                        "ORDER BY s.path_version DESC,s.created_at DESC,s.subject_id",
+                        (source_path, source_node, fingerprint),
+                    ).fetchall())
+                for candidate in candidates:
+                    provenance = db.execute(
+                        "SELECT e.evidence_id,e.source_attempt_id,e.artifact_ref,e.created_at "
+                        "FROM mission_evidence e JOIN missions m USING(mission_id) "
+                        "JOIN lesson_attempts a ON a.attempt_id=e.source_attempt_id "
+                        "WHERE m.competency_id=? AND e.contract_fingerprint=? "
+                        "AND a.evaluation='correct' "
+                        "ORDER BY e.created_at DESC,e.evidence_id LIMIT 1",
+                        (candidate[1], fingerprint),
+                    ).fetchone()
+                    if provenance is None:
+                        continue
+                    source = {"path_id": str(candidate[2]), "path_version": int(candidate[3]),
+                              "node_id": str(candidate[4]), "evidence_id": str(provenance[0]),
+                              "attempt_id": str(provenance[1]) if provenance[1] else None,
+                              "artifact_ref": str(provenance[2]) if provenance[2] else None,
+                              "created_at": str(provenance[3]),
+                              "evaluation": "correct",
+                              "evaluation_authority": "career_forge_local_assessment"}
+                    row = candidate
+                    break
             if row is None:
                 return None
-            competency_id, mastery_value = str(row[0]), str(row[1])
+            competency_id, mastery_value = str(row[1] if source else row[0]), str(row[5] if source else row[1])
             due = db.execute(
                 "SELECT 1 FROM retention_reviews WHERE competency_id=? "
                 "AND state IN ('scheduled','delivered') AND due_at<=? LIMIT 1",
@@ -99,11 +135,20 @@ class CareerForgeEvidenceProjection:
             confidence, retention = "reinforced", "passed"
         else:
             confidence, retention = "current", "scheduled"
+        # Use Career Forge's full canonical projection for weak/stale signals,
+        # including failed attempts and retention state, rather than inventing
+        # a cross-path decay or supersession policy here.
+        canonical = next((item for item in self.career_forge.learner_confidence()
+                          if item.competency_id == competency_id), None)
+        if canonical is not None:
+            confidence, retention = canonical.status, canonical.retention_state
         return CompetencyEvidence(
             competency_id, mastery.value, confidence, retention, independent,
-            ("failed retention reassessment",) if weak else (), due,
+            (("failed retention reassessment",) if weak else
+             ((canonical.reason,) if canonical is not None and canonical.status == "weak" else ())),
+            due, source,
         )
-def evidence_state(evidence: CompetencyEvidence | None) -> str:
+def evidence_state(evidence: CompetencyEvidence | None, required_mastery: str = MasteryLevel.APPLY_INDEPENDENTLY.value) -> str:
     if evidence is None:
         return "unmapped"
     if evidence.confidence == "unverified" or evidence.mastery == MasteryLevel.UNVERIFIED:
@@ -113,7 +158,7 @@ def evidence_state(evidence: CompetencyEvidence | None) -> str:
     if evidence.confidence == "weak":
         return "unsatisfied"
     ladder = tuple(MasteryLevel)
-    if ladder.index(MasteryLevel(evidence.mastery)) < ladder.index(MasteryLevel.APPLY_INDEPENDENTLY):
+    if ladder.index(MasteryLevel(evidence.mastery)) < ladder.index(MasteryLevel(required_mastery)):
         return "needs_diagnostic"
     if evidence.confidence in {"current", "reinforced"}:
         return "satisfied"

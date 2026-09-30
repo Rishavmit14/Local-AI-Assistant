@@ -1697,10 +1697,10 @@ submission, or UI-driven evidence review was claimed. Deterministic API fixtures
 covered task-success gating, correct/incorrect/uncertain review, evidence
 provenance, idempotent replay, and unchanged mastery. A separate single request
 to local Qwen exercised the bounded Reviewer parser; it is not claimed as
-end-to-end browser assessment. Overall rows 60 and 61 remain PARTIAL. Remaining
-row-61 gaps are cross-path evidence equivalence, major adaptive replanning,
-broader owner qualification, browser-driven project task execution/artifact
-submission/assessment, and final visual acceptance.
+end-to-end browser assessment. Overall rows 60 and 61 remain PARTIAL. Remaining row-61 gaps after the
+separately qualified cross-path evidence capability are major adaptive
+replanning, broader owner qualification, browser-driven project task
+execution/artifact submission/assessment, and final visual acceptance.
 
 ### Manual curriculum editing with prerequisite protection — QUALIFIED (bounded candidate path)
 
@@ -1726,7 +1726,43 @@ and project/capstone anchor protection. The browser candidate had no assigned
 project, so browser task execution/artifact submission/assessment is not
 claimed.
 
-This sub-capability does not close row 61. Cross-path evidence equivalence,
-major adaptive replanning, broader production owner qualification,
+This sub-capability does not close row 61. Major adaptive replanning,
+broader production owner qualification,
 browser-driven project task execution/artifact submission/assessment, and final
 visual acceptance remain open.
+
+
+### Cross-path evidence equivalence — QUALIFIED (isolated owner journey)
+
+Career Forge fixed competency IDs remain shared canonical identity. For
+arbitrary-domain DLP subjects, an owner may assign the same stable
+`equivalence_key` to nodes in separate immutable path versions. DLP considers a
+source only when both current path versions explicitly declare the key, the
+node assessment fingerprints match exactly, and the source Career Forge record
+contains a correct assessed attempt/evidence. Model-generated paths leave the
+key unset. The source path/version/node, attempt, evidence, evaluator,
+timestamp, and artifact reference remain visible in the deterministic sequence
+projection; no evidence record or mastery is copied.
+
+Existing Career Forge independent-application mastery and current/reinforced
+retention remain the default credit threshold. Owners may require a higher rung,
+but not lower the independent-application floor. Lower or stale evidence
+requests reassessment or review; mismatched scope is not credited even with an
+identical key. Project/capstone milestone nodes remain path-specific, and the
+prerequisite DAG is not altered. The Learn editor saves equivalence and required
+proficiency as version-checked immutable revisions.
+
+An isolated native browser candidate used real local Qwen assessments in a
+source path, earned independent-application evidence, then opened a second
+path and received an explained skip after exact-contract equivalence was
+owner-declared on both paths. A refresh reconstructed the source relationship.
+A same-key advanced-scope control remained diagnostic, and a matching-contract
+control requiring transfer/debug mastery remained diagnostic at
+`apply_independently`; evidence and mastery were unchanged. A first assessment
+request exposed that the endpoint routed through general conversation and
+returned unrelated task-routing text. The endpoint now uses Friday's existing
+sequential Reviewer role over the same local Qwen model; subsequent browser
+assessments returned valid labels. This does not close browser project
+execution/assessment, major adaptive replanning, broader production
+qualification, or final visual acceptance. Row 61 remains PARTIAL. See ADR 0036
+and `docs/architecture/dynamic-learning-paths.md`.

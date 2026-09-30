@@ -164,6 +164,25 @@ existing canonical Project reference forward for display without copying or
 rebinding the Project record. Prior path versions remain immutable and
 inspectable.
 
+An owner can declare a stable `equivalence_key` for arbitrary-domain nodes by
+creating a new immutable revision, and may raise a node’s required mastery
+rung above the existing independent-application floor. DLP may reuse evidence from another path only
+when this key and the complete Career Forge assessment-contract fingerprint
+match. The projection joins owner-declared keys on the current immutable path versions
+and requires the same assessment-contract fingerprint across paths. It references
+the source Career Forge subject, correct attempt, evidence type/outcome,
+path/node, evaluator, timestamp, and any artifact; it never copies attempts or
+mastery. A node may require a higher existing Career Forge mastery rung, but
+never lower than independent application. Career Forge confidence must still be
+current or reinforced; stale, weak, or mismatched evidence cannot satisfy the
+target. Failed-only,
+insufficient, stale, weak, or mismatched evidence cannot satisfy the target.
+Model-generated curricula must leave equivalence unset. Project/capstone
+requirements remain path-specific and cannot declare cross-path equivalence.
+DLP sequencing explains the source and skips only the supported activity;
+prerequisite graph edges remain unchanged. This source relationship is rebuilt
+from canonical Career Forge subject/evidence records after reload.
+
 Career Forge remains the evidence authority. Fixed competency evidence is
 unchanged by DLP versioning. For arbitrary-domain nodes, evidence can project
 across revisions of the same path only when node ID and semantic assessment
@@ -178,7 +197,7 @@ This is a compact functional control inside the current interim Learn layout,
 not the deferred visual redesign. There is no arbitrary JSON editor, drag and
 drop, module authoring/deletion, optionality flag (the canonical node model has
 none), project-record editing, or multi-user merge workflow. Row 61 remains
-PARTIAL pending cross-path evidence equivalence, major adaptive replanning,
+PARTIAL pending major adaptive replanning,
 broader production owner qualification, project task execution/artifact
 submission/assessment browser qualification, and final owner visual acceptance.
 

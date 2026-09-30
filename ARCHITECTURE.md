@@ -451,10 +451,16 @@ diagnostic recommendations. Direct unsupported prerequisites block dependent
 nodes while unrelated branches remain candidates. Adaptation records decision
 provenance in a new immutable version and never writes Career Forge learner
 state. Learn now provides functional path selection, review delivery and answer
-submission, and reinforcement handoff over these canonical services. The browser
-never calculates mastery or sequencing. Learn remains a functional integration
-shell; final visual acceptance is explicitly deferred. Matrix rows 60 and 61
-remain PARTIAL for broader product qualification and remaining DLP capabilities.
+submission, and reinforcement handoff over these canonical services. Explicit
+owner-authored equivalence keys may resolve arbitrary DLP nodes across paths
+only when assessment fingerprints match and Career Forge evidence satisfies
+the target mastery rung. Sequencing projects source provenance read-only; it
+does not copy learner records or create relationships. Project/capstone
+milestones are excluded. The browser never calculates mastery or sequencing.
+Learn remains a functional integration shell; final visual acceptance is
+explicitly deferred. Matrix rows 60 and 61 remain PARTIAL for broader product
+qualification and remaining DLP capabilities. See ADR 0036 and
+`docs/architecture/dynamic-learning-paths.md`.
 
 ### Astra Research / Knowledge presentation boundary
 

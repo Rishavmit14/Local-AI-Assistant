@@ -8,6 +8,8 @@ from collections import defaultdict
 from datetime import date
 from typing import Any
 
+from local_ai_assistant.career_forge.models import MasteryLevel
+
 
 class CurriculumValidationError(ValueError):
     pass
@@ -115,6 +117,8 @@ class CurriculumValidator:
                     "objectives",
                     "evidence_requirements",
                     "competency_key",
+                    "equivalence_key",
+                    "required_mastery",
                     "estimated_hours",
                 },
                 "node",
@@ -141,6 +145,14 @@ class CurriculumValidator:
             competency = node.get("competency_key")
             if competency is not None:
                 self._id(competency, "competency_key")
+            equivalence = node.get("equivalence_key")
+            if equivalence is not None:
+                self._id(equivalence, "equivalence_key")
+            required_mastery = node.get("required_mastery", "apply_independently")
+            if required_mastery not in {level.value for level in MasteryLevel}:
+                raise CurriculumValidationError("unsupported required mastery rung")
+            if tuple(MasteryLevel).index(MasteryLevel(required_mastery)) < tuple(MasteryLevel).index(MasteryLevel.APPLY_INDEPENDENTLY):
+                raise CurriculumValidationError("required mastery cannot be below independent application")
             self._number(node.get("estimated_hours"), "estimated_hours", 0, 10000)
         if not nodes:
             raise CurriculumValidationError("curriculum requires nodes")
@@ -208,6 +220,9 @@ class CurriculumValidator:
                     raise CurriculumValidationError("project evidence expectations are required and bounded")
                 for expectation in expectations:
                     self._text(expectation, "project evidence expectation", 500)
+        milestone_node_ids = {item["node_id"] for item in milestones}
+        if any(node.get("equivalence_key") and node["node_id"] in milestone_node_ids for node in nodes):
+            raise CurriculumValidationError("project and capstone milestone nodes cannot declare cross-path equivalence")
         node_effort = [
             node.get("estimated_hours") for node in nodes if node.get("estimated_hours") is not None
         ]

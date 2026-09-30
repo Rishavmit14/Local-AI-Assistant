@@ -73,6 +73,28 @@ describe("Learn Dynamic Learning Paths integration", () => {
     expect(onHandoff).toHaveBeenCalledOnce();
   });
 
+  it("lets the owner declare a stable equivalence and explains reused source evidence", async () => {
+    const activePath=path("p-equivalent",true,"active");
+    let current=detail(activePath);
+    current={...current,current:{...current.current,nodes:[{...current.current.nodes[0],competency_key:null,equivalence_key:null}]}};
+    const getDetail=vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockImplementation(async()=>current);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([activePath]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue({path_id:"p-equivalent",version:1,path_state:"active",evidence_available:true,candidate_next_nodes:[],nodes:[{node_id:"n1",competency_id:"dynamic.source",evidence_state:"satisfied",evidence:{equivalent_source:{path_id:"p-source",path_version:2,node_id:"sql",evidence_id:"ev1",attempt_id:"at1",artifact_ref:null,created_at:"now",evaluation:"correct",evaluation_authority:"career_forge_local_assessment"}},decision:"SKIP_ALREADY_SUPPORTED",eligible:false,blockers:[],recommendation:null,reason:"Prior Career Forge evidence from path p-source / node sql is evaluated against this equivalent requirement; source history is unchanged."}]});
+    const edit=vi.spyOn(FridayRuntimeClient.prototype,"editLearningPath").mockImplementation(async(_path,_version,operation)=>{
+      current={...current,current:{...current.current,version:2,nodes:[{...current.current.nodes[0],equivalence_key:String(operation.equivalence_key)}]}};
+      return current;
+    });
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    await act(async()=>{[...container.querySelectorAll("button")].find(button=>button.textContent==="Edit curriculum")?.click();await new Promise(r=>setTimeout(r,0));});
+    const input=container.querySelector<HTMLInputElement>('input[aria-label="Equivalent competency key for Python foundations"]');
+    await act(async()=>{if(input){const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")?.set;setter?.call(input,"python.foundations");input.dispatchEvent(new Event("input",{bubbles:true}));}await new Promise(r=>setTimeout(r,0));});
+    await act(async()=>{[...container.querySelectorAll("button")].find(button=>button.textContent==="Save evidence policy")?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(edit).toHaveBeenCalledWith("p-equivalent",1,{type:"set_node_policy",node_id:"n1",equivalence_key:"python.foundations",required_mastery:"apply_independently"});
+    expect(getDetail).toHaveBeenCalled();
+    expect(container.textContent).toContain("Prior Career Forge evidence from path p-source / node sql");
+  });
+
   it("exposes minimal manual editing and persists an added lesson through the canonical API", async () => {
     const currentPath=path("edit",true,"active");
     vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([currentPath]);

@@ -196,6 +196,49 @@ def test_manual_edit_rejects_stale_version_and_empty_path_removal_atomically(tmp
     assert service.repository.get(created.path_id).current_version == 2
 
 
+def test_manual_equivalence_edit_is_versioned_and_milestone_protected(tmp_path):
+    service = LearningPathService(tmp_path / "equivalence-edit.sqlite3")
+    created = service.create(curriculum())
+    revised = service.manual_edit(created.path_id, expected_version=1, operation={
+        "type": "set_equivalence", "node_id": "arrays", "equivalence_key": "sql.query-plan"
+    })
+    assert revised.current_version == 2
+    assert next(node for node in service.detail(created.path_id)["current"].nodes
+                if node["node_id"] == "arrays")["equivalence_key"] == "sql.query-plan"
+    with pytest.raises(CurriculumValidationError, match="stable identifier"):
+        service.manual_edit(created.path_id, expected_version=2, operation={
+            "type": "set_equivalence", "node_id": "arrays", "equivalence_key": "display name"
+        })
+    assert service.detail(created.path_id)["path"].current_version == 2
+    with pytest.raises(CurriculumValidationError, match="below independent application"):
+        service.manual_edit(created.path_id, expected_version=2, operation={
+            "type": "set_node_policy", "node_id": "arrays", "equivalence_key": "sql.query-plan",
+            "required_mastery": "recognize",
+        })
+    assert service.detail(created.path_id)["path"].current_version == 2
+
+    milestone = curriculum()
+    milestone["nodes"][-1]["type"] = "capstone"
+    milestone["milestones"] = [{
+        "milestone_id": "final-project", "title": "Final project", "node_id": "dynamic",
+        "project_ref": "fraudshield", "description": "Build and defend", "kind": "capstone",
+        "assignment_reason": "Apply the chain", "competency_keys": ["node:dynamic"],
+        "prerequisite_node_ids": ["graphs"], "expected_outcome": "Validated project",
+        "evidence_expectations": ["Owner explanation"],
+    }]
+    milestone_path = service.create(milestone)
+    with pytest.raises(CurriculumValidationError, match="path-specific"):
+        service.manual_edit(milestone_path.path_id, expected_version=1, operation={
+            "type": "set_equivalence", "node_id": "dynamic", "equivalence_key": "capstone"
+        })
+    invalid_capstone = curriculum()
+    invalid_capstone["nodes"][-1]["type"] = "capstone"
+    invalid_capstone["nodes"][-1]["equivalence_key"] = "transfer.capstone"
+    invalid_capstone["milestones"] = milestone["milestones"]
+    with pytest.raises(CurriculumValidationError, match="milestone nodes cannot declare"):
+        service.create(invalid_capstone)
+
+
 def test_manual_edit_protects_capstone_nodes_and_exact_prerequisites(tmp_path):
     proposal = curriculum()
     capstone = next(node for node in proposal["nodes"] if node["node_id"] == "dynamic")

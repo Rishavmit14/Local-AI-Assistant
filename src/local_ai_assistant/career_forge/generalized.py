@@ -79,6 +79,7 @@ class GeneralizedLearningService:
             "objectives": list(node.get("objectives", [])),
             "evidence_requirements": list(node.get("evidence_requirements", [])),
             "assessment_contract": node.get("assessment_contract", {}),
+            "equivalence_key": node.get("equivalence_key"),
             "rationale": path_context[:1200],
             "prerequisite_context": prerequisite_context[:2400],
         }

@@ -151,8 +151,16 @@ def test_dynamic_learning_handoff_attempt_and_assessment_use_career_forge_author
     conversation = FridayConversationService(
         FakeStreamingLLM(["ASSESSMENT: correct\nThe answer explains the objective."]), runtime,
     )
+    assessor_calls = []
+
+    class Assessor:
+        def chat(self, prompt, **kwargs):
+            assessor_calls.append((prompt, kwargs))
+            return "ASSESSMENT: correct\nThe answer explains the objective."
+
     client = TestClient(create_presentation_app(
         runtime, conversation, career_forge=forge, learning_paths=paths,
+        career_tutor_clients={TutorMode.TEACH_BACK: Assessor()},
     ))
 
     stale = client.post(
@@ -194,6 +202,9 @@ def test_dynamic_learning_handoff_attempt_and_assessment_use_career_forge_author
     assert assessed.status_code == 200
     assert assessed.json()["evaluation"] == "correct"
     assert assessed.json()["mastery"] == "recognize"
+    assert "exact learning contract" in assessor_calls[0][0]
+    assert "bounded local learning assessor" in assessor_calls[0][1]["system_prompt"]
+    assert conversation.llm.calls[-1]["prompt"] == "Teach me this topic and ask one question."
 
     unrelated_edit = client.post(
         f"/api/v1/learning-paths/{draft.path_id}/manual-edits",

@@ -11,7 +11,9 @@ from local_ai_assistant.career_forge.models import (
     TutorMode,
 )
 from local_ai_assistant.career_forge.service import CareerForgeService
-from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
+from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection, evidence_state
+from local_ai_assistant.learning_paths.service import LearningPathService
+from tests.fixtures.learning_path_curricula import curriculum
 
 
 def _node(**changes):
@@ -90,6 +92,141 @@ def test_dynamic_correct_assessment_creates_one_contract_bound_evidence_and_one_
     assert service.matching_evidence_count(subject.subject_id) == 1
     with pytest.raises(ValueError, match="already been evaluated"):
         service.assess_attempt(subject.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nReplay")
+
+
+def test_explicit_cross_path_equivalence_reuses_only_matching_qualified_evidence(tmp_path: Path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    service = GeneralizedLearningService(forge)
+    projection = CareerForgeEvidenceProjection(forge)
+    source_node = _node(equivalence_key="sql.query-plan.interpretation")
+    source = service.register(path_id="path-source", path_version=1, node=source_node)
+    service.start_session(source.subject_id)
+    for index in range(4):
+        attempt = service.record_attempt(source.subject_id, f"q{index}", f"Independent explanation {index}.")
+        result = service.assess_attempt(source.subject_id, attempt.attempt_id,
+                                        "ASSESSMENT: correct\nCorrect independent application.")
+        assert result["evidence_id"]
+
+    target_node = _node(node_id="query-plans-target", title="Query plan analysis",
+                        equivalence_key="sql.query-plan.interpretation")
+    declared_sources = {("path-source", "sql-plans")}
+    reused = projection.dynamic_node_evidence("path-target", 1, target_node, equivalent_sources=declared_sources)
+
+    assert reused is not None
+    assert reused.mastery == MasteryLevel.APPLY_INDEPENDENTLY
+    assert reused.confidence == "current"
+    assert reused.equivalent_source["path_id"] == "path-source"
+    assert reused.equivalent_source["node_id"] == "sql-plans"
+    assert reused.equivalent_source["evidence_id"]
+    assert reused.equivalent_source["evaluation_authority"] == "career_forge_local_assessment"
+    assert projection.dynamic_node_evidence("path-target", 1, target_node) is None
+    assert projection.dynamic_node_evidence(
+        "path-target", 1, _node(node_id="other", equivalence_key="sql.other")
+    ) is None
+    assert projection.dynamic_node_evidence(
+        "path-target", 1, _node(node_id="other", objectives=["Advanced optimizer cost analysis"],
+                                 equivalence_key="sql.query-plan.interpretation"),
+        equivalent_sources=declared_sources,
+    ) is None
+
+
+def test_cross_path_equivalence_rejects_failed_or_lower_level_evidence(tmp_path: Path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    service = GeneralizedLearningService(forge)
+    projection = CareerForgeEvidenceProjection(forge)
+    node = _node(equivalence_key="sql.query-plan.interpretation")
+    source = service.register(path_id="path-source", path_version=1, node=node)
+    service.start_session(source.subject_id)
+    attempt = service.record_attempt(source.subject_id, "wrong", "Incorrect answer.")
+    service.assess_attempt(source.subject_id, attempt.attempt_id, "ASSESSMENT: incorrect\nIncorrect.")
+    target = _node(node_id="target", equivalence_key="sql.query-plan.interpretation")
+    assert projection.dynamic_node_evidence("path-target", 1, target) is None
+
+    # One successful attempt creates evidence, but its recognized-level mastery
+    # remains below the independent-application threshold used by DLP.
+    attempt = service.record_attempt(source.subject_id, "right", "A correct basic answer.")
+    service.assess_attempt(source.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nCorrect.")
+    result = projection.dynamic_node_evidence("path-target", 1, target,
+                                              equivalent_sources={("path-source", "sql-plans")})
+    assert result is not None
+    assert result.mastery == MasteryLevel.RECOGNIZE
+    assert result.confidence == "current"
+    assert evidence_state(result) == "needs_diagnostic"
+
+
+def test_cross_path_equivalent_evidence_obeys_canonical_retention_state(tmp_path: Path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    service = GeneralizedLearningService(forge)
+    projection = CareerForgeEvidenceProjection(forge)
+    node = _node(equivalence_key="sql.query-plan.interpretation")
+    source = service.register(path_id="path-source", path_version=1, node=node)
+    service.start_session(source.subject_id)
+    for index in range(4):
+        attempt = service.record_attempt(source.subject_id, f"q{index}", f"Independent {index}.")
+        service.assess_attempt(source.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nCorrect.")
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE competency_id=?",
+                   (source.competency_id,))
+    result = projection.dynamic_node_evidence(
+        "path-target", 1, _node(node_id="target", equivalence_key="sql.query-plan.interpretation"),
+        equivalent_sources={("path-source", "sql-plans")},
+    )
+    assert result is not None
+    assert result.mastery == MasteryLevel.APPLY_INDEPENDENTLY
+    assert result.confidence == "stale"
+    assert result.review_due
+
+
+def test_dlp_sequences_cross_path_evidence_with_source_after_reconstruction(tmp_path: Path):
+    learner_db = tmp_path / "learner.sqlite3"
+    paths_db = tmp_path / "paths.sqlite3"
+    forge = CareerForgeService(learner_db)
+    learning = LearningPathService(paths_db, evidence_provider=CareerForgeEvidenceProjection(forge))
+    source_payload = curriculum()
+    target_payload = curriculum()
+    for payload, title in ((source_payload, "Source curriculum"), (target_payload, "Target curriculum")):
+        payload["nodes"][0].update(
+            title=title, objectives=["Explain how indexes affect a query plan"],
+            evidence_requirements=["Interpret a representative execution plan"],
+            equivalence_key="sql.query-plan.interpretation",
+        )
+    source_path = learning.create(source_payload)
+    target_path = learning.create(target_payload)
+    source_node = source_payload["nodes"][0]
+    generalized = GeneralizedLearningService(forge)
+    subject = generalized.register(path_id=source_path.path_id, path_version=1, node=source_node)
+    generalized.start_session(subject.subject_id)
+    for index in range(4):
+        attempt = generalized.record_attempt(subject.subject_id, f"q{index}", f"Independent application {index}.")
+        generalized.assess_attempt(subject.subject_id, attempt.attempt_id,
+                                   "ASSESSMENT: correct\nCorrect independent application.")
+
+    reconstructed = LearningPathService(
+        paths_db, evidence_provider=CareerForgeEvidenceProjection(CareerForgeService(learner_db))
+    )
+    target = next(item for item in reconstructed.sequence(target_path.path_id)["nodes"]
+                  if item["node_id"] == "arrays")
+    assert target["evidence_state"] == "satisfied"
+    assert target["decision"] == "SKIP_ALREADY_SUPPORTED"
+    assert target["evidence"]["equivalent_source"]["path_id"] == source_path.path_id
+    assert target["evidence"]["equivalent_source"]["node_id"] == "arrays"
+    assert "source history is unchanged" in target["reason"]
+    assert generalized.matching_evidence_count(subject.subject_id) == 4
+
+    advanced_payload = curriculum()
+    advanced_payload["nodes"][0].update(
+        objectives=["Explain how indexes affect a query plan"],
+        evidence_requirements=["Interpret a representative execution plan"],
+        equivalence_key="sql.query-plan.interpretation", required_mastery="transfer_debug",
+    )
+    advanced_path = reconstructed.create(advanced_payload)
+    advanced = next(item for item in reconstructed.sequence(advanced_path.path_id)["nodes"]
+                    if item["node_id"] == "arrays")
+    assert advanced["evidence_state"] == "needs_diagnostic"
+    assert advanced["decision"] == "DIAGNOSTIC_FIRST"
+    assert "at apply_independently" in advanced["reason"]
+    assert "needs transfer_debug" in advanced["reason"]
+    assert generalized.get(subject.subject_id).mastery == MasteryLevel.APPLY_INDEPENDENTLY
 
 
 @pytest.mark.parametrize("model_response", ["no label", "ASSESSMENT: uncertain\\nNeeds detail", "ASSESSMENT: incorrect\\nRetry"])

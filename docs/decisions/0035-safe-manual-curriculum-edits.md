@@ -32,5 +32,7 @@ mastery transition, review, and reinforcement mission.
 - Existing learner evidence and project instances remain canonical and are not
   rewritten by curriculum editing.
 - The Learn UI exposes only add, remove-eligible-future-node, module move, and
-  prerequisite controls. Comprehensive visual redesign remains deferred.
-- Cross-path evidence equivalence and major adaptive replanning are not implied.
+  prerequisite controls, and owner-authored stable competency equivalence keys.
+  Comprehensive visual redesign remains deferred.
+- Equivalence declarations are versioned curriculum metadata and do not alter
+  Career Forge history. Their reuse policy is specified in ADR 0036.

@@ -443,3 +443,16 @@ Project completion is not a mastery mutation; Career Forge's existing evidence
 and progression rules remain authoritative. The Project service owns the
 lifecycle and evidence links, while Career Forge owns the evidence record. See
 [`projects.md`](projects.md) and ADR 0034.
+
+
+## Cross-path evidence resolution
+
+Fixed competency IDs are inherently shared by Career Forge. Arbitrary-domain
+subjects remain path/node/contract-bound; DLP may resolve one into another path
+only through owner-declared equivalence keys on the current immutable path
+versions and identical assessment fingerprints. The read-only resolution
+retains Career Forge source attempt/evidence provenance and uses the source's
+existing mastery, confidence, and retention state. It does not copy mastery or
+evidence. DLP targets may require a higher mastery rung, never below independent
+application. Milestone requirements remain path-specific. See ADR 0036 and
+`dynamic-learning-paths.md`.
