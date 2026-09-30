@@ -450,8 +450,11 @@ node, while stale/weak/unverified evidence leads to review, reinforcement, or
 diagnostic recommendations. Direct unsupported prerequisites block dependent
 nodes while unrelated branches remain candidates. Adaptation records decision
 provenance in a new immutable version and never writes Career Forge learner
-state. This remains backend functionality, not owner UI or end-to-end path
-qualification; matrix row 61 is PARTIAL and row 60 remains PARTIAL.
+state. Learn now provides functional path selection, review delivery and answer
+submission, and reinforcement handoff over these canonical services. The browser
+never calculates mastery or sequencing. Learn remains a functional integration
+shell; final visual acceptance is explicitly deferred. Matrix rows 60 and 61
+remain PARTIAL for broader product qualification and remaining DLP capabilities.
 
 ### Astra Research / Knowledge presentation boundary
 
@@ -982,7 +985,7 @@ recovery reads do not trigger reconciliation. Row 56 is bounded to truthful
 owner-visible inspection and adds no universal resume, retry, cleanup, or
 rollback authority.
 
-## Dynamic Learning Paths owner integration (DLP-3 accepted; DLP-4 active)
+## Dynamic Learning Paths owner integration (DLP-4 accepted and published)
 
 DLP persists curriculum versions and the owner's selected path in its separate
 local SQLite authority. Conversation recognition is deterministic for explicit
@@ -995,6 +998,9 @@ dynamic subjects bound to immutable path/node contracts; explicit sessions,
 local assessment, evidence, mastery, retention, and sequence projection reuse
 the existing Career Forge learner authority. Arbitrary nodes without a
 registered dynamic subject remain unverified and cannot unlock dependents.
-DLP-4 implementation and qualification are active; see
-`docs/architecture/dynamic-learning-paths.md`. Owner final visual acceptance
-remains deferred, and rows 60/61 remain PARTIAL.
+DLP-4 was accepted as `4a420217bcddca42aa2655c3379b196729a43432` and its final
+published recovery pointer is `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`.
+Learn review and reinforcement answer flows reuse Career Forge review, mission,
+assessment, and evidence authority; dynamic DLP subjects retain their subject
+binding across reinforcement and restart. Owner final visual acceptance remains
+deferred, and rows 60/61 remain PARTIAL.

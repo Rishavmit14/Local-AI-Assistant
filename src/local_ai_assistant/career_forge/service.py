@@ -445,6 +445,20 @@ class CareerForgeService:
         item = self.next_competency()
         return mission_brief(item) if item else None
 
+    def _competency_title(self, competency_id: str) -> str:
+        competency = self.graph.get(competency_id)
+        if competency is not None:
+            return competency.title
+        with self._db() as db:
+            table = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dynamic_learning_subjects'"
+            ).fetchone()
+            row = db.execute(
+                "SELECT json_extract(contract_json,'$.title') FROM dynamic_learning_subjects "
+                "WHERE competency_id=? ORDER BY created_at DESC LIMIT 1", (competency_id,),
+            ).fetchone() if table else None
+        return str(row[0]) if row and row[0] else competency_id
+
     def mission_brief_for(self, competency_id: str) -> MissionBrief:
         """Return canonical teaching material for an explicitly selected competency."""
         try:
@@ -509,12 +523,29 @@ class CareerForgeService:
                 "SELECT mastery FROM learner_competencies WHERE competency_id=?",
                 (selected.competency_id,),
             ).fetchone()[0])
+            dynamic_context = {}
+            has_dynamic_subjects = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dynamic_learning_subjects'"
+            ).fetchone()
+            if has_dynamic_subjects:
+                subject = db.execute(
+                    "SELECT subject_id,path_id,path_version,node_id,contract_fingerprint "
+                    "FROM dynamic_learning_subjects WHERE competency_id=? ORDER BY created_at DESC LIMIT 1",
+                    (selected.competency_id,),
+                ).fetchone()
+                if subject:
+                    dynamic_context = {
+                        "learning_context": "dynamic_dlp", "subject_id": str(subject[0]),
+                        "path_id": str(subject[1]), "path_version": int(subject[2]),
+                        "node_id": str(subject[3]), "contract_fingerprint": str(subject[4]),
+                    }
         return self._create_mission(
             selected.competency_id,
             f"Reinforce {selected.title}",
             resume_point={
                 "phase": "prerequisite_verification",
                 "reinforcement": True,
+                **dynamic_context,
                 "reasons": list(selected.reasons),
                 "interrupted_mission_id": active.mission_id if active else None,
                 "baseline": {
@@ -716,9 +747,9 @@ class CareerForgeService:
         due_review = next((item for item in reviews if item.state == "scheduled" and item.due_at <= _now()), None)
         delivered_review = next((item for item in reviews if item.state == "delivered"), None)
         if due_review:
-            next_action = f"Complete the scheduled retention review for '{self.graph[due_review.competency_id].title}'."
+            next_action = f"Complete the scheduled retention review for '{self._competency_title(due_review.competency_id)}'."
         elif delivered_review:
-            next_action = f"Answer the delivered retention review for '{self.graph[delivered_review.competency_id].title}'."
+            next_action = f"Answer the delivered retention review for '{self._competency_title(delivered_review.competency_id)}'."
         elif active and any(item.mission_id == active.mission_id for item in retries):
             next_action = f"Retry the active mission '{active.title}' using its recorded feedback."
         elif weak_areas:
@@ -1004,9 +1035,11 @@ class CareerForgeService:
         if not 1 <= limit <= 100:
             raise ValueError("cognitive-improvement limit must be between 1 and 100")
         weak_ids = {item.competency_id for item in self.weak_areas(limit=100)}
-        mastery_by_id = {
-            item.competency.competency_id: item.mastery for item in self.competencies()
-        }
+        with self._db() as db:
+            mastery_by_id = {
+                str(row[0]): MasteryLevel(str(row[1]))
+                for row in db.execute("SELECT competency_id,mastery FROM learner_competencies")
+            }
         ladder = tuple(MasteryLevel)
         evaluations: list[CognitiveImprovementEvaluation] = []
         with self._db() as db:
@@ -1063,7 +1096,7 @@ class CareerForgeService:
                     "intervention_active"
                 )
                 evaluations.append(CognitiveImprovementEvaluation(
-                    str(competency_id), self.graph[str(competency_id)].title, status,
+                    str(competency_id), self._competency_title(str(competency_id)), status,
                     str(mission_id), baseline_mastery, baseline_reviews, baseline_attempts,
                     tuple(str(item) for item in resume.get("reasons", ())), assistance_ids,
                     str(evidence[2]) if evidence else None, str(evidence[0]) if evidence else None,

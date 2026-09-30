@@ -397,7 +397,7 @@ retry may resolve the gate without erasing the failure. Successful transfer
 supersedes outstanding due reviews and schedules the next review; it never
 changes mastery automatically.
 
-## Generalized DLP learning subjects (DLP-4 active)
+## Generalized DLP learning subjects (DLP-4 accepted and published)
 
 Career Forge also owns learner state for arbitrary Dynamic Learning Path nodes.
 Each dynamic subject is bound to a path ID, immutable path version, node ID,
@@ -413,7 +413,11 @@ answer following that assistance event; subsequent answers may qualify as
 independent. A correct assisted answer remains useful evidence and does not
 make an assessment fail when the independent threshold is unmet. DLP sequencing
 reads only categorical Career Forge projections, and a revised path version
-cannot inherit mastery automatically. DLP-4 remains under qualification; see
+cannot inherit mastery automatically. Learn's review and reinforcement actions
+reuse these records; dynamic reinforcement missions retain the subject binding
+needed for governed attempts after restart. DLP-4 was accepted as
+`4a420217bcddca42aa2655c3379b196729a43432` and published with final recovery
+pointer `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`; see
 `docs/architecture/dynamic-learning-paths.md`.
 
 PROGRESS also derives a read-only readiness projection from those same

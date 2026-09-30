@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FridayRuntimeClient } from "../runtime/client";
 import type { LearningPath, LearningPathDetail, LearningPathSequence } from "../runtime/types";
 import { LearningPathsPanel } from "./CanonicalLearn";
@@ -16,6 +16,7 @@ Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 describe("Learn Dynamic Learning Paths integration", () => {
   let root: Root | undefined;
   let container: HTMLDivElement;
+  beforeEach(() => { vi.spyOn(FridayRuntimeClient.prototype,"getCareerJourney").mockResolvedValue({progress:{retention_reviews:[]}} as never); });
   afterEach(() => { act(() => root?.unmount()); root=undefined; container?.remove(); vi.restoreAllMocks(); });
 
   it("renders canonical path and sequence, selects persistently, and starts a diagnostic through Career Forge", async () => {
@@ -104,5 +105,67 @@ describe("Learn Dynamic Learning Paths integration", () => {
     expect(container.textContent).toContain("Path p3 · draft");
     expect(container.textContent).toContain("Python foundations");
     expect(container.textContent).not.toMatch(/\b(100%|completed|mastered)\b/i);
+  });
+
+  it("delivers and evaluates a review through Career Forge, then refreshes server sequencing", async () => {
+    const activePath=path("p1",true,"active");
+    const reviewSequence={...sequence,nodes:[{...sequence.nodes[0],decision:"REVIEW_FIRST",recommendation:"review",reason:"Retention evidence is due."}],candidate_next_nodes:[]};
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([activePath]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(detail(activePath));
+    const getSequence=vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue(reviewSequence);
+    const handoff=vi.spyOn(FridayRuntimeClient.prototype,"handoffLearningPathNode").mockResolvedValue({action:"review",review:{review_id:"r1",competency_id:"se.python"} as never,prompt:"Explain the behavior of a default argument.",completion_claimed:false});
+    const evaluate=vi.spyOn(FridayRuntimeClient.prototype,"evaluateRetentionReview").mockResolvedValue({review:{review_id:"r1",competency_id:"se.python",evaluation:"incorrect",feedback:"Explain object lifetime."} as never,weak_areas:[]});
+    const onHandoff=vi.fn();container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff,activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    const start=[...container.querySelectorAll("button")].find(b=>b.textContent==="Review this topic");
+    expect(start).toBeTruthy();await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(handoff).toHaveBeenCalledWith("p1","n1","review",1);expect(container.textContent).toContain("Explain the behavior of a default argument.");
+    const input=container.querySelector<HTMLTextAreaElement>("#learning-path-review-answer");
+    await act(async()=>{if(input){const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")?.set;setter?.call(input,"The default list is created once and shared.");input.dispatchEvent(new Event("input",{bubbles:true}));}await new Promise(r=>setTimeout(r,0));});
+    const submit=[...container.querySelectorAll("button")].find(b=>b.textContent==="Submit answer");await act(async()=>{submit?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(evaluate).toHaveBeenCalledWith("r1","The default list is created once and shared.");expect(getSequence).toHaveBeenCalledTimes(2);expect(container.textContent).toContain("Career Forge evaluation: incorrect. Explain object lifetime.");expect(container.textContent).not.toMatch(/mastered/i);
+  });
+
+  it("restores a delivered review from Career Forge after Learn reload", async () => {
+    const activePath=path("p1",true,"active");
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([activePath]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(detail(activePath));
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue({...sequence,nodes:[{...sequence.nodes[0],decision:"REVIEW_FIRST"}]});
+    vi.spyOn(FridayRuntimeClient.prototype,"getCareerJourney").mockResolvedValue({progress:{retention_reviews:[{review_id:"r1",competency_id:"se.python",state:"delivered",prompt:"Restart-safe canonical prompt."}]}} as never);
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    expect(container.textContent).toContain("Restart-safe canonical prompt.");expect(container.querySelector("#learning-path-review-answer")).toBeTruthy();
+  });
+
+  it("offers dynamic-subject reinforcement through the Career Forge handoff", async () => {
+    const activePath=path("p-dynamic",true,"active");
+    const dynamicDetail:LearningPathDetail={...detail(activePath),current:{...detail(activePath).current,nodes:[{node_id:"sql",module_id:"m1",title:"SQL query optimization",type:"lesson",objectives:["Compare index and table scans"],evidence_requirements:["Explain query cost"],competency_key:null,estimated_hours:1}]}};
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([activePath]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(dynamicDetail);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue({path_id:"p-dynamic",version:1,path_state:"active",evidence_available:true,candidate_next_nodes:[],nodes:[{node_id:"sql",competency_id:"dynamic.abc",evidence_state:"weak",evidence:null,decision:"REINFORCE_FIRST",eligible:false,blockers:[],recommendation:"reinforcement",reason:"The canonical review was incorrect."}]});
+    const handoff=vi.spyOn(FridayRuntimeClient.prototype,"handoffLearningPathNode").mockResolvedValue({action:"reinforcement",subject_id:"subject-sql",resumed:true,mission:{resume_point:{interrupted_mission_id:"mission-prior"}} as never,completion_claimed:false});
+    const onHandoff=vi.fn();container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff,activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    expect(container.textContent).toContain("REINFORCE FIRST");
+    const start=[...container.querySelectorAll("button")].find(b=>b.textContent==="Start reinforcement");
+    await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(handoff).toHaveBeenCalledWith("p-dynamic","sql","reinforcement",1);expect(onHandoff).toHaveBeenCalledOnce();
+    expect(container.textContent).toContain("Career Forge saved the active mission while reinforcement is in progress");
+  });
+
+  it("keeps a delivered review available and truthful when evaluation fails", async () => {
+    const activePath=path("p1",true,"active");
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([activePath]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(detail(activePath));
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue({...sequence,nodes:[{...sequence.nodes[0],decision:"REVIEW_FIRST"}]});
+    vi.spyOn(FridayRuntimeClient.prototype,"handoffLearningPathNode").mockResolvedValue({action:"review",review:{review_id:"r1",competency_id:"se.python"} as never,prompt:"Canonical review prompt.",completion_claimed:false});
+    const evaluate=vi.spyOn(FridayRuntimeClient.prototype,"evaluateRetentionReview").mockRejectedValue(new Error("retention review has already been evaluated"));
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    await act(async()=>{[...container.querySelectorAll("button")].find(button=>button.textContent==="Review this topic")?.click();await new Promise(r=>setTimeout(r,0));});
+    const input=container.querySelector<HTMLTextAreaElement>("#learning-path-review-answer");
+    await act(async()=>{if(input){const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")?.set;setter?.call(input,"My explicit answer.");input.dispatchEvent(new Event("input",{bubbles:true}));}await new Promise(r=>setTimeout(r,0));});
+    await act(async()=>{[...container.querySelectorAll("button")].find(button=>button.textContent==="Submit answer")?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(evaluate).toHaveBeenCalledWith("r1","My explicit answer.");expect(container.textContent).toContain("retention review has already been evaluated");expect(container.textContent).toContain("Canonical review prompt.");
   });
 });

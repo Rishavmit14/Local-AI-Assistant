@@ -1645,13 +1645,13 @@ Perception and Developer / Diagnostics. `docs/product/` records the product
 contract and the observed public NeetCode reference. UX-60A adds no Dynamic
 Learning Paths backend, owner mastery mutation, second conversation store, or
 required network asset. **Row 60 remains PARTIAL**: it tracks whole-product
-owner qualification, including future Dynamic Learning Paths and integrated
+owner qualification, including remaining Dynamic Learning Paths capability and integrated
 owner flows. At the UX-60A recovery boundary, DLP-1 was the next engineering
-step. DLP-1 through DLP-3 are complete; DLP-4 generalized arbitrary-domain
-teaching, assessment, evidence, mastery, retention and sequencing is active and
-not yet qualified.
+step. DLP-1 through DLP-4 are now accepted and published. DLP-4 generalized
+arbitrary-domain teaching, assessment, evidence, mastery, retention and
+sequencing; final whole-product and owner visual acceptance remain deferred.
 
-## Dynamic Learning Paths — DLP-1/3 owner integration (row 61, PARTIAL)
+## Dynamic Learning Paths — DLP-1–4 accepted and published (row 61, PARTIAL)
 
 DLP-1 establishes a separate local SQLite authority for versioned learning-path
 curricula above Career Forge. It includes modules, nodes, explicit prerequisite
@@ -1668,4 +1668,4 @@ recommendations. Direct prerequisite failures block dependent nodes without
 blocking unrelated branches. Sequence projections expose stable candidates,
 reasons, and evidence-backed counts. Adaptation writes a new immutable DLP
 version with historical decision provenance and never mutates Career Forge.
-Provider failure defers mapped nodes. DLP-3 adds persistent owner path selection in the DLP SQLite boundary, draft-to-active lifecycle transitions, deterministic explicit Conversation creation/list/current/next intents, and Learn list/detail/sequence projection through typed APIs. Mapped diagnostic, eligible mission, due review, reinforcement and Practice Lab handoffs re-enter Career Forge or Practice Lab authority; unmapped nodes remain visibly unsupported. A bounded real local-Qwen conversation creation smoke, candidate Learn selection and sequence inspection, mapped diagnostic/Practice Lab handoff, and selected-path restart reconstruction have passed. Career Forge due-review/reinforcement service handoffs have deterministic integration tests; full browser interaction for those flows and final owner visual acceptance remain. Final Python/frontend/repository gates pass. DLP-3 is accepted and remotely recoverable at `4cf22b1fc645f19ba5a64123b342a4f78442a49f` on both `integration/astra-friday` and `main`. Row 60 remains PARTIAL; row 61 remains PARTIAL pending final DLP-4 acceptance and remaining owner-path qualification, including review/reinforcement browser flows and final owner visual acceptance. See `docs/architecture/dynamic-learning-paths.md`. DLP-4 implements a Career Forge-owned dynamic subject/session, fingerprinted assessment evidence, retention projection, DLP sequence feedback, typed local-assessor API, and functional Learn answer controls. Full regression, candidate local-Qwen teaching/assessment/retention, wrong-answer API behavior, independent mastery sequencing, and process restart reconstruction pass. DLP-4 remains active and unaccepted until remote acceptance publication.
+Provider failure defers mapped nodes. DLP-3 added persistent owner path selection in the DLP SQLite boundary, draft-to-active lifecycle transitions, deterministic explicit Conversation creation/list/current/next intents, and Learn list/detail/sequence projection through typed APIs. DLP-4 added Career Forge-owned dynamic subjects and contract-bound evidence. Both DLP-4 and its publication recovery are accepted: capability commit `4a420217bcddca42aa2655c3379b196729a43432`; published recovery `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`. Learn now delivers/evaluates canonical Career Forge reviews and starts/resumes Career Forge reinforcement for supported fixed and dynamic subjects. Candidate browser qualification proved incorrect and correct review answers, dynamic reinforcement with assistance provenance, backend sequence refresh, and restart reconstruction. Review answer text remains within Career Forge's governed store; the browser holds only a transient draft. Row 61 remains PARTIAL for remaining product capabilities and broader owner qualification; final visual acceptance remains deferred. Row 60 remains PARTIAL. Learn is a FUNCTIONAL INTEGRATION SHELL; no final visual design acceptance is claimed. See `docs/architecture/dynamic-learning-paths.md`.

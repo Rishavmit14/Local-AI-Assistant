@@ -37,6 +37,25 @@ Career Forge handoff states. A bounded local-Qwen Conversation creation smoke, n
 
 # Project History
 
+## 2026-09-30 — Learn review and reinforcement owner flows closed
+
+Completed the DLP-4 Learn closure on `integration/astra-friday`. The native
+candidate Learn flow now delivers Career Forge retention prompts, evaluates
+explicit owner answers through Career Forge, refreshes DLP sequencing, and
+reconstructs delivered reviews after reload. Dynamic weak subjects can start
+and resume Career Forge reinforcement with path/node/contract binding intact;
+an unrelated active mission is safely saved and resumable. Dynamic due-review
+progress and cognitive improvement projections now support dynamic subjects.
+
+Qualification passed: 1,147 Python tests, 117 frontend tests, ESLint,
+TypeScript, production build, repository verification, targeted Ruff,
+dependency checks, and diff checks. Native browser candidate evidence used
+isolated disposable learner state and real local Qwen review, hint, and answer
+assessments. Owner data and production runtime were untouched. Rows 60 and 61
+remain PARTIAL; final visual acceptance and the broader learning-path gaps
+remain open. See the current `CODEX_HANDOFF.md` for branch/recovery state and
+the final gap audit.
+
 ## 2026-09-29 — DLP-2 Career Forge evidence integration and adaptive sequencing
 
 Added a bounded read-only `CareerForgeEvidenceProjection` over the canonical

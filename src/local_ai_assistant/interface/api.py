@@ -2363,8 +2363,6 @@ def create_presentation_app(
                 raise HTTPException(404, detail="learning path node not found")
             competency_id = node.get("competency_key")
             if not competency_id or competency_id not in career_forge.graph:
-                if request.action not in {"mission", "diagnostic"}:
-                    raise HTTPException(409, detail="This arbitrary node supports only a new governed learning session.")
                 if service.evidence_provider is None:
                     from local_ai_assistant.learning_paths.evidence import (
                         CareerForgeEvidenceProjection,
@@ -2373,6 +2371,40 @@ def create_presentation_app(
                 dynamic_state = next(
                     item for item in service.sequence(path_id)["nodes"] if item["node_id"] == request.node_id
                 )
+                if request.action in {"review", "reinforcement"}:
+                    from local_ai_assistant.career_forge.generalized import (
+                        GeneralizedLearningService,
+                    )
+                    subject_service = GeneralizedLearningService(career_forge)
+                    subject = subject_service.by_path_node(path_id, detail["current"].version, request.node_id)
+                    if subject is None:
+                        raise HTTPException(status_code=409, detail="This dynamic topic has no Career Forge evidence to review or reinforce.")
+                    if request.action == "review":
+                        review = next((item for item in career_forge.retention_reviews(limit=100)
+                                       if item.competency_id == subject.competency_id and item.state == "scheduled"
+                                       and (request.review_id is None or item.review_id == request.review_id)), None)
+                        if review is None:
+                            raise HTTPException(status_code=409, detail="No matching scheduled Career Forge review is available.")
+                        try:
+                            review, prompt = career_forge.deliver_retention_review(review.review_id)
+                        except ValueError as exc:
+                            raise HTTPException(status_code=409, detail=str(exc)) from exc
+                        return {"action":"review","review":asdict(review),"prompt":prompt,"completion_claimed":False}
+                    active_mission = career_forge.resume()
+                    if active_mission is not None and active_mission.competency_id == subject.competency_id:
+                        # A dynamic topic's governed session is already the canonical
+                        # place to continue explicit attempts; do not fork a second mission.
+                        mission = active_mission
+                        resumed = True
+                    else:
+                        try:
+                            mission = career_forge.start_reinforcement(subject.competency_id)
+                        except ValueError as exc:
+                            raise HTTPException(status_code=409, detail=str(exc)) from exc
+                        resumed = False
+                    return {"action":"reinforcement","mission":asdict(mission),"subject_id":subject.subject_id,"resumed":resumed,"completion_claimed":False}
+                if request.action not in {"mission", "diagnostic"}:
+                    raise HTTPException(status_code=409, detail="This arbitrary node supports only a new governed learning session.")
                 if not dynamic_state["eligible"]:
                     raise HTTPException(409, detail=f"Career Forge handoff is unavailable: {dynamic_state['reason']}")
                 from local_ai_assistant.career_forge.generalized import GeneralizedLearningService

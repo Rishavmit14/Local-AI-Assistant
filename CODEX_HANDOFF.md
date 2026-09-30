@@ -1,25 +1,75 @@
-# Friday recovery handoff — DLP-4 in progress
+# Friday recovery handoff — Learn review/reinforcement closure
 
-## Recovery state
+## Current recovery state
 
-Owner-provided crash note says the Linux desktop reported near-full device memory and Codex stopped responding; no independent crash log was available. Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`, branch `integration/astra-friday`. Accepted DLP-3 base: `4cf22b1fc645f19ba5a64123b342a4f78442a49f`. Local recovery checkpoint: `e1f9fbd` (`DLP-4 implementation recovery checkpoint`). DLP-4 was accepted as `4a420217bcddca42aa2655c3379b196729a43432`. At publication verification, local `HEAD`, local `main`, `origin/main`, and `origin/integration/astra-friday` all resolved to that acceptance commit. At recovery start those refs instead matched the DLP-3 base, and there were no DLP-4 commits. Recovered state: 22 modified tracked files and 2 untracked source/test files. External snapshot with tracked/index diffs, checksums, and untracked copies: `/tmp/friday-dlp4-crash-recovery-20260930-002205`.
+- Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`
+- Branch: `integration/astra-friday`
+- Starting accepted recovery SHA: `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`
+- Current HEAD: `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`; this task's closure
+  is staged for its acceptance commit. The final recovery SHA is authoritative
+  in Git refs after publication.
+- Protected checkout `/AI/projects/Local-AI-Assistant` is expected to remain at
+  `e43896623978e86b7bae6502b380462b455626be` with its pre-existing Pocket/Anna
+  owner changes. `frontend/src/vision/NeuralPresence.tsx` must remain unchanged.
+- Production Friday and Qwen were read-only checked and not restarted. Friday
+  `/health` and its Career Forge journey endpoint, and Qwen `/v1/models`,
+  responded successfully during candidate qualification.
 
-## Capability and authority
+## Closure completed
 
-DLP-4 generalizes execution for arbitrary curriculum nodes. DLP owns curriculum, immutable versions, and sequencing; Career Forge owns dynamic subjects, sessions, attempts, assistance, assessment evidence, mastery, retention, and reinforcement. Dynamic subjects use a semantic SHA-256 contract fingerprint and existing Career Forge learner records. Only explicit governed answers create attempts. Correct evidence advances at most one rung; independent application requires distinct correct unassisted answers. Assistance applies to the answer after that help event; later attempts are not tainted. Correct assisted evidence remains useful when the independent threshold is unmet. Contract revisions start unverified and do not inherit old support.
+Learn now delivers canonical Career Forge review prompts, accepts explicit
+owner answers through the typed retention evaluation path, refreshes DLP
+sequencing, and reconstructs a delivered review after reload. Dynamic weak
+subjects render and start Career Forge reinforcement; dynamic mission binding
+survives restart, and a different active mission is saved/resumable. Dynamic
+due-review progress and cognitive improvement projections are supported.
+No browser-authored mastery or persistent answer storage was introduced.
 
-## Qualification evidence
+Native browser qualification used isolated disposable candidate state. Real
+local Qwen classified an incorrect and a correct review answer, provided a
+tutor hint, and assessed a dynamic answer. The UI showed the assessment and
+feedback; Career Forge recorded the assisted governed attempt; reload/restart
+restored the active dynamic reinforcement. Owner learner state was not opened.
 
-- Changed modules compile. Focused DLP/Career Forge/API/routing suite: 106 passed. Full Python suite: 1,146 passed. Repository verifier passed, including dependency check (`No broken requirements found`). Targeted Ruff passed.
-- Full frontend: 113 passed; ESLint passed; TypeScript passed as part of the production build. Production build passed with the known >500 kB chunk advisory. Focused Learn/runtime tests: 34 passed. Final `git diff --check`, protected checkout, NeuralPresence, and read-only Friday/Qwen health checks passed after documentation updates.
-- A disposable Career Forge/DLP candidate used exactly three real local-Qwen requests: arbitrary SQL teaching, one answer assessment, and a retention reassessment. The helped attempt/evidence retained `prompt` provenance; a fixture-backed wrong-answer API assessment created no evidence. Two distinct later unassisted correct answers advanced the candidate to `apply_independently`; DLP marked the prerequisite satisfied and its dependent node eligible.
-- Candidate restart E2E used three distinct API processes: session start, restart, answer submission/assessment, restart, then evidence/session/path/sequence reconstruction. Mission, subject, reviews, path version, and sequence remained stable and one new evidence row survived. Retention delivery/evaluation completed through the application API. No owner learner DB was opened.
-- Learn remains FUNCTIONAL ONLY. Owner final visual acceptance is deferred. Matrix rows 60 and 61 remain PARTIAL.
+## Validation
 
-## Machine/protected state
+- Focused Python: 95 passed.
+- Focused Learn/client frontend: 38 passed.
+- Full Python: 1,147 passed, 1 warning.
+- Full frontend: 117 passed.
+- ESLint, TypeScript, and production build passed (existing large-chunk
+  advisory).
+- Repository verifier passed (1,147 Python tests); targeted Ruff, `pip check`,
+  and final `git diff --check` passed.
+- Candidate/native browser qualification passed; Learn remains a functional
+  integration shell. No design or owner visual acceptance is claimed.
 
-At initial recovery, memory showed 22 GiB available and 7 GiB swap in use. No DLP candidate, pytest, Vite, or verifier process/listener was found; no process was stopped. Candidate API processes used for qualification were explicitly terminated. Final read-only checks returned HTTP 200 from production Friday `127.0.0.1:8765` and Qwen `127.0.0.1:8080`; neither was restarted or reconfigured. The protected checkout `/AI/projects/Local-AI-Assistant` was already dirty with the owner's Pocket/Anna files at expected HEAD `e43896623978e86b7bae6502b380462b455626be`; it remains unchanged. `frontend/src/vision/NeuralPresence.tsx` remains unchanged.
+## Learning-path gap audit (final audit for this task)
 
-## Recovery completion
+Current accepted foundation: local path generation, versioned DAG curriculum,
+selection and sequencing; mapped Career Forge/Practice Lab handoffs; arbitrary
+domain teaching with governed answers; evidence, mastery, retention review,
+reinforcement, and evidence-driven next-node eligibility. The review and
+reinforcement owner flows now have candidate browser evidence and persistence
+coverage.
 
-DLP-4 implementation, regression, product candidate evidence, protected-state checks, documentation, commit, push, fast-forward, and remote-HEAD verification are complete. The exact latest recovery pointer is authoritative in Git; the accepted DLP-4 implementation SHA above remains the capability commit. No DLP-4 work remains in this task. The next recommended dependency is the remaining owner-facing Learn review/reinforcement answer flows, keeping rows 60 and 61 PARTIAL until their broader owner qualification passes. Do not begin that dependency in this recovery task.
+Still partial or deferred per the product matrix and roadmap: manual curriculum
+editing; project/capstone lifecycle integration; cross-path evidence
+equivalence; major adaptive replanning; broader production owner-path
+qualification; and final owner visual acceptance. The current native candidate
+is synthetic/disposable and does not qualify production owner data or the full
+product experience. Rows 60 and 61 remain PARTIAL.
+
+Recommended next dependency after this requested stop: owner-facing
+project/capstone lifecycle integration for learning paths, including durable
+project evidence linked to path objectives, with cross-path equivalence kept as
+a separate acceptance question. Do not begin that dependency in this task.
+
+## Exact continuation
+
+Inspect the final diff and prohibited files; verify the protected checkout,
+NeuralPresence file, and production services remain unchanged/running; commit
+the closure on `integration/astra-friday`; push that branch; fast-forward and
+push `main` to the same commit; fetch and verify both remote refs and a clean
+worktree. Then stop as requested after the gap audit. Do not restart Friday
+or Qwen.

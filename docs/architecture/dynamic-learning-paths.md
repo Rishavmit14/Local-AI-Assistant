@@ -153,7 +153,7 @@ integrations were qualified and accepted at recovery commit
 and final owner visual acceptance remain outside DLP-3; rows 60 and 61 remain
 PARTIAL.
 
-## DLP-4 generalized execution (active; not qualified)
+## DLP-4 generalized execution (accepted and published)
 
 Arbitrary unmapped nodes now have an initial functional path into Career Forge.
 `GeneralizedLearningService` stores a Career Forge-owned subject keyed by path,
@@ -193,7 +193,29 @@ The governed session, evidence, reviews, and sequence reconstructed identically
 after separate candidate API processes. The candidate also demonstrated
 independent mastery and dependent-node eligibility. Full Python (1,146 tests),
 frontend (113 tests), ESLint, TypeScript, production build, repository
-verification, targeted Ruff, and dependency checks pass. Protected production,
-checkout, and NeuralPresence read-only checks also pass. DLP-4 remains PARTIAL
-until remote acceptance publication is complete.
+verification, targeted Ruff, and dependency checks passed for DLP-4. Protected
+production, checkout, and NeuralPresence read-only checks also passed. DLP-4 was
+accepted at capability commit `4a420217bcddca42aa2655c3379b196729a43432` and
+published with recovery pointer `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`.
 No visual redesign or final visual acceptance is included.
+
+## Learn review and reinforcement owner flows
+
+Learn uses the existing Career Forge retention-review authority to deliver a
+canonical prompt, accept the owner's answer, and display the local evaluator's
+result. The browser holds only the transient answer draft. After submission it
+reloads the DLP sequence from the backend; it does not infer mastery or unlocks.
+Delivered reviews are reconstructed from Career Forge after page reload.
+
+Review and reinforcement handoffs support fixed competencies and registered
+dynamic DLP subjects. Dynamic reinforcement reuses the same active Career Forge
+mission when possible; otherwise a new reinforcement mission preserves the
+dynamic subject, immutable path version, and interrupted mission references.
+Career Forge progress projections resolve dynamic subject titles and mastery
+without relying on the fixed competency graph. Candidate-native browser checks
+covered an incorrect review, a correct review, failed-review reinforcement,
+assisted governed dynamic answer/evidence, DLP refresh, and API restart
+reconstruction. This is functional qualification only. Learn remains a
+FUNCTIONAL INTEGRATION SHELL; final visual design is not owner accepted and is
+deferred until the capability stack is complete. Matrix rows 60 and 61 remain
+PARTIAL for whole-product qualification and remaining learning capabilities.

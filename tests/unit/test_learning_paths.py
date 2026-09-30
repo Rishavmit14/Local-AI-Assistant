@@ -4,6 +4,8 @@ import stat
 import pytest
 from fastapi.testclient import TestClient
 
+from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
+from local_ai_assistant.career_forge.models import AssistanceLevel, AttemptEvaluation, TutorMode
 from local_ai_assistant.career_forge.service import CareerForgeService
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
@@ -549,3 +551,79 @@ def test_reinforcement_handoff_reuses_career_forge_interruption_policy(tmp_path)
     assert forge.resume().competency_id == "se.python"
     assert forge.resume().resume_point["interrupted_mission_id"] == interrupted.mission_id
     assert forge.competencies()[0].mastery is MasteryLevel.RECOGNIZE
+
+
+def test_dynamic_subject_review_failure_and_reinforcement_reuse_career_forge_state(tmp_path):
+    proposal = curriculum()
+    proposal["nodes"][0].update(competency_key=None, title="SQL query optimization",
+                                objectives=["Explain when an index reduces query work"],
+                                evidence_requirements=["Compare an index scan with a table scan"])
+    paths = LearningPathService(tmp_path / "paths.sqlite3")
+    path = paths.create(proposal)
+    paths.activate(path.path_id)
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    generalized = GeneralizedLearningService(forge)
+    node = paths.detail(path.path_id)["current"].nodes[0]
+    subject = generalized.register(path_id=path.path_id, path_version=1, node=node)
+    mission = generalized.start_session(subject.subject_id)
+    for index in range(4):
+        attempt = generalized.record_attempt(subject.subject_id, f"q{index}",
+            "An index can reduce rows visited when its access cost is lower.")
+        generalized.assess_attempt(subject.subject_id, attempt.attempt_id,
+            "ASSESSMENT: correct\nThe answer compares access cost and scan work.")
+    review = next(item for item in forge.retention_reviews(limit=100)
+                  if item.competency_id == subject.competency_id and item.state == "scheduled")
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?",
+                   (review.review_id,))
+    paths.evidence_provider = CareerForgeEvidenceProjection(forge)
+    runtime = FridayRuntime("dlp-dynamic-review-reinforcement")
+    app = create_presentation_app(runtime, FridayConversationService(object(), runtime),
+                                  learning_paths=paths, career_forge=forge)
+    with TestClient(app) as client:
+        sequence = client.get(f"/api/v1/learning-paths/{path.path_id}/sequence").json()
+        assert sequence["nodes"][0]["decision"] == "REVIEW_FIRST"
+        assert "SQL query optimization" in forge.progress().next_action
+        delivered = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff",
+            json={"node_id":node["node_id"],"action":"review","path_version":1})
+        assert delivered.status_code == 200
+        assert delivered.json()["review"]["review_id"] == review.review_id
+        assert "SQL query optimization" in delivered.json()["prompt"]
+        assert "SQL query optimization" in forge.progress().next_action
+        forge.evaluate_retention_review(review.review_id, "I cannot explain this yet.",
+                                        AttemptEvaluation.INCORRECT, "Review index selectivity.")
+        failed_sequence = client.get(f"/api/v1/learning-paths/{path.path_id}/sequence").json()
+        assert failed_sequence["nodes"][0]["decision"] == "REINFORCE_FIRST"
+        with forge._db() as db:
+            mission_count = db.execute("SELECT COUNT(*) FROM missions").fetchone()[0]
+        reinforcement = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff",
+            json={"node_id":node["node_id"],"action":"reinforcement","path_version":1})
+        assert reinforcement.status_code == 200
+        assert reinforcement.json()["mission"]["mission_id"] == mission.mission_id
+        assert reinforcement.json()["resumed"] is True
+        with forge._db() as db:
+            assert db.execute("SELECT COUNT(*) FROM missions").fetchone()[0] == mission_count
+        with forge._db() as db:
+            db.execute("UPDATE missions SET state='completed' WHERE mission_id=?", (mission.mission_id,))
+        interrupted = forge.start_mission("se.python", "Unrelated active candidate mission")
+        restarted = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff",
+            json={"node_id":node["node_id"],"action":"reinforcement","path_version":1})
+        assert restarted.status_code == 200
+        reinforcement_mission = restarted.json()["mission"]
+        assert reinforcement_mission["resume_point"]["learning_context"] == "dynamic_dlp"
+        assert reinforcement_mission["resume_point"]["subject_id"] == subject.subject_id
+        assert reinforcement_mission["resume_point"]["interrupted_mission_id"] == interrupted.mission_id
+        journey = client.get("/api/v1/career-forge/journey")
+        assert journey.status_code == 200
+        assert journey.json()["progress"]["active_mission"]["mission_id"] == reinforcement_mission["mission_id"]
+        forge.offer_assistance(reinforcement_mission["mission_id"], TutorMode.HINT,
+                               AssistanceLevel.PROMPT, "Compare the access path costs.")
+        answer = generalized.record_attempt(subject.subject_id, "reinforcement-answer",
+            "An index reduces work only when its lookup cost is below a table scan.")
+        assert answer.assistance_level.value == "prompt"
+        assessed = generalized.assess_attempt(subject.subject_id, answer.attempt_id,
+            "ASSESSMENT: correct\nThe response compares index access cost with a table scan.")
+        assert assessed["evaluation"] == AttemptEvaluation.CORRECT.value
+        retry_handoff = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff",
+            json={"node_id":node["node_id"],"action":"reinforcement","path_version":1})
+        assert retry_handoff.json()["mission"]["mission_id"] == reinforcement_mission["mission_id"]
