@@ -4,7 +4,7 @@
 
 - Active worktree: `/home/kumar-rishav/.codex/worktrees/friday-browser-safe-execution/Local-AI-Assistant-terra-integration`
 - Branch: `stage-22/browser-safe-project-execution`, based on `origin/main` `a79bfd9bf1fa54734dd110c6fadc604be7d46dd0`.
-- Accepted recovery commit: `c9b6078b75d3f24bf07a2539d2a5f886909149c3` (`stage-22: qualify browser-safe project execution`). Stage branch, `main`, and fetched remote refs all resolve to this SHA. The stage worktree is clean.
+- Accepted capability commit: `c9b6078b75d3f24bf07a2539d2a5f886909149c3` (`stage-22: qualify browser-safe project execution`). Recovery documentation was committed in follow-up publication commits. Stage branch, `main`, and fetched remote refs contain the accepted capability and recovery record; the current stage worktree is clean.
 - Protected production checkout `/AI/projects/Local-AI-Assistant` remains at `e43896623978e86b7bae6502b380462b455626be` with its pre-existing Pocket/Anna work. Production Friday (`127.0.0.1:8765`) and Qwen (`:8080`) were healthy and were not restarted or mutated. `NeuralPresence.tsx` is unchanged.
 - The ordinary checkout `/AI/projects/Local-AI-Assistant-terra-integration` has an unrelated owner `ROADMAP.md` edit; its bytes were preserved. The prior blocked `friday-project-execution` worktree and its handoff edit were preserved untouched.
 
