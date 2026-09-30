@@ -3,11 +3,13 @@
 ## Current recovery state
 
 - Worktree: `/AI/projects/Local-AI-Assistant-terra-integration`
-- Branch: `integration/astra-friday`
+- Current checkout branch: `main` (the owning stage branch is
+  `integration/astra-friday`)
 - Starting accepted recovery SHA: `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`
-- Current HEAD: `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`; this task's closure
-  is staged for its acceptance commit. The final recovery SHA is authoritative
-  in Git refs after publication.
+- Accepted Learn closure commit: `a7384830c7c3ff63d805a838bb423d31163b8785`.
+- At this handoff update, local `HEAD`, local `main`, `origin/main`, and
+  `origin/integration/astra-friday` resolve to the accepted closure commit. A
+  handoff-only publication update may advance all four refs together.
 - Protected checkout `/AI/projects/Local-AI-Assistant` is expected to remain at
   `e43896623978e86b7bae6502b380462b455626be` with its pre-existing Pocket/Anna
   owner changes. `frontend/src/vision/NeuralPresence.tsx` must remain unchanged.
@@ -67,9 +69,8 @@ a separate acceptance question. Do not begin that dependency in this task.
 
 ## Exact continuation
 
-Inspect the final diff and prohibited files; verify the protected checkout,
-NeuralPresence file, and production services remain unchanged/running; commit
-the closure on `integration/astra-friday`; push that branch; fast-forward and
-push `main` to the same commit; fetch and verify both remote refs and a clean
-worktree. Then stop as requested after the gap audit. Do not restart Friday
-or Qwen.
+The closure has been committed and published on `integration/astra-friday` and
+`main`; both remote refs and the clean worktree were verified at the accepted
+closure SHA above. This handoff update records the active checkout and
+publication state. Then stop as requested after the gap audit. Do not restart
+Friday or Qwen.
