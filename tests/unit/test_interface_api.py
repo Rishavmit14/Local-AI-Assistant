@@ -1682,6 +1682,9 @@ def test_presentation_api_has_no_unbounded_execution_routes():
     assert "/api/v1/tasks/{task_id}/approval" not in paths
     assert "/api/v1/tasks/{task_id}/publish" not in paths
     assert schema["paths"]["/api/v1/objectives/{objective_id}/progress"].keys() == {"get"}
+    assert schema["paths"]["/api/v1/projects/{project_id}/objective"].keys() == {"post"}
+    assert schema["paths"]["/api/v1/projects/{project_id}/submit-artifacts"].keys() == {"post"}
+    assert schema["paths"]["/api/v1/projects/{project_id}/review"].keys() == {"post"}
 
     assert paths == {
         "/health",
@@ -1708,6 +1711,14 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/learning-paths/{path_id}/activate",
         "/api/v1/learning-paths/{path_id}/archive",
         "/api/v1/learning-paths/{path_id}/handoff",
+        "/api/v1/learning-paths/{path_id}/milestones/{milestone_id}",
+        "/api/v1/learning-paths/{path_id}/milestones/{milestone_id}/assign",
+        "/api/v1/projects/templates",
+        "/api/v1/projects",
+        "/api/v1/projects/{project_id}",
+        "/api/v1/projects/{project_id}/objective",
+        "/api/v1/projects/{project_id}/submit-artifacts",
+        "/api/v1/projects/{project_id}/review",
         "/api/v1/knowledge/documents",
         "/api/v1/knowledge/ask",
         "/api/v1/proactive/notifications",

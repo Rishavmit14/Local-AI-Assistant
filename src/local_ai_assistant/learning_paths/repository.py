@@ -13,7 +13,7 @@ from .models import LearningPath, LearningPathVersion, version_from_json
 
 
 class LearningPathRepository:
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(self, path: Path):
         self.path = Path(path)
@@ -52,6 +52,12 @@ class LearningPathRepository:
                 );
                 CREATE TABLE IF NOT EXISTS learning_path_schema_version (singleton INTEGER PRIMARY KEY CHECK(singleton=1), version INTEGER NOT NULL);
                 CREATE TABLE IF NOT EXISTS learning_path_owner_state (singleton INTEGER PRIMARY KEY CHECK(singleton=1), current_path_id TEXT, FOREIGN KEY(current_path_id) REFERENCES learning_paths(path_id));
+                CREATE TABLE IF NOT EXISTS learning_path_project_assignments (
+                    path_id TEXT NOT NULL, path_version INTEGER NOT NULL, milestone_id TEXT NOT NULL,
+                    project_id TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL,
+                    PRIMARY KEY(path_id,path_version,milestone_id),
+                    FOREIGN KEY(path_id,path_version) REFERENCES learning_path_versions(path_id,version)
+                );
             """)
             db.execute("INSERT OR IGNORE INTO learning_path_owner_state(singleton,current_path_id) VALUES (1,NULL)")
             # Keep a tiny explicit version marker for forward-compatible migrations.
@@ -62,6 +68,8 @@ class LearningPathRepository:
                 db.execute(
                     "INSERT INTO learning_path_schema_version VALUES (1, ?)", (self.SCHEMA_VERSION,)
                 )
+            elif row["version"] == 1:
+                db.execute("UPDATE learning_path_schema_version SET version=? WHERE singleton=1", (self.SCHEMA_VERSION,))
             elif row["version"] != self.SCHEMA_VERSION:
                 raise RuntimeError("unsupported learning path database schema")
 
@@ -177,6 +185,60 @@ class LearningPathRepository:
         with self._lock, closing(self._connect()) as db:
             row = db.execute("SELECT current_path_id FROM learning_path_owner_state WHERE singleton=1").fetchone()
         return row["current_path_id"]
+
+    def project_assignment(self, path_id: str, version: int, milestone_id: str) -> dict | None:
+        with self._lock, closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT path_id,path_version,milestone_id,project_id,created_at "
+                "FROM learning_path_project_assignments WHERE path_id=? AND path_version=? AND milestone_id=?",
+                (path_id, version, milestone_id),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def project_assignments(self, path_id: str, version: int | None = None) -> tuple[dict, ...]:
+        with self._lock, closing(self._connect()) as db:
+            if version is None:
+                rows = db.execute(
+                    "SELECT path_id,path_version,milestone_id,project_id,created_at "
+                    "FROM learning_path_project_assignments WHERE path_id=? ORDER BY path_version,milestone_id",
+                    (path_id,),
+                ).fetchall()
+            else:
+                rows = db.execute(
+                    "SELECT path_id,path_version,milestone_id,project_id,created_at "
+                    "FROM learning_path_project_assignments WHERE path_id=? AND path_version=? ORDER BY milestone_id",
+                    (path_id, version),
+                ).fetchall()
+        return tuple(dict(row) for row in rows)
+
+    def project_assignment_for_project(self, project_id: str) -> dict | None:
+        with self._lock, closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT path_id,path_version,milestone_id,project_id,created_at "
+                "FROM learning_path_project_assignments WHERE project_id=?", (project_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def link_project_assignment(self, path_id: str, version: int, milestone_id: str, project_id: str, now: str) -> dict:
+        with self._lock, closing(self._connect()) as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                db.execute(
+                    "INSERT OR IGNORE INTO learning_path_project_assignments VALUES(?,?,?,?,?)",
+                    (path_id, version, milestone_id, project_id, now),
+                )
+                row = db.execute(
+                    "SELECT path_id,path_version,milestone_id,project_id,created_at "
+                    "FROM learning_path_project_assignments WHERE path_id=? AND path_version=? AND milestone_id=?",
+                    (path_id, version, milestone_id),
+                ).fetchone()
+                if row is None or row["project_id"] != project_id:
+                    raise ValueError("learning milestone is already linked to another project")
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+        return dict(row)
 
     def select(self, path_id: str) -> LearningPath:
         with self._lock, closing(self._connect()) as db:

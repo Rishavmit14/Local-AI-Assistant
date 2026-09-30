@@ -1668,4 +1668,36 @@ recommendations. Direct prerequisite failures block dependent nodes without
 blocking unrelated branches. Sequence projections expose stable candidates,
 reasons, and evidence-backed counts. Adaptation writes a new immutable DLP
 version with historical decision provenance and never mutates Career Forge.
-Provider failure defers mapped nodes. DLP-3 added persistent owner path selection in the DLP SQLite boundary, draft-to-active lifecycle transitions, deterministic explicit Conversation creation/list/current/next intents, and Learn list/detail/sequence projection through typed APIs. DLP-4 added Career Forge-owned dynamic subjects and contract-bound evidence. Both DLP-4 and its publication recovery are accepted: capability commit `4a420217bcddca42aa2655c3379b196729a43432`; published recovery `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`. Learn now delivers/evaluates canonical Career Forge reviews and starts/resumes Career Forge reinforcement for supported fixed and dynamic subjects. Candidate browser qualification proved incorrect and correct review answers, dynamic reinforcement with assistance provenance, backend sequence refresh, and restart reconstruction. Review answer text remains within Career Forge's governed store; the browser holds only a transient draft. Row 61 remains PARTIAL for remaining product capabilities and broader owner qualification; final visual acceptance remains deferred. Row 60 remains PARTIAL. Learn is a FUNCTIONAL INTEGRATION SHELL; no final visual design acceptance is claimed. See `docs/architecture/dynamic-learning-paths.md`.
+Provider failure defers mapped nodes. DLP-3 added persistent owner path selection in the DLP SQLite boundary, draft-to-active lifecycle transitions, deterministic explicit Conversation creation/list/current/next intents, and Learn list/detail/sequence projection through typed APIs. DLP-4 added Career Forge-owned dynamic subjects and contract-bound evidence. Both DLP-4 and its publication recovery are accepted: capability commit `4a420217bcddca42aa2655c3379b196729a43432`; published recovery `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`. Learn now delivers/evaluates canonical Career Forge reviews and starts/resumes Career Forge reinforcement for supported fixed and dynamic subjects. Candidate browser qualification proved incorrect and correct review answers, dynamic reinforcement with assistance provenance, backend sequence refresh, and restart reconstruction. Review answer text remains within Career Forge's governed store; the browser holds only a transient draft. Project/capstone integration now adds exact direct-prerequisite gates, a versioned DLP-to-Projects relation, durable Projects instances and Objective/task artifact references, and explicit Career Forge explanation/evaluation evidence. Project work uses existing Objectives/Gateway approval, isolation, validation, review, and recovery. Task success and project completion do not grant mastery. Deterministic candidate backend/frontend coverage verifies assignment, idempotent retry, Objective resume, task-state gating, and durable projections; complete project-review browser/model qualification remains open. Row 61 remains PARTIAL for remaining product capabilities and broader owner qualification; final visual acceptance remains deferred. Row 60 remains PARTIAL. Learn is a FUNCTIONAL INTEGRATION SHELL; no final visual design acceptance is claimed. See `docs/architecture/dynamic-learning-paths.md`.
+
+## Project / Capstone lifecycle integration — IMPLEMENTED; owner qualification remains PARTIAL (row 61)
+
+DLP project milestones now carry a typed project kind, assignment rationale,
+competency keys, exact direct prerequisites, expected outcome, and bounded
+evidence expectations. Assignment requires the selected active immutable path
+version and current independent Career Forge support for every direct DAG
+prerequisite. DLP schema v2 records the versioned milestone-to-Project link;
+Projects owns durable instances, state, Objective/task references, artifact
+references, review idempotency, and links to Career Forge evidence. Starting
+work reserves and resumes one canonical Objective, so planning, exact-plan
+approval, isolated execution, validation, review, cancellation, and recovery
+remain under existing Friday controls.
+
+A successful validated task is necessary but does not create learning evidence.
+The learner must explain the work and receive a correct bounded local Career
+Forge assessment. Only Career Forge stores project-derived evidence, linked to
+the attempt, exact task/commit, and artifact IDs. Project completion requires
+evidence for each assigned competency but does not advance mastery. Candidate
+browser qualification with isolated synthetic state demonstrated rationale and
+criteria, gated assignment, Projects/Objective projections, refresh and API
+restart recovery, and return to Learn. The browser scenario stopped at the
+canonical Objective planning boundary: the candidate had no configured
+repository and no owner-approved task plan, so no task execution, artifact
+submission, or UI-driven evidence review was claimed. Deterministic API fixtures
+covered task-success gating, correct/incorrect/uncertain review, evidence
+provenance, idempotent replay, and unchanged mastery. A separate single request
+to local Qwen exercised the bounded Reviewer parser; it is not claimed as
+end-to-end browser assessment. Overall rows 60 and 61 remain PARTIAL. Remaining
+row-61 gaps are manual curriculum editing with prerequisite protection,
+cross-path evidence equivalence, major adaptive replanning, broader owner
+qualification, and final visual acceptance.

@@ -46,6 +46,7 @@ from local_ai_assistant.perception import (
 from local_ai_assistant.planning.models import plan_approval_token
 from local_ai_assistant.planning.service import PlannerService
 from local_ai_assistant.proactive import EventSource, ProactiveEventEngine, ProactiveRuntime, Watch
+from local_ai_assistant.projects import ProjectService
 from local_ai_assistant.rag.knowledge import PrivateDocumentKnowledgeService
 from local_ai_assistant.research import ResearchService
 from local_ai_assistant.roles import Role, RoleOrchestrator
@@ -157,6 +158,7 @@ def build_presentation_components(
         resolved_config.paths.learning_paths_db,
         generator=LocalCurriculumGenerator(roles.client(Role.CURRICULUM_DESIGNER)),
     )
+    projects = ProjectService(resolved_config.paths.projects_db)
     practice_lab = PracticeLabService(career_forge, resolved_config.paths.career_forge_lab_dir)
     perception = ScreenCaptureService(resolved_config.paths.perception_dir)
     perception.set_vision_classifier(LocalVisionClassifier(resolved_config.paths.vision_cache_dir))
@@ -432,6 +434,7 @@ def build_presentation_components(
         memory=memory,
         career_forge=career_forge,
         learning_paths=learning_paths,
+        projects=projects,
         practice_lab=practice_lab,
         perception=perception,
         active_window=ActiveWindowService(),

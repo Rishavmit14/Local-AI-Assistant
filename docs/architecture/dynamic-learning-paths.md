@@ -33,6 +33,26 @@ prerequisites, including cross-module dependencies. Milestone project
 references are opaque structural references and create no project or
 publication side effects.
 
+## Project/capstone lifecycle integration
+
+Project-shaped curriculum milestones may carry a kind, assignment rationale,
+Career Forge competency keys, exact direct prerequisite node IDs, expected
+outcome, and bounded evidence expectations. They remain immutable curriculum
+content. The validator requires a project/capstone node, nonempty bounded
+criteria, and a prerequisite declaration exactly equal to that node's incoming
+DAG edges. A milestone is assignable only on the selected active path when every
+direct prerequisite currently has independent Career Forge evidence. DLP does
+not mark the milestone complete.
+
+Schema version 2 adds `learning_path_project_assignments`, keyed by immutable
+path version and milestone, with a unique Projects ID. The row is a durable
+relationship, not a second project record. The Projects service owns the
+instance lifecycle, Objective/task references, and artifact references;
+Career Forge owns the project missions, explicit assessed attempts, evidence,
+mastery, and retention consequences. The relation keeps the source
+path/version/milestone so refresh and process restart reconstruct the same
+learning context.
+
 ## Validation and limits
 
 `CurriculumValidator` independently checks required text, IDs, mode/lifecycle,

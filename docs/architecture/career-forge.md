@@ -431,3 +431,15 @@ states. Overall evidence support requires every canonical competency at least at
 APPLY INDEPENDENTLY, no weak/stale confidence, a supported interview, and one
 published artifact. This projection cannot promote mastery, approve or publish
 an artifact, or manufacture a resume/job-readiness claim.
+
+## Project-derived evidence
+
+Career Forge receives project work only as an explicit learner explanation
+attempt tied to an assigned mission/competency and the canonical Project's
+validated task/commit/artifact references. A correct local evaluation records
+`project_milestone_assessment` evidence with the source attempt and artifact
+reference. Incorrect or uncertain evaluations create no qualifying evidence.
+Project completion is not a mastery mutation; Career Forge's existing evidence
+and progression rules remain authoritative. The Project service owns the
+lifecycle and evidence links, while Career Forge owns the evidence record. See
+[`projects.md`](projects.md) and ADR 0034.

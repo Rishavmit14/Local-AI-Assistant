@@ -53,4 +53,9 @@ export type {
   FridayPlanReview,
   FridayRuntimeState,
   FridayVoicePresentationSignal,
+  LearningProject,
+  LearningProjectArtifact,
+  LearningProjectMilestone,
+  LearningProjectReviewResult,
+  LearningProjectTemplate,
 } from "./types";

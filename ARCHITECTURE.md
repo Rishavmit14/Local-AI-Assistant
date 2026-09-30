@@ -1004,3 +1004,14 @@ Learn review and reinforcement answer flows reuse Career Forge review, mission,
 assessment, and evidence authority; dynamic DLP subjects retain their subject
 binding across reinforcement and restart. Owner final visual acceptance remains
 deferred, and rows 60/61 remain PARTIAL.
+
+Project/capstone milestones now compose three existing authorities with a
+dedicated Projects instance service. DLP's immutable version determines the
+assignment rationale and exact prerequisite gate; Projects stores instance
+state and references to Objectives/TaskHistory/Career Forge; Career Forge
+stores explicit explanation attempts and project-derived evidence. Project
+work starts through ObjectiveService and the existing exact-plan approval,
+isolated execution, validation, review, and recovery flow. A validated task
+alone creates no learning evidence, and project completion never advances
+mastery. The durable data model and evaluator boundary are specified in
+`docs/architecture/projects.md` and ADR 0034.

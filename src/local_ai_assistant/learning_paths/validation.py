@@ -163,7 +163,11 @@ class CurriculumValidator:
                 raise CurriculumValidationError("invalid project milestone")
             self._fields(
                 item,
-                {"milestone_id", "title", "node_id", "project_ref", "description"},
+                {
+                    "milestone_id", "title", "node_id", "project_ref", "description",
+                    "kind", "assignment_reason", "competency_keys", "prerequisite_node_ids",
+                    "expected_outcome", "evidence_expectations",
+                },
                 "project milestone",
             )
             mid = self._id(item.get("milestone_id"), "milestone_id")
@@ -177,6 +181,33 @@ class CurriculumValidator:
                 self._id(item["project_ref"], "project_ref")
             if item.get("description") is not None:
                 self._text(item["description"], "milestone description", 2000)
+            kind = item.get("kind")
+            if kind is not None:
+                if kind not in {"topic_challenge", "module_project", "multi_topic_project", "capstone"}:
+                    raise CurriculumValidationError("unsupported project milestone kind")
+                if node_by_id_type := next((node["type"] for node in nodes if node["node_id"] == item["node_id"]), None):
+                    if node_by_id_type not in {"project", "capstone"}:
+                        raise CurriculumValidationError("project milestones require a project or capstone node")
+                for field in ("assignment_reason", "expected_outcome"):
+                    self._text(item.get(field), f"project milestone {field}", 2000)
+                competencies = item.get("competency_keys", [])
+                if not isinstance(competencies, list) or not 1 <= len(competencies) <= 8:
+                    raise CurriculumValidationError("project milestone competencies are required and bounded")
+                for competency in competencies:
+                    self._id(competency, "project milestone competency")
+                prerequisites = item.get("prerequisite_node_ids", [])
+                if not isinstance(prerequisites, list) or not prerequisites or len(prerequisites) > 20:
+                    raise CurriculumValidationError("project milestone prerequisites are required and bounded")
+                if len(prerequisites) != len(set(prerequisites)) or any(value not in node_ids for value in prerequisites):
+                    raise CurriculumValidationError("project milestone has invalid prerequisites")
+                incoming = {edge["prerequisite_node_id"] for edge in edges if edge["node_id"] == item["node_id"]}
+                if set(prerequisites) != incoming:
+                    raise CurriculumValidationError("project milestone prerequisites must exactly match direct curriculum prerequisites")
+                expectations = item.get("evidence_expectations", [])
+                if not isinstance(expectations, list) or not 1 <= len(expectations) <= 12:
+                    raise CurriculumValidationError("project evidence expectations are required and bounded")
+                for expectation in expectations:
+                    self._text(expectation, "project evidence expectation", 500)
         node_effort = [
             node.get("estimated_hours") for node in nodes if node.get("estimated_hours") is not None
         ]

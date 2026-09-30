@@ -1,3 +1,34 @@
+## 2026-09-30 — Project / Capstone lifecycle integration
+
+Added durable Project instances joined to immutable DLP path versions/milestones,
+canonical Career Forge missions/evidence, and existing Friday Objectives and
+TaskHistory. DLP assignment requires the selected active version and satisfied
+independent evidence for every exact direct prerequisite. Project artifacts are
+accepted only from the exact successful task with a final commit plus canonical
+validation and review records. Explicit learner explanation and a correct
+bounded assessment are required for `project_milestone_assessment` evidence;
+incorrect/uncertain answers create no qualifying evidence. Project completion
+requires evidence for all assigned competencies and leaves Career Forge mastery
+unchanged. The existing task approval, isolation, validation, review, recovery,
+and learner-project publication boundaries remain in force.
+
+The isolated native browser candidate demonstrated milestone rationale and
+criteria, project assignment, Projects and Objective state, refresh and candidate
+API-process restart recovery, and return-to-learning. The candidate had no
+configured repository and no owner-approved plan, so browser execution, artifact
+submission, and UI-driven project assessment are not claimed. Backend fixtures
+covered successful-task gating, correct/incorrect/uncertain assessment, evidence
+provenance, attempt replay, and no mastery inflation. One local-Qwen Reviewer
+prompt/parser smoke returned a valid correct classification; this was not a
+browser end-to-end evaluation. Rows 60 and 61 remain PARTIAL; manual curriculum
+editing with prerequisite protection is the recommended next dependency.
+
+Validation: focused project/DLP/API integration 39 passed; frontend 118 passed;
+full Python suite 1,153 passed; repository verifier 1,153 passed with one
+Starlette/AnyIO deprecation warning; targeted Ruff, ESLint, TypeScript,
+production build, `pip check`, repository integrity, and `git diff --check`
+passed. The accepted recovery commit is recorded in `CODEX_HANDOFF.md`.
+
 ## 2026-09-30 — DLP-4 generalized arbitrary-domain learning qualified
 
 Completed DLP-4 on the DLP integration branch. Career Forge now owns

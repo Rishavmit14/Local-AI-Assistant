@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { CareerForgeJourney } from "../runtime";
+import type { LearningProjectTemplate } from "../runtime/types";
 import { presentCareerForgeProjects } from "./careerForgeProjects";
+
+const templates: LearningProjectTemplate[] = [
+  { template_id: "fraudshield", name: "FraudShield", focus: "Classical ML, evaluation, APIs, and production reliability." },
+  { template_id: "neural-systems-lab", name: "Neural Systems Lab", focus: "PyTorch, autograd, optimization, and model debugging." },
+  { template_id: "local-knowledge-assistant", name: "Local Knowledge Assistant", focus: "Transformers, retrieval, evaluation, and local tools." },
+  { template_id: "production-ai-platform", name: "Production AI Platform", focus: "Serving, CI/CD, observability, and MLOps systems." },
+];
 
 function journey(linked = false): CareerForgeJourney {
   return {
@@ -17,7 +25,7 @@ function journey(linked = false): CareerForgeJourney {
 
 describe("canonical Career Forge project presentation", () => {
   it("offers only the active mission's declared family for explicit linking", () => {
-    const projects = presentCareerForgeProjects(journey());
+    const projects = presentCareerForgeProjects(journey(), templates);
 
     expect(projects).toHaveLength(4);
     expect(projects.find(({ name }) => name === "FraudShield")).toMatchObject({
@@ -27,7 +35,7 @@ describe("canonical Career Forge project presentation", () => {
   });
 
   it("projects an existing canonical link without offering a duplicate action", () => {
-    expect(presentCareerForgeProjects(journey(true)).find(({ name }) => name === "FraudShield")).toMatchObject({
+    expect(presentCareerForgeProjects(journey(true), templates).find(({ name }) => name === "FraudShield")).toMatchObject({
       canLinkActiveMission: false,
       linkedMissionIds: ["m1"],
       linkedCompetencyIds: ["ml.classical"],

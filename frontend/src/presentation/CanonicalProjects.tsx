@@ -2,6 +2,8 @@ import { ArrowRight, Boxes, Link2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { CareerForgeMissionObjective, CareerForgePublicEvidenceCandidate } from "../runtime";
+import type { LearningProject, LearningProjectTemplate } from "../runtime/types";
+import { FridayRuntimeClient } from "../runtime/client";
 import { FridayPresentation } from "./FridayPresentation";
 import { presentCareerForgeProjects } from "./careerForgeProjects";
 import { useCareerForgeJourney } from "./useCareerForgeJourney";
@@ -18,6 +20,9 @@ export function CanonicalProjects({ openLearn }: { openLearn: () => void }) {
   const [missionObjective, setMissionObjective] = useState<CareerForgeMissionObjective | null>(null);
   const [objectiveText, setObjectiveText] = useState("");
   const [checks, setChecks] = useState({ genuine_work: false, validation_passed: false, secret_scan_passed: false, privacy_review_passed: false, documentation_complete: false, artifact_quality_passed: false });
+  const [assignedProjects, setAssignedProjects] = useState<LearningProject[]>([]);
+  const [templates, setTemplates] = useState<LearningProjectTemplate[]>([]);
+  useEffect(() => { let active = true; const api = new FridayRuntimeClient(); void Promise.all([api.getProjects(), api.getProjectTemplates()]).then(([items, available]) => { if (active) { setAssignedProjects(items); setTemplates(available); } }).catch(() => { if (active) { setAssignedProjects([]); setTemplates([]); } }); return () => { active = false; }; }, []);
   const activeMissionId = view.state === "ready" ? view.journey?.current_mission?.mission_id ?? null : null;
   useEffect(() => {
     let active = true;
@@ -33,7 +38,7 @@ export function CanonicalProjects({ openLearn }: { openLearn: () => void }) {
   if (view.state !== "ready" || !view.journey) {
     return <section className="learning-canonical-summary"><p>{view.state === "loading" ? "Reading canonical project links…" : "Career Forge projects are unavailable; no specimen links are shown."}</p></section>;
   }
-  const projects = presentCareerForgeProjects(view.journey);
+  const projects = presentCareerForgeProjects(view.journey, templates);
   const activeMissionLinked = activeMissionId ? view.journey.project_links.some(({ mission_id }) => mission_id === activeMissionId) : false;
   const currentMissionObjective = missionObjective?.link.mission_id === activeMissionId ? missionObjective : null;
   const connect = async (missionId: string) => {
@@ -84,6 +89,7 @@ export function CanonicalProjects({ openLearn }: { openLearn: () => void }) {
       {project.canLinkActiveMission && project.activeMissionId && <button className="text-link" disabled={busy} onClick={() => { if (project.activeMissionId) void connect(project.activeMissionId); }}><Link2 size={14} />Connect active mission</button>}
       {project.activeMissionId && !project.canLinkActiveMission && <small className="canonical-marker">Active mission already connected</small>}
     </article>)}</div>
+    {assignedProjects.length > 0 && <section className="canonical-review-response" aria-label="Assigned learning projects"><span className="eyebrow">ACTIVE LEARNING PROJECTS</span><h3>Projects from your learning paths</h3><ol className="canonical-record-list">{assignedProjects.map((project) => <li key={project.project_id}><strong>{project.title} · {project.state.replaceAll("_", " ")}</strong><span>{project.template.name} · {project.learning?.milestone_id ?? "learning milestone"}{project.objective ? ` · Objective ${project.objective.state}${project.objective.task_state ? ` · task ${project.objective.task_state}` : ""}` : ""}</span><span>Career Forge evidence: {project.career_forge_evidence.length} · validated artifacts: {project.artifacts.length}</span><button className="text-link" onClick={openLearn}>Return to learning path</button></li>)}</ol></section>}
     {activeMissionLinked && activeMissionId && <section className="canonical-review-response"><span className="eyebrow">PUBLIC EVIDENCE REVIEW</span><h3>Qualify a real project artifact</h3><input value={artifactRef} onChange={(event) => setArtifactRef(event.target.value)} aria-label="Project artifact reference" placeholder="Repository-relative artifact or evidence reference" />{Object.entries(checks).map(([name, value]) => <label key={name}><input type="checkbox" checked={value} onChange={(event) => setChecks((old) => ({ ...old, [name]: event.target.checked }))} />{name.replaceAll("_", " ")}</label>)}<button className="text-link" disabled={busy || !artifactRef.trim()} onClick={() => void reviewEvidence()}>Run deterministic evidence gate</button>{candidate && <div><p>State: {candidate.state}</p>{candidate.reasons.length > 0 && <p>{candidate.reasons.join(" · ")}</p>}{candidate.state === "qualified" && <button className="text-link" disabled={busy} onClick={() => void approveEvidence()}>Approve candidate for publication</button>}{candidate.state === "approved" && <p>Owner approval recorded. Nothing has been pushed or published.</p>}</div>}</section>}
     {activeMissionLinked && candidates.length > 0 && <section className="canonical-review-response"><span className="eyebrow">DURABLE EVIDENCE HISTORY</span><h3>Recorded artifact outcomes</h3><ol className="canonical-record-list">{candidates.map((item) => <li key={item.candidate_id}><strong>{item.artifact_ref} · {item.state}</strong><span>{item.publication_state ? `Publication ${item.publication_state}` : item.reasons.length ? item.reasons.join(" · ") : "Evidence checks passed"}</span>{item.publication_url && <a className="text-link" href={item.publication_url} target="_blank" rel="noreferrer">Open published evidence</a>}{item.publication_error && <small>Last publication attempt failed: {item.publication_error}</small>}</li>)}</ol><small>Publication is performed only by Friday’s authenticated promotion gateway. This workspace stores no gateway credential.</small></section>}
     {activeMissionLinked && activeMissionId && <section className="canonical-review-response"><span className="eyebrow">BOUNDED MISSION AUTONOMY</span><h3>Prepare governed implementation work</h3>{currentMissionObjective ? <div><p>Objective: {currentMissionObjective.objective.text}</p><p>State: {currentMissionObjective.objective.state}{currentMissionObjective.objective.task_state ? ` · task ${currentMissionObjective.objective.task_state}` : " · no task dispatched"}</p><small>Resume planning, exact-plan review, approval, execution, cancellation, and recovery in Friday Objectives. Completion never becomes learning evidence automatically.</small></div> : <><input value={objectiveText} onChange={(event) => setObjectiveText(event.target.value)} aria-label="Mission implementation objective" placeholder="Concrete repository work for this mission" /><button className="text-link" disabled={busy || !objectiveText.trim()} onClick={() => void createMissionObjective()}>Prepare governed objective</button></>}</section>}

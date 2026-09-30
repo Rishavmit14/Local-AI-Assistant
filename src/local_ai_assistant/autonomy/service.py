@@ -74,12 +74,23 @@ class ObjectiveService:
             db.execute("ALTER TABLE objectives ADD COLUMN repository_id TEXT")
         return db
 
-    def create(self, text: str) -> Objective:
+    def create(self, text: str, *, objective_id: str | None = None) -> Objective:
         text = text.strip()
         if not text or len(text) > 4000:
             raise ValueError("objective text must be between 1 and 4000 characters")
+        objective_id = objective_id or uuid4().hex
+        if not re.fullmatch(r"[a-f0-9]{32}", objective_id):
+            raise ValueError("canonical objective ID must be 32 lowercase hexadecimal characters")
+        try:
+            existing = self.get(objective_id)
+        except ValueError:
+            existing = None
+        if existing is not None:
+            if existing.text != text:
+                raise ValueError("objective identity is already bound to different work")
+            return existing
         now = datetime.now(UTC).isoformat()
-        item = Objective(uuid4().hex, text, "created", now, now)
+        item = Objective(objective_id, text, "created", now, now)
         with self._db() as db:
             db.execute("INSERT INTO objectives (objective_id, text, state, created_at, updated_at, plan_hash, task_id) VALUES(?,?,?,?,?,?,?)", (item.objective_id, item.text, item.state, item.created_at, item.updated_at, item.plan_hash, item.task_id))
         return item

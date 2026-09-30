@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import uuid
 from collections.abc import Iterator
@@ -486,6 +487,58 @@ class CareerForgeService:
             raise ValueError("mission is not dependency-appropriate")
         return self._create_mission(competency_id, title, resume_point=resume_point)
 
+    def start_project_mission(
+        self, competency_id: str, title: str, *, project_id: str, path_id: str,
+        path_version: int, node_id: str,
+    ) -> Mission:
+        """Open a Career Forge learning mission for an already DLP-gated project.
+
+        This explicit bridge does not promote mastery. DLP must validate the
+        active path, current version, milestone and prerequisite evidence first.
+        """
+        if not all(isinstance(value, str) and value.strip() for value in (project_id, path_id, node_id)):
+            raise ValueError("canonical project and learning-path references are required")
+        if type(path_version) is not int or path_version < 1:
+            raise ValueError("a current learning-path version is required")
+        try:
+            self.graph[competency_id]
+        except KeyError:
+            with self._db() as db:
+                dynamic = db.execute(
+                    "SELECT subject_id,path_id,path_version,node_id,contract_fingerprint "
+                    "FROM dynamic_learning_subjects WHERE competency_id=? AND path_id=? AND path_version=? "
+                    "ORDER BY created_at DESC LIMIT 1",
+                    (competency_id, path_id, path_version),
+                ).fetchone()
+            if dynamic is None:
+                raise ValueError("project competency has no Career Forge learning contract") from None
+        else:
+            dynamic = None
+        with self._db() as db:
+            existing = db.execute(
+                "SELECT mission_id,resume_json FROM missions WHERE competency_id=? AND state='active' ORDER BY updated_at DESC LIMIT 1",
+                (competency_id,),
+            ).fetchone()
+        if existing is not None:
+            prior = json.loads(existing[1])
+            if (prior.get("project_id"), prior.get("path_id"), prior.get("path_version")) == (
+                project_id, path_id, path_version,
+            ):
+                return self.mission(str(existing[0]))
+            raise ValueError("an active Career Forge mission already owns this competency")
+        context: dict[str, object] = {
+            "phase": "project_work", "learning_context": "project_milestone",
+            "project_id": project_id, "path_id": path_id,
+            "path_version": path_version, "node_id": node_id, "project_node_id": node_id,
+        }
+        if dynamic is not None:
+            context.update({
+                "learning_context": "dynamic_dlp", "subject_id": str(dynamic[0]),
+                "contract_fingerprint": str(dynamic[4]), "project_id": project_id,
+                "node_id": str(dynamic[3]), "project_node_id": node_id,
+            })
+        return self._create_mission(competency_id, title, resume_point=context)
+
     def start_reinforcement(self, competency_id: str | None = None) -> Mission:
         """Start a bounded mission only for a currently evidenced weak area.
 
@@ -650,7 +703,8 @@ class CareerForgeService:
 
     def record_attempt(self, mission_id: str, question_id: str, response: str, *, mode: TutorMode,
                        assistance_level: AssistanceLevel | None = None,
-                       assessed_competency_id: str | None = None) -> LessonAttempt:
+                       assessed_competency_id: str | None = None,
+                       attempt_id: str | None = None) -> LessonAttempt:
         """Persist an owner answer only inside a named learning question context."""
         mission = self.mission(mission_id)
         assessed_competency_id = assessed_competency_id or mission.competency_id
@@ -658,9 +712,22 @@ class CareerForgeService:
             raise ValueError("assessed competency must belong to the mission or its prerequisites")
         if not all(isinstance(value, str) and value.strip() for value in (question_id, response)):
             raise ValueError("attempt question and response must not be empty")
+        attempt_id = attempt_id or "attempt_" + uuid.uuid4().hex
+        if not re.fullmatch(r"attempt_[a-f0-9]{32}", attempt_id):
+            raise ValueError("attempt identity must be a canonical Career Forge ID")
         with self._db() as db:
+            existing = db.execute(
+                "SELECT mission_id,question_id,response,assessed_competency_id,tutor_mode "
+                "FROM lesson_attempts WHERE attempt_id=?", (attempt_id,),
+            ).fetchone()
+            if existing is not None:
+                if (existing[0], existing[1], existing[2], existing[3] or mission.competency_id, existing[4]) != (
+                    mission_id, question_id.strip(), response.strip(), assessed_competency_id, mode,
+                ):
+                    raise ValueError("attempt identity is already bound to different owner evidence")
+                return self.attempt(attempt_id)
             order = db.execute("SELECT COALESCE(MAX(attempt_order), 0) + 1 FROM lesson_attempts WHERE mission_id=?", (mission_id,)).fetchone()[0]
-            attempt_id, now = "attempt_" + uuid.uuid4().hex, _now()
+            now = _now()
             db.execute("INSERT INTO lesson_attempts "
                        "(attempt_id,mission_id,competency_id,question_id,response,attempt_order,tutor_mode,assistance_level,evaluation,evidence_type,feedback,retry_needed,created_at,evaluated_at,assessed_competency_id) "
                        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
@@ -729,6 +796,25 @@ class CareerForgeService:
                 (limit,),
             ).fetchall()
         return tuple(EvidenceRecord(row[0], row[1], row[2], row[3], AssistanceLevel(row[4]) if row[4] else None, row[5], row[6]) for row in rows)
+
+    def project_evidence(self, project_id: str, *, limit: int = 100) -> tuple[EvidenceRecord, ...]:
+        if not project_id or len(project_id) > 80 or not 1 <= limit <= 500:
+            raise ValueError("invalid bounded project evidence query")
+        prefix = f"project:{project_id}:"
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT e.evidence_id,e.mission_id,COALESCE(e.competency_id,m.competency_id),"
+                "e.evidence_type,e.assistance_level,e.artifact_ref,e.created_at "
+                "FROM mission_evidence e JOIN missions m USING(mission_id) "
+                "WHERE e.artifact_ref LIKE ? ORDER BY e.created_at DESC LIMIT ?",
+                (prefix + "%", limit),
+            ).fetchall()
+        return tuple(EvidenceRecord(row[0], row[1], row[2], row[3], AssistanceLevel(row[4]) if row[4] else None, row[5], row[6]) for row in rows)
+
+    def evidence_for_attempt(self, attempt_id: str) -> str | None:
+        with self._db() as db:
+            row = db.execute("SELECT evidence_id FROM mission_evidence WHERE source_attempt_id=?", (attempt_id,)).fetchone()
+        return str(row[0]) if row else None
 
     def progress(self, *, limit: int = 20) -> CareerForgeProgress:
         """Return one bounded, read-only projection of canonical learning records."""
@@ -1288,13 +1374,15 @@ class CareerForgeService:
         return tuple(areas[:limit])
 
     def evaluate_attempt(self, attempt_id: str, evaluation: AttemptEvaluation, feedback: str, *,
-                         evidence_type: str | None = None) -> LessonAttempt:
+                         evidence_type: str | None = None, artifact_ref: str | None = None) -> LessonAttempt:
         """Store a bounded assessment; this never promotes mastery automatically."""
         if evaluation is AttemptEvaluation.PENDING or not isinstance(feedback, str) or not feedback.strip():
             raise ValueError("a final evaluation and feedback are required")
         attempt = self.attempt(attempt_id)
         if evidence_type is not None and evaluation is not AttemptEvaluation.CORRECT:
             raise ValueError("only a correct assessment may carry evidence")
+        if artifact_ref is not None and (not isinstance(artifact_ref, str) or len(artifact_ref) > 4000):
+            raise ValueError("artifact reference exceeds the bounded limit")
         retry_needed = evaluation is not AttemptEvaluation.CORRECT
         with self._db() as db:
             changed = db.execute("UPDATE lesson_attempts SET evaluation=?, evidence_type=?, feedback=?, retry_needed=?, evaluated_at=? WHERE attempt_id=? AND evaluation='pending'", (
@@ -1313,7 +1401,7 @@ class CareerForgeService:
                     "(evidence_id,mission_id,evidence_type,content,assistance_level,artifact_ref,created_at,source_attempt_id,competency_id,contract_fingerprint) "
                     "VALUES(?,?,?,?,?,?,?,?,?,?)",
                     (evidence_id, attempt.mission_id, evidence_type, attempt.response,
-                     attempt.assistance_level.value if attempt.assistance_level else None, None,
+                     attempt.assistance_level.value if attempt.assistance_level else None, artifact_ref,
                      _now(), attempt_id, mission_row[0],
                      context.get("contract_fingerprint") if context.get("learning_context") == "dynamic_dlp" else None),
                 )

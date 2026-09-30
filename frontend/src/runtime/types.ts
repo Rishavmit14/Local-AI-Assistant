@@ -249,10 +249,42 @@ export interface LearningPathNode {
   node_id: string; module_id: string; title: string; type: string; objectives: string[];
   evidence_requirements: string[]; competency_key: string | null; estimated_hours: number | null;
 }
-export interface LearningPathDetail { path: LearningPath; current: { path_id: string; version: number; summary: string; modules: Array<{module_id:string;title:string;objective:string;estimated_hours:number|null}>; nodes: LearningPathNode[] } }
+export interface LearningPathMilestone { milestone_id:string; title:string; node_id:string; project_ref:string|null; description:string; kind?:string; assignment_reason?:string; competency_keys?:string[]; prerequisite_node_ids?:string[]; expected_outcome?:string; evidence_expectations?:string[] }
+export interface LearningPathDetail { path: LearningPath; current: { path_id: string; version: number; summary: string; modules: Array<{module_id:string;title:string;objective:string;estimated_hours:number|null}>; nodes: LearningPathNode[]; milestones?:LearningPathMilestone[] } }
 export interface LearningPathSequence {
   path_id: string; version: number; path_state: string; evidence_available: boolean;
   candidate_next_nodes: string[]; nodes: Array<{node_id:string;competency_id:string|null;evidence_state:string;evidence:unknown;decision:string;eligible:boolean;blockers:string[];recommendation:string|null;reason:string}>;
+}
+export interface LearningProjectTemplate { template_id: string; name: string; focus: string }
+export interface LearningProjectArtifact { artifact_id: string; project_id: string; task_id: string; artifact_ref: string; created_at: string }
+export interface LearningProject {
+  project_id: string; template_id: string; title: string; brief: string;
+  state: "assigned" | "active" | "under_review" | "needs_revision" | "completed" | "archived";
+  mission_id: string | null; objective_id: string | null; task_id: string | null;
+  created_at: string; updated_at: string;
+  template: LearningProjectTemplate;
+  learning: { path_id: string; path_version: number; milestone_id: string; milestone: Record<string, unknown> } | null;
+  objective: FridayObjective | null;
+  artifacts: LearningProjectArtifact[];
+  career_forge_missions: Array<{ project_id: string; competency_id: string; mission_id: string }>;
+  career_forge_evidence: Array<{ evidence_id: string; mission_id: string; competency_id: string; evidence_type: string; assistance_level: string | null; artifact_ref: string | null; created_at: string }>;
+  return_to_learning: { path_id: string; path_version: number; milestone_id: string } | null;
+}
+export interface LearningProjectMilestone {
+  path: { path_id: string; version: number; state: string; selected: boolean };
+  node: LearningPathNode;
+  milestone: LearningPathMilestone;
+  prerequisite_node_ids: string[];
+  prerequisites_satisfied: boolean;
+  project: LearningProject | null;
+  can_assign: boolean;
+}
+export interface LearningProjectReviewResult {
+  project: LearningProject;
+  evaluation: "correct" | "incorrect" | "uncertain" | "pending";
+  feedback: string | null;
+  evidence_id: string | null;
+  mastery_changed: false;
 }
 export type LearningPathHandoff = {
   action: "mission" | "diagnostic" | "dynamic_learning" | "review" | "reinforcement" | "practice";
