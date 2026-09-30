@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from .models import canonical_curriculum, version_payload
-from .repository import LearningPathRepository
-from .validation import CurriculumValidator
+from .repository import LearningPathRepository, LearningPathRevisionConflict
+from .validation import CurriculumValidationError, CurriculumValidator
 
 
 class CurriculumGenerationError(RuntimeError):
@@ -268,17 +268,87 @@ class LearningPathService:
 
     def revise(
         self, path_id: str, proposal: dict[str, Any], *, reason: str, provenance: str = "owner_edit",
-        adaptation: dict[str, Any] | None = None,
+        adaptation: dict[str, Any] | None = None, expected_version: int | None = None,
     ):
         current = self.repository.get(path_id)
         value = canonical_curriculum(
             {**proposal, "path_id": path_id, "reason": reason, "provenance": provenance,
              "adaptation": adaptation or {}}
         )
+        # Lifecycle state belongs to the path row, not an older immutable
+        # curriculum snapshot. A curriculum edit must never reactivate/pause it.
+        value["state"] = current.state
         order = self.validator.validate(value)
         now = datetime.now(UTC).isoformat()
         payload = version_payload(value, current.current_version + 1, order)
-        return self.repository.revise(path_id, value, payload, now)
+        return self.repository.revise(path_id, value, payload, now, expected_version)
+
+    def manual_edit(self, path_id: str, *, expected_version: int, operation: dict[str, Any]):
+        """Apply one typed owner edit to the canonical graph as a new immutable version."""
+        current_path = self.repository.get(path_id)
+        if current_path.current_version != expected_version:
+            raise LearningPathRevisionConflict(
+                f"This path changed from version {expected_version} to {current_path.current_version}; reload before editing."
+            )
+        current = self.repository.version(path_id, expected_version)
+        value = {**current.metadata, "summary": current.summary,
+                 "modules": [dict(item) for item in current.modules],
+                 "nodes": [dict(item) for item in current.nodes],
+                 "prerequisites": [dict(item) for item in current.prerequisites],
+                 "milestones": [dict(item) for item in current.milestones]}
+        kind = operation.get("type")
+        forge = getattr(self.evidence_provider, "career_forge", None)
+        active = forge.resume() if forge is not None else None
+        resume = active.resume_point if active is not None else {}
+        active_node = resume.get("node_id") if resume.get("path_id") == path_id else None
+        if kind == "add_node":
+            node = operation.get("node")
+            if not isinstance(node, dict):
+                raise CurriculumValidationError("provide a complete learning node to add")
+            if any(n["node_id"] == node.get("node_id") for n in value["nodes"]):
+                raise CurriculumValidationError("node ID already exists; choose a new ID")
+            value["nodes"].append(dict(node))
+        elif kind == "remove_node":
+            node_id = str(operation.get("node_id", ""))
+            if active_node == node_id:
+                raise CurriculumValidationError("cannot remove the lesson with an active Career Forge session; finish or resume that session first")
+            node = next((n for n in value["nodes"] if n["node_id"] == node_id), None)
+            if node is None:
+                raise CurriculumValidationError("learning node no longer exists")
+            if self.evidence_provider is not None:
+                state = next((item for item in self.sequence(path_id)["nodes"] if item["node_id"] == node_id), None)
+                if state and state["evidence_state"] == "satisfied":
+                    raise CurriculumValidationError("cannot remove a node with qualifying Career Forge learning evidence; its history remains part of this path")
+            if any(e["prerequisite_node_id"] == node_id for e in value["prerequisites"]):
+                raise CurriculumValidationError("cannot remove this node while downstream learning depends on it; revise those dependencies first")
+            if any(m["node_id"] == node_id for m in value["milestones"]):
+                raise CurriculumValidationError("cannot remove a node that anchors a project or capstone milestone")
+            value["nodes"].remove(node)
+            value["prerequisites"] = [e for e in value["prerequisites"] if e["node_id"] != node_id and e["prerequisite_node_id"] != node_id]
+        elif kind in {"add_prerequisite", "remove_prerequisite"}:
+            before, after = operation.get("prerequisite_node_id"), operation.get("node_id")
+            if kind == "add_prerequisite" and active_node == after:
+                raise CurriculumValidationError("cannot add a prerequisite ahead of the lesson currently in a Career Forge session")
+            edge = {"prerequisite_node_id": before, "node_id": after}
+            if kind == "add_prerequisite":
+                value["prerequisites"].append(edge)
+            else:
+                if any(m.get("kind") and m["node_id"] == after and before in m.get("prerequisite_node_ids", []) for m in value["milestones"]):
+                    raise CurriculumValidationError("project milestone prerequisites must remain aligned with their direct graph dependencies")
+                value["prerequisites"] = [e for e in value["prerequisites"] if e != edge]
+        elif kind == "move_node":
+            node_id, module_id = operation.get("node_id"), operation.get("module_id")
+            node = next((n for n in value["nodes"] if n["node_id"] == node_id), None)
+            if node is None:
+                raise CurriculumValidationError("learning node no longer exists")
+            if any(m["node_id"] == node_id and m.get("kind") for m in value["milestones"]):
+                raise CurriculumValidationError("project and capstone milestones cannot be moved away from their assigned module")
+            node["module_id"] = module_id
+        else:
+            raise CurriculumValidationError("unsupported curriculum edit")
+        value.update(path_id=path_id, reason="manual_curriculum_edit", provenance="owner_edit")
+        return self.revise(path_id, value, reason="manual_curriculum_edit", provenance="owner_edit",
+                           expected_version=expected_version)
 
     def detail(self, path_id: str):
         path = self.repository.get(path_id)

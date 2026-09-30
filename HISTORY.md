@@ -68,6 +68,36 @@ Career Forge handoff states. A bounded local-Qwen Conversation creation smoke, n
 
 # Project History
 
+## 2026-09-30 — Manual curriculum editing with prerequisite protection
+
+Added Learn controls for adding a lesson, moving a node between existing
+modules, adding an explicit prerequisite, and removing only eligible future
+nodes. Operations apply to the canonical DLP graph and create immutable path
+revisions. Expected-version comparison occurs inside the SQLite write
+transaction; DAG validation, dependent/milestone protection, completed-evidence
+protection, active dynamic-session protection, and atomic stale/invalid
+rejection are covered deterministically. Same-path arbitrary-domain evidence
+continues only when its semantic node contract is unchanged, and existing
+Project references carry forward for unchanged milestones without rebinding the
+Project record. Native browser qualification on an isolated candidate path
+proved lesson insertion, valid prerequisite sequencing, cycle rejection without
+a new revision, module movement, eligible future-node removal, reload
+persistence, and API-process restart recovery. The path stayed active and
+sequence/resume projection remained coherent. Deterministic API checks proved
+stale-write conflict, active dynamic-session continuation after unrelated edits,
+material-contract invalidation, dependent deletion rejection, capstone/project
+anchor protection, and project-reference carry-forward. The candidate had no
+assigned Project, so browser task execution/artifact submission/assessment is
+not claimed. Row 61 remains PARTIAL for cross-path evidence, major adaptive
+replanning, broader production owner qualification, browser project execution/
+artifact/assessment qualification, and final UI visual acceptance.
+
+Qualification: full Python/repository verification passed (1,157 tests, one
+existing Starlette/AnyIO deprecation warning); 119 frontend tests, ESLint,
+TypeScript, production build, targeted Ruff, `pip check`, repository integrity,
+and `git diff --check` passed. The production build reports the existing large
+chunk advisory. Candidate API/Vite were disposable and stopped after testing.
+
 ## 2026-09-30 — Learn review and reinforcement owner flows closed
 
 Completed the DLP-4 Learn closure on `integration/astra-friday`. The native

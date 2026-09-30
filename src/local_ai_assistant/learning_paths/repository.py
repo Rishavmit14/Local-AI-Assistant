@@ -12,6 +12,10 @@ from threading import RLock
 from .models import LearningPath, LearningPathVersion, version_from_json
 
 
+class LearningPathRevisionConflict(RuntimeError):
+    """Raised when an edit was based on a stale immutable path version."""
+
+
 class LearningPathRepository:
     SCHEMA_VERSION = 2
 
@@ -111,7 +115,8 @@ class LearningPathRepository:
         return self.get(curriculum["path_id"])
 
     def revise(
-        self, path_id: str, curriculum: dict, version_payload: str, now: str
+        self, path_id: str, curriculum: dict, version_payload: str, now: str,
+        expected_version: int | None = None,
     ) -> LearningPath:
         with self._lock, closing(self._connect()) as db:
             db.execute("BEGIN IMMEDIATE")
@@ -121,6 +126,10 @@ class LearningPathRepository:
                 ).fetchone()
                 if row is None:
                     raise KeyError(path_id)
+                if expected_version is not None and row["current_version"] != expected_version:
+                    raise LearningPathRevisionConflict(
+                        f"This path changed from version {expected_version} to {row['current_version']}; reload before editing."
+                    )
                 version = row["current_version"] + 1
                 db.execute(
                     "INSERT INTO learning_path_versions VALUES (?, ?, ?)",
@@ -193,6 +202,16 @@ class LearningPathRepository:
                 "FROM learning_path_project_assignments WHERE path_id=? AND path_version=? AND milestone_id=?",
                 (path_id, version, milestone_id),
             ).fetchone()
+            if row is None:
+                # A manual curriculum revision carries forward the visible
+                # relationship for an unchanged milestone without duplicating
+                # or rebinding the canonical Project instance.
+                row = db.execute(
+                    "SELECT path_id,path_version,milestone_id,project_id,created_at "
+                    "FROM learning_path_project_assignments WHERE path_id=? AND path_version<? AND milestone_id=? "
+                    "ORDER BY path_version DESC LIMIT 1",
+                    (path_id, version, milestone_id),
+                ).fetchone()
         return dict(row) if row else None
 
     def project_assignments(self, path_id: str, version: int | None = None) -> tuple[dict, ...]:

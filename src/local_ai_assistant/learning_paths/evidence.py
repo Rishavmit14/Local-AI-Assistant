@@ -53,7 +53,10 @@ class CareerForgeEvidenceProjection:
         }
 
     def dynamic_node_evidence(self, path_id: str, path_version: int, node: dict) -> CompetencyEvidence | None:
-        """Read a registered arbitrary node through Career Forge's evidence store."""
+        """Read evidence for the same unchanged node contract across path revisions."""
+        from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
+
+        fingerprint = GeneralizedLearningService.contract_fingerprint(node)
         with self.career_forge._db() as db:
             exists = db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dynamic_learning_subjects'"
@@ -62,9 +65,9 @@ class CareerForgeEvidenceProjection:
                 return None
             row = db.execute(
                 "SELECT s.competency_id,l.mastery FROM dynamic_learning_subjects s "
-                "JOIN learner_competencies l USING(competency_id) WHERE s.path_id=? AND s.path_version=? AND s.node_id=? "
-                "ORDER BY s.created_at DESC LIMIT 1",
-                (path_id, path_version, str(node["node_id"])),
+                "JOIN learner_competencies l USING(competency_id) WHERE s.path_id=? AND s.node_id=? "
+                "AND s.contract_fingerprint=? ORDER BY s.path_version DESC,s.created_at DESC LIMIT 1",
+                (path_id, str(node["node_id"]), fingerprint),
             ).fetchone()
             if row is None:
                 return None

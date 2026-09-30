@@ -1698,6 +1698,35 @@ covered task-success gating, correct/incorrect/uncertain review, evidence
 provenance, idempotent replay, and unchanged mastery. A separate single request
 to local Qwen exercised the bounded Reviewer parser; it is not claimed as
 end-to-end browser assessment. Overall rows 60 and 61 remain PARTIAL. Remaining
-row-61 gaps are manual curriculum editing with prerequisite protection,
-cross-path evidence equivalence, major adaptive replanning, broader owner
-qualification, and final visual acceptance.
+row-61 gaps are cross-path evidence equivalence, major adaptive replanning,
+broader owner qualification, browser-driven project task execution/artifact
+submission/assessment, and final visual acceptance.
+
+### Manual curriculum editing with prerequisite protection — QUALIFIED (bounded candidate path)
+
+Learn now exposes bounded owner operations over the canonical DLP graph:
+add a lesson, move it between existing modules, add prerequisite edges, and
+remove eligible future nodes. Writes require an expected path version and
+atomically validate the complete graph before creating a new immutable
+revision. Dependency, milestone, supported-evidence, active-session, cycle,
+reference, and stale-write protections are covered by deterministic backend
+tests. Existing same-path dynamic Career Forge evidence remains applicable only
+when the node's semantic assessment contract is unchanged, and historical
+project references remain attached to their original canonical Project.
+
+Native browser qualification on an isolated candidate path demonstrated opening
+the editor, adding a lesson, adding a valid prerequisite and checking the new
+sequence, rejecting a prerequisite cycle without a revision, moving a future
+node between modules, removing an eligible future node, and recovering the
+saved curriculum after browser refresh and candidate API restart. The path
+remained active and resume candidates were coherent. API negatives separately
+prove stale-write conflicts, dynamic-session continuation across unrelated
+edits, invalidation after a material contract change, evidence preservation,
+and project/capstone anchor protection. The browser candidate had no assigned
+project, so browser task execution/artifact submission/assessment is not
+claimed.
+
+This sub-capability does not close row 61. Cross-path evidence equivalence,
+major adaptive replanning, broader production owner qualification,
+browser-driven project task execution/artifact submission/assessment, and final
+visual acceptance remain open.

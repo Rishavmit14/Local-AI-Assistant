@@ -73,6 +73,26 @@ describe("Learn Dynamic Learning Paths integration", () => {
     expect(onHandoff).toHaveBeenCalledOnce();
   });
 
+  it("exposes minimal manual editing and persists an added lesson through the canonical API", async () => {
+    const currentPath=path("edit",true,"active");
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([currentPath]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(detail(currentPath));
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue({...sequence,path_id:"edit"});
+    const edit=vi.spyOn(FridayRuntimeClient.prototype,"editLearningPath").mockResolvedValue({
+      ...detail({...currentPath,current_version:2}),current:{...detail(currentPath).current,version:2},
+    });
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    const open=[...container.querySelectorAll("button")].find(button=>button.textContent==="Edit curriculum");
+    await act(async()=>{open?.click();await new Promise(r=>setTimeout(r,0));});
+    const input=container.querySelector<HTMLInputElement>("#learning-node-title");
+    await act(async()=>{if(input){const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")?.set;setter?.call(input,"Review indexes");input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));}await new Promise(r=>setTimeout(r,0));});
+    const add=[...container.querySelectorAll("button")].find(button=>button.textContent==="Add lesson");
+    await act(async()=>{add?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(edit).toHaveBeenCalledWith("edit",1,expect.objectContaining({type:"add_node",node:expect.objectContaining({title:"Review indexes",type:"lesson"})}));
+    expect(container.textContent).toContain("Curriculum saved as a new path version");
+  });
+
   it("surfaces path generation failure without adding a path", async () => {
     vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([]);
     vi.spyOn(FridayRuntimeClient.prototype,"generateLearningPath").mockRejectedValue(new Error("local curriculum generation failed"));

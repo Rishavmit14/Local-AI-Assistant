@@ -50,6 +50,7 @@ from local_ai_assistant.isolation.errors import (
     SandboxUnavailableError,
 )
 from local_ai_assistant.learning_paths import CurriculumValidationError, LearningPathService
+from local_ai_assistant.learning_paths.repository import LearningPathRevisionConflict
 from local_ai_assistant.learning_paths.service import CurriculumGenerationError
 from local_ai_assistant.memory import FridayMemoryService, MemoryKind, MemoryState
 from local_ai_assistant.onboarding import RepositoryOnboardingError
@@ -144,6 +145,11 @@ class LearningPathRevisionRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=100)
     provenance: str = Field(default="owner_edit", min_length=1, max_length=100)
     curriculum: dict
+
+
+class LearningPathManualEditRequest(BaseModel):
+    expected_version: int = Field(ge=1)
+    operation: dict
 
 
 class LearningPathHandoffRequest(BaseModel):
@@ -2289,8 +2295,8 @@ def create_presentation_app(
             detail = learning_paths.detail(subject.path_id)
         except KeyError as exc:
             raise HTTPException(409, detail="The dynamic learning path or subject is unavailable.") from exc
-        if detail["path"].state != "active" or detail["current"].version != subject.path_version:
-            raise HTTPException(409, detail="This dynamic learning contract is no longer the active path version.")
+        if detail["path"].state != "active":
+            raise HTTPException(409, detail="This dynamic learning path is no longer active.")
         node = next((item for item in detail["current"].nodes if item["node_id"] == subject.node_id), None)
         if node is None or GeneralizedLearningService.contract_fingerprint(node) != subject.contract_fingerprint:
             raise HTTPException(409, detail="The active curriculum no longer matches this learning contract.")
@@ -2342,6 +2348,8 @@ def create_presentation_app(
             raise HTTPException(404, detail="learning path not found") from exc
         if isinstance(exc, CurriculumGenerationError):
             raise HTTPException(502, detail="local curriculum generation failed") from exc
+        if isinstance(exc, LearningPathRevisionConflict):
+            raise HTTPException(409, detail=str(exc)) from exc
         raise exc
 
     @app.get("/api/v1/projects/templates")
@@ -2510,7 +2518,7 @@ def create_presentation_app(
                     target_node = next((item for item in version.nodes if item["node_id"] == target_id), None)
                     if target_node is None:
                         raise ValueError("milestone references an unknown competency node")
-                    subject = generalized.by_path_node(path_id, version.version, target_id)
+                    subject = generalized.by_path_node(path_id, version.version, target_id, target_node)
                     if subject is None:
                         subject = generalized.register(
                             path_id=path_id, path_version=version.version, node=target_node,
@@ -2762,7 +2770,7 @@ def create_presentation_app(
                         GeneralizedLearningService,
                     )
                     subject_service = GeneralizedLearningService(career_forge)
-                    subject = subject_service.by_path_node(path_id, detail["current"].version, request.node_id)
+                    subject = subject_service.by_path_node(path_id, detail["current"].version, request.node_id, node)
                     if subject is None:
                         raise HTTPException(status_code=409, detail="This dynamic topic has no Career Forge evidence to review or reinforce.")
                     if request.action == "review":
@@ -2929,6 +2937,19 @@ def create_presentation_app(
             version = service.repository.version(path_id, path.current_version)
             return {"path": learning_path_projection(path), "version": asdict(version)}
         except (CurriculumValidationError, KeyError) as exc:
+            learning_path_error(exc)
+
+    @app.post("/api/v1/learning-paths/{path_id}/manual-edits", response_model=LearningPathCreatedView)
+    def manually_edit_learning_path(path_id: str, request: LearningPathManualEditRequest):
+        service = learning_path_service()
+        if service.evidence_provider is None and career_forge is not None:
+            from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
+            service.evidence_provider = CareerForgeEvidenceProjection(career_forge)
+        try:
+            path = service.manual_edit(path_id, expected_version=request.expected_version, operation=request.operation)
+            version = service.repository.version(path_id, path.current_version)
+            return {"path": learning_path_projection(path), "version": asdict(version)}
+        except (CurriculumValidationError, KeyError, LearningPathRevisionConflict) as exc:
             learning_path_error(exc)
 
     return app

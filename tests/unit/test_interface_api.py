@@ -195,13 +195,28 @@ def test_dynamic_learning_handoff_attempt_and_assessment_use_career_forge_author
     assert assessed.json()["evaluation"] == "correct"
     assert assessed.json()["mastery"] == "recognize"
 
+    unrelated_edit = client.post(
+        f"/api/v1/learning-paths/{draft.path_id}/manual-edits",
+        json={"expected_version":1,"operation":{"type":"add_node","node":{
+            "node_id":"extra-owner-node","module_id":"foundations","title":"Extra practice","type":"lesson",
+            "objectives":["Practice the idea"],"evidence_requirements":[],"competency_key":None,"estimated_hours":1}}},
+    )
+    assert unrelated_edit.status_code == 200
+    assert unrelated_edit.json()["path"]["state"] == "active"
+    assert forge.resume().mission_id == mission["mission_id"]
+    continued = client.post(
+        f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
+        json={"question_id":"continue-after-unrelated-edit","response":"Continue the unchanged contract."},
+    )
+    assert continued.status_code == 200
+
     current = paths.detail(draft.path_id)["current"]
     revised_nodes = [dict(item) for item in current.nodes]
     revised_nodes[0]["objectives"] = ["Explain memory layout and constant-time indexed lookup"]
     paths.revise(draft.path_id, {
         **current.metadata, "modules": list(current.modules), "nodes": revised_nodes,
         "prerequisites": list(current.prerequisites), "milestones": list(current.milestones),
-    }, reason="candidate_contract_revision")
+    }, reason="candidate_contract_revision", expected_version=current.version)
     stale_attempt = client.post(
         f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
         json={"question_id": "stale", "response": "Do not assess old contract."},
@@ -1704,6 +1719,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/learning-paths/generate",
         "/api/v1/learning-paths/{path_id}",
         "/api/v1/learning-paths/{path_id}/versions",
+        "/api/v1/learning-paths/{path_id}/manual-edits",
         "/api/v1/learning-paths/{path_id}/versions/{version}",
         "/api/v1/learning-paths/{path_id}/sequence",
         "/api/v1/learning-paths/{path_id}/adapt",

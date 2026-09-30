@@ -113,13 +113,20 @@ class GeneralizedLearningService:
         return DynamicLearningSubject(row[0], row[1], row[2], int(row[3]), row[4], row[5],
                                       json.loads(row[6]), MasteryLevel(row[7]), row[8])
 
-    def by_path_node(self, path_id: str, path_version: int, node_id: str) -> DynamicLearningSubject | None:
+    def by_path_node(self, path_id: str, path_version: int, node_id: str, node: dict[str, Any] | None = None) -> DynamicLearningSubject | None:
         with self.career_forge._db() as db:
-            row = db.execute(
-                "SELECT subject_id FROM dynamic_learning_subjects "
-                "WHERE path_id=? AND path_version=? AND node_id=? ORDER BY created_at DESC LIMIT 1",
-                (path_id, path_version, node_id),
-            ).fetchone()
+            if node is None:
+                row = db.execute(
+                    "SELECT subject_id FROM dynamic_learning_subjects "
+                    "WHERE path_id=? AND path_version=? AND node_id=? ORDER BY created_at DESC LIMIT 1",
+                    (path_id, path_version, node_id),
+                ).fetchone()
+            else:
+                row = db.execute(
+                    "SELECT subject_id FROM dynamic_learning_subjects WHERE path_id=? AND node_id=? "
+                    "AND contract_fingerprint=? ORDER BY path_version DESC,created_at DESC LIMIT 1",
+                    (path_id, node_id, self.contract_fingerprint(node)),
+                ).fetchone()
         return self.get(row[0]) if row else None
 
     def start_session(self, subject_id: str) -> Mission:

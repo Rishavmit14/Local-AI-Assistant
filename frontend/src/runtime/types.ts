@@ -250,7 +250,7 @@ export interface LearningPathNode {
   evidence_requirements: string[]; competency_key: string | null; estimated_hours: number | null;
 }
 export interface LearningPathMilestone { milestone_id:string; title:string; node_id:string; project_ref:string|null; description:string; kind?:string; assignment_reason?:string; competency_keys?:string[]; prerequisite_node_ids?:string[]; expected_outcome?:string; evidence_expectations?:string[] }
-export interface LearningPathDetail { path: LearningPath; current: { path_id: string; version: number; summary: string; modules: Array<{module_id:string;title:string;objective:string;estimated_hours:number|null}>; nodes: LearningPathNode[]; milestones?:LearningPathMilestone[] } }
+export interface LearningPathDetail { path: LearningPath; current: { path_id: string; version: number; summary: string; modules: Array<{module_id:string;title:string;objective:string;estimated_hours:number|null}>; nodes: LearningPathNode[]; prerequisites?:Array<{prerequisite_node_id:string;node_id:string}>; milestones?:LearningPathMilestone[] } }
 export interface LearningPathSequence {
   path_id: string; version: number; path_state: string; evidence_available: boolean;
   candidate_next_nodes: string[]; nodes: Array<{node_id:string;competency_id:string|null;evidence_state:string;evidence:unknown;decision:string;eligible:boolean;blockers:string[];recommendation:string|null;reason:string}>;

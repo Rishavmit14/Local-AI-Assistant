@@ -19,6 +19,7 @@ from local_ai_assistant.learning_paths.evidence import (
     CareerForgeEvidenceProjection,
     CompetencyEvidence,
 )
+from local_ai_assistant.learning_paths.repository import LearningPathRevisionConflict
 from local_ai_assistant.learning_paths.service import (
     CurriculumGenerationError,
     LocalCurriculumGenerator,
@@ -154,6 +155,70 @@ def test_invalid_revision_and_duplicate_path_id_leave_canonical_state_unchanged(
     assert (
         repeated.path_id != created.path_id
     )  # identical requests create distinct paths unless an explicit ID is supplied
+
+
+def test_manual_edits_add_move_preserve_history_and_guard_dependencies(tmp_path):
+    service = LearningPathService(tmp_path / "manual.sqlite3")
+    proposal = curriculum()
+    proposal["milestones"] = [{"milestone_id":"existing-project", "title":"Existing project", "node_id":"dynamic", "project_ref":"fraudshield", "description":"Keep this link"}]
+    created = service.create(proposal)
+    service.activate(created.path_id)
+    milestone = service.repository.version(created.path_id, 1).milestones[0]
+    service.repository.link_project_assignment(created.path_id, 1, milestone["milestone_id"], "project-existing", "now")
+    original = service.detail(created.path_id)["current"]
+    added = {"node_id":"extra", "module_id":"foundations", "title":"Extra practice", "type":"practice",
+             "objectives":["Practice safely"], "evidence_requirements":[], "competency_key":None,
+             "estimated_hours":1}
+    changed = service.manual_edit(created.path_id, expected_version=1, operation={"type":"add_node", "node":added})
+    assert changed.current_version == 2 and changed.state == "active"
+    moved = service.manual_edit(created.path_id, expected_version=2, operation={"type":"move_node", "node_id":"extra", "module_id":"application"})
+    assert moved.current_version == 3
+    assert service.repository.version(created.path_id, 3).nodes[-1]["module_id"] == "application"
+    assert service.repository.version(created.path_id, 1) == original
+    assert service.repository.project_assignment(created.path_id, 3, milestone["milestone_id"])["project_id"] == "project-existing"
+    with pytest.raises(CurriculumValidationError, match="downstream learning"):
+        service.manual_edit(created.path_id, expected_version=3, operation={"type":"remove_node", "node_id":"arrays"})
+    with pytest.raises(CurriculumValidationError, match="cycle"):
+        service.manual_edit(created.path_id, expected_version=3, operation={"type":"add_prerequisite", "prerequisite_node_id":"window", "node_id":"arrays"})
+    assert service.repository.get(created.path_id).current_version == 3
+
+
+def test_manual_edit_rejects_stale_version_and_empty_path_removal_atomically(tmp_path):
+    service = LearningPathService(tmp_path / "stale.sqlite3")
+    created = service.create(curriculum())
+    service.manual_edit(created.path_id, expected_version=1, operation={"type":"add_node", "node":{
+        "node_id":"extra", "module_id":"foundations", "title":"Extra", "type":"lesson", "objectives":["Learn"],
+        "evidence_requirements":[], "competency_key":None, "estimated_hours":None}})
+    with pytest.raises(LearningPathRevisionConflict, match="reload"):
+        service.manual_edit(created.path_id, expected_version=1, operation={"type":"remove_node", "node_id":"extra"})
+    with pytest.raises(CurriculumValidationError):
+        service.manual_edit(created.path_id, expected_version=2, operation={"type":"remove_node", "node_id":"arrays"})
+    assert service.repository.get(created.path_id).current_version == 2
+
+
+def test_manual_edit_protects_capstone_nodes_and_exact_prerequisites(tmp_path):
+    proposal = curriculum()
+    capstone = next(node for node in proposal["nodes"] if node["node_id"] == "dynamic")
+    capstone["type"] = "capstone"
+    proposal["milestones"] = [{
+        "milestone_id":"final-project", "title":"Final project", "node_id":"dynamic",
+        "project_ref":"fraudshield", "description":"Build and defend the result", "kind":"capstone",
+        "assignment_reason":"Apply the full chain", "competency_keys":["node:dynamic"],
+        "prerequisite_node_ids":["graphs"], "expected_outcome":"A validated project",
+        "evidence_expectations":["Owner explanation"],
+    }]
+    service=LearningPathService(tmp_path / "milestone.sqlite3")
+    path=service.create(proposal)
+    service.repository.link_project_assignment(path.path_id,1,"final-project","project-canonical","now")
+    for operation in (
+        {"type":"move_node","node_id":"dynamic","module_id":"foundations"},
+        {"type":"remove_node","node_id":"dynamic"},
+        {"type":"remove_prerequisite","prerequisite_node_id":"graphs","node_id":"dynamic"},
+    ):
+        with pytest.raises(CurriculumValidationError):
+            service.manual_edit(path.path_id,expected_version=1,operation=operation)
+    assert service.repository.get(path.path_id).current_version == 1
+    assert service.repository.project_assignment(path.path_id,1,"final-project")["project_id"] == "project-canonical"
 
 
 class ProposalModel:
@@ -396,6 +461,9 @@ def test_dynamic_career_forge_evidence_unlocks_dependents_and_is_version_bound(t
     learning = GeneralizedLearningService(forge)
     subject = learning.register(path_id=path.path_id, path_version=1, node=node)
     learning.start_session(subject.subject_id)
+    with pytest.raises(CurriculumValidationError, match="active Career Forge session"):
+        paths.manual_edit(path.path_id, expected_version=1,
+                          operation={"type":"remove_node", "node_id":"arrays"})
     for rung in range(4):
         attempt = learning.record_attempt(subject.subject_id, f"application-{rung}",
                                           f"Owner explanation with distinct application {rung}.")
@@ -408,13 +476,19 @@ def test_dynamic_career_forge_evidence_unlocks_dependents_and_is_version_bound(t
     assert next(n for n in projected["nodes"] if n["node_id"] == "arrays")["decision"] == "SKIP_ALREADY_SUPPORTED"
     assert "pointers" in projected["candidate_next_nodes"]
 
+    moved = paths.manual_edit(path.path_id, expected_version=1,
+                              operation={"type":"move_node", "node_id":"arrays", "module_id":"application"})
+    moved_projection = paths.sequence(path.path_id)
+    assert moved.current_version == 2
+    assert next(n for n in moved_projection["nodes"] if n["node_id"] == "arrays")["decision"] == "SKIP_ALREADY_SUPPORTED"
+
     current = paths.detail(path.path_id)["current"]
     revised_nodes = [dict(item) for item in current.nodes]
     revised_nodes[0]["objectives"] = ["Compare multi-column index plans and estimate scan cost"]
     revised = paths.revise(path.path_id, {
         **current.metadata, "modules": list(current.modules), "nodes": revised_nodes,
         "prerequisites": list(current.prerequisites), "milestones": list(current.milestones),
-    }, reason="material_contract_change")
+    }, reason="material_contract_change", expected_version=2)
     after_revision = paths.sequence(path.path_id)
     assert after_revision["version"] == revised.current_version
     assert next(n for n in after_revision["nodes"] if n["node_id"] == "arrays")["decision"] == "DIAGNOSTIC_FIRST"
@@ -453,6 +527,24 @@ def test_selection_and_lifecycle_api(tmp_path):
         assert client.get("/api/v1/learning-paths/current").json()["path"]["path_id"] == path_id
         assert client.post(f"/api/v1/learning-paths/{path_id}/activate").json()["state"] == "active"
         assert client.post(f"/api/v1/learning-paths/{path_id}/activate").status_code == 409
+
+
+def test_manual_edit_api_persists_and_rejects_stale_or_invalid_graphs(tmp_path):
+    service = LearningPathService(tmp_path / "paths.sqlite3")
+    runtime = FridayRuntime("learning-path-manual-edit")
+    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=service)
+    with TestClient(app) as client:
+        created = client.post("/api/v1/learning-paths", json=curriculum()).json()
+        path_id = created["path"]["path_id"]
+        node = {"node_id":"owner-extra", "module_id":"foundations", "title":"Owner lesson", "type":"lesson",
+                "objectives":["Explain the idea"], "evidence_requirements":[], "competency_key":None, "estimated_hours":1}
+        accepted = client.post(f"/api/v1/learning-paths/{path_id}/manual-edits", json={"expected_version":1,"operation":{"type":"add_node","node":node}})
+        assert accepted.status_code == 200 and accepted.json()["version"]["version"] == 2
+        stale = client.post(f"/api/v1/learning-paths/{path_id}/manual-edits", json={"expected_version":1,"operation":{"type":"remove_node","node_id":"owner-extra"}})
+        assert stale.status_code == 409 and "reload" in stale.json()["detail"]
+        invalid = client.post(f"/api/v1/learning-paths/{path_id}/manual-edits", json={"expected_version":2,"operation":{"type":"add_prerequisite","prerequisite_node_id":"window","node_id":"arrays"}})
+        assert invalid.status_code == 422
+        assert client.get(f"/api/v1/learning-paths/{path_id}").json()["current"]["version"] == 2
 
 
 def test_mapped_diagnostic_handoff_uses_career_forge_without_claiming_mastery(tmp_path):

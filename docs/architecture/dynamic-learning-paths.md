@@ -145,6 +145,43 @@ roadmap, review delivery, automatic mission/project creation, or full owner-
 path qualification. Those require later roadmap work; row 60 remains PARTIAL.
 The backend capability has independent matrix tracking under row 61.
 
+## Manual owner editing (Stage 22 product integration)
+
+The Learn editor issues typed domain operations against this same canonical
+graph: add a lesson, move a node between existing modules, add a prerequisite,
+and remove an eligible future node. Each request includes the displayed
+`expected_version`; repository writes check that version under `BEGIN IMMEDIATE`
+and return conflict if another edit won. The validator recomputes a stable DAG
+order before the entire new snapshot is committed. Invalid references, cycles,
+empty paths, and stale writes leave the current pointer and snapshots intact.
+
+Removal is refused when a node has downstream dependents, anchors a project or
+capstone milestone, has qualifying Career Forge evidence, or is the subject of
+an active dynamic Career Forge session. Project milestone nodes cannot be moved;
+project milestone prerequisite declarations remain exact with their incoming
+graph edges. Project assignment lookup carries an unchanged milestone's
+existing canonical Project reference forward for display without copying or
+rebinding the Project record. Prior path versions remain immutable and
+inspectable.
+
+Career Forge remains the evidence authority. Fixed competency evidence is
+unchanged by DLP versioning. For arbitrary-domain nodes, evidence can project
+across revisions of the same path only when node ID and semantic assessment
+fingerprint match; changing objectives, evidence requirements, node type, or
+assessment contract starts a new unverified subject. Existing attempts,
+assessments, review schedules, reinforcement missions, and mastery records
+remain in Career Forge. Dynamic sessions remain usable across a cosmetic or
+unrelated path revision only while the node contract still matches and the
+path remains active.
+
+This is a compact functional control inside the current interim Learn layout,
+not the deferred visual redesign. There is no arbitrary JSON editor, drag and
+drop, module authoring/deletion, optionality flag (the canonical node model has
+none), project-record editing, or multi-user merge workflow. Row 61 remains
+PARTIAL pending cross-path evidence equivalence, major adaptive replanning,
+broader production owner qualification, project task execution/artifact
+submission/assessment browser qualification, and final owner visual acceptance.
+
 
 ## DLP-3 owner integration (accepted; remotely recoverable)
 
