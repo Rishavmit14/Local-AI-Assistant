@@ -4,8 +4,9 @@
 
 - Worktree: `/home/kumar-rishav/.codex/worktrees/friday-cross-path-evidence/Local-AI-Assistant-terra-integration`
 - Branch: `stage-22/cross-path-evidence-equivalence`
-- Base/recovery SHA: `2d2ec4c43c50846d94b6512dce8a1adb22080e61`
-- Capability: cross-path DLP evidence equivalence is implemented and qualified in isolated owner flows; commit and remote publication are pending.
+- Base SHA: `2d2ec4c43c50846d94b6512dce8a1adb22080e61`
+- Capability commit: `248046a72856be5833d247c892a4ec3088bf84b2` (`stage-22: qualify cross-path evidence equivalence`).
+- Recovery: capability commit is pushed; this documentation-only follow-up records final publication verification.
 - Scope: owner-authored equivalence keys, exact assessment-contract matching, source-provenance projection, target mastery floors, and milestone exclusions. See ADR 0036 and `docs/architecture/dynamic-learning-paths.md`.
 - `NeuralPresence.tsx` was not changed. Protected production checkout `/AI/projects/Local-AI-Assistant` remains on `stage-22/product-integration`, HEAD `e43896623978e86b7bae6502b380462b455626be`, with pre-existing Pocket/Anna work; do not modify it.
 
@@ -19,5 +20,5 @@
 
 ## Publication and next dependency
 
-- Publication state: pending final scope review, commit, stage-branch push, fast-forward of `main`, and fetched remote verification. Update this section with the accepted recovery SHA and ref agreement before finishing.
+- Publication verified: `stage-22/cross-path-evidence-equivalence`, `main`, and `integration/astra-friday` all resolved to `248046a72856be5833d247c892a4ec3088bf84b2` after fetch. The local `main` checkout was fast-forwarded to that commit. This follow-up is documentation-only.
 - Next canonical dependency: major adaptive replanning. Continue the retained roadmap order and include remaining browser-driven project execution/artifact/assessment and owner qualification where specified. Do not claim row 61 complete until its full retained scope is qualified.
