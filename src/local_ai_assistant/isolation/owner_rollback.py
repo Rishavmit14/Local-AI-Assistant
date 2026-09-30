@@ -10,8 +10,6 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from local_ai_assistant.gateway.auth import GatewayAuth
-from local_ai_assistant.gateway.models import GatewayScope
 from local_ai_assistant.history.models import TERMINAL_STATUSES
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.isolation.checkpoints import CheckpointManager, _git
@@ -24,12 +22,12 @@ from local_ai_assistant.isolation.transactional_rollback import (
 from local_ai_assistant.isolation.worktrees import WorktreeManager
 
 
-class OwnerRollbackSessions:
-    """Volatile short-lived browser sessions; process restart revokes all sessions."""
+class OwnerBrowserSessions:
+    """Volatile short-lived owner sessions; process restart revokes all sessions."""
     def __init__(self, token_hash: str, *, lifetime_seconds: int = 600):
         if len(token_hash) != 64 or any(c not in "0123456789abcdefABCDEF" for c in token_hash):
             raise ValueError("owner rollback token digest must be SHA-256 hex")
-        self._auth = GatewayAuth(token_hash, frozenset({GatewayScope.REQUEST_ROLLBACK}))
+        self._token_hash = token_hash.lower()
         self._sessions: dict[str, tuple[str, float]] = {}
         self.lifetime = lifetime_seconds
         self._failures: dict[str, list[float]] = {}
@@ -40,8 +38,7 @@ class OwnerRollbackSessions:
         self._failures[client] = failures
         if len(failures) >= 5:
             raise RuntimeError("rate limited")
-        principal = self._auth.authenticate(token)
-        if principal is None:
+        if not hmac.compare_digest(hashlib.sha256(token.encode()).hexdigest(), self._token_hash):
             failures.append(now)
             self._failures[client] = failures
             return None
@@ -67,6 +64,10 @@ class OwnerRollbackSessions:
     def revoke(self, session: str | None) -> None:
         if session:
             self._sessions.pop(hashlib.sha256(session.encode()).hexdigest(), None)
+
+
+# Compatibility name for the existing rollback-only integration.
+OwnerRollbackSessions = OwnerBrowserSessions
 
 
 class OwnerRollbackService:

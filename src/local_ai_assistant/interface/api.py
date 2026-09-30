@@ -450,6 +450,8 @@ def create_presentation_app(
     autonomy: ObjectiveService | None = None,
     objective_execution_auth: GatewayAuth | None = None,
     objective_execution_requests_per_minute: int = 30,
+    project_execution_sessions=None,
+    project_execution_allowed_origins: tuple[str, ...] = (),
     career_publication: GitHubPublicationService | None = None,
     career_tutor_clients: Mapping[TutorMode, object] | None = None,
     proactive: ProactiveEventEngine | None = None,
@@ -492,6 +494,7 @@ def create_presentation_app(
     project_review_lock = threading.Lock()
     objective_execution_limiter = GatewayRateLimiter(objective_execution_requests_per_minute)
     rollback_limiter = GatewayRateLimiter(objective_execution_requests_per_minute)
+    project_execution_limiter = GatewayRateLimiter(objective_execution_requests_per_minute)
     for configured_origin in rollback_allowed_origins:
         parsed = urlsplit(configured_origin)
         try:
@@ -502,6 +505,16 @@ def create_presentation_app(
                 or parsed.path or parsed.query or parsed.fragment or parsed.username or not valid_port
                 or configured_origin != f"{parsed.scheme}://{parsed.netloc}"):
             raise ValueError("rollback allowed origins must be exact loopback HTTP(S) origins")
+    for configured_origin in project_execution_allowed_origins:
+        parsed = urlsplit(configured_origin)
+        try:
+            valid_port = parsed.port is None or 1 <= parsed.port <= 65535
+        except ValueError:
+            valid_port = False
+        if (parsed.scheme not in {"http", "https"} or parsed.hostname not in {"localhost", "127.0.0.1"}
+                or parsed.path or parsed.query or parsed.fragment or parsed.username or not valid_port
+                or configured_origin != f"{parsed.scheme}://{parsed.netloc}"):
+            raise ValueError("project execution allowed origins must be exact loopback HTTP(S) origins")
 
     def rollback_origin(request: Request) -> None:
         authority = request.headers.get("host", "")
@@ -529,6 +542,70 @@ def create_presentation_app(
         if not isinstance(value, dict):
             raise HTTPException(400, detail="invalid request")
         return value
+
+    def project_execution_origin(request: Request) -> None:
+        authority = request.headers.get("host", "")
+        parsed_host = urlsplit("//" + authority)
+        try:
+            valid_port = parsed_host.port is None or 1 <= parsed_host.port <= 65535
+        except ValueError:
+            valid_port = False
+        if parsed_host.hostname not in {"127.0.0.1", "localhost"} or parsed_host.username or not valid_port:
+            raise HTTPException(403, detail="local owner access required")
+        origin = request.headers.get("origin", "").rstrip("/")
+        if not origin or origin not in project_execution_allowed_origins:
+            raise HTTPException(403, detail="unexpected request origin")
+
+    def project_execution_principal(request: Request, scope: GatewayScope) -> str:
+        project_execution_origin(request)
+        if project_execution_sessions is None or objective_execution_auth is None:
+            raise HTTPException(503, detail="project execution authentication is not configured")
+        session = request.cookies.get("friday_project_session")
+        csrf = request.headers.get("x-friday-csrf")
+        principal = project_execution_sessions.principal(session, csrf)
+        if principal is None:
+            raise HTTPException(401, detail="authentication required")
+        try:
+            objective_execution_auth.require_server_scope(scope)
+        except GatewayAuthorizationError as exc:
+            raise HTTPException(403, detail="insufficient gateway scope") from exc
+        if not project_execution_limiter.allow(principal):
+            raise HTTPException(429, detail="project execution request rate limit exceeded")
+        return principal
+
+    @app.post("/api/v1/project-execution/unlock")
+    async def project_execution_unlock(request: Request):
+        project_execution_origin(request)
+        if project_execution_sessions is None:
+            raise HTTPException(503, detail="project execution authentication is not configured")
+        body = await rollback_json(request)
+        supplied = body.get("token", "")
+        if not isinstance(supplied, str) or not 1 <= len(supplied) <= 512:
+            raise HTTPException(401, detail="authentication required")
+        try:
+            result = project_execution_sessions.unlock(supplied, request.client.host if request.client else "local")
+        except RuntimeError as exc:
+            raise HTTPException(429, detail="owner unlock temporarily rate limited") from exc
+        if result is None:
+            raise HTTPException(401, detail="authentication required")
+        session, csrf = result
+        response = JSONResponse({"csrf_token": csrf, "expires_in": 600})
+        response.set_cookie("friday_project_session", session, httponly=True,
+            secure=request.url.scheme == "https", samesite="strict", max_age=600,
+            path="/api/v1")
+        return response
+
+    @app.post("/api/v1/project-execution/lock")
+    def project_execution_lock(request: Request):
+        project_execution_origin(request)
+        session = request.cookies.get("friday_project_session")
+        csrf = request.headers.get("x-friday-csrf")
+        if project_execution_sessions is None or not csrf or project_execution_sessions.principal(session, csrf) is None:
+            raise HTTPException(401, detail="authentication required")
+        project_execution_sessions.revoke(session)
+        response = JSONResponse({"locked": True})
+        response.delete_cookie("friday_project_session", path="/api/v1")
+        return response
 
     def rollback_principal(request: Request, *, mutation: bool = False) -> str:
         if owner_rollback_sessions is None:
@@ -1079,22 +1156,100 @@ def create_presentation_app(
         except (ValueError, TypeError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.post("/api/v1/objectives/{objective_id}/approval")
+    async def approve_objective_plan(objective_id: str, request: Request):
+        principal = project_execution_principal(request, GatewayScope.SUBMIT_APPROVAL)
+        if task_history is None:
+            raise HTTPException(status_code=503, detail="canonical task history is unavailable")
+        try:
+            body = await request.json()
+            objective = owner_autonomy().get(objective_id)
+            task = task_history.get(objective.task_id) if objective.task_id else None
+            expected_hash = body.get("plan_hash")
+            if (task is None or objective.plan_hash is None or task.plan_hash != objective.plan_hash
+                    or objective.plan_hash != expected_hash or task.status not in {TaskStatus.AWAITING_APPROVAL, TaskStatus.REAPPROVAL_REQUIRED}
+                    or body.get("task_id") != task.task_id):
+                if task is not None:
+                    task_history.store.add_event(task.task_id, "gateway", "browser_project_authorization_denied",
+                        "Browser approval denied because the plan binding or approval state was stale",
+                        metadata={"principal": principal, "objective_id": objective_id,
+                            "task_id": task.task_id, "repository": task.repository,
+                            "starting_commit": task.starting_commit, "plan_hash": task.plan_hash,
+                            "requested_plan_hash": expected_hash if isinstance(expected_hash, str) else None,
+                            "decision": "denied", "reason": "exact_plan_mismatch_or_not_awaiting_approval"})
+                raise HTTPException(status_code=409, detail="approval does not match the exact current objective plan")
+            approval_id = task_history.attach_approval(
+                task.task_id, task.plan_hash, "explicitly_approved", actor=principal,
+                reason="Owner approved exact Objective plan through Friday browser session",
+            )
+            task_history.transition(task.task_id, TaskStatus.APPROVED,
+                "Exact Objective plan approved through authenticated Friday browser session", subsystem="approval")
+            task_history.store.add_event(task.task_id, "gateway", "browser_execution_approved",
+                "Browser approval bound to exact Objective plan", artifact_id=approval_id,
+                metadata={"principal": principal, "objective_id": objective_id,
+                    "task_id": task.task_id, "repository": task.repository,
+                    "starting_commit": task.starting_commit, "plan_hash": task.plan_hash,
+                    "approval_id": approval_id, "decision": "approved"})
+            return {"approval_id": approval_id, "objective_id": objective_id,
+                "task_id": task.task_id, "plan_hash": task.plan_hash, "status": "approved"}
+        except HTTPException:
+            raise
+        except (ValueError, TypeError, KeyError) as exc:
+            raise HTTPException(status_code=409, detail="objective approval is unavailable") from exc
+
     @app.post("/api/v1/objectives/{objective_id}/execute", status_code=202)
     async def execute_objective(objective_id: str, request: Request):
         if objective_execution_auth is None:
             raise HTTPException(status_code=503, detail="objective execution authentication is not configured")
         authorization = request.headers.get("authorization", "")
-        token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else None
-        try:
-            principal = objective_execution_auth.require(token, GatewayScope.REQUEST_EXECUTION)
-        except GatewayAuthenticationError as exc:
-            raise HTTPException(status_code=401, detail="authentication required") from exc
-        except GatewayAuthorizationError as exc:
-            raise HTTPException(status_code=403, detail="insufficient gateway scope") from exc
-        if not objective_execution_limiter.allow(principal.name):
+        browser_session = request.cookies.get("friday_project_session")
+        if browser_session:
+            principal = project_execution_principal(request, GatewayScope.REQUEST_EXECUTION)
+        else:
+            token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else None
+            try:
+                principal = objective_execution_auth.require(token, GatewayScope.REQUEST_EXECUTION).name
+            except GatewayAuthenticationError as exc:
+                raise HTTPException(status_code=401, detail="authentication required") from exc
+            except GatewayAuthorizationError as exc:
+                raise HTTPException(status_code=403, detail="insufficient gateway scope") from exc
+        if not objective_execution_limiter.allow(principal):
             raise HTTPException(status_code=429, detail="execution request rate limit exceeded")
+        if not browser_session:
+            try:
+                result = await run_in_threadpool(owner_autonomy().request_execution, objective_id)
+                return {"execution": result}
+            except RepositoryOnboardingError as exc:
+                raise HTTPException(status_code=409, detail="repository is not ready for guarded execution") from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            except RuntimeError as exc:
+                raise HTTPException(status_code=503, detail="canonical execution is unavailable") from exc
         try:
-            return {"execution": await run_in_threadpool(owner_autonomy().request_execution, objective_id)}
+            objective = owner_autonomy().get(objective_id)
+            task = task_history.get(objective.task_id) if task_history is not None and objective.task_id else None
+            if task is None or task.plan_hash != objective.plan_hash:
+                if task is not None:
+                    task_history.store.add_event(task.task_id, "gateway", "browser_project_authorization_denied",
+                        "Browser execution denied because the Objective plan no longer matches TaskHistory",
+                        metadata={"principal": principal, "objective_id": objective_id,
+                            "task_id": task.task_id, "repository": task.repository,
+                            "starting_commit": task.starting_commit, "plan_hash": task.plan_hash,
+                            "objective_plan_hash": objective.plan_hash, "decision": "denied",
+                            "reason": "stale_objective_plan"})
+                raise HTTPException(status_code=409, detail="objective plan is stale")
+            result = await run_in_threadpool(owner_autonomy().request_execution, objective_id)
+            approvals = task_history.store.approvals_for(task.task_id, task.plan_hash)
+            approval_id = approvals[-1]["approval_id"] if approvals else None
+            task_history.store.add_event(task.task_id, "gateway", "browser_execution_authorized",
+                "Execution authorized for exact approved Objective plan", artifact_id=approval_id,
+                metadata={"principal": principal, "objective_id": objective_id,
+                    "task_id": task.task_id, "repository": task.repository,
+                    "starting_commit": task.starting_commit, "plan_hash": task.plan_hash,
+                    "approval_id": approval_id, "gateway_scope": GatewayScope.REQUEST_EXECUTION.value,
+                    "execution_id": (result.get("execution_id") or result.get("run_id") if isinstance(result, dict) else getattr(result, "execution_id", getattr(result, "run_id", None))),
+                    "decision": "authorized"})
+            return {"execution": result}
         except RepositoryOnboardingError as exc:
             raise HTTPException(status_code=409, detail="repository is not ready for guarded execution") from exc
         except ValueError as exc:

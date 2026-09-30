@@ -81,6 +81,9 @@ def test_auth_is_hash_only_and_scoped():
     assert auth.authenticate("wrong") is None
     with pytest.raises(GatewayAuthorizationError):
         auth.require(token, GatewayScope.CREATE_TASK)
+    assert auth.require_server_scope(GatewayScope.READ_STATUS).name == "friday-server"
+    with pytest.raises(GatewayAuthorizationError):
+        auth.require_server_scope(GatewayScope.REQUEST_EXECUTION)
 
 
 def test_auth_rejects_malformed_hash_and_distinguishes_401_403_errors():

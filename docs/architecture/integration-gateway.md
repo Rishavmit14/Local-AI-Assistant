@@ -46,3 +46,25 @@ owner, bridge, or Origin configuration fails closed. Reviews and operation
 results share TaskHistory SQLite and invoke the accepted transactional
 isolation kernel; this does not add rollback to the general execution bearer or
 make rollback available to arbitrary repositories/tasks.
+
+Browser Project execution uses a separate local-owner session bridge. The owner
+unlocks with `LOCAL_AI_PROJECT_OWNER_TOKEN_HASH` through the same-origin
+Presentation API; the API stores only a digest-backed, volatile session and
+returns a CSRF token. The browser receives only an HttpOnly, SameSite=Strict
+cookie (Secure on HTTPS) and the CSRF value. Sessions expire after ten minutes
+and process restart revokes them. Mutations require an exact configured loopback
+Origin/Host and CSRF header. `LOCAL_AI_PROJECT_EXECUTION_ALLOWED_ORIGINS` is an
+explicit comma-separated origin allowlist.
+
+The trusted presentation process checks `submit_approval` before recording
+approval and checks `request_execution` again at execution time using its
+configured Gateway scope set. Those checks are independent. Approval loads the
+Objective, current TaskHistory record, and exact current plan hash on the
+server; approval evidence is attached to the task/hash and transitions only
+that task to approved. Execution then re-enters ObjectiveService and Gateway,
+which rechecks task status, current plan hash, and the canonical approval row
+before isolated execution. Browser input cannot select a repository path or
+claim a Gateway principal. Approval and execution decisions are recorded in
+TaskHistory with principal, Objective/task, repository, starting commit,
+plan hash, approval ID, scope decision, timestamp, and execution handle where
+available. No Gateway bearer is sent to the browser.

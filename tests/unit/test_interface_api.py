@@ -1711,6 +1711,9 @@ def test_presentation_api_has_no_unbounded_execution_routes():
     assert schema["paths"]["/api/v1/projects/{project_id}/objective"].keys() == {"post"}
     assert schema["paths"]["/api/v1/projects/{project_id}/submit-artifacts"].keys() == {"post"}
     assert schema["paths"]["/api/v1/projects/{project_id}/review"].keys() == {"post"}
+    assert schema["paths"]["/api/v1/project-execution/unlock"].keys() == {"post"}
+    assert schema["paths"]["/api/v1/project-execution/lock"].keys() == {"post"}
+    assert schema["paths"]["/api/v1/objectives/{objective_id}/approval"].keys() == {"post"}
 
     assert paths == {
         "/health",
@@ -1761,6 +1764,9 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/objectives/{objective_id}/plan",
         "/api/v1/objectives/{objective_id}/cancel",
         "/api/v1/objectives/{objective_id}/execute",
+        "/api/v1/objectives/{objective_id}/approval",
+        "/api/v1/project-execution/unlock",
+        "/api/v1/project-execution/lock",
         "/api/v1/desktop/actions",
         "/api/v1/desktop/actions/{action_id}/approve",
         "/api/v1/desktop/actions/{action_id}/execute",

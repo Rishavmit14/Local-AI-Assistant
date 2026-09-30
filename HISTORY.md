@@ -2073,7 +2073,24 @@ PARTIAL for broader owner qualification, browser project task/artifact/assessmen
 execution, and final visual acceptance. Friday and production Qwen were not
 restarted or mutated.
 
-## 2026-09-30 — Stage 22 cross-path evidence equivalence
+## 2026-09-30 — Stage 22 browser-safe Project authorization bridge
+
+Qualified the bounded browser authorization bridge for Project approval and
+Objective execution. Presentation sessions use a separate owner-token digest,
+short-lived HttpOnly/SameSite cookie, CSRF token, and exact loopback origin
+checks. Gateway `submit_approval` and `request_execution` scopes are checked
+server-side; approval binds current TaskHistory plan state and execution
+revalidates it before isolated dispatch. Deterministic tests cover denied
+origins, CSRF, missing scopes, stale/changed plan, missing approval, and replay.
+An isolated native-browser journey successfully approved, dispatched work,
+produced and submitted an artifact. The local Qwen Reviewer correctly rejected
+the thin artifact and the project entered `needs_revision` without evidence or
+mastery changes. Therefore this bridge is qualified while successful end-to-end
+project assessment, broader owner qualification, and final visual acceptance
+remain open; roadmap row 61 stays PARTIAL. See ADR 0037, operations guidance,
+and the current handoff. Full Python and frontend suites, repository verifier,
+frontend lint/build, and Ruff passed. Production Friday and Qwen were not
+restarted or mutated.
 
 Accepted explicitly owner-declared cross-path reuse for arbitrary Dynamic
 Learning Path nodes. Reuse requires a matching assessment contract and
@@ -2096,3 +2113,5 @@ controls for changed contract and higher mastery requirement. Project/capstone
 browser task execution and artifact assessment, broad owner qualification, and
 final visual acceptance remain open; roadmap row 61 remains PARTIAL. Friday and
 Qwen production services were not restarted or mutated.
+
+## 2026-09-30 — Stage 22 cross-path evidence equivalence

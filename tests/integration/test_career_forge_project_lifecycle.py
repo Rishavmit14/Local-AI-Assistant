@@ -22,6 +22,7 @@ from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.runtime import FridayRuntime
+from local_ai_assistant.isolation.owner_rollback import OwnerRollbackSessions
 from local_ai_assistant.planning.models import (
     ApprovalDecision,
     ApprovalStatus,
@@ -155,10 +156,63 @@ def test_real_bounded_project_lifecycle_recovers_exact_publication(tmp_path, mon
     objective = autonomy.resume(autonomy.create("Build and validate the model card").objective_id)
     forge.link_mission_objective(mission.mission_id, objective.objective_id)
     objective = autonomy.request_plan(objective.objective_id, "career-project")
-    history.attach_approval(objective.task_id, objective.plan_hash, "explicitly_approved", actor="owner")
-    history.store.transition(objective.task_id, TaskStatus.APPROVED, "exact owner approval", subsystem="approval")
-    handle = autonomy.request_execution(objective.objective_id)
-    execution._runs[handle.run_id].result(timeout=10)
+    gateway_token = "server-only-project-execution-token"
+    owner_token = "separate-owner-session-credential"
+    browser_auth = GatewayAuth(
+        hashlib.sha256(gateway_token.encode()).hexdigest(),
+        frozenset({GatewayScope.REQUEST_EXECUTION, GatewayScope.SUBMIT_APPROVAL}),
+    )
+    browser_runtime = FridayRuntime("project-browser-authorization")
+    browser_client = TestClient(create_presentation_app(
+        browser_runtime, FridayConversationService(_LLM(), browser_runtime),
+        autonomy=autonomy, task_history=history, objective_execution_auth=browser_auth,
+        project_execution_sessions=OwnerRollbackSessions(hashlib.sha256(owner_token.encode()).hexdigest()),
+        project_execution_allowed_origins=("http://127.0.0.1:5191",),
+    ), base_url="http://127.0.0.1:8766")
+    origin = {"Origin": "http://127.0.0.1:5191"}
+    execution_path = f"/api/v1/objectives/{objective.objective_id}/execute"
+    approval_path = f"/api/v1/objectives/{objective.objective_id}/approval"
+    assert browser_client.post(execution_path, headers=origin).status_code == 401
+    assert browser_client.post(approval_path, json={}, headers={**origin, "X-Friday-CSRF": "missing"}).status_code == 401
+    assert browser_client.post("/api/v1/project-execution/unlock", json={"token": owner_token}, headers={"Origin": "http://evil.test"}).status_code == 403
+    unlocked = browser_client.post("/api/v1/project-execution/unlock", json={"token": owner_token}, headers=origin)
+    assert unlocked.status_code == 200
+    assert "HttpOnly" in unlocked.headers["set-cookie"] and "SameSite=strict" in unlocked.headers["set-cookie"]
+    assert gateway_token not in unlocked.text
+    csrf = unlocked.json()["csrf_token"]
+    browser_headers = {**origin, "X-Friday-CSRF": csrf}
+    assert browser_client.post(execution_path, headers={"Origin": "http://evil.test", "X-Friday-CSRF": csrf}).status_code == 403
+    assert browser_client.post(execution_path, headers=browser_headers).status_code == 409
+    approval_body = {"task_id": objective.task_id, "starting_commit": history.get(objective.task_id).starting_commit,
+        "plan_hash": objective.plan_hash}
+    assert browser_client.post(approval_path, json={**approval_body, "plan_hash": "0" * 64}, headers=browser_headers).status_code == 409
+    browser_auth._scopes = frozenset({GatewayScope.REQUEST_EXECUTION})
+    assert browser_client.post(approval_path, json=approval_body, headers=browser_headers).status_code == 403
+    browser_auth._scopes = frozenset({GatewayScope.SUBMIT_APPROVAL})
+    assert browser_client.post(execution_path, headers=browser_headers).status_code == 403
+    browser_auth._scopes = frozenset({GatewayScope.REQUEST_EXECUTION, GatewayScope.SUBMIT_APPROVAL})
+    approved = browser_client.post(approval_path, json=approval_body, headers=browser_headers)
+    assert approved.status_code == 200 and approved.json()["plan_hash"] == objective.plan_hash
+    assert history.get(objective.task_id).status is TaskStatus.APPROVED
+    history.store.update_task(objective.task_id, str(repository), plan_hash="b" * 64)
+    assert browser_client.post(execution_path, headers=browser_headers).status_code == 409
+    history.store.update_task(objective.task_id, str(repository), plan_hash=objective.plan_hash)
+    started = browser_client.post(execution_path, headers=browser_headers)
+    assert started.status_code == 202
+    assert browser_client.post(execution_path, headers=browser_headers).status_code == 409
+    handle = execution._runs[started.json()["execution"]["run_id"]]
+    handle.result(timeout=10)
+    assert history.get(objective.task_id).status is TaskStatus.SUCCEEDED
+    browser_events = [event for event in history.timeline(objective.task_id) if event.event_type in {"browser_execution_approved", "browser_execution_authorized"}]
+    assert {event.event_type for event in browser_events} == {"browser_execution_approved", "browser_execution_authorized"}
+    authorized_event = next(event for event in browser_events if event.event_type == "browser_execution_authorized")
+    assert authorized_event.metadata["principal"] == "local-owner"
+    assert authorized_event.metadata["objective_id"] == objective.objective_id
+    assert authorized_event.metadata["task_id"] == objective.task_id
+    assert authorized_event.metadata["plan_hash"] == objective.plan_hash
+    assert authorized_event.metadata["approval_id"] == approved.json()["approval_id"]
+    assert authorized_event.metadata["gateway_scope"] == GatewayScope.REQUEST_EXECUTION.value
+    assert gateway_token not in repr(browser_events)
     completed_task = history.get(objective.task_id)
     assert completed_task.status is TaskStatus.SUCCEEDED
     assert completed_task.branch == f"friday/task/{objective.task_id}"

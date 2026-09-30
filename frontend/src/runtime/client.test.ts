@@ -49,6 +49,34 @@ describe("FridayRuntimeClient desktop action authority", () => {
   });
 });
 
+describe("FridayRuntimeClient browser-safe project execution", () => {
+  it("keeps the Gateway bearer out of browser calls and uses only the scoped CSRF session", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ csrf_token: "csrf-value", expires_in: 600 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 200 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 202 }))
+      .mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+    const csrf = await client.unlockProjectExecution("owner-session-credential");
+    await client.approveObjectivePlan("objective-1", "task_aaaaaaaaaaaaaaaaaaaa", "a".repeat(64), csrf);
+    await client.executeObjective("objective-1", csrf);
+    await client.lockProjectExecution(csrf);
+    expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
+      ["/api/v1/project-execution/unlock", "POST"],
+      ["/api/v1/objectives/objective-1/approval", "POST"],
+      ["/api/v1/objectives/objective-1/execute", "POST"],
+      ["/api/v1/project-execution/lock", "POST"],
+    ]);
+    expect(fetchMock.mock.calls[1][1]?.headers).toEqual({ "Content-Type": "application/json", "X-Friday-CSRF": csrf });
+    for (const [, init] of [fetchMock.mock.calls[2], fetchMock.mock.calls[3]]) {
+      expect(init?.headers).toEqual({ "X-Friday-CSRF": csrf });
+    }
+    expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("Authorization");
+    expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("Bearer");
+  });
+});
+
 describe("FridayRuntimeClient governed memory boundary", () => {
   const memory = {
     memory_id: "mem-test", kind: "fact", subject: "temporary qualification marker",

@@ -496,6 +496,16 @@ class TaskHistoryStore:
             ).fetchall()
         return tuple(self._event(row) for row in rows)
 
+    def approvals_for(self, task_id: str, plan_hash: str) -> tuple[dict, ...]:
+        """Return exact-plan approval evidence in canonical order."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT approval_id, task_id, plan_hash, state, timestamp, actor, reason "
+                "FROM approvals WHERE task_id=? AND plan_hash=? ORDER BY timestamp, approval_id",
+                (task_id, plan_hash),
+            ).fetchall()
+        return tuple(dict(row) for row in rows)
+
     def list_tasks(self, filters: TaskFilter | None = None) -> tuple[TaskRecord, ...]:
         filters = filters or TaskFilter()
         clauses: list[str] = []

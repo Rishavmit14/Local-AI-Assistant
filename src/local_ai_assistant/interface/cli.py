@@ -30,7 +30,7 @@ from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.interface.task_explanation import TaskExplanationService
 from local_ai_assistant.isolation.checkpoints import CheckpointManager
-from local_ai_assistant.isolation.owner_rollback import OwnerRollbackService, OwnerRollbackSessions
+from local_ai_assistant.isolation.owner_rollback import OwnerBrowserSessions, OwnerRollbackService
 from local_ai_assistant.isolation.transactional_rollback import TransactionalRollbackService
 from local_ai_assistant.isolation.worktrees import WorktreeManager
 from local_ai_assistant.learning_paths import LearningPathService
@@ -199,9 +199,11 @@ def build_presentation_components(
         if resolved_config.gateway.enabled and resolved_config.gateway.token_hash else None
     )
     rollback_owner_hash = os.environ.get("LOCAL_AI_ROLLBACK_OWNER_TOKEN_HASH", "")
+    project_owner_hash = os.environ.get("LOCAL_AI_PROJECT_OWNER_TOKEN_HASH", "")
     rollback_gateway_token = os.environ.get("LOCAL_AI_ROLLBACK_GATEWAY_TOKEN", "")
     rollback_gateway_hash = os.environ.get("LOCAL_AI_ROLLBACK_GATEWAY_TOKEN_HASH", "")
-    rollback_sessions = OwnerRollbackSessions(rollback_owner_hash) if rollback_owner_hash else None
+    rollback_sessions = OwnerBrowserSessions(rollback_owner_hash) if rollback_owner_hash else None
+    project_sessions = OwnerBrowserSessions(project_owner_hash) if project_owner_hash else None
     rollback_gateway_auth = (
         GatewayAuth(rollback_gateway_hash, frozenset({GatewayScope.REQUEST_ROLLBACK}))
         if rollback_gateway_hash and rollback_gateway_token else None
@@ -442,6 +444,10 @@ def build_presentation_components(
         autonomy=autonomy,
         objective_execution_auth=execution_auth,
         objective_execution_requests_per_minute=resolved_config.gateway.request_rate,
+        project_execution_sessions=project_sessions,
+        project_execution_allowed_origins=tuple(
+            origin.rstrip("/") for origin in os.environ.get("LOCAL_AI_PROJECT_EXECUTION_ALLOWED_ORIGINS", "").split(",") if origin.strip()
+        ),
         career_publication=career_publication,
         career_tutor_clients=career_tutor_clients,
         proactive=proactive,

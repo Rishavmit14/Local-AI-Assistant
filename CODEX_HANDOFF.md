@@ -1,36 +1,21 @@
-# Friday recovery handoff — Adaptive learning replanning
+# Friday recovery handoff — Stage 22 browser Project authorization
 
-## Current work
+## Current recovery state
 
-- Worktree: `/home/kumar-rishav/.codex/worktrees/friday-adaptive-replanning/Local-AI-Assistant-terra-integration`
-- Branch: `stage-22/adaptive-learning-replanning`
-- Base: `9d7ad6ecf41a6db6b24b0e3d779685b509f653ee`.
-- Accepted capability commit: `ebfe61f27863ed626e881bcad125406acf148cf7` (`stage-22: qualify adaptive learning replanning`).
-- Scope: deterministic, learner-requested DLP replanning from canonical Career Forge evidence; safely prune only exact-equivalent supported future nodes; route weak/low/stale evidence to existing reinforcement/diagnostic/review; immutable version provenance and learner-facing Learn action. See ADR 0037 and `docs/architecture/dynamic-learning-paths.md`.
-- `NeuralPresence.tsx` was not changed. Protected production checkout `/AI/projects/Local-AI-Assistant` remains on `stage-22/product-integration`, HEAD `e43896623978e86b7bae6502b380462b455626be`, with existing Pocket/Anna work. Friday and production Qwen were healthy and neither was restarted or mutated.
+- Active worktree: `/home/kumar-rishav/.codex/worktrees/friday-browser-safe-execution/Local-AI-Assistant-terra-integration`
+- Branch: `stage-22/browser-safe-project-execution`, based on `origin/main` `a79bfd9bf1fa54734dd110c6fadc604be7d46dd0`.
+- Current HEAD before acceptance commit: `a79bfd9bf1fa54734dd110c6fadc604be7d46dd0`; implementation and documentation are in the working tree pending final review/commit.
+- Protected production checkout `/AI/projects/Local-AI-Assistant` remains at `e43896623978e86b7bae6502b380462b455626be` with its pre-existing Pocket/Anna work. Production Friday (`127.0.0.1:8765`) and Qwen (`:8080`) were healthy and were not restarted or mutated. `NeuralPresence.tsx` is unchanged.
+- The ordinary checkout `/AI/projects/Local-AI-Assistant-terra-integration` has an unrelated owner `ROADMAP.md` edit; its bytes were preserved. The prior blocked `friday-project-execution` worktree and its handoff edit were preserved untouched.
 
-## Evidence and validation
+## Qualified bounded capability
 
-- Full repository verifier: 1,168 passed, one existing Starlette/AnyIO deprecation warning; compileall, CLI checks, `pip check`, and tracked artifact checks passed.
-- Full frontend suite: 121 passed; ESLint, TypeScript, and production build passed. Vite retains its existing large-chunk advisory. Ruff and `git diff --check` passed.
-- Isolated native browser journeys with local Qwen qualified successful cross-path acceleration and weak-assessment remediation; both reloaded and reconstructed the persisted version and explanation. The initial insufficient answer was rejected. Deterministic tests cover changed assessment contracts, higher proficiency floor, milestones, projects, graph validation, no-evidence behavior, and version history.
-- Candidate API/UI processes and ports 8766/8767/5191/5192 are stopped. Production Qwen remained reachable; production Friday was not restarted.
-- Row 61 remains PARTIAL: broader owner qualification, browser-driven project task execution/artifact submission/assessment, and final visual acceptance remain open. Do not start the next major roadmap slice in this session.
+ADR 0037 and the integration Gateway architecture/operations docs describe the browser-safe Project approval/execution bridge. It uses a separate owner credential digest, volatile short-lived HttpOnly/SameSite session, CSRF and exact loopback Origin/Host checks. Gateway bearer credentials remain server-side; `SUBMIT_APPROVAL` and `REQUEST_EXECUTION` are independently required. Canonical Objective/task/plan state is bound at approval and revalidated for isolated dispatch. Auditing records principal and objective/task/repository/commit/hash/approval/run identifiers.
 
-## Publication and exact next dependency
+Validation completed: full Python suite and `scripts/maintenance/verify-repository.sh`; focused integration/security tests; full frontend suite (122 passed), lint, TypeScript/Vite build, and Ruff. The verifier reported 1,168 Python tests passed with one existing Starlette/AnyIO deprecation warning. Native-browser qualification against disposable isolated state successfully unlocked, reviewed the exact plan, approved, dispatched a task through CodeAgentExecutionService, produced/committed an artifact in an isolated worktree, and submitted it. The actual local Qwen Reviewer correctly rejected the thin artifact; the project persisted `needs_revision` with no evidence or mastery change. This qualifies the authorization bridge only, not a successful project assessment lifecycle.
 
-The accepted capability commit is
-`ebfe61f27863ed626e881bcad125406acf148cf7`; the recovery documentation commit
-is `0b6364c9b5869a00153e1843ca3665dcda3e9e72`. Fetched remote refs
-`stage-22/adaptive-learning-replanning`, `main`, and `integration/astra-friday`
-all contain both commits, and the stage worktree is clean at the current
-published tip. The separate local main checkout
-`/AI/projects/Local-AI-Assistant-terra-integration` has an uncommitted
-`ROADMAP.md` edit. It was preserved untouched; main was fast-forward published
-directly from the clean stage worktree. Reconcile that local checkout before
-using it as a clean workspace.
+Temporary API/Vite qualification processes used ports 8766/5191; stop them after acceptance review. Do not stop production Friday/Qwen. Frontend build has the existing large-chunk advisory; `npm ci` exposed one high audit advisory in the local dependency tree without changing package manifests/lockfile.
 
-Next DLP/product dependency: browser-driven project task execution, artifact
-submission, and assessment, followed by broader owner qualification. Keep final
-visual acceptance open and row 61 PARTIAL; do not start the next major roadmap
-slice until this accepted checkpoint is recovered from clean refs.
+## Exact next dependency
+
+Finish review/commit/push of this bounded bridge on `stage-22/browser-safe-project-execution`, fast-forward/push `main` to the same commit from clean Git state, fetch and verify both refs and clean accepted worktree. Preserve the dirty ordinary-checkout `ROADMAP.md` throughout. Then continue Row 61: strengthen the disposable Project artifact/explanation into a technically substantive submission that local Qwen can accept, verify canonical Career Forge evidence/mastery persistence and browser reload reconstruction, and complete broader owner qualification/final visual acceptance. Keep Row 61 PARTIAL until those gates pass.

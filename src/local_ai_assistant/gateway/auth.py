@@ -52,6 +52,17 @@ class GatewayAuth:
             raise GatewayAuthorizationError("insufficient gateway scope")
         return principal
 
+    def require_server_scope(self, scope: GatewayScope) -> Principal:
+        """Authorize a trusted in-process caller against configured Gateway scope.
+
+        Browser sessions authenticate the owner separately. This method lets a
+        presentation BFF enforce the configured Gateway capability without
+        forwarding the Gateway bearer credential to the browser.
+        """
+        if scope not in self._scopes:
+            raise GatewayAuthorizationError("insufficient gateway scope")
+        return Principal("friday-server", self._scopes)
+
 
 class GatewayRateLimiter:
     def __init__(self, requests_per_minute: int):

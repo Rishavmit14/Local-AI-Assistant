@@ -768,6 +768,38 @@ export class FridayRuntimeClient {
     return (await response.json() as { objective: FridayObjective }).objective;
   }
 
+  async unlockProjectExecution(token: string): Promise<string> {
+    const response = await fetch(`${this.baseUrl}/api/v1/project-execution/unlock`, {
+      method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }),
+    });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    const value = await response.json() as { csrf_token?: unknown };
+    if (typeof value.csrf_token !== "string") throw new Error("project session was not established");
+    return value.csrf_token;
+  }
+
+  async approveObjectivePlan(objectiveId: string, taskId: string, planHash: string, csrf: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/approval`, {
+      method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Friday-CSRF": csrf },
+      body: JSON.stringify({ task_id: taskId, plan_hash: planHash }),
+    });
+    if (!response.ok) throw new Error(await responseDetail(response));
+  }
+
+  async executeObjective(objectiveId: string, csrf: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/execute`, {
+      method: "POST", credentials: "same-origin", headers: { "X-Friday-CSRF": csrf },
+    });
+    if (!response.ok) throw new Error(await responseDetail(response));
+  }
+
+  async lockProjectExecution(csrf: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/v1/project-execution/lock`, {
+      method: "POST", credentials: "same-origin", headers: { "X-Friday-CSRF": csrf },
+    });
+    if (!response.ok) throw new Error(await responseDetail(response));
+  }
+
   async getObjectivePlanReview(objectiveId: string, signal?: AbortSignal): Promise<FridayPlanReview> {
     const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/plan`, { signal });
     if (!response.ok) throw new Error(`objective plan review failed: ${response.status}`);

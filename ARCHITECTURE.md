@@ -679,6 +679,24 @@ The permanent authority direction is `voice/UI/external adapters -> Friday nativ
   defined authorization/review boundaries; planned analysis or production does
   not imply permission to transact or publish.
 
+### Browser Project approval and execution — qualified bridge
+
+The Presentation API provides same-origin Project approval and Objective
+execution through a volatile owner session. Browser sessions use a short-lived
+HttpOnly/SameSite=Strict cookie and CSRF token, exact configured loopback
+Origin/Host validation, and a separate owner unlock digest. The Presentation
+process checks configured Gateway `SUBMIT_APPROVAL` and `REQUEST_EXECUTION`
+scopes independently, while Gateway bearer credentials stay server-side.
+Approval is loaded and persisted against the authoritative current TaskHistory
+plan hash; execution rechecks Objective, task, hash, approval, and Gateway scope
+before dispatching through the existing isolated Gateway route. TaskHistory
+stores approval and execution authorization events with principal,
+objective/task, repository, starting commit, plan hash, approval ID, and run ID.
+Deterministic security coverage and an isolated native-browser journey qualify
+this authorization bridge. The complete successful project artifact/assessment
+journey and broader owner qualification remain open. See ADR 0037 and
+`docs/architecture/integration-gateway.md`.
+
 ## Stage 12C-A — inline wake command semantics
 
 Accepted on 2026-08-30.

@@ -1,5 +1,21 @@
 # Integration gateway operations
 
+## Browser Project approval and execution
+
+Configure `LOCAL_AI_PROJECT_OWNER_TOKEN_HASH` as the SHA-256 hex digest of a
+strong, separate owner unlock token and
+`LOCAL_AI_PROJECT_EXECUTION_ALLOWED_ORIGINS` as comma-separated exact loopback
+browser origins. Configure `LOCAL_AI_GATEWAY_SCOPES` with both
+`submit_approval` and `request_execution`; the Presentation API fails closed
+when owner authentication, origins, or required server-side scopes are absent.
+The Gateway bearer credential remains server-side and is never sent to or
+stored by the browser. The browser receives only a short-lived HttpOnly,
+strict-SameSite session cookie and in-memory CSRF token. Removing the owner
+digest/origins or required scopes disables new authorizations; restart the
+Presentation API to revoke already-issued volatile sessions. Approval binds
+the current Objective/task and plan hash; execution checks that binding again
+before the isolated Gateway dispatcher admits work.
+
 The optional gateway is disabled by default. Install the `gateway` extra before serving the FastAPI adapter. Run `local-ai-gateway config-check` to inspect non-secret configuration and `local-ai-gateway auth-token-check` to verify a token digest without printing a token.
 
 `local-ai-gateway mcp-stdio` starts the local MCP server boundary. MCP server support is stdio-only; Friday does not implement an MCP client. Stdio has no remote bearer authentication: the launching local process/user is trusted, while every operation still passes through the typed gateway service and configured repository/scope policy. Diagnostics go to stderr and stdout is reserved for JSON-RPC.

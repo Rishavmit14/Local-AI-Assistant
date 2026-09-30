@@ -1704,6 +1704,25 @@ reload reconstruction. Overall rows 60 and 61 remain PARTIAL. Remaining row-61
 gaps are broader owner qualification, browser-driven project task
 execution/artifact submission/assessment, and final visual acceptance.
 
+### Browser-safe Project authorization — QUALIFIED (bounded authorization bridge)
+
+The Presentation API implementation candidate establishes a volatile
+same-origin owner session with an HttpOnly/SameSite=Strict cookie, CSRF header,
+and exact loopback Origin/Host checks. It keeps Gateway bearer credentials
+server-side and independently checks configured `SUBMIT_APPROVAL` and
+`REQUEST_EXECUTION` scopes. Approval binds the authoritative Objective/task to
+the current TaskHistory plan hash; execution re-enters ObjectiveService and
+Gateway for canonical revalidation and isolated dispatch. Focused integration
+coverage exercises denied and allowed paths. An isolated native-browser journey
+also qualified successful approval, isolated task dispatch, artifact
+production, and browser submission. A local Qwen-backed review correctly
+rejected the thin qualification artifact; the project moved to `needs_revision`
+and created no evidence or mastery change. This qualifies the authorization
+bridge only. A successful project artifact/assessment lifecycle, broader owner
+qualification, and final visual acceptance remain open; row 61 remains PARTIAL.
+See ADR 0037 and `docs/architecture/integration-gateway.md`.
+
+
 ### Manual curriculum editing with prerequisite protection — QUALIFIED (bounded candidate path)
 
 Learn now exposes bounded owner operations over the canonical DLP graph:
