@@ -6,7 +6,7 @@
 - Branch: `stage-22/manual-curriculum-editing`
 - Base/recovery SHA: `74d7a680f07e4fbd390b3c327ff3099047ad992e`
 - Capability commit: `26f62a0b126d6b245e17ff90ebff50862043a551` (implementation and qualification record)
-- Current feature implementation HEAD before this handoff-only record: `26f62a0b126d6b245e17ff90ebff50862043a551`; the current branch tip also includes the documentation-only recovery record.
+- Last verified recovery commit before this handoff refresh: `ddf9c2b333086ad1e674aeed387652a648c9a8d1` (includes capability `26f62a0b126d6b245e17ff90ebff50862043a551` and recovery documentation). This handoff refresh is documentation-only.
 - Scope: owner-facing manual DLP edits over the canonical graph, prerequisite and project protection, immutable revisions, expected-version writes, evidence/history preservation, and minimal Learn controls. `NeuralPresence.tsx` was not changed.
 - Row 61 remains PARTIAL. Manual curriculum editing is now bounded-qualified; this does not qualify cross-path evidence reuse, major adaptive replanning, full production owner flows, browser-driven project execution/artifact submission/assessment, or final visual acceptance.
 
@@ -33,6 +33,6 @@ Removal is blocked for dependent sources, project/capstone anchors, qualifying C
 
 ## Publication state and exact next work
 
-- Capability commit `26f62a0b126d6b245e17ff90ebff50862043a551` has passed local qualification. At recovery start, `main` and `integration/astra-friday` pointed to `74d7a680f07e4fbd390b3c327ff3099047ad992e`; both are ancestors of the capability.
-- Publish the owning `stage-22/manual-curriculum-editing` branch and fast-forward/publish `main` and established integration branch `integration/astra-friday` to the same accepted recovery commit. Fetch and verify all refs and a clean worktree. Never force-push.
-- After this requested slice is published, the next roadmap dependency is **cross-path evidence equivalence**, followed by major adaptive replanning. Do not start that next slice in this task.
+- Capability commit: `26f62a0b126d6b245e17ff90ebff50862043a551`. Last verified remote recovery pointer: `ddf9c2b333086ad1e674aeed387652a648c9a8d1`; at verification, `stage-22/manual-curriculum-editing`, `main`, and `integration/astra-friday` all pointed to that SHA. The local `main` checkout was fast-forwarded and clean.
+- This handoff refresh records publication state only. Publish its documentation-only commit to the same three refs and verify the resulting refs agree and worktrees are clean.
+- Next roadmap dependency is **cross-path evidence equivalence**, followed by major adaptive replanning. Do not start that next slice in this task.
