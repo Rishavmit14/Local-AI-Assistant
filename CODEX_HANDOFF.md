@@ -5,7 +5,8 @@
 - Worktree: `/home/kumar-rishav/.codex/worktrees/friday-project-capstone/Local-AI-Assistant-terra-integration`
 - Branch: `stage-22/manual-curriculum-editing`
 - Base/recovery SHA: `74d7a680f07e4fbd390b3c327ff3099047ad992e`
-- Current HEAD: `74d7a680f07e4fbd390b3c327ff3099047ad992e` (implementation is uncommitted at this handoff checkpoint)
+- Capability commit: `26f62a0b126d6b245e17ff90ebff50862043a551` (implementation and qualification record)
+- Current feature implementation HEAD before this handoff-only record: `26f62a0b126d6b245e17ff90ebff50862043a551`; the current branch tip also includes the documentation-only recovery record.
 - Scope: owner-facing manual DLP edits over the canonical graph, prerequisite and project protection, immutable revisions, expected-version writes, evidence/history preservation, and minimal Learn controls. `NeuralPresence.tsx` was not changed.
 - Row 61 remains PARTIAL. Manual curriculum editing is now bounded-qualified; this does not qualify cross-path evidence reuse, major adaptive replanning, full production owner flows, browser-driven project execution/artifact submission/assessment, or final visual acceptance.
 
@@ -32,6 +33,6 @@ Removal is blocked for dependent sources, project/capstone anchors, qualifying C
 
 ## Publication state and exact next work
 
-- Publication is pending final review and commit. At recovery start, `main` and `integration/astra-friday` pointed to `74d7a680f07e4fbd390b3c327ff3099047ad992e`; the owning branch is `stage-22/manual-curriculum-editing`.
-- Publish the accepted capability on its owning branch, fast-forward and publish `main` to the same commit, update/publish `integration/astra-friday` if required by the established integration workflow, then fetch and verify all intended remote recovery refs and clean worktree. Never force-push.
+- Capability commit `26f62a0b126d6b245e17ff90ebff50862043a551` has passed local qualification. At recovery start, `main` and `integration/astra-friday` pointed to `74d7a680f07e4fbd390b3c327ff3099047ad992e`; both are ancestors of the capability.
+- Publish the owning `stage-22/manual-curriculum-editing` branch and fast-forward/publish `main` and established integration branch `integration/astra-friday` to the same accepted recovery commit. Fetch and verify all refs and a clean worktree. Never force-push.
 - After this requested slice is published, the next roadmap dependency is **cross-path evidence equivalence**, followed by major adaptive replanning. Do not start that next slice in this task.
