@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { LockKeyhole, RotateCcw } from "lucide-react";
 import { Status } from "./ui";
 
 type Operation = { operation_id: string; checkpoint_id: string; state: string; created_at: string; result: { status: string } | null };
-type Checkpoint = { task_id: string; checkpoint_id: string; label: string; created_at: string; plan_hash: string; head: string; schema_version: number; eligible: boolean; reason: string | null };
+type Checkpoint = { task_id: string; checkpoint_id: string; label: string; created_at: string; plan_hash: string; plan_hash_full?: string; head: string; schema_version: number; eligible: boolean; reason: string | null };
 type Review = { operation_id: string; task_id: string; checkpoint_id: string; plan_hash: string; head: string; expires_at: string; action: string };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -16,7 +16,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function RollbackPanel({ taskIds, onComplete }: { taskIds: string[]; onComplete: () => void }) {
+async function loadCheckpoints(taskIds: string[]) {
+  const rows = await Promise.allSettled(taskIds.map(id => request<{ checkpoints: Checkpoint[]; operations: Operation[] }>(`/api/v1/rollback/tasks/${encodeURIComponent(id)}/checkpoints`)));
+  const available = rows.filter((row): row is PromiseFulfilledResult<{ checkpoints: Checkpoint[]; operations: Operation[] }> => row.status === "fulfilled").map(row => row.value);
+  if (!available.length && rows.length) throw new Error("Checkpoint state unavailable for the recorded tasks");
+  return { checkpoints: available.flatMap(row => row.checkpoints), operations: available.flatMap(row => row.operations) };
+}
+
+export function RollbackPanel({ taskIds, onComplete, projectOwnerCsrf = null }: { taskIds: string[]; onComplete: () => void; projectOwnerCsrf?: string | null }) {
   const [token, setToken] = useState("");
   const [csrf, setCsrf] = useState<string | null>(null);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
@@ -25,26 +32,35 @@ export function RollbackPanel({ taskIds, onComplete }: { taskIds: string[]; onCo
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const taskIdKey = taskIds.join("\0");
+  const effectiveCsrf = projectOwnerCsrf ?? csrf;
+
+  useEffect(() => {
+    if (!projectOwnerCsrf) return;
+    void loadCheckpoints(taskIdKey.split("\0").filter(Boolean))
+      .then(loaded => { setCheckpoints(loaded.checkpoints); setOperations(loaded.operations); })
+      .catch(cause => setError(cause instanceof Error ? cause.message : "Checkpoint state unavailable"));
+  }, [projectOwnerCsrf, taskIdKey]);
 
   async function unlock(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError(null);
     try {
       const data = await request<{ csrf_token: string }>("/api/v1/rollback/unlock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
       setToken(""); setCsrf(data.csrf_token);
-      const rows = await Promise.all(taskIds.map(async id => request<{ checkpoints: Checkpoint[]; operations: Operation[] }>(`/api/v1/rollback/tasks/${encodeURIComponent(id)}/checkpoints`)));
-      setCheckpoints(rows.flatMap(row => row.checkpoints)); setOperations(rows.flatMap(row => row.operations));
+      const loaded = await loadCheckpoints(taskIds);
+      setCheckpoints(loaded.checkpoints); setOperations(loaded.operations);
     } catch (cause) { setToken(""); setError(cause instanceof Error ? cause.message : "Owner unlock failed"); }
     finally { setBusy(false); }
   }
   async function refresh() {
     setBusy(true); setError(null);
-    try { const rows = await Promise.all(taskIds.map(async id => request<{ checkpoints: Checkpoint[]; operations: Operation[] }>(`/api/v1/rollback/tasks/${encodeURIComponent(id)}/checkpoints`))); setCheckpoints(rows.flatMap(row => row.checkpoints)); setOperations(rows.flatMap(row => row.operations)); }
+    try { const loaded = await loadCheckpoints(taskIds); setCheckpoints(loaded.checkpoints); setOperations(loaded.operations); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Checkpoint state unavailable"); }
     finally { setBusy(false); }
   }
   async function createReview(item: Checkpoint) {
     setBusy(true); setError(null); setReview(null);
-    try { setReview(await request<Review>(`/api/v1/rollback/tasks/${encodeURIComponent(item.task_id)}/review`, { method: "POST", headers: { "Content-Type": "application/json", "X-Friday-CSRF": csrf ?? "" }, body: JSON.stringify({ checkpoint_id: item.checkpoint_id }) })); }
+    try { setReview(await request<Review>(`/api/v1/rollback/tasks/${encodeURIComponent(item.task_id)}/review`, { method: "POST", headers: { "Content-Type": "application/json", "X-Friday-CSRF": effectiveCsrf ?? "" }, body: JSON.stringify({ checkpoint_id: item.checkpoint_id }) })); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Review failed"); }
     finally { setBusy(false); }
   }
@@ -52,21 +68,32 @@ export function RollbackPanel({ taskIds, onComplete }: { taskIds: string[]; onCo
     if (!review) return;
     setBusy(true); setError(null);
     try {
-      const data = await request<{ status: string }>(`/api/v1/rollback/operations/${encodeURIComponent(review.operation_id)}/execute`, { method: "POST", headers: { "X-Friday-CSRF": csrf ?? "", "Idempotency-Key": crypto.randomUUID() } });
+      const data = await request<{ status: string }>(`/api/v1/rollback/operations/${encodeURIComponent(review.operation_id)}/execute`, { method: "POST", headers: { "X-Friday-CSRF": effectiveCsrf ?? "", "Idempotency-Key": crypto.randomUUID() } });
       setResult(data.status); setReview(null); await refresh(); onComplete();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Rollback execution failed"); }
     finally { setBusy(false); }
   }
+  async function reconcileValidationFailure(item: Checkpoint) {
+    setBusy(true); setError(null);
+    try {
+      const data = await request<{ status: string }>(`/api/v1/rollback/tasks/${encodeURIComponent(item.task_id)}/validation-failure/reconcile`, {
+        method: "POST", headers: { "Content-Type": "application/json", "X-Friday-CSRF": effectiveCsrf ?? "" },
+        body: JSON.stringify({ plan_hash: item.plan_hash_full ?? item.plan_hash, idempotency_key: crypto.randomUUID() }),
+      });
+      setResult(data.status); await refresh(); onComplete();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Failed validation recovery was rejected"); }
+    finally { setBusy(false); }
+  }
   async function lock() {
-    try { await request("/api/v1/rollback/lock", { method: "POST", headers: { "X-Friday-CSRF": csrf ?? "" } }); } catch { /* locking locally still discards the CSRF capability */ }
+    try { await request("/api/v1/rollback/lock", { method: "POST", headers: { "X-Friday-CSRF": effectiveCsrf ?? "" } }); } catch { /* locking locally still discards the CSRF capability */ }
     setCsrf(null); setCheckpoints([]); setOperations([]); setReview(null); setResult(null);
   }
 
   return <section className="op-history-section op-history-recovery" aria-label="Checkpoint rollback">
-    <header><h2>Checkpoints &amp; recovery</h2><Status>{csrf ? "Owner session · 10 minute expiry" : "Owner unlock required"}</Status></header>
+    <header><h2>Checkpoints &amp; recovery</h2><Status>{effectiveCsrf ? "Owner session · 10 minute expiry" : "Owner unlock required"}</Status></header>
     <p>Rollback restores one eligible schema-2 checkpoint in its isolated task worktree. Review and execute are separate, and each review expires quickly. This does not undo publication, canonical repository changes, desktop actions, or other Friday data.</p>
-    {!csrf ? <form onSubmit={unlock} className="op-rollback-unlock"><label htmlFor="rollback-token">Owner rollback token</label><input id="rollback-token" type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} required/><button className="btn" type="submit" disabled={busy || !taskIds.length}><LockKeyhole size={15}/>Unlock rollback</button></form> : <><div className="op-rollback-actions"><button className="btn" type="button" onClick={() => void refresh()} disabled={busy}>Refresh eligibility</button><button className="btn" type="button" onClick={() => void lock()}>Lock</button></div>
-      {checkpoints.length ? <ol>{checkpoints.map(item => <li key={item.checkpoint_id}><time>{new Date(item.created_at).toLocaleString()}</time><strong>{item.eligible ? "Eligible · exact task checkpoint" : `Unavailable · ${item.reason ?? "ineligible"}`}</strong><p>Checkpoint {item.checkpoint_id} · plan {item.plan_hash} · HEAD {item.head}</p>{item.eligible && <button className="btn" type="button" disabled={busy} onClick={() => void createReview(item)}>Review this exact checkpoint</button>}</li>)}</ol> : <p className="op-history-empty-inline">{taskIds.length ? "No eligible schema-2 task checkpoints are available." : "No task history is available to inspect."}</p>}
+    {!effectiveCsrf ? <form onSubmit={unlock} className="op-rollback-unlock"><label htmlFor="rollback-token">Owner rollback token</label><input id="rollback-token" type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} required/><button className="btn" type="submit" disabled={busy || !taskIds.length}><LockKeyhole size={15}/>Unlock rollback</button></form> : <><div className="op-rollback-actions"><button className="btn" type="button" onClick={() => void refresh()} disabled={busy}>Refresh eligibility</button>{!projectOwnerCsrf && <button className="btn" type="button" onClick={() => void lock()}>Lock</button>}</div>
+      {checkpoints.length ? <ol>{checkpoints.map(item => <li key={item.checkpoint_id}><time>{new Date(item.created_at).toLocaleString()}</time><strong>{item.eligible ? "Eligible · exact task checkpoint" : `Unavailable · ${item.reason ?? "ineligible"}`}</strong><p>Checkpoint {item.checkpoint_id} · plan {item.plan_hash} · HEAD {item.head}</p>{item.eligible && <button className="btn" type="button" disabled={busy} onClick={() => void createReview(item)}>Review this exact checkpoint</button>}{!item.eligible && item.reason?.toLowerCase().includes("recovery_required") && <button className="btn" type="button" disabled={busy} onClick={() => void reconcileValidationFailure(item)}>Restore baseline after failed validation</button>}</li>)}</ol> : <p className="op-history-empty-inline">{taskIds.length ? "No eligible schema-2 task checkpoints are available." : "No task history is available to inspect."}</p>}
       {operations.length > 0 && <><h3>Canonical rollback operations</h3><ol>{operations.map(item => <li key={item.operation_id}><time>{new Date(item.created_at).toLocaleString()}</time><strong>{item.state}</strong><p>Operation {item.operation_id} · checkpoint {item.checkpoint_id}{item.result ? ` · result ${item.result.status}` : ""}</p></li>)}</ol></>}
       {review && <div role="dialog" aria-modal="true" aria-label="Confirm exact checkpoint rollback"><strong>Review exact restore</strong><p>Task {review.task_id} · checkpoint {review.checkpoint_id} · plan {review.plan_hash} · HEAD {review.head}</p><p>Expires {new Date(review.expires_at).toLocaleTimeString()}. Current worktree state will be rechecked before restore.</p><button className="btn" type="button" disabled={busy} onClick={() => void execute()}><RotateCcw size={15}/>Execute rollback</button><button className="btn" type="button" disabled={busy} onClick={() => setReview(null)}>Cancel review</button></div>}
     </>}

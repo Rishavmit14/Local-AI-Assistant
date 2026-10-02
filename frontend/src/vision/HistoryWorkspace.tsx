@@ -34,6 +34,7 @@ export function HistoryWorkspace() {
   const [explanation, setExplanation] = useState<FridayTaskExplanation | FridayObjectiveExplanation | null>(null);
   const [explanationError, setExplanationError] = useState<string | null>(null);
   const [explanationLoading, setExplanationLoading] = useState(false);
+  const [projectOwnerCsrf, setProjectOwnerCsrf] = useState<string | null>(null);
 
   const refresh = useCallback(async (signal: AbortSignal) => {
     const requests: [SourceKey, () => Promise<unknown[]>][] = [
@@ -59,6 +60,16 @@ export function HistoryWorkspace() {
     queueMicrotask(() => { void refresh(controller.signal); });
     return () => controller.abort();
   }, [refresh, reload]);
+
+  useEffect(() => {
+    let active = true;
+    void client.restoreProjectExecution().then(value => {
+      if (active) setProjectOwnerCsrf(value);
+    }).catch(() => {
+      if (active) setProjectOwnerCsrf(null);
+    });
+    return () => { active = false; };
+  }, [client]);
 
   const visibleActivity = filter === "all" || filter === "tasks" ? activity.data.filter(item => item.task_id) : [];
   const visibleObjectives = filter === "all" || filter === "tasks" ? objectives.data : [];
@@ -114,7 +125,7 @@ export function HistoryWorkspace() {
       {desktop.error ? <p className="op-history-error" role="alert">Desktop action history is unavailable: {desktop.error}</p> : visibleDesktop.length ? <ol>{visibleDesktop.map(item => <li key={item.action_id}><time>{time(item.created_at)}</time><strong>{item.action.replaceAll("_", " ")}</strong><p>Recorded state: {item.state}</p><details className="op-history-technical"><summary>Technical details</summary><dl><div><dt>Action record</dt><dd>{item.action_id}</dd></div>{item.approved_at && <div><dt>Approved</dt><dd>{time(item.approved_at)}</dd></div>}{item.executed_at && <div><dt>Executed</dt><dd>{time(item.executed_at)}</dd></div>}</dl></details></li>)}</ol> : <p className="op-history-empty-inline">No desktop action records are stored.</p>}
       <p className="op-history-note">Target identifiers are omitted because the canonical field may contain a private file path.</p>
     </section>}
-    <details className="op-history-technical"><summary>Advanced recovery</summary><RollbackPanel taskIds={[...new Set(activity.data.flatMap(item => item.task_id ? [item.task_id] : []))]} onComplete={() => { setLoading(true); setReload(value => value + 1); }}/>
+    <details className="op-history-technical"><summary>Advanced recovery</summary><RollbackPanel taskIds={[...new Set(activity.data.flatMap(item => item.task_id ? [item.task_id] : []))]} onComplete={() => { setLoading(true); setReload(value => value + 1); }} projectOwnerCsrf={projectOwnerCsrf}/>
     </details><details className="op-history-technical"><summary>Conversation runtime details</summary><section className="op-history-section op-history-recovery"><header><h2>Conversation runtime events</h2><Status>Session-only</Status></header><p>Conversation events are held in a bounded in-memory session buffer. They are not a durable conversation archive and are not included in this history.</p></section></details>
     {hasErrors && <p className="op-history-partial" role="status">Some sources could not be read. Available sources remain visible; this is a partial result, not an empty-history claim.</p>}
   </section>;

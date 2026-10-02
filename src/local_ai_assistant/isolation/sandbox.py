@@ -193,6 +193,42 @@ class BubblewrapSandbox(SandboxBackend):
         virtualenv = Path(sys.executable).parent.parent
         if (virtualenv / "pyvenv.cfg").is_file():
             prefix.extend(("--ro-bind", str(virtualenv), str(virtualenv)))
+        # uv and some other environment managers make the venv interpreter a
+        # symlink into a separately installed Python runtime (often below the
+        # user's home directory). Binding only the venv leaves that absolute
+        # symlink target invisible inside Bubblewrap, so every validation
+        # command fails at execvp before it can run. Expose only the active
+        # interpreter's base prefix and any directory alias used by its
+        # symlink chain; both mounts are read-only.
+        system_roots = tuple(Path(item).resolve() for item in ("/usr", "/bin", "/lib", "/lib64") if Path(item).exists())
+        runtime_mounts: list[tuple[Path, Path]] = []
+
+        def add_runtime_mount(source: Path, target: Path) -> None:
+            try:
+                source = source.resolve(strict=True)
+            except OSError:
+                return
+            if not source.is_dir() or any(target == root or root in target.parents for root in system_roots):
+                return
+            mount = (source, target)
+            if mount not in runtime_mounts:
+                runtime_mounts.append(mount)
+
+        base_prefix = Path(sys.base_prefix)
+        add_runtime_mount(base_prefix, base_prefix)
+        current_python = Path(sys.executable)
+        visited_links: set[Path] = set()
+        while current_python.is_symlink() and current_python not in visited_links:
+            visited_links.add(current_python)
+            link_target = Path(os.readlink(current_python))
+            if not link_target.is_absolute():
+                link_target = current_python.parent / link_target
+            link_target = Path(os.path.abspath(link_target))
+            target_prefix = link_target.parent.parent
+            add_runtime_mount(base_prefix, target_prefix)
+            current_python = link_target
+        for source, target in runtime_mounts:
+            prefix.extend(("--ro-bind", str(source), str(target)))
         prefix.extend(
             (
                 "--bind", str(worktree), str(worktree),

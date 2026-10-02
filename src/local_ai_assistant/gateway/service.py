@@ -1,11 +1,13 @@
 """Thin gateway service delegating task state to Stage 7 history."""
 from __future__ import annotations
 
+import inspect
 import re
 import subprocess
 from dataclasses import asdict
 from pathlib import Path
 from threading import Event, Thread
+from uuid import uuid4
 
 from local_ai_assistant.execution.history import redact
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
@@ -142,18 +144,37 @@ class IntegrationGatewayService:
             raise ValueError("exact approved plan is required before execution")
         if expected_plan_hash is not None and task.plan_hash != expected_plan_hash:
             raise ValueError("execution request does not match the exact approved plan")
-        claim_id = self.history.claim_execution(task_id)
+        attempt_id = uuid4().hex
+        claim_id = self.history.claim_execution(task_id, claim_id=attempt_id)
         if claim_id is None:
             raise ValueError("task execution is already active")
         try:
-            result = self.executor.execute_task(task) if hasattr(self.executor, "execute_task") else self.executor(task)
+            self.history.create_execution_attempt(task_id, task.plan_hash, attempt_id)
+            if hasattr(self.executor, "execute_task"):
+                method = self.executor.execute_task
+                parameters = inspect.signature(method).parameters.values()
+                accepts_attempt = any(item.name == "attempt_id" or item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters)
+                result = method(task, attempt_id=attempt_id) if accepts_attempt else method(task)
+            else:
+                result = self.executor(task)
             completion = getattr(self.executor, "on_completion", None)
-            if completion is not None and completion(task_id, lambda: self.history.release_execution_claim(task_id, claim_id)):
+            def finish_attempt(future=None):
+                error = None
+                if future is not None:
+                    try:
+                        error = future.exception()
+                    except BaseException as exc:
+                        error = exc
+                self.history.finish_execution_attempt(
+                    attempt_id, failure_type=type(error).__name__ if error else None
+                )
+
+            if completion is not None and completion(task_id, finish_attempt):
                 return result
         except Exception:
-            self.history.release_execution_claim(task_id, claim_id)
+            self.history.finish_execution_attempt(attempt_id, failure_type="DispatchError")
             raise
-        self.history.release_execution_claim(task_id, claim_id)
+        self.history.finish_execution_attempt(attempt_id)
         return result
 
     def get_task(self, task_id: str): return self.history.get(task_id)

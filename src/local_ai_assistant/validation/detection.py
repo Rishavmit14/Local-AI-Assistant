@@ -64,6 +64,21 @@ def build_validation_plan(
             targeted.insert(0, step)
         else:
             final.append(step)
+    # The exact approved commands are part of the task's validation contract.
+    # A repository with unittest but no pytest configuration otherwise has no
+    # detected full-suite step, even when its plan explicitly requires one.
+    detected_commands = {item.command for item in (*targeted, *final)}
+    for index, command in enumerate(plan.validation_commands, start=1):
+        if command in detected_commands:
+            continue
+        final.append(_step(
+            "plan-validation-" + _slug(str(index)),
+            ValidationKind.TEST if "pytest" in command or "unittest" in command else ValidationKind.STRUCTURAL,
+            Requirement.REQUIRED,
+            command,
+            "Exact approved validation command from the implementation plan.",
+        ))
+        detected_commands.add(command)
     full_required = plan.risk.level in {RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.CRITICAL}
     if full_required:
         final = [

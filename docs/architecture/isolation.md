@@ -17,6 +17,11 @@ validated exact plan + approval
 
 Repository code, test hooks, build scripts, package scripts, Makefiles, Cargo `build.rs`, and Git hooks are untrusted. Sandboxing reduces risk; it does not prove arbitrary code safe.
 
+Post-mutation scope checks bind existing symbol edits to the approved file and
+qualified symbol name. This permits a task worktree's freshly generated symbol
+ID and repository-relative name to differ from the planning index while still
+rejecting sibling symbols and unplanned files.
+
 ## Worktrees and checkpoints
 
 `WorktreeManager` stores worktrees only below `LOCAL_AI_WORKTREE_ROOT/<repo-id>/<task-id>`. A separate metadata record binds task, repository, branch, base commit, plan hash, current commit, lifecycle, and cleanup. Safe identifiers, resolved containment, branch collision checks, locks, and Git worktree metadata prevent cross-task attachment.
@@ -81,6 +86,51 @@ unreconciled terminal artifact is shown for inspection; the read model never
 invokes the importer. No universal resume, execution retry, rollback retry, or
 automatic cleanup is authorized.
 
+Stage 22 adds a distinct action for one verified clean interruption. It
+requires process-local worker failure or a new executor process whose start
+time follows the persisted execution transition; no unexpired execution claim;
+still-current explicit approval for the exact plan; one exact Objective
+binding; no execution, validation, tool, or rollback records; and the existing
+worktree at its recorded starting commit with no tracked or untracked changes.
+A recovery attempt and claim are created atomically and linked to the prior
+interrupted attempt. It reuses the same approved bytes and isolated workspace.
+Dirty worktrees, partial journaled effects, contradictory records, and uncertain
+worker ownership stay blocked for inspection.
+
+For terminal `rolled_back`, a separate Owner retry preflight requires a
+successfully cleaned worktree to be absent and the canonical repository to
+remain at the exact starting commit with no tracked, untracked, or ignored
+changes. A rolled-back report may retain the immutable diff of the isolated
+attempt; it qualifies only when every diff path is parsed, exactly matches an
+approved modified file, and is covered by a successful audited symbol edit.
+This retained diff is not treated as a surviving side effect: the isolated
+worktree must be cleaned and absent, and the canonical checkout must still
+match its clean starting commit. Empty diffs and read-only events remain valid.
+Unscoped, malformed, or unaudited diffs stay blocked. A failed validation
+event is retry-compatible only when its command exactly matches the approved
+plan, mutation intent is false, and the event reports no affected files; the
+clean rollback and canonical-base checks remain mandatory. A successful file
+creation is eligible only for an exact approved new path whose final diff is
+covered by the same audited event. A failed symbol edit may reference a
+uniquely resolved existing symbol in an approved file-level path; selected-
+symbol files continue to require exact planned identity. The service verifies terminal worker status, the
+task-owned claim, exact plan/approval, Objective identity, and absence of
+successful terminal or Career Forge/Project evidence. Stale-claim closure is
+audited and committed atomically with the new retry claim; unowned claims or
+ambiguous state remain blocked. The new attempt uses the ordinary isolated
+CodeAgent pipeline and never resumes the old worktree. See ADR 0038.
+
+A failed worker during validation follows a different terminal recovery path.
+The exact failed attempt, worker termination, absent claim and successful
+artifacts, baseline checkpoint, protected-repository boundary, and current
+workspace fingerprint are checked before transition. TaskHistory and worktree
+metadata move to `recovery_required`; `TransactionalRollbackService` restores
+the checkpoint and the same operation is written to the canonical rollback
+ledger. TaskHistory then becomes `rolled_back`, isolation becomes `cleaned`, and
+the task branch remains available for audit. A duplicate idempotency key
+reconstructs the same successful operation after restart. The immutable failed
+attempt is never retried or rewritten.
+
 ## Sandbox and resources
 
 `SandboxBackend` supports capability-aware Bubblewrap and native implementations. Bubblewrap is selected only if its actual namespace probe works. The native backend provides task HOME/TMP/cache, a minimal environment and trusted system PATH, closed inherited descriptors, process sessions, tree termination, bounded output, wall/CPU/process/open-file/file-size/address-space limits, but only partial filesystem isolation and no network isolation.
@@ -125,6 +175,13 @@ Reviewed, validated, current, and committed states are bound by a deterministic 
 Interrupted `creating`, `executing`, `validating`, rollback-in-progress, or cleanup states become `recovery_required`. Recovery inspection never auto-resumes. Task-local advisory locks prevent duplicate ownership and cleanup/execution/rollback/promotion races. Stage 7 timeline events record isolation backend/capability, network policy, checkpoint, cleanup, cancellation, rollback, and promotion readiness without exposing user-facing absolute worktree paths.
 
 ## Limitations
+
+Bubblewrap exposes the active virtual environment read-only and also mounts
+the active interpreter's base runtime and any external symlink-prefix alias
+read-only. This supports environments whose `bin/python` resolves into a
+separately installed runtime (for example uv-managed Python); without it, the
+sandbox cannot execute the interpreter and validation fails before a command
+starts. These mounts do not grant write access to the runtime.
 
 - The current host denies the Bubblewrap user-namespace probe despite having the binary.
 - Native fallback cannot restrict filesystem reads or networking and therefore fails strong policy.

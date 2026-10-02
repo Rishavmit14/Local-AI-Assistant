@@ -107,6 +107,7 @@ class ToolEvent:
     affected_files: tuple[str, ...]
     risk: str
     approval: str
+    decision_metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -126,6 +127,7 @@ class ExecutionReport:
     final_commit: str | None = None
     repairs: int = 0
     replans: int = 0
+    attempt_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

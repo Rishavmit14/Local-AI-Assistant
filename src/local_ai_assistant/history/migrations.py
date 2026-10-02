@@ -1,6 +1,6 @@
 """Ordered SQLite migrations for the local task-history store."""
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 10
 
 MIGRATIONS: dict[int, tuple[str, ...]] = {
     1: (
@@ -155,5 +155,44 @@ MIGRATIONS: dict[int, tuple[str, ...]] = {
             UNIQUE(principal, idempotency_key)
         )""",
         "CREATE INDEX idx_rollback_operations_task ON rollback_operations(task_id, created_at)",
+    ),
+    9: (
+        """CREATE TABLE task_execution_attempts (
+            attempt_id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+            plan_hash TEXT NOT NULL,
+            parent_attempt_id TEXT,
+            attempt_kind TEXT NOT NULL CHECK(attempt_kind IN ('initial', 'recovery', 'interrupted')),
+            state TEXT NOT NULL CHECK(state IN ('running', 'completed', 'failed', 'interrupted')),
+            idempotency_key TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            failure_type TEXT,
+            metadata_json TEXT NOT NULL,
+            artifact_id TEXT,
+            UNIQUE(task_id, idempotency_key)
+        )""",
+        "CREATE INDEX idx_execution_attempts_task ON task_execution_attempts(task_id, created_at)",
+    ),
+    10: (
+        "ALTER TABLE task_execution_attempts RENAME TO task_execution_attempts_v9",
+        """CREATE TABLE task_execution_attempts (
+            attempt_id TEXT PRIMARY KEY,
+            task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+            plan_hash TEXT NOT NULL,
+            parent_attempt_id TEXT,
+            attempt_kind TEXT NOT NULL CHECK(attempt_kind IN ('initial', 'recovery', 'interrupted', 'retry')),
+            state TEXT NOT NULL CHECK(state IN ('running', 'completed', 'failed', 'interrupted')),
+            idempotency_key TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            failure_type TEXT,
+            metadata_json TEXT NOT NULL,
+            artifact_id TEXT,
+            UNIQUE(task_id, idempotency_key)
+        )""",
+        "INSERT INTO task_execution_attempts SELECT * FROM task_execution_attempts_v9",
+        "DROP TABLE task_execution_attempts_v9",
+        "CREATE INDEX idx_execution_attempts_task ON task_execution_attempts(task_id, created_at)",
     ),
 }

@@ -257,6 +257,12 @@ export interface LearningPathSequence {
 }
 export interface LearningProjectTemplate { template_id: string; name: string; focus: string }
 export interface LearningProjectArtifact { artifact_id: string; project_id: string; task_id: string; artifact_ref: string; created_at: string }
+export interface LearningProjectReview {
+  project_id: string; submission_id: string; competency_id: string; mission_id: string; attempt_id: string;
+  assessment_contract_version: string; assessment_contract_fingerprint: string; evaluator: string;
+  evaluation: "pending" | "correct" | "incorrect" | "uncertain"; feedback: string;
+  created_at: string; evaluated_at: string | null; evidence_id: string | null;
+}
 export interface LearningProject {
   project_id: string; template_id: string; title: string; brief: string;
   state: "assigned" | "active" | "under_review" | "needs_revision" | "completed" | "archived";
@@ -268,6 +274,7 @@ export interface LearningProject {
   artifacts: LearningProjectArtifact[];
   career_forge_missions: Array<{ project_id: string; competency_id: string; mission_id: string }>;
   career_forge_evidence: Array<{ evidence_id: string; mission_id: string; competency_id: string; evidence_type: string; assistance_level: string | null; artifact_ref: string | null; created_at: string }>;
+  career_forge_reviews: LearningProjectReview[];
   return_to_learning: { path_id: string; path_version: number; milestone_id: string } | null;
 }
 export interface LearningProjectMilestone {
@@ -565,12 +572,15 @@ export interface FridayTaskRecovery {
   status: string;
   owner_attention: string;
   worker_liveness: "running" | "not_running" | "unknown";
+  worker_status: "running" | "completed" | "failed" | "cancelled" | "process_replaced" | "not_started" | "unknown";
   isolation: { status: string; state: string | null; worktree_present: boolean | null; summary: string };
   planning_claim: { state: string; expires_at: string | null; lease_seconds: number | null };
   execution_claim: { state: string; expires_at: string | null; lease_seconds: number | null };
   rollback: { state: string; operation_id: string | null; checkpoint_id: string | null; result: string | null };
   cleanup: { state: string };
   reconciliation: { state: string; execution_evidence_count: number; terminal_artifact_statuses: string[] };
+  execution_attempts: Array<{ attempt_id: string; parent_attempt_id: string | null; plan_hash: string; attempt_kind: string; state: string; created_at: string; updated_at: string; failure_type: string | null; artifact_id: string | null }>;
+  recoverability: "candidate_requires_server_preflight" | "blocked_or_unknown";
   evidence_sources: string[];
   limitations: string[];
   summary: string;

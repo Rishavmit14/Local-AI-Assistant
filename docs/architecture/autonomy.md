@@ -86,6 +86,26 @@ token still canonically approved. The gateway rechecks that token at admission
 and delegates to the existing exact-plan loader and isolated executor. Objective
 state does not advance optimistically; task history owns execution/outcomes.
 
+Stage 22 adds a separate exact-plan recovery route for a proven clean worker
+interruption. It retains the planned Objective/task/hash binding and uses the
+same execution authentication, scope, rate limit, approval checks, and CodeAgent
+pipeline as ordinary dispatch. A recovery attempt is durably linked to the
+interrupted attempt. It is eligible only with a failed or process-replaced
+worker, no unexpired execution claim, an unchanged explicitly approved plan,
+one matching Objective, no execution/validation/tool/rollback evidence, and a
+clean existing worktree at its starting commit. Recovery never resets task
+state to approved. Dirty or ambiguous side effects remain inspection-required.
+
+A distinct explicit retry action supports terminal `rolled_back` tasks only
+after verified worker termination, successful cleanup and rollback, absent
+worktree, unchanged clean canonical repository, exact approval and Objective
+binding, and no successful execution, validation, Reviewer, Project, or Career
+Forge evidence. Terminal attempt records remain immutable. Claim reconciliation
+is audited and transactionally paired with a new child retry attempt and claim.
+The browser route keeps Owner session, CSRF/Origin, `REQUEST_EXECUTION`, and
+rate-limit checks. Repeated deterministic failures are fingerprinted and
+bounded. See ADR 0038.
+
 `POST /api/v1/objectives/{objective_id}/execute` reuses gateway bearer
 authentication, `request_execution` scope, and configured request rate. Production
 wiring requires gateway enabled plus a token digest; otherwise dispatch returns

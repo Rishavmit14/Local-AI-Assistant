@@ -1668,9 +1668,9 @@ recommendations. Direct prerequisite failures block dependent nodes without
 blocking unrelated branches. Sequence projections expose stable candidates,
 reasons, and evidence-backed counts. Adaptation writes a new immutable DLP
 version with historical decision provenance and never mutates Career Forge.
-Provider failure defers mapped nodes. DLP-3 added persistent owner path selection in the DLP SQLite boundary, draft-to-active lifecycle transitions, deterministic explicit Conversation creation/list/current/next intents, and Learn list/detail/sequence projection through typed APIs. DLP-4 added Career Forge-owned dynamic subjects and contract-bound evidence. Both DLP-4 and its publication recovery are accepted: capability commit `4a420217bcddca42aa2655c3379b196729a43432`; published recovery `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`. Learn now delivers/evaluates canonical Career Forge reviews and starts/resumes Career Forge reinforcement for supported fixed and dynamic subjects. Candidate browser qualification proved incorrect and correct review answers, dynamic reinforcement with assistance provenance, backend sequence refresh, and restart reconstruction. Review answer text remains within Career Forge's governed store; the browser holds only a transient draft. Project/capstone integration now adds exact direct-prerequisite gates, a versioned DLP-to-Projects relation, durable Projects instances and Objective/task artifact references, and explicit Career Forge explanation/evaluation evidence. Project work uses existing Objectives/Gateway approval, isolation, validation, review, and recovery. Task success and project completion do not grant mastery. Deterministic candidate backend/frontend coverage verifies assignment, idempotent retry, Objective resume, task-state gating, and durable projections; complete project-review browser/model qualification remains open. Row 61 remains PARTIAL for remaining product capabilities and broader owner qualification; final visual acceptance remains deferred. Row 60 remains PARTIAL. Learn is a FUNCTIONAL INTEGRATION SHELL; no final visual design acceptance is claimed. See `docs/architecture/dynamic-learning-paths.md`.
+Provider failure defers mapped nodes. DLP-3 added persistent owner path selection in the DLP SQLite boundary, draft-to-active lifecycle transitions, deterministic explicit Conversation creation/list/current/next intents, and Learn list/detail/sequence projection through typed APIs. DLP-4 added Career Forge-owned dynamic subjects and contract-bound evidence. Both DLP-4 and its publication recovery are accepted: capability commit `4a420217bcddca42aa2655c3379b196729a43432`; published recovery `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`. Learn now delivers/evaluates canonical Career Forge reviews and starts/resumes Career Forge reinforcement for supported fixed and dynamic subjects. Candidate browser qualification proved incorrect and correct review answers, dynamic reinforcement with assistance provenance, backend sequence refresh, and restart reconstruction. Review answer text remains within Career Forge's governed store; the browser holds only a transient draft. Project/capstone integration now adds exact direct-prerequisite gates, a versioned DLP-to-Projects relation, durable Projects instances and Objective/task artifact references, and explicit Career Forge explanation/evaluation evidence. Project work uses existing Objectives/Gateway approval, isolation, validation, review, and recovery. Task success and project completion do not grant mastery. Deterministic candidate backend/frontend coverage verifies assignment, idempotent retry, Objective resume, task-state gating, and durable projections; the successful browser/model Project assessment is qualified below. Row 61 remains PARTIAL for remaining product capabilities and broader owner qualification; final visual acceptance remains deferred. Row 60 remains PARTIAL. Learn is a FUNCTIONAL INTEGRATION SHELL; no final visual design acceptance is claimed. See `docs/architecture/dynamic-learning-paths.md`.
 
-## Project / Capstone lifecycle integration — IMPLEMENTED; owner qualification remains PARTIAL (row 61)
+## Project / Capstone lifecycle integration — QUALIFIED bounded journey; row 61 remains PARTIAL
 
 DLP project milestones now carry a typed project kind, assignment rationale,
 competency keys, exact direct prerequisites, expected outcome, and bounded
@@ -1701,8 +1701,8 @@ end-to-end browser assessment. Adaptive replanning is now separately qualified
 through deterministic backend/frontend regression and isolated browser journeys
 for successful cross-path acceleration and weak-assessment remediation, including
 reload reconstruction. Overall rows 60 and 61 remain PARTIAL. Remaining row-61
-gaps are broader owner qualification, browser-driven project task
-execution/artifact submission/assessment, and final visual acceptance.
+gaps after the later successful Project journey are broader owner product
+qualification and final visual design acceptance.
 
 ### Browser-safe Project authorization — QUALIFIED (bounded authorization bridge)
 
@@ -1721,6 +1721,30 @@ and created no evidence or mastery change. This qualifies the authorization
 bridge only. A successful project artifact/assessment lifecycle, broader owner
 qualification, and final visual acceptance remain open; row 61 remains PARTIAL.
 See ADR 0037 and `docs/architecture/integration-gateway.md`.
+
+### Successful Project assessment — QUALIFIED (isolated Stage 22 owner path)
+
+A fresh FraudShield capstone completed browser approval, exact-plan isolated
+execution, full `unittest` validation, reviewed task commit, three artifact
+submission, independent local-Qwen assessment, Career Forge evidence, and
+return-to-Learn. Project `proj_3eb8f6dbe8de4f18a7067aac4c340b68` is
+`completed`; task `task_c5df9f1ce54f4f14b6fb` is `succeeded` at commit
+`9ebf0763cde42d0c903dda025a52c461359e4076`. The accepted explanation
+generated one provenance-linked evidence record and no mastery transition;
+the next DLP node recommends reinforcement. Browser reload and candidate API
+restart reconstructed the completed state and restored the local Owner session.
+Exact boundary/category and invalid-input audit checks passed against the
+committed artifact. Earlier failed attempts and rejected assessments remain
+immutable history, with no evidence awarded for them.
+
+The candidate also qualifies bounded clean interruption and validation-failure
+recovery. The historical failed artifactless retry
+`cec6a3d29075496eb08cc3a2af7024b4` was reconciled to `rolled_back` /
+`terminal_consistent` before the fresh Project was started. Exact-plan retry,
+symbol/path authorization, sandboxed validation, and immutable attempt
+artifacts remain required; see ADRs 0038–0040. This qualifies the specific
+successful Project lifecycle. Row 61 remains PARTIAL for broader owner product
+qualification and final visual design acceptance; row 60 remains PARTIAL.
 
 
 ### Manual curriculum editing with prerequisite protection — QUALIFIED (bounded candidate path)

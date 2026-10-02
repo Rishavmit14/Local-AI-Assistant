@@ -9,7 +9,7 @@ import tempfile
 import textwrap
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -46,6 +46,8 @@ class ToolContext:
     sandbox_network: object | None = None
     cancel_check: Callable[[], bool] | None = None
     canonical_repository: Path | None = None
+    attempt_id: str | None = None
+    tool_choice_metadata: dict = field(default_factory=dict)
 
 
 Handler = Callable[[ToolContext, dict], ToolObservation]
@@ -74,6 +76,7 @@ class ToolRegistry:
         started = time.monotonic()
         success = False
         observation = None
+        failure_summary = None
         if not isinstance(arguments, dict):
             context.events.append(
                 _event(context, name, {}, 0.0, False, "invalid arguments rejected", spec.mutates)
@@ -134,15 +137,28 @@ class ToolRegistry:
                 )
             )
             return observation
-        except ToolExecutionError:
+        except ToolExecutionError as exc:
             if spec.mutates:
                 _rollback_worktree(context.repository)
+            failure_summary = f"{type(exc).__name__}: {exc}"[:500]
             raise
         except (OSError, subprocess.SubprocessError, ValueError) as exc:
             if spec.mutates:
                 _rollback_worktree(context.repository)
-            raise ToolExecutionError(f"Tool {name} failed safely: {exc}") from exc
+            wrapped = ToolExecutionError(f"Tool {name} failed safely: {exc}")
+            failure_summary = f"{type(wrapped).__name__}: {wrapped}"[:500]
+            raise wrapped from exc
+        except Exception as exc:
+            # Execution reports deliberately redact tool input content. Preserve
+            # the bounded failure class/message separately so rejected mutations
+            # can be diagnosed without retaining their source payload.
+            failure_summary = f"{type(exc).__name__}: {exc}"[:500]
+            raise
         finally:
+            if not success and observation is None and failure_summary is None:
+                # ToolExecutionError and wrapped operational errors are also
+                # useful audit evidence; avoid logging arguments or content.
+                failure_summary = "tool invocation rejected"
             context.events.append(
                 _event(
                     context,
@@ -151,6 +167,9 @@ class ToolRegistry:
                     round(time.monotonic() - started, 6),
                     success,
                     (
+                        failure_summary
+                        if failure_summary
+                        else
                         (observation.summary + " " + observation.stderr[:500]).strip()
                         if observation
                         else "failed/rejected"
@@ -186,6 +205,7 @@ def _event(
         affected,
         context.artifact.plan.risk.level.value,
         context.artifact.plan.approval.status.value,
+        dict(context.tool_choice_metadata),
     )
 
 
@@ -232,7 +252,8 @@ def _authorize_mutation(spec: ToolSpec, arguments: dict, context: ToolContext) -
     ):
         raise ToolPermissionError("Rename destination is outside approved scope")
     symbol = arguments.get("symbol")
-    if symbol and symbol not in set(context.policy.allowed_symbols):
+    if (symbol and symbol not in set(context.policy.allowed_symbols)
+            and not _file_level_approved_symbol(context, symbol)):
         raise ToolPermissionError(f"Symbol is outside approved scope: {symbol}")
 
 
@@ -469,9 +490,15 @@ def _handler_for_read(name: str) -> Handler:
 def _handler_for_mutation(name: str) -> Handler:
     def handler(context: ToolContext, arguments: dict) -> ToolObservation:
         if name in {"create_patch", "apply_patch"}:
-            scope = extract_patch_scope(
-                arguments["patch"], tuple(context.symbol_index.symbols), _index_prefix(context)
-            )
+            before_diff = worktree_diff(context.repository)
+            try:
+                scope = extract_patch_scope(
+                    arguments["patch"], tuple(context.symbol_index.symbols), _index_prefix(context)
+                )
+            except PatchValidationError as exc:
+                # A malformed model patch is a bounded tool rejection, not a
+                # worker-fatal error. No file has been changed at this point.
+                return ToolObservation("patch_rejection", False, "Patch could not be parsed", stderr=str(exc))
             for candidate in (
                 *scope.changed_files,
                 *(old for old, _ in scope.renamed_files),
@@ -525,8 +552,11 @@ def _handler_for_mutation(name: str) -> Handler:
             )
             post_issues = validate_patch_scope(context.policy, post)
             if post_issues:
-                _rollback_worktree(context.repository)
-                return ToolObservation("scope_rejection", False, "; ".join(post_issues))
+                restored = _restore_worktree_diff(context.repository, before_diff)
+                detail = "; ".join(post_issues)
+                if not restored:
+                    detail += "; earlier task edits could not be restored and were discarded"
+                return ToolObservation("scope_rejection", False, detail)
             return ToolObservation(
                 "mutation", True, "Patch applied within scope", {"files": post.changed_files}
             )
@@ -534,43 +564,110 @@ def _handler_for_mutation(name: str) -> Handler:
             _rollback_worktree(context.repository)
             return ToolObservation("mutation", True, "Current changes reverted")
         if name in {"replace_symbol_body", "insert_before_symbol", "insert_after_symbol"}:
+            before_diff = worktree_diff(context.repository)
             symbol = _resolve_symbol(context, arguments["symbol"])
             prefix = _index_prefix(context)
             relative = symbol.path[len(prefix) :] if prefix else symbol.path
             path = _safe_path(context.repository, relative)
             lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
             current_source = "".join(lines[symbol.start_line - 1 : symbol.end_line]).rstrip("\r\n")
+            if symbol.language == "python":
+                # ast.get_source_segment, used by SymbolIndex, starts at the
+                # nested node's column but keeps indentation on later lines.
+                first, separator, rest = current_source.partition("\n")
+                current_source = first.lstrip(" \t") + separator + rest
             if hashlib.sha256(current_source.encode()).hexdigest() != symbol.source_hash:
-                raise ToolPermissionError(
-                    "Symbol source/range is stale; refresh the index and revalidate the plan"
+                prior_mutation = any(
+                    event.success
+                    and event.tool_name in {"replace_symbol_body", "insert_before_symbol", "insert_after_symbol"}
+                    and relative in event.affected_files
+                    for event in context.events
                 )
+                if not prior_mutation:
+                    raise ToolPermissionError(
+                        "Symbol source/range is stale; refresh the index and revalidate the plan"
+                    )
+                symbol = _refresh_task_symbol(path, symbol)
+                lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+                current_source = "".join(lines[symbol.start_line - 1 : symbol.end_line]).rstrip("\r\n")
+                if symbol.language == "python":
+                    first, separator, rest = current_source.partition("\n")
+                    current_source = first.lstrip(" \t") + separator + rest
+                if hashlib.sha256(current_source.encode()).hexdigest() != symbol.source_hash:
+                    raise ToolPermissionError("Task symbol source could not be revalidated")
             content = arguments["content"]
-            if content and not content.endswith("\n"):
-                content += "\n"
-            if name == "replace_symbol_body":
-                body_start, body_end, indentation = _python_body_range(path, symbol)
-                replacement = textwrap.indent(content.strip("\r\n"), " " * indentation) + "\n"
-                lines[body_start - 1 : body_end] = [replacement]
-            elif name == "insert_before_symbol":
-                lines[symbol.start_line - 1 : symbol.start_line - 1] = [content]
-            else:
-                lines[symbol.end_line : symbol.end_line] = [content]
-            path.write_text("".join(lines), encoding="utf-8")
-            _enforce_worktree_scope(context)
+            try:
+                if name == "replace_symbol_body":
+                    content = _normalize_symbol_body(content, path, symbol)
+                if content and not content.endswith("\n"):
+                    content += "\n"
+                if name == "replace_symbol_body":
+                    body_start, body_end, indentation = _python_body_range(path, symbol)
+                    replacement = textwrap.indent(
+                        _dedent_python_body(content), " " * indentation
+                    ) + "\n"
+                    candidate_lines = list(lines)
+                    candidate_lines[body_start - 1 : body_end] = [replacement]
+                    candidate = "".join(candidate_lines)
+                    _validate_python_candidate(path, candidate)
+                    lines = candidate_lines
+                elif name == "insert_before_symbol":
+                    candidate_lines = list(lines)
+                    candidate_lines[symbol.start_line - 1 : symbol.start_line - 1] = [content]
+                    candidate = "".join(candidate_lines)
+                    _validate_python_candidate(path, candidate)
+                    lines = candidate_lines
+                else:
+                    candidate_lines = list(lines)
+                    candidate_lines[symbol.end_line : symbol.end_line] = [content]
+                    candidate = "".join(candidate_lines)
+                    _validate_python_candidate(path, candidate)
+                    lines = candidate_lines
+            except ToolArgumentError as exc:
+                return ToolObservation(
+                    "mutation_rejected", False,
+                    f"Candidate rejected before writing; current file is unchanged: {exc}",
+                )
+            path.write_text(candidate, encoding="utf-8")
+            issues = _enforce_worktree_scope(context, before_diff)
+            if issues:
+                return ToolObservation(
+                    "scope_rejection",
+                    False,
+                    "Rejected mutation rolled back; earlier approved edits were preserved. "
+                    + "; ".join(issues),
+                )
+            refreshed = _refresh_task_symbol(path, symbol)
+            updated_lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+            updated_source = "".join(
+                updated_lines[refreshed.start_line - 1 : refreshed.end_line]
+            )
             return ToolObservation(
                 "mutation",
                 True,
-                f"{name} completed",
-                {"path": relative, "symbol": symbol.identifier},
+                f"{name} completed; current candidate symbol is available for validation",
+                {
+                    "path": relative,
+                    "symbol": symbol.identifier,
+                    "current_source": updated_source[:12_000],
+                },
             )
         if "path" not in arguments:
             return ToolObservation("mutation", False, f"{name} requires structured editor context")
+        before_diff = worktree_diff(context.repository)
         path = _safe_path(context.repository, arguments["path"])
         if name in {"create_file", "replace_file"}:
             if name == "create_file" and path.exists():
                 raise ToolArgumentError("create_file target already exists")
             if name == "replace_file" and not path.is_file():
                 raise ToolArgumentError("replace_file target does not exist")
+            try:
+                _validate_python_candidate(path, arguments["content"])
+            except ToolArgumentError as exc:
+                return ToolObservation(
+                    "mutation_rejected", False,
+                    f"Candidate rejected before writing; current file is unchanged: {exc}",
+                )
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(arguments["content"], encoding="utf-8")
         elif name == "append_to_file":
@@ -582,7 +679,14 @@ def _handler_for_mutation(name: str) -> Handler:
             path.rename(_safe_path(context.repository, arguments["destination"]))
         else:
             return ToolObservation("mutation", False, f"{name} delegated to patch editor")
-        _enforce_worktree_scope(context)
+        issues = _enforce_worktree_scope(context, before_diff)
+        if issues:
+            return ToolObservation(
+                "scope_rejection",
+                False,
+                "Rejected mutation rolled back; earlier approved edits were preserved. "
+                + "; ".join(issues),
+            )
         return ToolObservation("mutation", True, f"{name} completed", {"path": arguments["path"]})
 
     return handler
@@ -604,8 +708,9 @@ def _safe_path(repository: Path, value: str) -> Path:
 
 def _index_prefix(context: ToolContext) -> str:
     try:
+        indexed_repository = context.canonical_repository or context.repository
         relative = (
-            context.repository.resolve()
+            indexed_repository.resolve()
             .relative_to(context.symbol_index.repository.resolve())
             .as_posix()
         )
@@ -619,28 +724,155 @@ def _local_symbols(context: ToolContext, symbols):
     return [item for item in symbols if not prefix or item.path.startswith(prefix)]
 
 
+def _file_level_approved_symbol(context: ToolContext, value: str) -> bool:
+    """Resolve an existing symbol only within an approved path-level scope."""
+    prefix = _index_prefix(context)
+    candidates = {
+        (item.path, item.symbol_id, item.qualified_name)
+        for item in (*context.artifact.plan.direct_scope, *context.artifact.plan.dependent_scope)
+        if value in {item.symbol_id, item.qualified_name}
+        and item.path in context.policy.allowed_files
+        and item.path not in context.policy.symbol_scoped_files
+    }
+    if len(candidates) != 1:
+        return False
+    path, symbol_id, qualified = next(iter(candidates))
+    matching = []
+    for item in _local_symbols(context, context.symbol_index.symbols):
+        relative_path = item.path[len(prefix):] if prefix else item.path
+        if relative_path != path:
+            continue
+        if (item.identifier == symbol_id or _same_path_qualified_name(
+            qualified, item.qualified_name, path
+        )):
+            matching.append(item)
+    return len({item.identifier for item in matching}) == 1
+
+
+def _same_path_qualified_name(approved: str | None, indexed: str | None, path: str) -> bool:
+    """Compare names after dropping repository-specific package prefixes.
+
+    Names are anchored at the path's module stem so an approved class cannot
+    accidentally resolve to all of its child methods through a suffix match.
+    """
+    if not approved or not indexed:
+        return False
+    module = Path(path).stem
+
+    def suffix(value: str) -> tuple[str, ...] | None:
+        parts = tuple(value.split("."))
+        positions = [index for index, part in enumerate(parts) if part == module]
+        if len(positions) != 1:
+            return parts if positions == [] else None
+        return parts[positions[0] :]
+
+    return suffix(approved) is not None and suffix(approved) == suffix(indexed)
+
+
 def _resolve_symbol(context: ToolContext, value: str):
     found = _local_symbols(context, context.symbol_index.find_exact(value))
+    if value in set(context.policy.allowed_symbols) or _file_level_approved_symbol(context, value):
+        # Plans may have been indexed from a registered repository root whose
+        # name is embedded in qualified_name, while execution indexes the
+        # repository itself. Resolve only the exact approved candidate, within
+        # its approved file, and only when the suffix remains unambiguous.
+        candidates = [
+            candidate
+            for candidate in (*context.artifact.plan.direct_scope, *context.artifact.plan.dependent_scope)
+            if value in {candidate.symbol_id, candidate.qualified_name}
+            and (
+                candidate.path in set(context.policy.symbol_scoped_files)
+                if value in set(context.policy.allowed_symbols)
+                else candidate.path in set(context.policy.allowed_files)
+                and candidate.path not in set(context.policy.symbol_scoped_files)
+            )
+        ]
+        aliases = [
+            candidate
+            for candidate in candidates
+            if candidate.symbol_id == value or candidate.qualified_name == value
+        ]
+        resolved = []
+        prefix = _index_prefix(context)
+        for candidate in aliases:
+            qualified = candidate.qualified_name or ""
+            for symbol in _local_symbols(context, context.symbol_index.symbols):
+                relative_path = symbol.path[len(prefix) :] if prefix else symbol.path
+                if relative_path != candidate.path:
+                    continue
+                if symbol.identifier == candidate.symbol_id or _same_path_qualified_name(
+                    qualified, symbol.qualified_name, candidate.path
+                ):
+                    resolved.append(symbol)
+        resolved_found = list({symbol.identifier: symbol for symbol in resolved}.values())
+        if resolved_found:
+            found = resolved_found
     if len(found) != 1:
         raise ToolArgumentError(f"Symbol must resolve uniquely: {value}")
     return found[0]
 
 
-def _enforce_worktree_scope(context: ToolContext) -> None:
+def _enforce_worktree_scope(context: ToolContext, before_diff: str) -> tuple[str, ...]:
     try:
+        # Later repairs may touch lines beyond the original symbol range.
+        # Refresh from the mutated workspace before deriving patch effects so
+        # an approved symbol's expanded body remains precisely attributable.
+        refresh = getattr(context.symbol_index, "refresh", None)
+        if callable(refresh):
+            stats = refresh()
+            failures = getattr(stats, "failures", {}) or {}
+            if failures:
+                restored = _restore_worktree_diff(context.repository, before_diff)
+                if restored:
+                    refresh()
+                detail = "Updated symbol index could not parse the candidate: " + ", ".join(sorted(failures))
+                if not restored:
+                    detail += "; earlier task edits could not be restored and were discarded"
+                return (detail,)
         scope = extract_patch_scope(
             worktree_diff(context.repository),
             tuple(context.symbol_index.symbols),
             _index_prefix(context),
         )
     except PatchValidationError as exc:
-        _rollback_worktree(context.repository)
-        raise ToolPermissionError(f"Post-mutation diff could not be validated: {exc}") from exc
+        restored = _restore_worktree_diff(context.repository, before_diff)
+        detail = f"Post-mutation diff could not be validated: {exc}"
+        if not restored:
+            detail += "; earlier task edits could not be restored and were discarded"
+        return (detail,)
     issues = validate_patch_scope(context.policy, scope)
     if not issues:
-        return
-    _rollback_worktree(context.repository)
-    raise ToolPermissionError("Post-mutation scope violation: " + "; ".join(issues))
+        return ()
+    restored = _restore_worktree_diff(context.repository, before_diff)
+    refresh = getattr(context.symbol_index, "refresh", None)
+    if restored and callable(refresh):
+        refresh()
+    if not restored:
+        issues = (*issues, "earlier task edits could not be restored and were discarded")
+    return tuple(issues)
+
+
+def _restore_worktree_diff(repository: Path, patch: str) -> bool:
+    """Discard one rejected mutation while retaining earlier isolated edits."""
+    _rollback_worktree(repository)
+    if not patch.strip():
+        return True
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".patch", delete=False) as stream:
+            stream.write(patch)
+            patch_path = Path(stream.name)
+        try:
+            restored = subprocess.run(
+                ["git", "apply", "--recount", patch_path.as_posix()],
+                cwd=repository,
+                text=True,
+                capture_output=True,
+            )
+        finally:
+            patch_path.unlink(missing_ok=True)
+        return restored.returncode == 0
+    except OSError:
+        return False
 
 
 def _rollback_worktree(repository: Path) -> None:
@@ -678,6 +910,137 @@ def _python_body_range(path: Path, symbol) -> tuple[int, int, int]:
     node = candidates[0]
     first = node.body[0]
     return first.lineno, node.end_lineno, first.col_offset
+
+
+def _dedent_python_body(content: str) -> str:
+    lines = content.strip("\r\n").splitlines()
+    code_indents = [
+        len(line) - len(line.lstrip())
+        for line in lines
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    if not code_indents:
+        return textwrap.dedent("\n".join(lines))
+    indent = min(code_indents)
+    return "\n".join(
+        line[min(indent, len(line) - len(line.lstrip())) :]
+        if line.strip() else ""
+        for line in lines
+    )
+
+
+def _validate_python_candidate(path: Path, content: str) -> None:
+    if path.suffix != ".py":
+        return
+    try:
+        ast.parse(content, filename=path.name)
+    except SyntaxError as exc:
+        raise ToolArgumentError(
+            f"Python mutation rejected before writing: syntax error at line {exc.lineno}"
+        ) from exc
+
+
+def _normalize_symbol_body(content: str, path: Path, symbol) -> str:
+    """Accept body statements or unwrap one signature-identical function safely."""
+    candidate = textwrap.dedent(content.strip("\r\n"))
+    candidate_lines = candidate.splitlines()
+    while candidate_lines and (
+        not candidate_lines[0].strip() or candidate_lines[0].lstrip().startswith("#")
+    ):
+        candidate_lines.pop(0)
+    candidate = "\n".join(candidate_lines)
+    if not candidate.lstrip().startswith(("def ", "async def ", "class ", "@")):
+        return content
+    try:
+        replacement_tree = ast.parse(candidate)
+        existing_tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError) as exc:
+        raise ToolArgumentError("Full-function replacement must be valid Python") from exc
+    if len(replacement_tree.body) != 1 or not isinstance(
+        replacement_tree.body[0], (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+    ):
+        raise ToolArgumentError("Full-symbol replacement must contain exactly one function or class")
+    replacement = replacement_tree.body[0]
+    existing_matches = [
+        item for item in ast.walk(existing_tree)
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        and item.name == symbol.name
+        and item.lineno >= symbol.start_line
+        and item.end_lineno <= symbol.end_line
+    ]
+    if len(existing_matches) != 1 or type(existing_matches[0]) is not type(replacement):
+        raise ToolArgumentError("Current symbol signature cannot be resolved uniquely")
+    existing = existing_matches[0]
+    if isinstance(replacement, ast.ClassDef) and isinstance(existing, ast.ClassDef):
+        signature_matches = (
+            replacement.name == existing.name
+            and [ast.dump(item, include_attributes=False) for item in replacement.bases]
+            == [ast.dump(item, include_attributes=False) for item in existing.bases]
+            and [ast.dump(item, include_attributes=False) for item in replacement.keywords]
+            == [ast.dump(item, include_attributes=False) for item in existing.keywords]
+            and [ast.dump(item, include_attributes=False) for item in replacement.decorator_list]
+            == [ast.dump(item, include_attributes=False) for item in existing.decorator_list]
+            and [ast.dump(item, include_attributes=False)
+                 for item in getattr(replacement, "type_params", [])]
+            == [ast.dump(item, include_attributes=False)
+                for item in getattr(existing, "type_params", [])]
+        )
+        existing_methods = {
+            item.name: ast.dump(item.args, include_attributes=False)
+            for item in existing.body
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        replacement_methods = {
+            item.name: ast.dump(item.args, include_attributes=False)
+            for item in replacement.body
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        if any(replacement_methods.get(name) != args for name, args in existing_methods.items()):
+            raise ToolArgumentError("Full-class replacement cannot remove or change existing method signatures")
+    else:
+        signature_matches = (
+            replacement.name == existing.name
+            and ast.dump(replacement.args, include_attributes=False)
+            == ast.dump(existing.args, include_attributes=False)
+            and (ast.dump(replacement.returns, include_attributes=False) if replacement.returns else None)
+            == (ast.dump(existing.returns, include_attributes=False) if existing.returns else None)
+            and replacement.type_comment == existing.type_comment
+            and [ast.dump(item, include_attributes=False) for item in replacement.decorator_list]
+            == [ast.dump(item, include_attributes=False) for item in existing.decorator_list]
+        )
+    if not signature_matches:
+        raise ToolArgumentError("Full-symbol replacement cannot change the approved signature")
+    if not replacement.body:
+        raise ToolArgumentError("Full-function replacement must contain a body")
+    lines = candidate.splitlines()
+    return textwrap.dedent("\n".join(lines[replacement.body[0].lineno - 1 : replacement.end_lineno]))
+
+
+def _refresh_task_symbol(path: Path, symbol):
+    try:
+        source = path.read_text(encoding="utf-8")
+        tree = ast.parse(source)
+    except (OSError, SyntaxError) as exc:
+        raise ToolPermissionError("Task symbol cannot be safely refreshed after its approved edit") from exc
+    matches = [
+        item for item in ast.walk(tree)
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        and item.name == symbol.name
+    ]
+    if len(matches) != 1:
+        raise ToolPermissionError("Task symbol no longer resolves uniquely after its approved edit")
+    node = matches[0]
+    current_source = "\n".join(source.splitlines()[node.lineno - 1 : node.end_lineno])
+    if symbol.language == "python":
+        first, separator, rest = current_source.partition("\n")
+        current_source = first.lstrip(" \t") + separator + rest
+    return replace(
+        symbol,
+        start_line=node.lineno,
+        end_line=node.end_lineno,
+        source=current_source,
+        source_hash=hashlib.sha256(current_source.encode()).hexdigest(),
+    )
 
 
 def _handler_for_command(timeout: int) -> Handler:

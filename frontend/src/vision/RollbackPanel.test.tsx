@@ -40,4 +40,39 @@ describe("Astra owner rollback panel", () => {
     expect(container.textContent).toContain("Rollback operation recorded: restored");
     expect(localStorage.length + sessionStorage.length).toBe(0);
   });
+
+  it("reuses the restored local Owner CSRF session without a second unlock", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return Promise.resolve(response({ checkpoints: [], operations: [] }));
+    }));
+    container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+    await act(async () => root?.render(createElement(RollbackPanel, {
+      taskIds: ["task_candidate"], onComplete: vi.fn(), projectOwnerCsrf: "restored-owner-csrf",
+    })));
+    expect(container.textContent).toContain("Owner session");
+    expect(container.textContent).not.toContain("Owner rollback token");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toContain("/api/v1/rollback/tasks/task_candidate/checkpoints");
+  });
+
+  it("offers audited failed-validation reconciliation only for the exact recovery checkpoint", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      if (url.endsWith("/checkpoints")) return Promise.resolve(response({ checkpoints: [{ task_id: "task_candidate", checkpoint_id: "baseline", label: "baseline", created_at: "2026-10-02T10:00:00Z", plan_hash: "a".repeat(64), head: "abc123", schema_version: 2, eligible: false, reason: "Recovery_required" }], operations: [] }));
+      if (url.endsWith("/validation-failure/reconcile")) return Promise.resolve(response({ status: "rolled_back" }));
+      return Promise.resolve(response({}));
+    }));
+    container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+    await act(async () => root?.render(createElement(RollbackPanel, { taskIds: ["task_candidate"], onComplete: vi.fn(), projectOwnerCsrf: "restored-owner-csrf" })));
+    const reconcile = [...container.querySelectorAll("button")].find(button => button.textContent?.includes("Restore baseline after failed validation"))!;
+    await act(async () => reconcile.click());
+    const call = calls.find(item => item.url.endsWith("/validation-failure/reconcile"))!;
+    expect(call.init?.headers).toMatchObject({ "X-Friday-CSRF": "restored-owner-csrf", "Content-Type": "application/json" });
+    expect(JSON.parse(String(call.init?.body))).toMatchObject({ plan_hash: "a".repeat(64) });
+    expect(JSON.parse(String(call.init?.body)).idempotency_key).toBeTruthy();
+    expect(container.textContent).toContain("Rollback operation recorded: rolled_back");
+  });
 });

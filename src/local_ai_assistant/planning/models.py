@@ -239,6 +239,7 @@ class ScopeGuardPolicy:
     generated_file_policy: str
     security_sensitive_path_policy: str
     symbol_scoped_files: tuple[str, ...] = ()
+    allow_test_symbol_additions: bool = False
 
 
 @dataclass(frozen=True, slots=True)

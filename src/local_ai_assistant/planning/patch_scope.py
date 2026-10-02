@@ -39,6 +39,7 @@ class SymbolEffect:
     path: str
     symbol: str | None
     confidence: str
+    qualified_name: str | None = None
 
 
 def worktree_diff(repository) -> str:
@@ -107,11 +108,15 @@ def extract_patch_scope(
     touched: set[str] = set()
     current_old = current_new = None
     ranges: list[tuple[str, int, int]] = []
+    changed_lines: list[tuple[str, int]] = []
+    nonblank_changed_lines: set[tuple[str, int]] = set()
     definition_changes: list[tuple[str, str, str]] = []
     sections = 0
     section_changed = False
+    new_line = None
     for line in diff.splitlines():
         if line.startswith("diff --git "):
+            new_line = None
             if sections and not section_changed:
                 raise PatchValidationError("Malformed patch section has no change metadata")
             try:
@@ -142,7 +147,20 @@ def extract_patch_scope(
                 start = int(match.group(1))
                 count = int(match.group(2) or 1)
                 ranges.append((current_old, start, max(start, start + count - 1)))
+                new_line = int(match.group(3))
                 section_changed = True
+            elif new_line is not None and current_new:
+                if line.startswith("+") and not line.startswith("+++"):
+                    changed_lines.append((current_new, new_line))
+                    if line[1:].strip():
+                        nonblank_changed_lines.add((current_new, new_line))
+                    new_line += 1
+                elif line.startswith("-") and not line.startswith("---"):
+                    changed_lines.append((current_new, new_line))
+                    if line[1:].strip():
+                        nonblank_changed_lines.add((current_new, new_line))
+                elif line.startswith(" "):
+                    new_line += 1
             definition = next(
                 (pattern.match(line) for pattern in DEFINITION_PATTERNS if pattern.match(line)),
                 None,
@@ -165,49 +183,56 @@ def extract_patch_scope(
             current_new = _patch_path(parts[3], "b/")
             if current_new not in special:
                 modified.append(current_new)
-    for symbol in symbols:
-        if symbol.kind.value == "module":
+    selected: dict[str, SymbolRecord] = {}
+    for path, line_number in changed_lines:
+        if path in created:
             continue
-        if repository_prefix and not symbol.path.startswith(repository_prefix):
-            continue
-        symbol_path = symbol.path[len(repository_prefix) :] if repository_prefix else symbol.path
-        if any(
-            path == symbol_path and start <= symbol.end_line and end >= symbol.start_line
-            for path, start, end in ranges
-        ):
+        matches = [
+            symbol for symbol in symbols
+            if symbol.kind.value != "module"
+            and (not repository_prefix or symbol.path.startswith(repository_prefix))
+            and (symbol.path[len(repository_prefix) :] if repository_prefix else symbol.path) == path
+            and symbol.start_line <= line_number <= symbol.end_line
+        ]
+        if matches:
+            # A class and its method overlap. Attribute each changed line to
+            # the innermost symbol; a class header still belongs to the class.
+            symbol = min(matches, key=lambda item: item.end_line - item.start_line)
+            selected[symbol.identifier] = symbol
             touched.add(symbol.identifier)
-    effects = [
-        SymbolEffect(
-            "existing_symbol_modified",
-            next(
-                path
-                for path, start, end in ranges
-                if start <= symbol.end_line and end >= symbol.start_line and path == symbol_path
-            ),
-            symbol.identifier,
-            "confirmed",
-        )
-        for symbol in symbols
-        if symbol.identifier in touched
-        for symbol_path in (
-            [symbol.path[len(repository_prefix) :] if repository_prefix else symbol.path]
-        )
-    ]
     paired = {(path, name) for effect, path, name in definition_changes if effect == "added"} & {
         (path, name) for effect, path, name in definition_changes if effect == "deleted"
     }
+    new_names = {
+        (path, name) for effect, path, name in definition_changes
+        if effect == "added" and (path, name) not in paired
+    }
+    selected = {
+        identifier: symbol for identifier, symbol in selected.items()
+        if ((symbol.path[len(repository_prefix) :] if repository_prefix else symbol.path), symbol.name)
+        not in new_names
+    }
+    touched = set(selected)
+    effects = [
+        SymbolEffect(
+            "existing_symbol_modified",
+            symbol.path[len(repository_prefix) :] if repository_prefix else symbol.path,
+            symbol.identifier,
+            "confirmed",
+            symbol.qualified_name,
+        )
+        for symbol in selected.values()
+    ]
     effects.extend(
         SymbolEffect(f"symbol_{effect}", path, name, "syntactic")
         for effect, path, name in definition_changes
         if (path, name) not in paired
     )
-    known_ranges = {
-        (path, start, end)
-        for path, start, end in ranges
+    known_lines = {
+        (path, line_number) for path, line_number in changed_lines
         if any(
             (symbol.path[len(repository_prefix) :] if repository_prefix else symbol.path) == path
-            and start <= symbol.end_line
-            and end >= symbol.start_line
+            and symbol.start_line <= line_number <= symbol.end_line
             for symbol in symbols
             if symbol.kind.value != "module"
         )
@@ -222,8 +247,10 @@ def extract_patch_scope(
             ]
             + [
                 path
-                for path, start, end in ranges
-                if path in analyzable_existing_paths and (path, start, end) not in known_ranges
+                for path, line_number in changed_lines
+                if path in analyzable_existing_paths
+                and (path, line_number) not in known_lines
+                and (path, line_number) in nonblank_changed_lines
             ]
         )
     )
@@ -249,7 +276,31 @@ def validate_patch_scope(policy: ScopeGuardPolicy, scope: PatchScope) -> tuple[s
         for old, new in scope.renamed_files
         if old not in allowed_delete or new not in allowed_delete
     }
-    unexpected_symbols = set(scope.changed_symbols) - set(policy.allowed_symbols)
+    existing_effects = tuple(
+        item for item in scope.symbol_effects if item.effect == "existing_symbol_modified"
+    )
+    allowed_changed_ids = {
+        item.symbol
+        for item in existing_effects
+        if item.symbol
+        and item.path in policy.symbol_scoped_files
+        and item.qualified_name
+        and any(
+            item.qualified_name == allowed
+            or item.qualified_name.endswith("." + allowed)
+            or allowed.endswith("." + item.qualified_name)
+            for allowed in policy.allowed_symbols
+        )
+    }
+    file_level_changed_ids = {
+        item.symbol for item in existing_effects
+        if item.symbol and item.path in policy.allowed_files
+        and item.path not in policy.symbol_scoped_files
+    }
+    unexpected_symbols = (
+        set(scope.changed_symbols) - set(policy.allowed_symbols)
+        - allowed_changed_ids - file_level_changed_ids
+    )
     added_symbols = {
         (item.path, item.symbol)
         for item in scope.symbol_effects
@@ -259,6 +310,12 @@ def validate_patch_scope(policy: ScopeGuardPolicy, scope: PatchScope) -> tuple[s
         f"{path}:{name}"
         for path, name in added_symbols
         if not _new_symbol_allowed(path, name, policy.allowed_new_symbols)
+        and not (
+            policy.allow_test_symbol_additions
+            and path in policy.allowed_files
+            and PurePosixPath(path).name.lower().startswith("test_")
+            and name.rsplit(".", 1)[-1].startswith("test_")
+        )
     }
     all_paths = set(scope.changed_files) | {old for old, _ in scope.renamed_files}
     protected = {path for path in all_paths if is_protected_path(path)}
@@ -279,9 +336,15 @@ def validate_patch_scope(policy: ScopeGuardPolicy, scope: PatchScope) -> tuple[s
         issues.append("Unapproved dependency/config files: " + ", ".join(sorted(dependencies)))
     if len(scope.changed_files) > policy.max_file_count:
         issues.append("Patch exceeds planned file count.")
-    affected_symbol_count = len(
-        {item.symbol for item in scope.symbol_effects if item.symbol} | set(scope.changed_symbols)
-    )
+    covered_ids = {
+        item.symbol for item in existing_effects if item.symbol and item.qualified_name
+    }
+    semantic_effects = {
+        (item.path, item.qualified_name or item.symbol)
+        for item in scope.symbol_effects
+        if item.symbol
+    }
+    affected_symbol_count = len(semantic_effects) + len(set(scope.changed_symbols) - covered_ids)
     if affected_symbol_count > policy.max_symbol_count:
         issues.append("Patch exceeds planned symbol count.")
     uncertain_symbol_files = set(scope.unknown_effects) & set(policy.symbol_scoped_files)
@@ -338,7 +401,8 @@ def render_patch_scope(scope: PatchScope) -> str:
         lines.append("")
         lines.append(path)
         for effect in effects_by_path.get(path, ()):
-            lines.append(f"  - {effect.effect}: {effect.symbol or 'unknown'} [{effect.confidence}]")
+            label = effect.qualified_name or effect.symbol or "unknown"
+            lines.append(f"  - {effect.effect}: {label} [{effect.confidence}]")
         if path in scope.unknown_effects:
             lines.append("  - file-level change outside known symbol [unknown]")
     return "\n".join(lines)

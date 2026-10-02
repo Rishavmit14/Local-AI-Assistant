@@ -92,8 +92,9 @@ def test_fresh_index_precedes_every_patch_proposal(monkeypatch, tmp_path, reuse_
         def identity_issues(self, artifact):
             return ()
 
-    def load_approved(task_id, token):
+    def load_approved(task_id, token, *, execution_attempt_id=None):
         assert (task_id, token) == ("task-1", "reviewed-token")
+        assert execution_attempt_id is None
         events.append("load")
         artifact = fake_artifact()
         artifact.plan.original_request = "change something"

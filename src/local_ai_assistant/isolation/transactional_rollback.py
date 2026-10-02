@@ -36,7 +36,9 @@ class TransactionalRollbackService:
     mutates files; rollback rechecks lifecycle while holding the lock.
     """
 
-    _ALLOWED_WORKTREE_STATES = {WorktreeState.READY, WorktreeState.FAILED}
+    _ALLOWED_WORKTREE_STATES = {
+        WorktreeState.READY, WorktreeState.FAILED, WorktreeState.RECOVERY_REQUIRED,
+    }
     _ACTIVE_TASK_STATES = {
         TaskStatus.PLANNING, TaskStatus.EXECUTING, TaskStatus.VALIDATING,
         TaskStatus.REVIEWING,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import subprocess
@@ -13,11 +14,17 @@ from local_ai_assistant.common.errors import PatchValidationError
 from local_ai_assistant.execution.commands import CommandResult
 from local_ai_assistant.execution.errors import (
     ToolArgumentError,
+    ToolExecutionError,
     ToolNotFoundError,
     ToolPermissionError,
 )
 from local_ai_assistant.execution.loop import ExecutionLoop, LoopLimits
-from local_ai_assistant.execution.models import ToolObservation, ToolPermission, ToolSpec
+from local_ai_assistant.execution.models import (
+    ToolObservation,
+    ToolPermission,
+    ToolRequest,
+    ToolSpec,
+)
 from local_ai_assistant.execution.registry import (
     ToolContext,
     ToolRegistry,
@@ -51,6 +58,8 @@ from local_ai_assistant.planning.models import (
     plan_approval_token,
 )
 from local_ai_assistant.planning.patch_scope import (
+    PatchScope,
+    SymbolEffect,
     extract_patch_scope,
     validate_patch_scope,
     worktree_diff,
@@ -151,6 +160,19 @@ def response_for(index, **overrides):
     }
     value.update(overrides)
     return value
+
+
+def test_named_acceptance_contract_is_pinned_in_plan_and_prompt(planning_repo):
+    root, repo, index = planning_repo
+    contract = "Non-empty strings return True; empty and non-string inputs return False.\n"
+    (repo / "ACCEPTANCE.md").write_text(contract)
+    model = FakeLLM(response_for(index))
+    artifact = PlannerService(repo, index, model, root / "plans").generate(
+        "Implement login_user according to ACCEPTANCE.md and correct contradictory tests."
+    )
+    assert "ACCEPTANCE.md" in artifact.plan.files_to_inspect
+    assert contract.strip() in model.calls[0]["prompt"]
+    assert "overrides contradictory inherited test expectations" in model.calls[0]["prompt"]
 
 
 def test_task_classification_is_conservative_and_preserves_request():
@@ -276,6 +298,48 @@ def test_plan_generation_parsing_validation_confidence_and_persistence(planning_
     assert "DETERMINISTIC SCOPE EVIDENCE" in llm.calls[0]["prompt"]
     assert "never invent fallback filenames or directories" in llm.calls[0]["prompt"]
     assert len(llm.calls[0]["prompt"]) < 40_000
+
+
+def test_plan_generation_retries_once_when_a_required_field_is_omitted(planning_repo):
+    root, repo, index = planning_repo
+    incomplete = response_for(index)
+    incomplete.pop("rollback_considerations")
+
+    class RepairingLLM:
+        def __init__(self):
+            self.calls = []
+
+        def chat(self, **kwargs):
+            self.calls.append(kwargs)
+            return json.dumps(incomplete if len(self.calls) == 1 else response_for(index))
+
+    llm = RepairingLLM()
+    artifact = PlannerService(repo, index, llm, root / "plans").generate("Fix login_user bug")
+
+    assert len(llm.calls) == 2
+    assert "rollback_considerations" in llm.calls[1]["prompt"]
+    assert '"rollback_considerations"' in llm.calls[1]["prompt"]
+    assert '"string"' in llm.calls[1]["prompt"]
+    assert artifact.plan.rollback_considerations == ("Revert the isolated Git branch.",)
+
+
+def test_plan_generation_keeps_failing_after_one_invalid_repair(planning_repo):
+    root, repo, index = planning_repo
+    incomplete = response_for(index)
+    incomplete.pop("rollback_considerations")
+
+    class RepeatingLLM:
+        def __init__(self):
+            self.calls = []
+
+        def chat(self, **kwargs):
+            self.calls.append(kwargs)
+            return json.dumps(incomplete)
+
+    llm = RepeatingLLM()
+    with pytest.raises(PlanGenerationError, match="rollback_considerations"):
+        PlannerService(repo, index, llm, root / "plans").generate("Fix login_user bug")
+    assert len(llm.calls) == 2
 
 
 def test_plan_reload_rejects_unknown_schema(planning_repo):
@@ -537,6 +601,66 @@ def test_generated_patch_is_checked_against_planned_files_and_symbols(planning_r
     assert validate_patch_scope(policy, scope) == ()
 
 
+def test_explicit_test_expansion_allows_new_test_cases_only_in_approved_test_file(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Expand tests/test_service.py with boundary and invalid input cases"
+    )
+    plan = replace(
+        artifact.plan,
+        files_to_modify=("tests/test_service.py",),
+        original_request="Expand tests/test_service.py with boundary and invalid input cases",
+    )
+    policy = scope_guard_from_plan(plan)
+    added_test = PatchScope(
+        modified_files=("tests/test_service.py",),
+        created_files=(), deleted_files=(), renamed_files=(), changed_symbols=(),
+        symbol_effects=(SymbolEffect("symbol_added", "tests/test_service.py", "test_boundary", "syntactic"),),
+    )
+    added_helper = replace(
+        added_test,
+        symbol_effects=(SymbolEffect("symbol_added", "tests/test_service.py", "helper", "syntactic"),),
+    )
+
+    assert policy.allow_test_symbol_additions
+    assert validate_patch_scope(policy, added_test) == ()
+    assert any("Unplanned new symbols" in item for item in validate_patch_scope(policy, added_helper))
+
+
+def test_patch_scope_matches_reindexed_symbol_by_qualified_name_and_scoped_path(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    policy = scope_guard_from_plan(artifact.plan)
+    alias_scope = PatchScope(
+        modified_files=("app/service.py",),
+        created_files=(),
+        deleted_files=(),
+        renamed_files=(),
+        changed_symbols=("py:task-worktree-symbol-id",),
+        symbol_effects=(
+            SymbolEffect(
+                "existing_symbol_modified",
+                "app/service.py",
+                "py:task-worktree-symbol-id",
+                "confirmed",
+                "app.service.login_user",
+            ),
+        ),
+    )
+
+    assert validate_patch_scope(policy, alias_scope) == ()
+
+    unrelated_scope = replace(
+        alias_scope,
+        symbol_effects=(
+            replace(alias_scope.symbol_effects[0], qualified_name="app.service.logout_user"),
+        ),
+    )
+    assert any("Unplanned symbols" in item for item in validate_patch_scope(policy, unrelated_scope))
+
+
 def test_generated_patch_rejects_unplanned_file_before_apply(planning_repo):
     root, repo, index = planning_repo
     artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
@@ -695,6 +819,191 @@ def test_replace_symbol_body_preserves_signature_and_targets_current_symbol(plan
     subprocess.run(["git", "restore", "."], cwd=repo, check=True)
 
 
+def test_repeat_edit_remains_scoped_after_approved_symbol_expands(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    symbol = index.find_exact("login_user")[0]
+    context = ToolContext(
+        repo, artifact, scope_guard_from_plan(artifact.plan), index,
+        plan_approval_token(artifact.plan),
+    )
+    expanded_body = "value = name\n" + "\n".join(
+        f"step_{number} = value" for number in range(24)
+    ) + "\nreturn bool(step_23)"
+    first = default_registry().invoke(
+        "replace_symbol_body", {"symbol": symbol.identifier, "content": expanded_body}, context
+    )
+    assert first.success
+    corrected_body = expanded_body.replace("return bool(step_23)", "return step_23 == 'approved'")
+    second = default_registry().invoke(
+        "replace_symbol_body", {"symbol": symbol.identifier, "content": corrected_body}, context
+    )
+    assert second.success
+    assert "return step_23 == 'approved'" in (repo / "app/service.py").read_text()
+
+
+def test_replace_symbol_body_dedents_generated_body_and_checks_syntax_before_write(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    symbol = index.find_exact("login_user")[0]
+    context = ToolContext(
+        repo, artifact, scope_guard_from_plan(artifact.plan), index,
+        plan_approval_token(artifact.plan),
+    )
+    body = "        # generated body\n        if not name:\n            return False\n        return True"
+    result = default_registry().invoke(
+        "replace_symbol_body", {"symbol": symbol.identifier, "content": body}, context
+    )
+    source = (repo / "app/service.py").read_text()
+    assert result.success
+    assert "    # generated body\n    if not name:\n        return False\n    return True" in source
+    ast.parse(source)
+    subprocess.run(["git", "restore", "."], cwd=repo, check=True)
+
+
+def test_replace_symbol_body_rejects_syntax_error_without_mutation(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    symbol = index.find_exact("login_user")[0]
+    context = ToolContext(
+        repo, artifact, scope_guard_from_plan(artifact.plan), index,
+        plan_approval_token(artifact.plan),
+    )
+    original = (repo / "app/service.py").read_text()
+    observation = default_registry().invoke(
+        "replace_symbol_body",
+        {"symbol": symbol.identifier, "content": "if name\n    return False"},
+        context,
+    )
+    assert not observation.success and "syntax error" in observation.summary
+    assert (repo / "app/service.py").read_text() == original
+
+
+def test_replace_symbol_body_rejects_model_generated_inconsistent_indentation(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    symbol = index.find_exact("login_user")[0]
+    context = ToolContext(
+        repo, artifact, scope_guard_from_plan(artifact.plan), index,
+        plan_approval_token(artifact.plan),
+    )
+    original = (repo / "app/service.py").read_text()
+    malformed = (
+        "        # Validate inputs\n            if not name:\n"
+        "                return False\n        return True"
+    )
+    observation = default_registry().invoke(
+        "replace_symbol_body", {"symbol": symbol.identifier, "content": malformed}, context
+    )
+    assert not observation.success and "syntax error" in observation.summary
+    assert (repo / "app/service.py").read_text() == original
+
+
+def test_replace_symbol_body_resolves_registered_root_qualified_plan_alias(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    approved_ids = set(artifact.plan.symbols_to_modify)
+    candidate = next(item for item in artifact.plan.direct_scope if item.symbol_id in approved_ids)
+    symbol = next(item for item in index.symbols if item.identifier == candidate.symbol_id)
+    alias = "registered-root." + symbol.qualified_name
+    candidate = replace(candidate, symbol_id=symbol.identifier, qualified_name=alias)
+    plan = replace(artifact.plan, direct_scope=(candidate,), symbols_to_modify=(alias,))
+    artifact = replace(artifact, plan=plan)
+    context = ToolContext(repo, artifact, scope_guard_from_plan(plan), index, plan_approval_token(plan))
+    result = default_registry().invoke(
+        "replace_symbol_body", {"symbol": alias, "content": "return name == 'approved'"}, context
+    )
+    assert result.success
+    assert set(subprocess.run(
+        ["git", "diff", "--name-only"], cwd=repo, check=True, text=True, capture_output=True
+    ).stdout.splitlines()) == {candidate.path}
+    subprocess.run(["git", "restore", "."], cwd=repo, check=True)
+
+
+def test_replace_symbol_body_unwraps_only_signature_identical_function(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    symbol = index.find_exact("login_user")[0]
+    context = ToolContext(
+        repo, artifact, scope_guard_from_plan(artifact.plan), index, plan_approval_token(artifact.plan)
+    )
+    result = default_registry().invoke(
+        "replace_symbol_body",
+        {"symbol": symbol.identifier, "content": "def login_user(name):\n    return name == 'approved'"},
+        context,
+    )
+    assert result.success
+    source = (repo / "app/service.py").read_text()
+    assert source.count("def login_user(") == 1
+    assert "    return name == 'approved'" in source
+    second = default_registry().invoke(
+        "replace_symbol_body",
+        {"symbol": symbol.identifier, "content": "return name.startswith('a')"},
+        context,
+    )
+    assert second.success
+    assert "    return name.startswith('a')" in (repo / "app/service.py").read_text()
+    subprocess.run(["git", "restore", "."], cwd=repo, check=True)
+    rejected = default_registry().invoke(
+        "replace_symbol_body",
+        {"symbol": symbol.identifier,
+         "content": "def login_user(name, is_admin=False):\n    return is_admin"},
+        context,
+    )
+    assert not rejected.success
+    assert "cannot change the approved signature" in rejected.summary
+    assert "return bool(name)" in (repo / "app/service.py").read_text()
+
+
+def test_replace_symbol_body_maps_registered_repository_paths_into_task_worktree(planning_repo):
+    root, canonical_repo, index = planning_repo
+    artifact = PlannerService(
+        canonical_repo, index, FakeLLM(response_for(index)), root / "plans"
+    ).generate("Fix login_user")
+    task_repo = root / "worktrees" / "task-1"
+    task_repo.parent.mkdir(parents=True)
+    subprocess.run(
+        ["git", "clone", "--quiet", str(canonical_repo), str(task_repo)], check=True
+    )
+    symbol = index.find_exact("login_user")[0]
+    assert symbol.path == "demo/app/service.py"
+    artifact = replace(
+        artifact,
+        plan=replace(artifact.plan, symbols_to_modify=(symbol.qualified_name,)),
+    )
+    context = ToolContext(
+        task_repo,
+        artifact,
+        scope_guard_from_plan(artifact.plan),
+        index,
+        plan_approval_token(artifact.plan),
+        canonical_repository=canonical_repo,
+    )
+
+    result = default_registry().invoke(
+        "replace_symbol_body",
+        {"symbol": symbol.qualified_name, "content": "return name == 'approved'"},
+        context,
+    )
+
+    source = (task_repo / "app/service.py").read_text()
+    assert result.success
+    assert "return name == 'approved'" in source
+    assert not (task_repo / "demo/app/service.py").exists()
+
+
 def test_unresolved_static_evidence_reduces_confidence(planning_repo):
     _, repo, index = planning_repo
     classification = classify_task("Fix login_user")
@@ -829,7 +1138,211 @@ def test_bounded_tool_loop_inspects_validates_and_finishes(planning_repo):
     result = ExecutionLoop(model, registry, context, LoopLimits(max_steps=4)).run()
     assert result.status == "complete"
     assert result.steps == 3
-    assert len(context.events) == 2
+    assert [event.tool_name for event in context.events] == [
+        "inspect", "run_tests", "model_tool_choice"
+    ]
+
+
+def test_tool_loop_passes_bounded_read_results_to_next_model_choice(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: model.calls.append(kwargs) or json.dumps(
+        {
+            "tool": "finish",
+            "arguments": {},
+            "rationale": "source is available",
+            "expected_outcome": "implement the reviewed change",
+            "plan_step": 1,
+            "mutation_intended": False,
+        }
+    )
+    loop = ExecutionLoop(
+        model,
+        ToolRegistry(),
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+    )
+
+    loop._required_inspections = lambda: ("ACCEPTANCE.md",)
+    observations = [
+        ToolObservation("file", True, "ACCEPTANCE.md", {"content": "Scores 30 through 64 are review."}),
+        *[ToolObservation("note", True, f"observation-{i}") for i in range(9)],
+    ]
+    loop._next_request(observations)
+
+    prompt = model.calls[0]["prompt"]
+    assert "Scores 30 through 64 are review." in prompt
+    assert "Do not repeat an unchanged read_file request" in model.calls[0]["system_prompt"]
+    assert "use apply_patch for a focused edit within that exact file" in model.calls[0]["system_prompt"]
+    assert "Never put a nested def/class with the target name inside a replacement body" in model.calls[0]["system_prompt"]
+    assert "under 120 characters each" in model.calls[0]["system_prompt"]
+    assert model.calls[0]["response_format"]["type"] == "json_schema"
+    schema = model.calls[0]["response_format"]["json_schema"]["schema"]
+    assert schema["required"] == ["tool", "arguments", "rationale", "expected_outcome", "plan_step", "mutation_intended"]
+    assert schema["additionalProperties"] is False
+
+
+def test_file_scoped_test_symbol_is_routed_to_patch_tool(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    test_symbol = next(
+        item for item in index.symbols
+        if item.path.endswith("tests/test_service.py") and item.name == "test_login"
+    )
+    artifact = replace(
+        artifact,
+        plan=replace(
+            artifact.plan,
+            files_to_modify=tuple(dict.fromkeys((*artifact.plan.files_to_modify, "tests/test_service.py"))),
+            original_request="Expand tests/test_service.py with boundary cases",
+        ),
+    )
+    loop = ExecutionLoop(
+        FakeLLM(None), ToolRegistry(),
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+    )
+    request = ToolRequest(
+        "replace_symbol_body", {"symbol": test_symbol.identifier, "content": "pass"},
+        "edit test", "update tests", 1, True,
+    )
+
+    assert loop._test_symbol_requires_file_patch(request)
+
+
+def test_nested_python_method_uses_index_normalized_source_for_exact_edit(planning_repo):
+    root, repo, index = planning_repo
+    path = repo / "tests/test_service.py"
+    path.write_text(
+        "from app.service import login_user\n\n"
+        "class ServiceTests:\n"
+        "    def test_login(self):\n"
+        "        assert login_user('a') is False\n"
+    )
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "nested test fixture"], cwd=repo, check=True)
+    index.refresh(full=True)
+    method = next(item for item in index.symbols
+                  if item.path.endswith("tests/test_service.py") and item.name == "test_login")
+    artifact = PlannerService(
+        repo, index, FakeLLM(response_for(index,
+            files_to_modify=["tests/test_service.py"],
+            symbols_to_modify=[method.qualified_name],
+        )), root / "plans",
+    ).generate("Correct ServiceTests.test_login in tests/test_service.py")
+    assert any(candidate.symbol_id == method.identifier for candidate in artifact.scope_candidates)
+    context = ToolContext(
+        repo, artifact, scope_guard_from_plan(artifact.plan), index,
+        plan_approval_token(artifact.plan),
+    )
+    observation = default_registry().invoke(
+        "replace_symbol_body",
+        {"symbol": method.qualified_name,
+         "content": "assert login_user('a') is True",
+         "_mutation_intended": True},
+        context,
+    )
+    assert observation.success
+    assert "assert login_user('a') is True" in path.read_text()
+    path.write_text(path.read_text().replace("class ServiceTests:", "class ServiceTests(object):"))
+    index.refresh()
+    scope = extract_patch_scope(worktree_diff(repo), tuple(index.symbols), "demo/")
+    assert any("Unplanned symbols" in issue for issue in validate_patch_scope(context.policy, scope))
+
+
+def test_mutation_waits_for_all_approved_inspections(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    symbol = artifact.plan.symbols_to_modify[0]
+    actions = iter([
+        {"tool": "replace_symbol_body", "arguments": {"symbol": symbol, "content": "return bool(name)"},
+         "rationale": "edit", "expected_outcome": "fix", "plan_step": 1, "mutation_intended": True},
+        {"tool": "read_file", "arguments": {"path": "app/service.py"},
+         "rationale": "inspect", "expected_outcome": "source", "plan_step": 1, "mutation_intended": False},
+        {"tool": "read_file", "arguments": {"path": "tests/test_service.py"},
+         "rationale": "inspect", "expected_outcome": "tests", "plan_step": 1, "mutation_intended": False},
+        {"tool": "replace_symbol_body", "arguments": {"symbol": symbol, "content": "return bool(name)"},
+         "rationale": "edit", "expected_outcome": "fix", "plan_step": 1, "mutation_intended": True},
+        {"tool": "run_tests", "arguments": {"command": "python -m pytest"},
+         "rationale": "test", "expected_outcome": "pass", "plan_step": 2, "mutation_intended": False},
+        {"tool": "finish", "arguments": {}, "rationale": "done", "expected_outcome": "complete",
+         "plan_step": 2, "mutation_intended": False},
+    ])
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: json.dumps(next(actions))
+    context = ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index)
+    result = ExecutionLoop(model, default_registry(), context, LoopLimits(max_steps=8)).run()
+    assert result.status == "complete"
+    kinds = [item.kind for item in result.observations]
+    assert result.mutations == 1
+    assert kinds.index("inspection_required") < kinds.index("file")
+
+
+def test_tool_loop_blocks_unchanged_duplicate_file_reads(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    artifact = replace(artifact, plan=replace(artifact.plan, validation_commands=()))
+    read = {
+        "tool": "read_file", "arguments": {"path": "fraudshield.py"},
+        "rationale": "inspect", "expected_outcome": "read source",
+        "plan_step": 1, "mutation_intended": False,
+    }
+    finish = {
+        "tool": "finish", "arguments": {}, "rationale": "done",
+        "expected_outcome": "complete", "plan_step": 1,
+        "mutation_intended": False,
+    }
+    actions = iter((read, read, finish))
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: json.dumps(next(actions))
+    context = ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index)
+
+    result = ExecutionLoop(
+        model, default_registry(), context, LoopLimits(max_steps=4)
+    ).run()
+
+    assert result.status == "complete"
+    assert sum(item.kind == "duplicate_read" for item in result.observations) == 1
+    assert [event.tool_name for event in context.events].count("read_file") == 1
+
+
+def test_tool_loop_bounds_large_read_results_in_model_context(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: model.calls.append(kwargs) or json.dumps(
+        {
+            "tool": "finish",
+            "arguments": {},
+            "rationale": "source is available",
+            "expected_outcome": "implement the reviewed change",
+            "plan_step": 1,
+            "mutation_intended": False,
+        }
+    )
+    loop = ExecutionLoop(
+        model,
+        ToolRegistry(),
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+    )
+
+    loop._next_request(
+        [ToolObservation("file", True, "large.py", {"content": "x" * 50_000})]
+    )
+
+    prompt = model.calls[0]["prompt"]
+    assert "truncated_json" in prompt
+    assert "...[truncated]" in prompt
+    assert len(prompt) <= loop.limits.context_characters
 
 
 def test_tool_loop_corrects_one_malformed_model_request_without_relaxing_schema(planning_repo):
@@ -872,6 +1385,103 @@ def test_tool_loop_corrects_one_malformed_model_request_without_relaxing_schema(
     assert "plan_step must be a JSON integer" in model.calls[1]["prompt"]
 
 
+def test_tool_choice_corrects_symbol_scoped_whole_file_replacement(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    registry = ToolRegistry()
+    registry.register(ToolSpec("replace_file", "Replace complete file", ToolPermission.SAFE_MUTATION,
+                               True, 30, ("path", "content")),
+                      lambda _context, _args: ToolObservation("mutation", True, "replaced"))
+    registry.register(ToolSpec("replace_symbol_body", "Replace one symbol body", ToolPermission.SAFE_MUTATION,
+                               True, 30, ("symbol", "content")),
+                      lambda _context, _args: ToolObservation("mutation", True, "replaced symbol"))
+    responses = iter([
+        json.dumps({"tool": "replace_file", "arguments": {"path": "app/service.py", "content": "whole file"},
+                    "rationale": "replace file", "expected_outcome": "updated file", "plan_step": 1,
+                    "mutation_intended": True}),
+        json.dumps({"tool": "replace_symbol_body", "arguments": {"symbol": "app.service.login_user", "content": "return None"},
+                    "rationale": "replace approved body", "expected_outcome": "updated symbol", "plan_step": 1,
+                    "mutation_intended": True}),
+    ])
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: model.calls.append(kwargs) or next(responses)
+    policy = scope_guard_from_plan(artifact.plan)
+    assert "app/service.py" in policy.symbol_scoped_files
+    loop = ExecutionLoop(model, registry, ToolContext(repo, artifact, policy, index))
+
+    request = loop._next_request([])
+
+    assert request.tool == "replace_symbol_body"
+    assert len(model.calls) == 2
+    assert "cannot edit symbol-scoped path app/service.py" in model.calls[1]["prompt"]
+
+
+def test_tool_choice_corrects_unapproved_module_symbol_to_approved_new_symbol(planning_repo):
+    root, repo, index = planning_repo
+    login = index.find_exact("login_user")[0]
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    module_candidate = replace(
+        artifact.plan.direct_scope[0], symbol_id="py:unapproved-module",
+        qualified_name="app.service",
+    )
+    plan = replace(
+        artifact.plan, symbols_to_create=("app.service.login_category",),
+        direct_scope=(*artifact.plan.direct_scope, module_candidate),
+    )
+    artifact = replace(artifact, plan=plan)
+    registry = default_registry()
+    responses = iter([
+        json.dumps({"tool": "replace_symbol_body", "arguments": {
+            "symbol": "app.service", "content": "def login_category(name):\n    return bool(name)\n"},
+            "rationale": "create helper", "expected_outcome": "helper exists", "plan_step": 1,
+            "mutation_intended": True}),
+        json.dumps({"tool": "insert_after_symbol", "arguments": {
+            "symbol": login.identifier, "content": "\n\ndef login_category(name):\n    return bool(name)\n"},
+            "rationale": "create approved helper", "expected_outcome": "helper exists", "plan_step": 1,
+            "mutation_intended": True}),
+    ])
+    model = FakeLLM(None)
+    model.chat = lambda **kwargs: model.calls.append(kwargs) or next(responses)
+    context = ToolContext(repo, artifact, scope_guard_from_plan(plan), index, plan_approval_token(plan))
+    request = ExecutionLoop(model, registry, context)._next_request([])
+
+    assert request.tool == "insert_after_symbol"
+    assert len(model.calls) == 2
+    assert "outside approved scope" in model.calls[1]["prompt"]
+    assert "insert_after_symbol" in model.calls[0]["system_prompt"]
+    observation = registry.invoke(request.tool, request.arguments, context)
+    assert observation.success
+    assert "def login_category(name):" in (repo / "app/service.py").read_text()
+    with pytest.raises(ToolPermissionError, match="outside approved scope"):
+        registry.invoke("replace_symbol_body", {
+            "symbol": "app.service", "content": "return False\n"}, context)
+
+
+def test_tool_choice_rejects_non_string_registered_arguments(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+    registry = ToolRegistry()
+    registry.register(ToolSpec("replace_file", "Replace complete file", ToolPermission.SAFE_MUTATION,
+                               True, 30, ("path", "content")),
+                      lambda _context, _args: ToolObservation("mutation", True, "replaced"))
+    loop = ExecutionLoop(
+        FakeLLM(None), registry,
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+    )
+
+    raw = json.dumps({"tool": "replace_file", "arguments": {"path": "app/service.py", "content": {"source": "bad"}},
+                      "rationale": "replace", "expected_outcome": "updated", "plan_step": 1,
+                      "mutation_intended": True})
+    with pytest.raises(ValueError, match="argument 'content' must be a string"):
+        loop._decode_tool_request(raw)
+
+
 def test_report_only_loop_runs_exact_inspection_and_validation_without_model(planning_repo):
     root, repo, index = planning_repo
     artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
@@ -911,6 +1521,163 @@ def test_report_only_loop_runs_exact_inspection_and_validation_without_model(pla
     assert result.status == "complete"
     assert invoked == [("read_file", "app/service.py"), ("run_safe_command", "git status --short")]
     assert [event.tool_name for event in context.events] == ["read_file", "run_safe_command"]
+
+
+def test_execution_prompt_supplies_exact_registered_tool_arguments(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Implement a small parser"
+    )
+
+    class CapturingModel:
+        def chat(self, **kwargs):
+            self.kwargs = kwargs
+            return json.dumps(
+                {
+                    "tool": "read_file",
+                    "arguments": {"path": "app/service.py"},
+                    "rationale": "Inspect the approved source.",
+                    "expected_outcome": "Read the source file.",
+                    "plan_step": 1,
+                    "mutation_intended": False,
+                }
+            )
+
+    model = CapturingModel()
+    loop = ExecutionLoop(
+        model,
+        default_registry(),
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+    )
+
+    request = loop._next_request([])
+    payload = json.loads(model.kwargs["prompt"])
+    read_file = next(item for item in payload["tools"] if item["name"] == "read_file")
+
+    assert read_file["input_fields"] == ["path"]
+    assert read_file["permission"] == "read_only"
+    assert read_file["mutates"] is False
+    assert "must contain exactly that tool's listed input_fields" in model.kwargs["system_prompt"]
+    assert request.arguments == {"path": "app/service.py"}
+
+
+def test_tool_choice_truncated_unterminated_string_uses_bounded_corrective_response(planning_repo, tmp_path):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate("Fix login_user")
+    registry = ToolRegistry()
+    registry.register(ToolSpec("inspect", "inspect", ToolPermission.READ_ONLY, False, 1),
+                      lambda _context, _args: ToolObservation("inspection", True, "read"))
+    first = '{"tool":"inspect","arguments":{},"rationale":"read source","expected_outcome":"continue","plan_step":1,"mutation_intended":false}'
+    malformed = '{"tool":"inspect","arguments":{},"rationale":"read source","expected_outcome":"unterminated'
+    model = FakeLLM(None)
+    outputs = iter([malformed, first])
+    model.chat = lambda **kwargs: (model.calls.append(kwargs), next(outputs))[1]
+    diagnostics = tmp_path / "private-diagnostics"
+    loop = ExecutionLoop(model, registry, ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index), diagnostics_dir=diagnostics)
+    request = loop._next_request([])
+    assert request.tool == "inspect"
+    assert model.calls[0]["max_tokens"] == model.calls[1]["max_tokens"] == 4096
+    assert model.calls[0]["response_format"]["type"] == "json_schema"
+    assert list(diagnostics.glob("tool-choice-invalid-*.json")) == []
+
+
+def test_valid_structured_tool_choice_records_safe_response_and_parsed_decision(planning_repo):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate("Fix login_user")
+    context = ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index)
+    model = FakeLLM({"tool": "finish", "arguments": {}, "rationale": "done",
+                     "expected_outcome": "complete", "plan_step": 2, "mutation_intended": False})
+    def chat(**_kwargs):
+        model.last_response_metadata = {
+            "finish_reason": "stop",
+            "response_format": {"type": "json_schema", "json_schema": {"name": "friday_tool_choice"}},
+        }
+        return json.dumps(model.response)
+    model.chat = chat
+    request = ExecutionLoop(model, default_registry(), context)._next_request([])
+    assert request.tool == "finish"
+    event = context.events[-1]
+    assert event.tool_name == "model_tool_choice"
+    assert event.decision_metadata == {
+        "finish_reason": "stop", "response_characters": len(json.dumps(model.response)),
+        "response_format_type": "json_schema", "schema_name": "friday_tool_choice",
+        "corrective_retry": False, "parsed_tool": "finish", "plan_step": 2,
+        "argument_names": [], "scope_mapping": {},
+    }
+
+
+def test_two_malformed_tool_choices_are_non_executable_and_capture_exact_raw(planning_repo, tmp_path):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate("Fix login_user")
+    registry = ToolRegistry()
+    registry.register(ToolSpec("inspect", "inspect", ToolPermission.READ_ONLY, False, 1),
+                      lambda _context, _args: ToolObservation("inspection", True, "read"))
+    malformed = '{"tool":"inspect","arguments":{},"rationale":"unterminated'
+    model = FakeLLM(None)
+    model.chat = lambda **_kwargs: malformed
+    diagnostics = tmp_path / "private-diagnostics"
+    loop = ExecutionLoop(model, registry, ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index), diagnostics_dir=diagnostics)
+    with pytest.raises(ToolExecutionError, match="Malformed tool choice after bounded corrective retry"):
+        loop._next_request([])
+    capture = next(diagnostics.glob("tool-choice-invalid-*.json"))
+    assert capture.stat().st_mode & 0o777 == 0o600
+    saved = json.loads(capture.read_text())
+    assert saved["responses"] == [{"raw": malformed, "characters": len(malformed)}] * 2
+    assert saved["max_tokens"] == 4096
+    assert saved["stop_sequences"] == []
+
+
+def test_tool_choice_marked_length_is_non_executable_even_when_json_parses(planning_repo, tmp_path):
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate("Fix login_user")
+    registry = ToolRegistry()
+    registry.register(ToolSpec("inspect", "inspect", ToolPermission.READ_ONLY, False, 1),
+                      lambda _context, _args: ToolObservation("inspection", True, "read"))
+    complete = json.dumps({"tool": "inspect", "arguments": {}, "rationale": "read source",
+                           "expected_outcome": "continue", "plan_step": 1,
+                           "mutation_intended": False})
+    model = FakeLLM(None)
+    def truncated(**kwargs):
+        model.calls.append(kwargs)
+        model.last_response_metadata = {"finish_reason": "length", "max_tokens": 4096}
+        return complete
+    model.chat = truncated
+    diagnostics = tmp_path / "truncated-diagnostics"
+    loop = ExecutionLoop(model, registry, ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index), diagnostics_dir=diagnostics)
+    with pytest.raises(ToolExecutionError, match="corrective tool-choice response was truncated"):
+        loop._next_request([])
+    capture = json.loads(next(diagnostics.glob("tool-choice-invalid-*.json")).read_text())
+    assert [item["finish_reason"] for item in capture["response_metadata"]] == ["length", "length"]
+    assert capture["responses"][0]["raw"] == complete
+
+
+def test_role_routed_tool_choice_reads_finish_reason_and_rejects_truncation(planning_repo):
+    from local_ai_assistant.roles.service import Role, RoleOrchestrator
+
+    root, repo, index = planning_repo
+    artifact = PlannerService(repo, index, FakeLLM(response_for(index)), root / "plans").generate(
+        "Fix login_user"
+    )
+
+    class Model:
+        last_response_metadata = {"finish_reason": "length", "response_format": {"type": "json_schema"}}
+
+        def chat(self, _prompt, **_kwargs):
+            return json.dumps({
+                "tool": "finish", "arguments": {}, "rationale": "done",
+                "expected_outcome": "complete", "plan_step": 1,
+                "mutation_intended": False,
+            })
+
+    role_client = RoleOrchestrator(Model()).client(Role.CODER)
+    loop = ExecutionLoop(
+        role_client, default_registry(),
+        ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index),
+    )
+
+    assert loop._last_response_metadata()["finish_reason"] == "length"
+    with pytest.raises(ToolExecutionError, match="tool-choice response was truncated"):
+        loop._next_request([])
 
 
 def test_tool_loop_requires_each_plan_validation_command(planning_repo):
@@ -1230,6 +1997,6 @@ def test_post_apply_scope_expansion_rolls_back_immediately(planning_repo):
     )
     context = ToolContext(repo, artifact, scope_guard_from_plan(artifact.plan), index)
     (repo / "outside.py").write_text("value = 1\n")
-    with pytest.raises(ToolPermissionError, match="Post-mutation scope violation"):
-        _enforce_worktree_scope(context)
+    issues = _enforce_worktree_scope(context, "")
+    assert any("outside.py" in issue for issue in issues)
     assert not (repo / "outside.py").exists()

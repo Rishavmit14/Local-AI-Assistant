@@ -1,7 +1,16 @@
+import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
+from local_ai_assistant.agent.code_agent import _reindex_isolated_workspace
 from local_ai_assistant.code_index.repository import CodeRAG, lexical_tokenize
+from local_ai_assistant.code_index.symbol_index import SymbolIndex
 from local_ai_assistant.common.config import AppConfig
+
+
+class FakeEmbedder:
+    def encode(self, texts, **_kwargs):
+        return [[1.0, 0.0] for _ in texts]
 
 
 def test_code_chunking_preserves_line_ranges_and_overlap():
@@ -22,6 +31,30 @@ def test_generated_and_dependency_directories_are_skipped():
     assert CodeRAG.should_skip(Path("repo/node_modules/package/index.js"))
     assert not CodeRAG.should_skip(Path("repo/src/index.ts"))
     assert lexical_tokenize("Vec<T> src/main.rs") == ["vec<t>", "src/main.rs"]
+
+
+def test_execution_reindexes_the_isolated_candidate_not_the_canonical_checkout(tmp_path):
+    canonical = tmp_path / "canonical"
+    canonical.mkdir()
+    source = canonical / "fraudshield.py"
+    source.write_text("def assess_transaction(amount):\n    return amount > 0\n")
+    embedder = FakeEmbedder()
+    original_index = SymbolIndex(canonical, tmp_path / "canonical-index", embedder)
+    original_index.refresh(full=True)
+
+    workspace = tmp_path / "isolated-task"
+    shutil.copytree(canonical, workspace)
+    expanded = "def assess_transaction(amount):\n" + "".join(
+        f"    value_{i} = amount + {i}\n" for i in range(25)
+    ) + "    return value_24 > 0\n"
+    (workspace / "fraudshield.py").write_text(expanded)
+    rag = SimpleNamespace(symbol_index=original_index)
+
+    _reindex_isolated_workspace(rag, workspace, tmp_path / "task-index")
+
+    symbol = rag.symbol_index.find_exact("assess_transaction")[0]
+    assert rag.symbol_index.repository == workspace.resolve()
+    assert symbol.end_line == len(expanded.splitlines())
 
 
 def test_code_hybrid_retrieval_preserves_rrf_fusion():

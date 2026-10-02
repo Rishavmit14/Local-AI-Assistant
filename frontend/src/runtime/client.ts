@@ -768,6 +768,17 @@ export class FridayRuntimeClient {
     return (await response.json() as { objective: FridayObjective }).objective;
   }
 
+  async restoreProjectExecution(): Promise<string | null> {
+    const response = await fetch(`${this.baseUrl}/api/v1/project-execution/restore`, {
+      method: "POST", credentials: "same-origin",
+    });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    const value = await response.json() as { mode?: string; csrf_token?: unknown };
+    if (value.mode === "interactive") return null;
+    if (typeof value.csrf_token !== "string") throw new Error("local owner session unavailable");
+    return value.csrf_token;
+  }
+
   async unlockProjectExecution(token: string): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/v1/project-execution/unlock`, {
       method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }),
@@ -791,6 +802,41 @@ export class FridayRuntimeClient {
       method: "POST", credentials: "same-origin", headers: { "X-Friday-CSRF": csrf },
     });
     if (!response.ok) throw new Error(await responseDetail(response));
+  }
+
+  async recoverObjectiveExecution(
+    objectiveId: string, taskId: string, planHash: string, idempotencyKey: string, csrf: string,
+  ): Promise<{ task_id: string; plan_hash: string; attempt_id: string; parent_attempt_id: string | null; run_id: string; status: string; duplicate: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/recover`, {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Friday-CSRF": csrf },
+      body: JSON.stringify({ task_id: taskId, plan_hash: planHash, idempotency_key: idempotencyKey }),
+    });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    return (await response.json() as { execution: { task_id: string; plan_hash: string; attempt_id: string; parent_attempt_id: string | null; run_id: string; status: string; duplicate: boolean } }).execution;
+  }
+
+  async retryObjectiveExecution(
+    objectiveId: string, taskId: string, planHash: string, idempotencyKey: string,
+    reason: string, csrf: string,
+  ): Promise<{ task_id: string; plan_hash: string; attempt_id: string; parent_attempt_id: string | null; run_id: string; status: string; duplicate: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/objectives/${encodeURIComponent(objectiveId)}/retry`, {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Friday-CSRF": csrf },
+      body: JSON.stringify({ task_id: taskId, plan_hash: planHash, idempotency_key: idempotencyKey, reason }),
+    });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    return (await response.json() as { execution: { task_id: string; plan_hash: string; attempt_id: string; parent_attempt_id: string | null; run_id: string; status: string; duplicate: boolean } }).execution;
+  }
+
+  async reconcileFailedRetrySetup(taskId: string, planHash: string, idempotencyKey: string, csrf: string): Promise<{ task_id: string; plan_hash: string; attempt_id: string; status: string; duplicate: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/rollback/tasks/${encodeURIComponent(taskId)}/validation-failure/reconcile`, {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Friday-CSRF": csrf, "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ plan_hash: planHash, idempotency_key: idempotencyKey }),
+    });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    return await response.json() as { task_id: string; plan_hash: string; attempt_id: string; status: string; duplicate: boolean };
   }
 
   async lockProjectExecution(csrf: string): Promise<void> {

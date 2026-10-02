@@ -2114,4 +2114,42 @@ browser task execution and artifact assessment, broad owner qualification, and
 final visual acceptance remain open; roadmap row 61 remains PARTIAL. Friday and
 Qwen production services were not restarted or mutated.
 
-## 2026-09-30 — Stage 22 cross-path evidence equivalence
+## 2026-10-03 — Stage 22 successful Project assessment qualification
+
+Recovered the prior `reviewing` task's failed artifactless attempt through the
+authenticated, exact-plan transactional baseline restore. Task
+`task_2b680b2604a345f1903f` is now `rolled_back` /
+`terminal_consistent`; its attempt and failed validation remain historical
+evidence. The recovery boundary also gained strict legacy artifact identity and
+time checks, separate latest-attempt rollback selection, and regression tests.
+
+A new FraudShield Project (`proj_3eb8f6dbe8de4f18a7067aac4c340b68`)
+completed a genuine browser-approved Objective and isolated Qwen task
+(`task_c5df9f1ce54f4f14b6fb`, plan
+`8236b7b0229777735a97eb4009ee1bd0f7887f73e3fc2093475492516e5e62e6`).
+The first attempt rolled back after exposing a nested Python symbol source/scope
+defect; the second (`9343e25e9f764bcd8cc33af5aad2d3d4`) implemented
+`fraudshield.py`, corrected two contradictory inherited test expectations, and
+created `MODEL_CARD.md`. Full approved unittest discovery passed in denied-network
+validation. Exact reviewed-diff promotion committed the three files at
+`9ebf0763cde42d0c903dda025a52c461359e4076` on the isolated task branch.
+The browser submitted those commit-derived artifact references. After three
+preserved nonqualifying assessments exposed an ambiguous reviewer threshold
+interpretation, the bounded contract and final-verdict parser were corrected.
+Reviewer attempt `attempt_ca42886e99524dcfb50102a43fd71981` accepted the
+explanation and created evidence `evidence_f8fda95a203d4c86991c23a8cbedcd37`.
+Project state is `completed`; dynamic competency mastery stayed `unverified`
+with no transition. DLP version 1 retained its milestone and selected
+reinforcement, and browser reload plus API restart reconstructed the same Learn
+and Projects state with automatic local Owner restoration. Separate exact
+commit audit checks passed 11 boundary/category/cap and 10 invalid-input cases.
+
+The final repository verifier passed 1,323 Python tests with 6 expected skips,
+`pip check`, syntax and CLI checks. The frontend suite passed 125 tests;
+ESLint, TypeScript/production build, and changed-file Ruff passed. The build
+retains a large-chunk advisory. The whole-tree Ruff scan found pre-existing
+lint debt outside the changed-file gate. This qualifies the bounded successful
+Project path and its recovery/security regressions. Row 61 remains PARTIAL for
+broader owner-facing qualification and final visual design acceptance; row 60
+remains PARTIAL. See ADRs 0038–0040 and the current handoff for the published
+recovery SHA and protected production state.

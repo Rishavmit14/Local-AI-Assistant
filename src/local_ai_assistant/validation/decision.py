@@ -51,7 +51,7 @@ def decide_final(plan: ValidationPlan, results: tuple[ValidationResult, ...], re
 def repair_decision(category: FailureCategory, attempts: int, max_attempts: int, *, repeated: bool = False, scope_increase: bool = False, risk_increase: bool = False) -> DecisionStatus:
     if scope_increase or risk_increase:
         return DecisionStatus.REAPPROVAL_REQUIRED
-    if category in {FailureCategory.ENVIRONMENT, FailureCategory.INFRASTRUCTURE, FailureCategory.SECURITY, FailureCategory.SCOPE_VIOLATION, FailureCategory.FLAKY, FailureCategory.TIMEOUT}:
+    if category in {FailureCategory.ENVIRONMENT, FailureCategory.INFRASTRUCTURE, FailureCategory.SECURITY, FailureCategory.SCOPE_VIOLATION, FailureCategory.FLAKY, FailureCategory.TIMEOUT, FailureCategory.TRANSPORT, FailureCategory.MODEL_RESPONSE, FailureCategory.SCHEMA, FailureCategory.SUBPROCESS, FailureCategory.UNKNOWN}:
         return DecisionStatus.BLOCKED
     if repeated or attempts >= max_attempts:
         return DecisionStatus.FAILED

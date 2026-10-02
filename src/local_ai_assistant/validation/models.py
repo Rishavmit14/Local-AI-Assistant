@@ -26,6 +26,12 @@ class ValidationKind(StrEnum):
 class FailureCategory(StrEnum):
     SYNTAX = "syntax"
     IMPORT = "import"
+    RUNTIME = "runtime"
+    ATTRIBUTE = "attribute"
+    TRANSPORT = "transport"
+    MODEL_RESPONSE = "model_response"
+    SCHEMA = "schema"
+    SUBPROCESS = "subprocess"
     TYPE = "type"
     LINT = "lint"
     ASSERTION = "assertion"
@@ -183,6 +189,8 @@ class FailureRecord:
     repair_appropriate: bool
     reasons: tuple[str, ...]
     flaky_evidence: tuple[str, ...] = ()
+    diagnostic_class: str = "unknown"
+    disposition: str = "fatal"
 
 
 @dataclass(frozen=True, slots=True)

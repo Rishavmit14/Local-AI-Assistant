@@ -330,6 +330,154 @@ def test_objective_execution_requires_gateway_auth_scope_and_exact_plan(tmp_path
         assert client.post(route, headers=headers).status_code == 429
 
 
+def test_interrupted_execution_recovery_requires_request_execution_scope(tmp_path):
+    task_id = "task_" + "c" * 20
+    dispatched = []
+    service = ObjectiveService(
+        tmp_path / "recovery-objectives.sqlite3",
+        plan_hash_for_task=lambda _task: "d" * 64,
+        recover_task=lambda **values: dispatched.append(values) or {"attempt_id": "attempt-1"},
+    )
+    objective = service.bind_plan(service.create("Recover exact task").objective_id, task_id)
+    route = f"/api/v1/objectives/{objective.objective_id}/recover"
+    digest = hashlib.sha256(b"recovery-token").hexdigest()
+    headers = {"Authorization": "Bearer recovery-token"}
+    runtime = FridayRuntime("objective-recovery")
+    conversation = FridayConversationService(FakeStreamingLLM(), runtime)
+    payload = {"task_id": task_id, "plan_hash": "d" * 64,
+               "idempotency_key": "1bb9f5a8-a291-45ce-b896-99a3c835f6cd"}
+    with TestClient(create_presentation_app(
+        runtime, conversation, autonomy=service,
+        objective_execution_auth=GatewayAuth(digest, frozenset({GatewayScope.READ_STATUS})),
+    )) as client:
+        assert client.post(route, json=payload).status_code == 401
+        assert client.post(route, headers=headers, json=payload).status_code == 403
+    auth = GatewayAuth(digest, frozenset({GatewayScope.REQUEST_EXECUTION}))
+    with TestClient(create_presentation_app(
+        runtime, conversation, autonomy=service, objective_execution_auth=auth,
+    )) as client:
+        response = client.post(route, headers=headers, json=payload)
+        assert response.status_code == 202
+        assert response.json()["execution"]["attempt_id"] == "attempt-1"
+    assert dispatched == [{"objective_id": objective.objective_id,
+                           "task_id": task_id, "plan_hash": "d" * 64,
+                           "idempotency_key": "1bb9f5a8-a291-45ce-b896-99a3c835f6cd",
+                           "principal": "local-token"}]
+
+
+def test_rolled_back_retry_route_requires_request_execution_and_explicit_reason(tmp_path):
+    task_id = "task_" + "e" * 20
+    dispatched = []
+    service = ObjectiveService(
+        tmp_path / "retry-objectives.sqlite3",
+        plan_hash_for_task=lambda _task: "f" * 64,
+        retry_task=lambda **values: dispatched.append(values) or {"attempt_id": "retry-attempt"},
+    )
+    objective = service.bind_plan(service.create("Retry exact task").objective_id, task_id)
+    route = f"/api/v1/objectives/{objective.objective_id}/retry"
+    digest = hashlib.sha256(b"retry-token").hexdigest()
+    headers = {"Authorization": "Bearer retry-token"}
+    payload = {"task_id": task_id, "plan_hash": "f" * 64,
+               "idempotency_key": "d570e04c-bafe-4e30-b8ec-0f76dcb16b5d",
+               "reason": "Owner retries after reviewing the canonical rollback."}
+    runtime = FridayRuntime("objective-retry")
+    conversation = FridayConversationService(FakeStreamingLLM(), runtime)
+    with TestClient(create_presentation_app(
+        runtime, conversation, autonomy=service,
+        objective_execution_auth=GatewayAuth(digest, frozenset({GatewayScope.READ_STATUS})),
+    )) as client:
+        assert client.post(route, headers=headers, json=payload).status_code == 403
+    auth = GatewayAuth(digest, frozenset({GatewayScope.REQUEST_EXECUTION}))
+    with TestClient(create_presentation_app(runtime, conversation, autonomy=service,
+                                           objective_execution_auth=auth)) as client:
+        assert client.post(route, headers=headers, json={**payload, "reason": ""}).status_code == 409
+        response = client.post(route, headers=headers, json=payload)
+        assert response.status_code == 202
+        assert response.json()["execution"]["attempt_id"] == "retry-attempt"
+        assert client.post(route, json=payload).status_code == 401
+    assert dispatched == [{"objective_id": objective.objective_id, "task_id": task_id,
+                           "plan_hash": "f" * 64,
+                           "idempotency_key": "d570e04c-bafe-4e30-b8ec-0f76dcb16b5d",
+                           "principal": "local-token",
+                           "reason": "Owner retries after reviewing the canonical rollback."}]
+
+
+def test_browser_retry_keeps_owner_cookie_csrf_origin_and_gateway_scope_boundary(tmp_path):
+    task_id = "task_" + "9" * 20
+    dispatched = []
+    service = ObjectiveService(
+        tmp_path / "browser-retry.sqlite3", plan_hash_for_task=lambda _task: "a" * 64,
+        retry_task=lambda **values: dispatched.append(values) or {"attempt_id": "browser-retry"},
+    )
+    objective = service.bind_plan(service.create("Browser retry").objective_id, task_id)
+
+    class Sessions:
+        def principal(self, session, csrf):
+            return "local-owner" if session == "valid-session" and csrf == "valid-csrf" else None
+
+    runtime = FridayRuntime("browser-retry")
+    conversation = FridayConversationService(FakeStreamingLLM(), runtime)
+    auth = GatewayAuth("0" * 64, frozenset({GatewayScope.REQUEST_EXECUTION}))
+    app = create_presentation_app(
+        runtime, conversation, autonomy=service, objective_execution_auth=auth,
+        project_execution_sessions=Sessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+    )
+    payload = {"task_id": task_id, "plan_hash": "a" * 64,
+               "idempotency_key": "ab3129cf-62b8-480b-b104-204a6e6ba2a8",
+               "reason": "Owner explicitly retries after review of the rollback."}
+    route = f"/api/v1/objectives/{objective.objective_id}/retry"
+    with TestClient(app, base_url="http://127.0.0.1") as client:
+        client.cookies.set("friday_project_session", "valid-session")
+        assert client.post(route, headers={"Origin": "http://evil.test", "X-Friday-CSRF": "valid-csrf"}, json=payload).status_code == 403
+        assert client.post(route, headers={"Origin": "http://127.0.0.1"}, json=payload).status_code == 401
+        response = client.post(route, headers={"Origin": "http://127.0.0.1", "X-Friday-CSRF": "valid-csrf"}, json=payload)
+        assert response.status_code == 202
+        assert response.json()["execution"]["attempt_id"] == "browser-retry"
+    assert dispatched[0]["principal"] == "local-owner"
+
+
+def test_persistent_local_owner_session_can_review_rollback_with_csrf_and_gateway_scope(tmp_path):
+    runtime = FridayRuntime("rollback-owner-session")
+    conversation = FridayConversationService(FakeStreamingLLM(), runtime)
+
+    class Sessions:
+        def principal(self, session, csrf):
+            return "local-owner" if session == "trusted-session" and csrf in {None, "trusted-csrf"} else None
+
+    class Rollback:
+        def available(self, task_id):
+            return [{"task_id": task_id, "checkpoint_id": "checkpoint", "eligible": True}]
+
+        def recent(self, task_id, principal):
+            return []
+
+        def review(self, task_id, checkpoint_id, principal):
+            return {"task_id": task_id, "checkpoint_id": checkpoint_id, "principal": principal}
+
+    token = "rollback-gateway-token"
+    auth = GatewayAuth(hashlib.sha256(token.encode()).hexdigest(), frozenset({GatewayScope.REQUEST_ROLLBACK}))
+    app = create_presentation_app(
+        runtime, conversation, project_execution_sessions=Sessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+        local_owner_trust=object(), owner_rollback=Rollback(),
+        rollback_gateway_auth=auth, rollback_gateway_token=token,
+        rollback_allowed_origins=("http://127.0.0.1",),
+    )
+    with TestClient(app, base_url="http://127.0.0.1") as client:
+        client.cookies.set("friday_project_session", "trusted-session")
+        headers = {"Origin": "http://127.0.0.1", "X-Friday-CSRF": "trusted-csrf"}
+        assert client.get("/api/v1/rollback/tasks/task_candidate/checkpoints").status_code == 200
+        assert client.post("/api/v1/rollback/tasks/task_candidate/review", headers=headers,
+                           json={"checkpoint_id": "checkpoint"}).json()["principal"] == "local-owner"
+        assert client.post("/api/v1/rollback/tasks/task_candidate/review",
+                           headers={"Origin": "http://evil.test", "X-Friday-CSRF": "trusted-csrf"},
+                           json={"checkpoint_id": "checkpoint"}).status_code == 403
+        assert client.post("/api/v1/rollback/tasks/task_candidate/review",
+                           headers={"Origin": "http://127.0.0.1"},
+                           json={"checkpoint_id": "checkpoint"}).status_code == 401
+
+
 def test_voice_health_is_separate_from_http_liveness():
     runtime = FridayRuntime("voice-health")
     observed = {"enabled": True, "status": "recovering", "recovery_count": 1}
@@ -1764,8 +1912,11 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/objectives/{objective_id}/plan",
         "/api/v1/objectives/{objective_id}/cancel",
         "/api/v1/objectives/{objective_id}/execute",
+        "/api/v1/objectives/{objective_id}/recover",
+        "/api/v1/objectives/{objective_id}/retry",
         "/api/v1/objectives/{objective_id}/approval",
         "/api/v1/project-execution/unlock",
+        "/api/v1/project-execution/restore",
         "/api/v1/project-execution/lock",
         "/api/v1/desktop/actions",
         "/api/v1/desktop/actions/{action_id}/approve",
@@ -1826,6 +1977,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/rollback/lock",
         "/api/v1/rollback/tasks/{task_id}/checkpoints",
         "/api/v1/rollback/tasks/{task_id}/review",
+        "/api/v1/rollback/tasks/{task_id}/validation-failure/reconcile",
         "/api/v1/rollback/operations/{operation_id}/execute",
         "/api/v1/tasks/{task_id}/recovery",
     }

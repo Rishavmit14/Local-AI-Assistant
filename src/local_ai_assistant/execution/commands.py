@@ -8,6 +8,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,8 @@ SHELL_TOKENS = {"|", "||", "&&", ";", ">", ">>", "<", "<<", "$(", "`"}
 ALLOWED_PREFIXES = (
     ("python", "-m", "pytest"),
     ("python3", "-m", "pytest"),
+    ("python", "-m", "unittest", "discover"),
+    ("python3", "-m", "unittest", "discover"),
     ("python", "-m", "compileall"),
     ("python3", "-m", "compileall"),
     ("pytest",),
@@ -223,6 +226,7 @@ def run_allowed_command(
                 raise CommandPolicyError(
                     f"Command argument resolves outside repository: {candidate_value}"
                 )
+    approved_environment = _side_effect_free_python_cache(parts, task_root)
     if sandbox is not None:
         if task_root is None or resources is None or network is None:
             raise CommandPolicyError("Sandbox execution requires task root and explicit policy")
@@ -232,6 +236,7 @@ def run_allowed_command(
             task_root,
             resources=resources,
             network=network,
+            approved_environment=approved_environment,
             cancel_check=cancel_check,
         )
         return CommandResult(
@@ -242,12 +247,16 @@ def run_allowed_command(
             isolated.timed_out,
         )
     process = subprocess.Popen(
-        (str(executable_path), *parts[1:]),
+        (str(executable), *parts[1:]),
         cwd=repository,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         start_new_session=True,
-        env={"PATH": os.environ.get("PATH", ""), "PYTHONPATH": os.environ.get("PYTHONPATH", "")},
+        env={
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONPATH": os.environ.get("PYTHONPATH", ""),
+            **approved_environment,
+        },
     )
     stdout_buffer = bytearray()
     stderr_buffer = bytearray()
@@ -285,6 +294,26 @@ def run_allowed_command(
         stderr_buffer.decode(errors="replace"),
         timed_out,
     )
+
+
+def _side_effect_free_python_cache(parts: tuple[str, ...], task_root: Path | None) -> dict[str, str]:
+    """Keep Python validation bytecode outside the repository's reviewed worktree."""
+    python_module = parts[2] if len(parts) >= 3 and parts[0] in {"python", "python3"} and parts[1] == "-m" else None
+    pytest_command = parts[0] == "pytest" or python_module == "pytest"
+    if not pytest_command and python_module not in {"compileall", "unittest"}:
+        return {}
+    cache = (
+        task_root / "python-cache"
+        if task_root is not None
+        else Path(tempfile.gettempdir()) / "friday-validation-python-cache" / str(os.getuid())
+    )
+    cache.mkdir(parents=True, exist_ok=True)
+    environment = {"PYTHONPYCACHEPREFIX": str(cache)}
+    if pytest_command:
+        # Pytest's ignored cache otherwise survives checkpoint rollback. Keep
+        # validation side-effect free without deleting unrelated ignored data.
+        environment["PYTEST_ADDOPTS"] = "-p no:cacheprovider"
+    return environment
 
 
 def _read_bounded(stream, output: bytearray, limit: int) -> None:

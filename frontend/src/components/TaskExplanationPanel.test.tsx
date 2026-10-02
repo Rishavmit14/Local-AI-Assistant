@@ -12,7 +12,7 @@ const explanation: FridayTaskExplanation = {
   outcome: null, owner_attention: "approval_required", summary: "A plan is recorded and Friday awaits approval.",
   facts: [{ label: "Execution records", value: "none present", source: "TaskHistoryService.executions" }],
   timeline: [], latest_event: null, recovery: {
-    task_id: "task_90be0b53d357423885aa", objective_links: [], task_status: "awaiting_approval", overall_status: "no_isolation_record", status: "no_isolation_record", owner_attention: "unknown", worker_liveness: "unknown",
+    task_id: "task_90be0b53d357423885aa", objective_links: [], task_status: "awaiting_approval", overall_status: "no_isolation_record", status: "no_isolation_record", owner_attention: "unknown", worker_liveness: "unknown", worker_status: "unknown", execution_attempts: [], recoverability: "blocked_or_unknown",
     isolation: { status: "no_isolation_record", state: null, worktree_present: null, summary: "Recovery health is unknown." },
     planning_claim: { state: "none", expires_at: null, lease_seconds: null }, execution_claim: { state: "none", expires_at: null, lease_seconds: null },
     rollback: { state: "none", operation_id: null, checkpoint_id: null, result: null }, cleanup: { state: "unknown" },

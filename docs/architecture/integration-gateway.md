@@ -68,3 +68,26 @@ claim a Gateway principal. Approval and execution decisions are recorded in
 TaskHistory with principal, Objective/task, repository, starting commit,
 plan hash, approval ID, scope decision, timestamp, and execution handle where
 available. No Gateway bearer is sent to the browser.
+
+## Persistent personal Owner mode (candidate, ADR 0039)
+
+The owner explicitly authorized `local_single_user` for this personal
+installation. The server-only UI proxy and API share a private, persistent
+installation capability outside Git. `/api/v1/project-execution/restore` mints
+short-lived sessions without disclosing that capability or requiring a human
+password. Origin, local socket peer, capability ownership, CSRF and independent
+Gateway scopes remain mandatory. This supersedes mandatory manual unlock only
+when explicitly configured; interactive deployments retain ADR 0037. See
+[ADR 0039](../decisions/0039-persistent-local-owner-trust.md) for setup and revoke
+boundaries. The capability does not authorize administrator operations.
+
+## Reviewed task commit and Project submission (Stage 22)
+
+Exact-plan promotion is a local engineering boundary: the isolated task branch
+must still match its immutable reviewed execution diff and starting commit; the
+canonical repository must remain clean at that base; required final test steps
+and a nonblocking local review must match the same diff. Only then may Friday
+record the reviewed task commit. Project submission obtains changed paths from
+that commit, including newly created documentation. Browser artifact submission
+and assessment remain subject to Owner session and CSRF checks; neither the
+browser nor the model chooses an unverified commit or path.

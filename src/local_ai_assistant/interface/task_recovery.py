@@ -69,12 +69,15 @@ class FridayTaskRecovery:
     overall_status: str
     owner_attention: str
     worker_liveness: str
+    worker_status: str
     isolation: RecoveryIsolation
     planning_claim: RecoveryClaim
     execution_claim: RecoveryClaim
     rollback: RecoveryRollback
     cleanup: RecoveryCleanup
     reconciliation: RecoveryReconciliation
+    execution_attempts: tuple[dict, ...]
+    recoverability: str
     evidence_sources: tuple[str, ...]
     limitations: tuple[str, ...]
     summary: str
@@ -116,6 +119,7 @@ class TaskRecoveryProjectionService:
         planning_claim = self._claim(raw_claims.get("planning"), now)
         execution_claim = self._claim(raw_claims.get("execution"), now)
         worker_liveness = self._worker_liveness(task_id)
+        worker_status = self._worker_observation(task_id)
         isolation_evidence = (
             inspect_task_isolation(
                 self.isolation_root,
@@ -130,16 +134,32 @@ class TaskRecoveryProjectionService:
         rollback = self._rollback(task_id, now)
         objective_links = self._objectives(task_id, task.plan_hash)
         reconciliation = self._reconciliation(task_id, task.status)
+        attempts = tuple(
+            {key: item.get(key) for key in (
+                "attempt_id", "parent_attempt_id", "plan_hash", "attempt_kind",
+                "state", "created_at", "updated_at", "failure_type", "artifact_id",
+            )}
+            for item in self.history.store.execution_attempts(task_id)
+        )
+        approvals = self.history.store.approvals_for(task_id, task.plan_hash or "")
+        recoverability = "candidate_requires_server_preflight"
+        if not (
+            task.status in {
+                TaskStatus.EXECUTING, TaskStatus.VALIDATING, TaskStatus.RECOVERY_REQUIRED,
+            }
+            and worker_status in {"failed", "process_replaced"}
+            and execution_claim.state in {"none", "expired"}
+            and reconciliation.execution_evidence_count == 0
+            and rollback.state == "none"
+            and approvals and approvals[-1]["state"] == "explicitly_approved"
+            and task.approval_state == "explicitly_approved"
+            and len(objective_links) == 1 and objective_links[0].plan_matches_task is True
+        ):
+            recoverability = "blocked_or_unknown"
         cleanup_state = self._cleanup_state(isolation_evidence)
         overall_status, owner_attention, summary = self._classify(
-            task.status,
-            isolation_evidence,
-            planning_claim,
-            execution_claim,
-            rollback,
-            worker_liveness,
-            objective_links,
-            reconciliation,
+            task.status, isolation_evidence, planning_claim, execution_claim,
+            rollback, worker_liveness, objective_links, reconciliation,
         )
         sources = ["TaskHistoryService.task"]
         if self.isolation_root is not None:
@@ -159,6 +179,7 @@ class TaskRecoveryProjectionService:
             overall_status=overall_status,
             owner_attention=owner_attention,
             worker_liveness=worker_liveness,
+            worker_status=worker_status,
             isolation=RecoveryIsolation(
                 isolation_evidence.status,
                 isolation_evidence.state,
@@ -170,6 +191,8 @@ class TaskRecoveryProjectionService:
             rollback=rollback,
             cleanup=RecoveryCleanup(cleanup_state),
             reconciliation=reconciliation,
+            execution_attempts=attempts,
+            recoverability=recoverability,
             evidence_sources=tuple(sources),
             limitations=(
                 "A claim records admission ownership, not worker liveness or work outcome.",
@@ -197,6 +220,14 @@ class TaskRecoveryProjectionService:
             return RecoveryClaim("unavailable")
 
     def _worker_liveness(self, task_id: str) -> str:
+        value = self._worker_observation(task_id)
+        if value == "running":
+            return "running"
+        if value in {"completed", "failed", "cancelled", "process_replaced"}:
+            return "not_running"
+        return "unknown"
+
+    def _worker_observation(self, task_id: str) -> str:
         if self.worker_status is None:
             return "unknown"
         try:
@@ -206,11 +237,7 @@ class TaskRecoveryProjectionService:
         if not isinstance(status, dict):
             return "unknown"
         value = status.get("status")
-        if value == "running":
-            return "running"
-        if value in {"completed", "failed", "cancelled"}:
-            return "not_running"
-        return "unknown"
+        return value if value in {"running", "completed", "failed", "cancelled", "process_replaced", "not_started"} else "unknown"
 
     def _rollback(self, task_id: str, now: int) -> RecoveryRollback:
         try:
@@ -263,8 +290,16 @@ class TaskRecoveryProjectionService:
     def _reconciliation(self, task_id: str, task_status: TaskStatus) -> RecoveryReconciliation:
         try:
             records = self.history.store.artifact_records(task_id, "executions", limit=100)
+            attempts = self.history.store.execution_attempts(task_id)
         except (HistoryDatabaseError, sqlite3.DatabaseError, OSError):
             return RecoveryReconciliation("unavailable", 0, ())
+        if task_status not in TERMINAL_STATUSES and attempts:
+            # Earlier failed retries remain immutable history. Only evidence
+            # attached to the current attempt can reconcile its in-progress
+            # lifecycle; otherwise old rollback artifacts would block recovery
+            # of a newer worker that failed before writing an artifact.
+            latest_attempt = attempts[-1]["attempt_id"]
+            records = tuple(record for record in records if record.get("run_id") == latest_attempt)
         statuses = tuple(sorted({
             status for record in records
             if (status := record.get("status")) in {
@@ -292,6 +327,8 @@ class TaskRecoveryProjectionService:
 
     @staticmethod
     def _classify(task_status, isolation, planning, execution, rollback, worker, links, reconciliation):
+        if task_status is TaskStatus.RECOVERY_REQUIRED:
+            return "interrupted_lifecycle", "recover", "The prior execution ended; recovery requires an exact-plan, workspace, claim, and authorization recheck."
         if isolation.status in {"corrupt", "path_rejected", "identity_collision", "identity_mismatch", "unavailable"}:
             return isolation.status, "inspect", isolation.summary
         if isolation.status == "recovery_required" or rollback.state == "recovery_required":
@@ -307,6 +344,10 @@ class TaskRecoveryProjectionService:
         if isolation.status == "missing_worktree":
             return "missing_worktree", "inspect", isolation.summary
         if rollback.state == "succeeded" and rollback.result == "restored":
+            if (task_status in TERMINAL_STATUSES
+                    and isolation.state == WorktreeState.CLEANED.value
+                    and reconciliation.state == "terminal_recorded"):
+                return "terminal_consistent", "no_action", "Failed execution history is preserved; checkpoint rollback, terminal task state, and isolation cleanup agree."
             return "rollback_completed", "inspect", "The owner-reviewed checkpoint rollback completed; TaskHistory lifecycle remains unchanged and no further action was taken."
         if any(link.state == "unavailable" for link in links):
             return "objective_unavailable", "inspect", "Canonical objective linkage could not be read; task status remains authoritative."
@@ -323,7 +364,7 @@ class TaskRecoveryProjectionService:
         active_lifecycle = isolation.state in {
             WorktreeState.CREATING.value, WorktreeState.EXECUTING.value,
             WorktreeState.VALIDATING.value,
-        } or task_status in {TaskStatus.PLANNING, TaskStatus.EXECUTING, TaskStatus.VALIDATING, TaskStatus.REVIEWING}
+        } or task_status in {TaskStatus.PLANNING, TaskStatus.EXECUTING, TaskStatus.VALIDATING, TaskStatus.REVIEWING, TaskStatus.RECOVERY_REQUIRED}
         if worker == "running":
             return "in_progress_known", "wait", "The managed local worker is currently observed running for this task."
         if active_lifecycle:

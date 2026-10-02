@@ -158,7 +158,10 @@ def _start_candidate(base_url: str, model_id: str, state_root: Path, port: int):
         stderr=subprocess.DEVNULL,
     )
     address = f"http://127.0.0.1:{port}"
-    deadline = time.monotonic() + 10
+    # The full repository suite competes for CPU while this disposable API
+    # imports its model stack. Keep a bounded startup gate without assuming
+    # the light-load latency observed when this test runs alone.
+    deadline = time.monotonic() + 45
     with httpx.Client(trust_env=False, timeout=0.25) as client:
         while time.monotonic() < deadline:
             if process.poll() is not None:

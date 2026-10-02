@@ -83,14 +83,47 @@ class PlannerService:
         prompt, instruction_sources, context_truncated = self._prompt(
             request, classification.category.value, candidates
         )
+        system_prompt = "You are a planning-only senior engineer. Return valid JSON and never generate a patch."
         response = self.llm.chat(
             prompt=prompt,
-            system_prompt="You are a planning-only senior engineer. Return valid JSON and never generate a patch.",
+            system_prompt=system_prompt,
             temperature=0.0,
-            max_tokens=3000,
+            max_tokens=6000,
         )
-        raw = self._parse_response(response)
-        preliminary = self._build_plan(task_id, request, classification, candidates, raw)
+        try:
+            raw = self._parse_response(response)
+            preliminary = self._build_plan(task_id, request, classification, candidates, raw)
+        except PlanGenerationError as exc:
+            prefix = "Planner response is missing required fields: "
+            if not str(exc).startswith(prefix):
+                raise
+            missing = str(exc)[len(prefix):]
+            missing_fields = [field.strip() for field in missing.split(",")]
+            schema_block = prompt.partition("Return exactly one JSON object matching this shape:\n")[2]
+            schema_text = schema_block.partition("\n\nRules:")[0]
+            schema = json.loads(schema_text) if schema_text else {}
+            required_shapes = {field: schema[field] for field in missing_fields if field in schema}
+            repair_prompt = (
+                f"{prompt}\n\nCORRECTION REQUIRED: the prior JSON omitted these required fields: "
+                f"{missing}. Their exact required shapes are:\n{json.dumps(required_shapes, indent=2)}\n"
+                "Include every listed key at the top level, with the shown value type and shape. "
+                "Return a complete replacement JSON object matching the entire schema "
+                "above. Preserve the same bounded request and planning-only constraints; do not omit "
+                "any required field, and do not generate a patch."
+            )
+            repaired = self.llm.chat(
+                prompt=repair_prompt,
+                system_prompt=system_prompt,
+                temperature=0.0,
+                max_tokens=3000,
+            )
+            raw = self._parse_response(repaired)
+            preliminary = self._build_plan(task_id, request, classification, candidates, raw)
+        if "acceptance.md" in request.lower() and (self.repository / "ACCEPTANCE.md").is_file():
+            preliminary = replace(
+                preliminary,
+                files_to_inspect=tuple(dict.fromkeys(("ACCEPTANCE.md", *preliminary.files_to_inspect))),
+            )
         risk = assess_risk(
             request,
             classification,
@@ -221,6 +254,12 @@ class PlannerService:
                 self.repository, architecture_file, max_bytes=4000
             )
             architecture = architecture_read.text or ""
+        binding_contract = ""
+        if "acceptance.md" in request.lower():
+            contract = read_repo_file_bounded(
+                self.repository, self.repository / "ACCEPTANCE.md", max_bytes=6000
+            )
+            binding_contract = contract.text or ""
         schema = {
             "summary": "string",
             "assumptions": ["string"],
@@ -253,10 +292,13 @@ PROJECT INSTRUCTIONS (root to leaf; later entries take precedence):
 RELEVANT ARCHITECTURE:
 {architecture}
 
+BINDING OWNER ACCEPTANCE CONTRACT (read this before deriving formulas, thresholds, or test expectations):
+{binding_contract}
+
 Return exactly one JSON object matching this shape:
 {json.dumps(schema, indent=2)}
 
-Rules: existing targets must use exact path values present in DETERMINISTIC SCOPE EVIDENCE or RELEVANT ARCHITECTURE; never invent fallback filenames or directories. If an existing path is not evidenced, put the uncertainty in unresolved_questions instead. New files/symbols must appear only in the explicit proposed-new arrays; keep scope minimal; cite paths/symbol IDs in steps; identify tests, dependency, migration, security, and rollback implications. Unknowns belong in unresolved_questions."""
+Rules: the BINDING OWNER ACCEPTANCE CONTRACT overrides contradictory inherited test expectations. Include its named file in files_to_inspect; copy its formula and threshold values exactly, and never infer alternate thresholds from tests. Keep assumptions and steps concise; do not write speculative reasoning or duplicate the request. Existing targets must use exact path values present in DETERMINISTIC SCOPE EVIDENCE, RELEVANT ARCHITECTURE, or the named contract; never invent fallback filenames or directories. If an existing path is not evidenced, put the uncertainty in unresolved_questions instead. New files/symbols must appear only in the explicit proposed-new arrays; keep scope minimal; cite paths/symbol IDs in steps; identify tests, dependency, migration, security, and rollback implications. Unknowns belong in unresolved_questions."""
         return prompt, instruction_sources, context_truncated
 
     @staticmethod

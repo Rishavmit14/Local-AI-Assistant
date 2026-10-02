@@ -723,6 +723,36 @@ def test_schema_one_upgrades_and_interrupted_migration_rolls_back(tmp_path, monk
     )
     with pytest.raises(HistoryDatabaseError):
         TaskHistoryStore(path).initialize()
+
+
+def test_schema_nine_migration_preserves_terminal_attempt_bytes_and_adds_retry_kind(tmp_path):
+    path = tmp_path / "schema-nine.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute("CREATE TABLE schema_version(version INTEGER NOT NULL)")
+        connection.execute("INSERT INTO schema_version VALUES (0)")
+        for version in range(1, 10):
+            for statement in MIGRATIONS[version]:
+                connection.execute(statement)
+            connection.execute("UPDATE schema_version SET version=?", (version,))
+        connection.execute(
+            "INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            ("task_migration", "request", "/repo", "base", None, "main", "t", "t",
+             "rolled_back", "unknown_mixed", "low", None, "explicitly_approved", "h" * 64,
+             None, "rolled_back", None, "not_requested", None, "summary", "{}"),
+        )
+        legacy = ("attempt-migration", "task_migration", "h" * 64, "parent", "recovery",
+                  "completed", "key", "created", "updated", None, '{"principal":"owner"}', "artifact")
+        connection.execute("INSERT INTO task_execution_attempts VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", legacy)
+    TaskHistoryStore(path).initialize()
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT * FROM task_execution_attempts WHERE attempt_id='attempt-migration'").fetchone() == legacy
+        connection.execute(
+            "INSERT INTO task_execution_attempts VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            ("attempt-retry", "task_migration", "h" * 64, "attempt-migration", "retry",
+             "running", "retry-key", "created", "created", None, "{}", None),
+        )
+        assert connection.execute("SELECT attempt_kind FROM task_execution_attempts WHERE attempt_id='attempt-retry'").fetchone()[0] == "retry"
+        assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == SCHEMA_VERSION
     with sqlite3.connect(path) as connection:
         assert connection.execute("SELECT version FROM schema_version").fetchone()[0] == SCHEMA_VERSION
         assert connection.execute(

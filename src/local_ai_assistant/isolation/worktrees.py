@@ -68,7 +68,37 @@ class WorktreeManager:
             env=safe_git_environment(),
         )
         if existing.returncode == 0:
-            raise WorktreeIdentityError("Task branch already exists")
+            # A prior exact-plan attempt may have cleaned its worktree but
+            # retained the reserved task branch. Reclaim it only when durable
+            # metadata proves the same task/repository/plan and the branch is
+            # still at the approved starting commit.
+            try:
+                prior = self.load(
+                    repository, task_id,
+                    starting_commit=starting_commit, plan_hash=plan_hash,
+                )
+            except WorktreeIdentityError as exc:
+                raise WorktreeIdentityError("Task branch already exists") from exc
+            if (prior.state is not WorktreeState.CLEANED
+                    or prior.branch != branch
+                    or Path(prior.worktree).exists()
+                    or prior.current_commit != starting_commit
+                    or _git(repository, "rev-parse", branch) != starting_commit):
+                raise WorktreeIdentityError("Task branch already exists")
+            listed = subprocess.run(
+                git_argv("worktree", "list", "--porcelain"), cwd=repository,
+                env=safe_git_environment(), text=True, capture_output=True,
+            )
+            if listed.returncode != 0 or f"branch refs/heads/{branch}" in listed.stdout:
+                raise WorktreeIdentityError("Task branch is still attached to a worktree")
+            deleted = subprocess.run(
+                git_argv("branch", "-D", branch), cwd=repository,
+                env=safe_git_environment(), text=True, capture_output=True,
+            )
+            if deleted.returncode != 0:
+                raise WorktreeIdentityError("Verified cleaned task branch could not be reclaimed")
+        elif existing.returncode != 1:
+            raise WorktreeIdentityError("Task branch state could not be verified")
         location.parent.mkdir(parents=True, exist_ok=True)
         creating = WorktreeIdentity(
             1,

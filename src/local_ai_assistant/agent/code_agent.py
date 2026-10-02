@@ -2,18 +2,21 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import subprocess
 import sys
 import time
 from dataclasses import replace
 from functools import partial
 from pathlib import Path
+from uuid import uuid4
 
-from local_ai_assistant.code_index import CodeRAG
+from local_ai_assistant.code_index import CodeRAG, SymbolIndex
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.errors import (
     DirtyRepositoryError,
     GitTransactionError,
+    LLMError,
     RepositoryError,
 )
 from local_ai_assistant.common.logging import configure_logging, get_logger
@@ -21,7 +24,7 @@ from local_ai_assistant.common.models import GitTransactionSummary
 from local_ai_assistant.execution.errors import ToolExecutionError
 from local_ai_assistant.execution.history import persist_report
 from local_ai_assistant.execution.loop import ExecutionLoop, LoopLimits
-from local_ai_assistant.execution.models import ExecutionReport
+from local_ai_assistant.execution.models import ExecutionReport, ToolObservation
 from local_ai_assistant.execution.registry import ToolContext, default_registry
 from local_ai_assistant.history.importer import ArtifactImporter
 from local_ai_assistant.history.models import TaskStatus
@@ -54,6 +57,7 @@ from local_ai_assistant.planning.patch_scope import (
 from local_ai_assistant.roles import Role, RoleOrchestrator
 from local_ai_assistant.validation.decision import decide_final
 from local_ai_assistant.validation.errors import TestGenerationError, ValidationIntelligenceError
+from local_ai_assistant.validation.failures import classify_failure
 from local_ai_assistant.validation.models import DecisionStatus, ValidationReport
 from local_ai_assistant.validation.repair import BoundedRepairEngine
 from local_ai_assistant.validation.service import (
@@ -81,6 +85,18 @@ def _history_service(config: AppConfig) -> TaskHistoryService:
         TaskHistoryStore(config.paths.task_history_db),
         artifact_roots=(config.paths.code_index_dir, config.paths.task_history_db.parent),
     )
+
+
+def _attempt_artifact_path(root: Path, artifact_type: str, task_id: str, attempt_id: str | None) -> Path:
+    if artifact_type not in {"executions", "validations"}:
+        raise ValueError("Unsupported task artifact type")
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", task_id):
+        raise ValueError("Invalid task artifact identity")
+    if attempt_id is None:
+        return root / artifact_type / f"{task_id}.json"
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", attempt_id):
+        raise ValueError("Invalid execution attempt identity")
+    return root / artifact_type / task_id / f"{attempt_id}.json"
 
 
 def _record_plan(config: AppConfig, artifact, path: Path, repo: Path, branch: str) -> None:
@@ -226,6 +242,13 @@ def _mark_validation_started(config: AppConfig, task_id: str) -> None:
                 "Intelligent validation started",
                 subsystem="validation",
             )
+            manager = WorktreeManager(config.paths.worktree_dir)
+            identity = manager.load(
+                Path(task.repository), task_id,
+                starting_commit=task.starting_commit, plan_hash=task.plan_hash,
+            )
+            if identity.state is WorktreeState.EXECUTING:
+                manager.transition(identity, WorktreeState.VALIDATING)
     except Exception as exc:
         logger.error(
             "task_history_validation_start_failed",
@@ -315,7 +338,12 @@ def run_intelligent_validation(
         },
     )
     try:
-        relative = repo.resolve().relative_to(rag.symbol_index.repository.resolve()).as_posix()
+        indexed_repository = (
+            context.canonical_repository if context and context.canonical_repository else repo
+        )
+        relative = indexed_repository.resolve().relative_to(
+            rag.symbol_index.repository.resolve()
+        ).as_posix()
         index_prefix = "" if relative == "." else relative + "/"
     except ValueError:
         index_prefix = ""
@@ -338,19 +366,31 @@ def run_intelligent_validation(
     while targeted.failures and context is not None and len(repair_engine.attempts) < max_repairs:
         failure = targeted.failures[0]
         try:
-            repair_context = rag.build_context(
-                rag.retrieve(
-                    artifact.plan.original_request + "\n" + failure.relevant_output[-4000:]
-                )
-            )[:10_000]
-            attempt = repair_engine.propose(
-                artifact.plan,
-                failure,
-                {
-                    "current_diff": worktree_diff(repo)[-12_000:],
-                    "affected_source_context": repair_context,
-                },
-            )
+            # The index describes the baseline. Repair must see the actual failed
+            # candidate, never stale indexed source that predates its mutations.
+            source_parts = []
+            remaining = 5_000
+            for relative in (*artifact.plan.files_to_modify, *artifact.plan.files_to_create):
+                path = (repo / relative).resolve()
+                if not path.is_relative_to(repo.resolve()) or not path.is_file():
+                    continue
+                content = path.read_text(encoding="utf-8")[:remaining]
+                source_parts.append(f"FILE {relative}\n{content}")
+                remaining -= len(content)
+                if remaining <= 0:
+                    break
+            repair_context = "\n".join(source_parts)
+            binding_contracts = ""
+            if "acceptance.md" in artifact.plan.original_request.lower():
+                contract_path = repo / "ACCEPTANCE.md"
+                if contract_path.is_file():
+                    binding_contracts = contract_path.read_text(encoding="utf-8")[:2_500]
+            repair_evidence = {
+                "current_diff": worktree_diff(repo)[-12_000:],
+                "affected_source_context": repair_context,
+                "binding_contracts": binding_contracts,
+            }
+            attempt = repair_engine.propose(artifact.plan, failure, repair_evidence)
             observation = default_registry(config.execution).invoke(
                 "apply_patch",
                 {
@@ -364,9 +404,48 @@ def run_intelligent_validation(
             )
             if not observation.success:
                 repair_stop_reason = observation.summary
-                break
-        except (ToolExecutionError, ValidationIntelligenceError) as exc:
-            repair_stop_reason = str(exc)
+                if observation.stderr:
+                    repair_stop_reason += ": " + observation.stderr[:500]
+                    if len(repair_engine.attempts) < max_repairs:
+                        patch_failure = classify_failure(
+                            "git apply --check --recount",
+                            1,
+                            "SyntaxError: Git rejected the bounded repair patch. "
+                            + observation.stderr[:1_000],
+                        )
+                        repaired = repair_engine.propose(
+                            artifact.plan,
+                            patch_failure,
+                            {
+                                **repair_evidence,
+                                "previous_rejected_patch": attempt.patch,
+                                "git_preflight_error": observation.stderr,
+                            },
+                        )
+                        observation = default_registry(config.execution).invoke(
+                            "apply_patch",
+                            {
+                                "patch": repaired.patch,
+                                "_rationale": repaired.rationale,
+                                "_expected_outcome": "Targeted validation passes",
+                                "_plan_step": "validation-repair",
+                                "_mutation_intended": True,
+                            },
+                            context,
+                        )
+                        if observation.success:
+                            repair_stop_reason = None
+                        else:
+                            repair_stop_reason = observation.summary
+                            if observation.stderr:
+                                repair_stop_reason += ": " + observation.stderr[:500]
+                if not observation.success:
+                    break
+        except (ToolExecutionError, ValidationIntelligenceError, LLMError) as exc:
+            # A local-model transport timeout is a failed bounded repair, not a
+            # worker crash. Let the ordinary validation-failure path persist its
+            # report, restore the execution checkpoint, and finalize task history.
+            repair_stop_reason = f"Repair failed ({type(exc).__name__}): {str(exc)[:300]}"
             break
         targeted = service.run(
             artifact,
@@ -447,8 +526,11 @@ def run_intelligent_validation(
                 "repair_stop_reason": repair_stop_reason,
             },
         )
-    validation_path = (
-        config.paths.code_index_dir / "validations" / f"{artifact.plan.task_id}.json"
+    validation_path = _attempt_artifact_path(
+        config.paths.code_index_dir,
+        "validations",
+        artifact.plan.task_id,
+        context.attempt_id if context else None,
     )
     persist_validation_report(report, validation_path)
     try:
@@ -467,6 +549,17 @@ def run_intelligent_validation(
         "; ".join(report.decision.reasons),
         report.review.diff_hash,
     )
+
+
+def _reindex_isolated_workspace(rag: CodeRAG, repository: Path, index_dir: Path) -> None:
+    """Bind validation and repair scope analysis to the actual isolated candidate."""
+    index = SymbolIndex(repository, index_dir, rag.symbol_index.embedder)
+    stats = index.refresh(full=True)
+    if stats.failures:
+        raise RepositoryError(
+            "Isolated workspace could not be indexed: " + ", ".join(sorted(stats.failures))
+        )
+    rag.symbol_index = index
 
 
 def prepare_generated_test(
@@ -634,6 +727,14 @@ def git_head(repo: Path) -> str:
         repo,
     )
     return result.stdout.strip()
+
+
+def _interrupted_worktree_is_clean(repo: Path, starting_commit: str) -> bool:
+    status = run_command(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all", "--ignored=matching"],
+        repo,
+    ).stdout.strip()
+    return not status and git_head(repo) == starting_commit
 
 
 def git_is_clean(repo: Path) -> bool:
@@ -1718,6 +1819,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Require the generated test to fail meaningfully before implementation.",
     )
     parser.add_argument("--task-id", help="Reuse an existing Friday task identity.")
+    parser.add_argument("--execution-attempt-id", help="Canonical execution attempt admitted by Gateway.")
+    parser.add_argument("--resume-interrupted-task", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--approved-plan", action="store_true", help="Load the exact approved task-history plan without replanning.")
     parser.add_argument(
         "--repository-id",
@@ -1735,6 +1838,8 @@ def validate_cli_options(parser: argparse.ArgumentParser, args: argparse.Namespa
     """Reject option combinations that bypass the proven Git transaction."""
     if args.approved_plan and not (args.task_id and args.approve_risk):
         parser.error("--approved-plan requires --task-id and the exact --approve-risk token")
+    if args.resume_interrupted_task and not (args.task_id and args.approved_plan and args.execution_attempt_id):
+        parser.error("interrupted-task recovery requires the canonical task, approved plan, and attempt ID")
     if args.human_review:
         args.auto_commit = False
         args.auto_merge = False
@@ -1862,7 +1967,10 @@ def main(argv: list[str] | None = None):
         getattr(rag, "retrieve", None),
     )
     if args.approved_plan:
-        artifact, plan_path = _history_service(config).load_approved_plan(args.task_id, args.approve_risk)
+        artifact, plan_path = _history_service(config).load_approved_plan(
+            args.task_id, args.approve_risk,
+            execution_attempt_id=args.execution_attempt_id,
+        )
         if planner.identity_issues(artifact):
             raise ValueError("approved plan no longer matches repository/HEAD")
         if artifact.plan.original_request != args.request:
@@ -1970,13 +2078,38 @@ def main(argv: list[str] | None = None):
             sys.exit(1)
         isolation_identity = None
         try:
-            isolation_identity = isolation_manager.create(
-                canonical_repo,
-                artifact.plan.task_id,
-                starting_commit,
-                approval_token,
-            )
+            if args.resume_interrupted_task:
+                isolation_identity = isolation_manager.load(
+                    canonical_repo, artifact.plan.task_id,
+                    starting_commit=starting_commit, plan_hash=approval_token,
+                )
+                if isolation_identity.state is not WorktreeState.EXECUTING:
+                    raise IsolationError("Existing task worktree is not in the interrupted execution state")
+                if not _interrupted_worktree_is_clean(Path(isolation_identity.worktree), starting_commit):
+                    raise IsolationError("Interrupted task workspace has unverified side effects")
+                _record_isolation(
+                    config, artifact.plan.task_id, "recovery_worktree_reused",
+                    "Verified and reused the existing clean interrupted task worktree",
+                    attempt_id=args.execution_attempt_id,
+                )
+            else:
+                isolation_identity = isolation_manager.create(
+                    canonical_repo,
+                    artifact.plan.task_id,
+                    starting_commit,
+                    approval_token,
+                )
             repo = Path(isolation_identity.worktree)
+            execution_index = (
+                config.paths.code_index_dir
+                / "execution-workspaces"
+                / artifact.plan.task_id
+                / (args.execution_attempt_id or f"manual-{uuid4().hex}")
+            )
+            try:
+                _reindex_isolated_workspace(rag, repo, execution_index)
+            except RepositoryError as exc:
+                raise IsolationError(str(exc)) from exc
             original_branch = None
             agent_branch = isolation_identity.branch
             isolation_identity = isolation_manager.transition(
@@ -2014,7 +2147,7 @@ def main(argv: list[str] | None = None):
                 checkpoint_id=baseline.checkpoint_id,
             )
         except IsolationError as exc:
-            if isolation_identity is not None:
+            if isolation_identity is not None and not args.resume_interrupted_task:
                 try:
                     isolation_manager.cleanup(
                         isolation_identity, delete_branch=True, allow_active=True
@@ -2051,6 +2184,7 @@ def main(argv: list[str] | None = None):
             sandbox_network=network_policy,
             cancel_check=lambda: _cancel_requested(config, artifact.plan.task_id),
             canonical_repository=canonical_repo,
+            attempt_id=args.execution_attempt_id,
         )
         if args.generate_tests:
             generated_ok, generated_output = prepare_generated_test(
@@ -2087,6 +2221,7 @@ def main(argv: list[str] | None = None):
                         tuple(context.events),
                         final_diff=worktree_diff(repo),
                         final_commit=transaction.resulting_commit,
+                        attempt_id=args.execution_attempt_id,
                     ),
                     config.paths.code_index_dir
                     / "executions"
@@ -2123,6 +2258,7 @@ def main(argv: list[str] | None = None):
                     context_characters=limits.context_characters,
                 ),
                 cancel_check=lambda: _cancel_requested(config, artifact.plan.task_id),
+                diagnostics_dir=config.paths.var_dir / "execution-diagnostics",
             ).run()
         except ToolExecutionError as exc:
             transaction = finalize_run(
@@ -2148,6 +2284,7 @@ def main(argv: list[str] | None = None):
                     tuple(context.events),
                     final_diff="",
                     final_commit=transaction.resulting_commit,
+                    attempt_id=args.execution_attempt_id,
                 ),
                 config.paths.code_index_dir
                 / "executions"
@@ -2182,6 +2319,7 @@ def main(argv: list[str] | None = None):
             final_diff=worktree_diff(repo),
             repairs=result.repairs,
             replans=result.replans,
+            attempt_id=args.execution_attempt_id,
         )
         cancelled_before_validation = result.status == "cancelled" or _cancel_requested(
             config, artifact.plan.task_id
@@ -2202,6 +2340,75 @@ def main(argv: list[str] | None = None):
                 ),
                 roles=roles,
             )
+        # A bounded validator repair may make the working tree sound after the
+        # model's tool loop exhausted its first repair budget. Give the same
+        # approved plan one finite continuation so the model can finish owner
+        # requirements (tests, remaining files, and exact validation commands).
+        # The continuation sees the complete observations and the repair result;
+        # it remains capped to one additional loop with the same approved plan,
+        # mutation ceiling, repair ceiling, and remaining step budget.
+        owner_test_files_missing = bool(
+            ExecutionLoop(
+                roles.client(Role.CODER),
+                default_registry(config.execution),
+                context,
+                limits,
+                cancel_check=lambda: _cancel_requested(config, artifact.plan.task_id),
+                diagnostics_dir=config.paths.var_dir / "execution-diagnostics",
+            )._missing_owner_test_mutations()
+        )
+        if (
+            (validation_ok or owner_test_files_missing)
+            and result.status in {"max_repairs", "max_steps", "max_mutations"}
+            and not _cancel_requested(config, artifact.plan.task_id)
+        ):
+            continuation = ExecutionLoop(
+                roles.client(Role.CODER),
+                default_registry(config.execution),
+                context,
+                LoopLimits(
+                    max_steps=max(1, (args.max_steps or limits.max_steps) - result.steps),
+                    max_mutations=limits.max_mutations,
+                    # One continuation receives one additional bounded repair
+                    # allowance; there is no third model-loop invocation.
+                    max_repairs=(args.max_repairs if args.max_repairs is not None else limits.max_repairs),
+                    max_replans=max(0, limits.max_replans - result.replans),
+                    context_characters=limits.context_characters,
+                ),
+                cancel_check=lambda: _cancel_requested(config, artifact.plan.task_id),
+                diagnostics_dir=config.paths.var_dir / "execution-diagnostics",
+            ).run(
+                initial_observations=result.observations
+                + (ToolObservation(
+                    "bounded_validation_repair" if validation_ok else "owner_test_requirements_incomplete",
+                    validation_ok,
+                    (
+                        "The bounded validation repair produced a passing candidate. Continue the approved plan, satisfy all owner-requested test and file requirements, and run every exact approved validation command before finish."
+                        if validation_ok
+                        else "The approved test-file edits required by the owner's original request are still missing. The latest validation failed: "
+                        + validation_output[:6000]
+                        + " Make the smallest contract-correcting test edits in the approved test file, preserve all other tests, then run every exact approved validation command before finish."
+                    ),
+                ),)
+            )
+            result = replace(
+                continuation,
+                steps=result.steps + continuation.steps,
+                mutations=result.mutations + continuation.mutations,
+                repairs=result.repairs + continuation.repairs,
+                replans=result.replans + continuation.replans,
+            )
+            validation_ok, validation_output, reviewed_diff_hash = run_intelligent_validation(
+                repo,
+                artifact,
+                rag,
+                config,
+                context=context,
+                max_repairs=(
+                    args.max_repairs if args.max_repairs is not None else limits.max_repairs
+                ),
+                roles=roles,
+            )
         cancelled = cancelled_before_validation or _cancel_requested(
             config, artifact.plan.task_id
         )
@@ -2210,6 +2417,7 @@ def main(argv: list[str] | None = None):
             validation_output = "Execution cancelled; changes were rolled back."
             reviewed_diff_hash = None
         success = result.status == "complete" and validation_ok and not cancelled
+        candidate_diff = worktree_diff(repo)
         transaction = finalize_run(
             repo=repo,
             request=args.request,
@@ -2233,16 +2441,22 @@ def main(argv: list[str] | None = None):
                 else transaction.outcome
             ),
             report.plan_versions,
-            report.events,
-            final_diff=report.final_diff,
+            tuple(context.events),
+            final_diff=candidate_diff,
             final_commit=transaction.resulting_commit,
-            repairs=report.repairs,
-            replans=report.replans,
+            repairs=result.repairs,
+            replans=result.replans,
+            attempt_id=report.attempt_id,
         )
         _persist_execution(
             config,
             final_report,
-            config.paths.code_index_dir / "executions" / f"{artifact.plan.task_id}.json",
+            _attempt_artifact_path(
+                config.paths.code_index_dir,
+                "executions",
+                artifact.plan.task_id,
+                final_report.attempt_id,
+            ),
         )
         if not success:
             print(validation_output)

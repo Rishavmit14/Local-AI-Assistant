@@ -49,6 +49,8 @@ class ObjectiveService:
         task_state_for_task: Callable[[str], str | None] | None = None,
         task_outcome_for_task: Callable[[str], str | None] | None = None,
         execute_task: Callable[[str, str], object] | None = None,
+        recover_task: Callable[..., object] | None = None,
+        retry_task: Callable[..., object] | None = None,
     ) -> None:
         self.database = database.resolve()
         self.plan_hash_for_task = plan_hash_for_task
@@ -60,6 +62,8 @@ class ObjectiveService:
         self.task_state_for_task = task_state_for_task
         self.task_outcome_for_task = task_outcome_for_task
         self.execute_task = execute_task
+        self.recover_task = recover_task
+        self.retry_task = retry_task
 
     def _db(self) -> sqlite3.Connection:
         self.database.parent.mkdir(parents=True, exist_ok=True)
@@ -143,6 +147,29 @@ class ObjectiveService:
                 raise ValueError("objective changed concurrently or was cancelled")
         return self.get(objective_id)
 
+    def rebind_unapproved_plan(
+        self, objective_id: str, task_id: str, previous_hash: str, revised_hash: str,
+    ) -> Objective:
+        """Bind an audited plan revision before any task execution or approval."""
+        item = self.get(objective_id)
+        if (item.state != "planned" or item.task_id != task_id
+                or item.plan_hash != previous_hash or previous_hash == revised_hash
+                or self.task_state_for_task is None
+                or self.task_state_for_task(task_id) != "awaiting_approval"
+                or self.plan_hash_for_task is None
+                or self.plan_hash_for_task(task_id) != revised_hash):
+            raise ValueError("objective is not bound to an unapproved revised task plan")
+        now = datetime.now(UTC).isoformat()
+        with self._db() as db:
+            changed = db.execute(
+                "UPDATE objectives SET plan_hash=?,updated_at=? "
+                "WHERE objective_id=? AND state='planned' AND task_id=? AND plan_hash=?",
+                (revised_hash, now, objective_id, task_id, previous_hash),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("objective plan binding changed concurrently")
+        return self.get(objective_id)
+
     def request_plan(self, objective_id: str, repository_id: str) -> Objective:
         """Request a plan through the configured canonical task boundary only."""
         item = self.get(objective_id)
@@ -194,6 +221,29 @@ class ObjectiveService:
         # The executor must recheck this exact token at its own admission point;
         # an objective read does not grant authority over later history changes.
         return self.execute_task(item.task_id, item.plan_hash)
+
+    def recover_execution(self, objective_id: str, *, task_id: str, plan_hash: str,
+                          idempotency_key: str, principal: str) -> object:
+        """Delegate recovery only for the Objective's unchanged exact task/plan."""
+        item = self.get(objective_id)
+        if (item.state != "planned" or item.task_id != task_id or item.plan_hash != plan_hash
+                or self.recover_task is None):
+            raise ValueError("recovery requires the exact current Objective task and plan")
+        return self.recover_task(
+            objective_id=objective_id, task_id=task_id, plan_hash=plan_hash,
+            idempotency_key=idempotency_key, principal=principal,
+        )
+
+    def retry_execution(self, objective_id: str, *, task_id: str, plan_hash: str,
+                        idempotency_key: str, principal: str, reason: str) -> object:
+        """Delegate one explicit retry for the unchanged rolled-back Objective task."""
+        item = self.get(objective_id)
+        if (item.task_id != task_id or item.plan_hash != plan_hash or self.retry_task is None):
+            raise ValueError("retry requires the exact current Objective task and plan")
+        return self.retry_task(
+            objective_id=objective_id, task_id=task_id, plan_hash=plan_hash,
+            idempotency_key=idempotency_key, principal=principal, reason=reason,
+        )
 
     def plan_review(self, objective_id: str) -> dict[str, object]:
         """Return the configured, bounded review projection for an exact plan."""

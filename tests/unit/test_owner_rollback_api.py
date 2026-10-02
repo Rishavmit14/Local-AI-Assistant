@@ -76,6 +76,10 @@ def test_owner_authenticated_exact_review_restore_and_idempotent_retry(candidate
     unlocked = client.post("/api/v1/rollback/unlock", json={"token": owner_token}, headers={"Origin": origin})
     assert unlocked.status_code == 200
     assert "HttpOnly" in unlocked.headers["set-cookie"] and "SameSite=strict" in unlocked.headers["set-cookie"]
+    checkpoint_response = client.get(f"/api/v1/rollback/tasks/{task_id}/checkpoints")
+    assert checkpoint_response.status_code == 200
+    assert checkpoint_response.json()["checkpoints"][0]["plan_hash"] == "a" * 12
+    assert checkpoint_response.json()["checkpoints"][0]["plan_hash_full"] == "a" * 64
     assert owner_token not in unlocked.text
     csrf = unlocked.json()["csrf_token"]
     listing = client.get(f"/api/v1/rollback/tasks/{task_id}/checkpoints")

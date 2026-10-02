@@ -45,6 +45,24 @@ isolated-task checkpoint rollback only. General undo,
 publication/canonical repository reversal, and interruption recovery remain
 outside this qualification.
 
+Stage 22 adds narrow failure recovery for a worker that terminates during
+validation/repair. The explicit authenticated reconciliation verifies the
+failed attempt, exact approval and Objective binding, absent claim/success
+artifacts, baseline checkpoint, and isolated workspace identity before
+transactional restore. It then records the rollback in TaskHistory, finalizes
+the task as `rolled_back`, and cleans the task worktree. This does not authorize
+general interruption replay or canonical repository rollback; see
+`docs/architecture/task-history.md` and `docs/architecture/isolation.md`.
+
+The successful Project path keeps the task's code commit on its isolated branch.
+Promotion verifies the exact approved plan, latest completed attempt, immutable
+execution diff, required final tests, nonblocking local review, clean task base,
+and clean canonical repository before recording the final commit. Projects
+derive submitted files from that commit; a local Reviewer assesses the bounded
+learning contract and explanation. Only Career Forge creates project evidence,
+and Project completion does not itself change mastery. See ADR 0040 and
+`docs/architecture/dynamic-learning-paths.md`.
+
 Stage 11 replaces Streamlit with Friday's native presentation/event architecture and conversational voice stack. The accepted wake path is:
 
 ```text
@@ -655,6 +673,12 @@ execution, outcome, objective state, and recovery remain distinct facts, and
 timeline order does not imply causality. See
 `docs/architecture/task-history.md` and ADR 0028.
 
+The bounded tool loop rejects malformed/truncated structured choices, prevents
+repeated unchanged file reads, and AST-validates Python symbol edits before
+writing. Repair transport failures become explicit validation failures and
+follow the isolated checkpoint rollback path; see
+`docs/architecture/tool-execution.md`.
+
 The compounding architecture is:
 
 ```text
@@ -693,8 +717,8 @@ before dispatching through the existing isolated Gateway route. TaskHistory
 stores approval and execution authorization events with principal,
 objective/task, repository, starting commit, plan hash, approval ID, and run ID.
 Deterministic security coverage and an isolated native-browser journey qualify
-this authorization bridge. The complete successful project artifact/assessment
-journey and broader owner qualification remain open. See ADR 0037 and
+this authorization bridge. The later successful Project artifact/assessment journey is qualified in the
+isolated candidate; broader owner qualification remains open. See ADR 0037 and
 `docs/architecture/integration-gateway.md`.
 
 ## Stage 12C-A — inline wake command semantics

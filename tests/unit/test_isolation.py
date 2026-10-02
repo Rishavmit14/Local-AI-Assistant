@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import os
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -512,10 +512,84 @@ def test_bubblewrap_binds_active_virtualenv_read_only(monkeypatch, repository, t
     assert ("--ro-bind", str(virtualenv), str(virtualenv)) == tuple(command[command.index(str(virtualenv)) - 1:command.index(str(virtualenv)) + 2])
 
 
+def test_bubblewrap_binds_external_virtualenv_interpreter_target(monkeypatch, repository, tmp_path):
+    from local_ai_assistant.isolation.sandbox import BubblewrapSandbox
+
+    virtualenv = tmp_path / "venv"
+    (virtualenv / "bin").mkdir(parents=True)
+    (virtualenv / "pyvenv.cfg").write_text("home = /runtime-alias/bin\n")
+    runtime = tmp_path / "python-runtime-3.11.16"
+    (runtime / "bin").mkdir(parents=True)
+    (runtime / "lib" / "python3.11").mkdir(parents=True)
+    (runtime / "bin" / "python3.11").write_text("")
+    runtime_alias = tmp_path / "python-runtime-3.11"
+    runtime_alias.symlink_to(runtime, target_is_directory=True)
+    executable = virtualenv / "bin" / "python"
+    executable.symlink_to(runtime_alias / "bin" / "python3.11")
+    captured = {}
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox.sys.executable", str(executable))
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox.sys.base_prefix", str(runtime))
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox.shutil.which", lambda _: "/usr/bin/bwrap")
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox._bubblewrap_usable", lambda _: True)
+
+    def fake_run(command, *args, **kwargs):
+        captured["command"] = command
+        return SimpleNamespace(return_code=0, stdout="", stderr="", timed_out=False, backend="bubblewrap")
+
+    monkeypatch.setattr("local_ai_assistant.isolation.sandbox._run_process", fake_run)
+    BubblewrapSandbox().run(
+        (str(executable), "-c", "pass"), repository, tmp_path / "task",
+        resources=ResourcePolicy(), network=NetworkPolicy.DENY,
+    )
+
+    command = captured["command"]
+    bindings = [
+        tuple(command[index:index + 3])
+        for index, argument in enumerate(command)
+        if argument == "--ro-bind"
+    ]
+    assert ("--ro-bind", str(runtime), str(runtime)) in bindings
+    assert ("--ro-bind", str(runtime), str(runtime_alias)) in bindings
+
+
+def test_bubblewrap_executes_active_virtualenv_python_and_packages(tmp_path):
+    from local_ai_assistant.isolation.sandbox import BubblewrapSandbox
+
+    backend = BubblewrapSandbox()
+    capabilities = backend.capabilities()
+    if capabilities.filesystem is not CapabilityState.SUPPORTED or capabilities.network is not CapabilityState.SUPPORTED:
+        pytest.skip("Bubblewrap filesystem/network isolation is unavailable")
+    worktree = tmp_path / "worktree"
+    worktree.mkdir()
+    result = backend.run(
+        (sys.executable, "-c", "import pytest; print('sandbox-python-ok')"),
+        worktree,
+        tmp_path / "task-root",
+        resources=ResourcePolicy(wall_seconds=15),
+        network=NetworkPolicy.DENY,
+    )
+
+    assert result.return_code == 0, result.stderr
+    assert result.stdout.strip() == "sandbox-python-ok"
+
+
 def test_worktree_root_must_be_separate_from_repository(repository):
     manager = WorktreeManager(repository / ".friday-worktrees")
     with pytest.raises(IsolationError, match="separate"):
         manager.create(repository, "task-root", git(repository, "rev-parse", "HEAD"), "hash")
+
+
+def test_worktree_reclaims_only_exact_cleaned_task_branch(repository, tmp_path):
+    manager, identity = create_worktree(repository, tmp_path)
+    manager.cleanup(identity, delete_branch=False)
+
+    retried = manager.create(
+        repository, identity.task_id, identity.starting_commit, identity.plan_hash
+    )
+
+    assert retried.branch == identity.branch
+    assert retried.state is WorktreeState.READY
+    assert git(Path(retried.worktree), "rev-parse", "HEAD") == identity.starting_commit
 
 
 def test_git_filter_attributes_block_checkout_and_promotion(repository, tmp_path):
@@ -570,13 +644,13 @@ def test_recovery_marks_interrupted_worktree_without_auto_resume(repository, tmp
 
 def test_task_recovery_inspection_is_scoped_to_one_canonical_record(tmp_path):
     root = tmp_path / "worktrees"
-    for repository_id, task_id, state in (
+    for repo_id, task_id, state in (
         ("repo-target", "task-target", "ready"),
         ("repo-other", "task-other", "executing"),
     ):
-        metadata = root / repository_id / "metadata" / f"{task_id}.json"
+        metadata = root / repo_id / "metadata" / f"{task_id}.json"
         metadata.parent.mkdir(parents=True)
-        worktree = root / repository_id / task_id
+        worktree = root / repo_id / task_id
         if state == "ready":
             worktree.mkdir(parents=True)
         metadata.write_text(json.dumps({"state": state, "worktree": str(worktree)}))

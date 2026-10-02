@@ -19,6 +19,8 @@ class TaskStatus(StrEnum):
     AWAITING_APPROVAL = "awaiting_approval"
     APPROVED = "approved"
     EXECUTING = "executing"
+    RECOVERY_REQUIRED = "recovery_required"
+    RETRY_REQUESTED = "retry_requested"
     VALIDATING = "validating"
     REVIEWING = "reviewing"
     REAPPROVAL_REQUIRED = "reapproval_required"
@@ -49,13 +51,17 @@ ALLOWED_TRANSITIONS: dict[TaskStatus, frozenset[TaskStatus]] = {
         {TaskStatus.EXECUTING, TaskStatus.REAPPROVAL_REQUIRED, TaskStatus.CANCELLED}
     ),
     TaskStatus.EXECUTING: frozenset(
-        {TaskStatus.VALIDATING, TaskStatus.REAPPROVAL_REQUIRED, TaskStatus.FAILED, TaskStatus.ROLLED_BACK, TaskStatus.CANCELLED}
+        {TaskStatus.VALIDATING, TaskStatus.RECOVERY_REQUIRED, TaskStatus.REAPPROVAL_REQUIRED, TaskStatus.FAILED, TaskStatus.ROLLED_BACK, TaskStatus.CANCELLED}
     ),
+    TaskStatus.RECOVERY_REQUIRED: frozenset(
+        {TaskStatus.EXECUTING, TaskStatus.FAILED, TaskStatus.BLOCKED, TaskStatus.ROLLED_BACK, TaskStatus.CANCELLED}
+    ),
+    TaskStatus.RETRY_REQUESTED: frozenset({TaskStatus.EXECUTING, TaskStatus.FAILED, TaskStatus.ROLLED_BACK}),
     TaskStatus.VALIDATING: frozenset(
-        {TaskStatus.REVIEWING, TaskStatus.EXECUTING, TaskStatus.REAPPROVAL_REQUIRED, TaskStatus.FAILED, TaskStatus.ROLLED_BACK, TaskStatus.CANCELLED}
+        {TaskStatus.REVIEWING, TaskStatus.EXECUTING, TaskStatus.RECOVERY_REQUIRED, TaskStatus.REAPPROVAL_REQUIRED, TaskStatus.FAILED, TaskStatus.ROLLED_BACK, TaskStatus.CANCELLED}
     ),
     TaskStatus.REVIEWING: frozenset(
-        {TaskStatus.SUCCEEDED, TaskStatus.EXECUTING, TaskStatus.REAPPROVAL_REQUIRED, TaskStatus.BLOCKED, TaskStatus.FAILED, TaskStatus.ROLLED_BACK}
+        {TaskStatus.SUCCEEDED, TaskStatus.EXECUTING, TaskStatus.RECOVERY_REQUIRED, TaskStatus.REAPPROVAL_REQUIRED, TaskStatus.BLOCKED, TaskStatus.FAILED, TaskStatus.ROLLED_BACK}
     ),
     TaskStatus.REAPPROVAL_REQUIRED: frozenset(
         {TaskStatus.APPROVED, TaskStatus.BLOCKED, TaskStatus.CANCELLED}

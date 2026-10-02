@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "node --test server/*.check.mjs && vitest run"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.0",

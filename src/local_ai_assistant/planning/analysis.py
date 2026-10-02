@@ -662,31 +662,65 @@ def decide_approval(
 
 def scope_guard_from_plan(plan: ImplementationPlan) -> ScopeGuardPolicy:
     files = tuple(dict.fromkeys(plan.files_to_modify))
-    symbol_ids = set(plan.symbols_to_modify)
+    request = plan.original_request.lower()
+    requested_test_files = tuple(
+        path for path in files
+        if PurePosixPath(path).name.lower().startswith("test_")
+        and PurePosixPath(path).name.lower() in request
+    )
+    allow_test_symbol_additions = bool(requested_test_files) and any(
+        word in request for word in ("expand", "add", "extend", "update")
+    )
+    approved_symbols = set(plan.symbols_to_modify)
+    approved_symbol_aliases = tuple(
+        dict.fromkeys(
+            alias
+            for candidate in (*plan.direct_scope, *plan.dependent_scope)
+            if candidate.symbol_id in approved_symbols
+            or candidate.qualified_name in approved_symbols
+            for alias in (candidate.symbol_id, candidate.qualified_name)
+            if alias
+        )
+    )
     symbol_scoped_files = tuple(
         dict.fromkeys(
             candidate.path
             for candidate in (*plan.direct_scope, *plan.dependent_scope)
-            if candidate.symbol_id in symbol_ids and candidate.path in files
+            if (candidate.symbol_id in approved_symbols or candidate.qualified_name in approved_symbols)
+            and candidate.path in files
         )
     )
+    file_level_symbols = {
+        alias
+        for candidate in (*plan.direct_scope, *plan.dependent_scope)
+        if candidate.path in files
+        and candidate.path not in symbol_scoped_files
+        and candidate.relationship in {"exact_symbol", "name_match"}
+        for alias in (candidate.symbol_id, candidate.qualified_name)
+        if alias
+    }
     protected = tuple(f"**/{part}/**" for part in sorted(PROTECTED_PARTS)) + (
         "**/*.min.js",
         "**/*.generated.py",
     )
     return ScopeGuardPolicy(
         files,
-        tuple(dict.fromkeys(plan.symbols_to_modify)),
+        tuple(dict.fromkeys((*plan.symbols_to_modify, *approved_symbol_aliases))),
         tuple(dict.fromkeys(plan.symbols_to_create)),
         tuple(dict.fromkeys(plan.files_to_create)),
         tuple(dict.fromkeys(plan.files_to_delete_or_rename)),
         max(1, len(set((*files, *plan.files_to_create, *plan.files_to_delete_or_rename)))),
-        max(1, len(set((*plan.symbols_to_modify, *plan.symbols_to_create)))),
+        max(
+            1,
+            len(set((*plan.symbols_to_modify, *plan.symbols_to_create, *file_level_symbols)))
+            + (12 * len(requested_test_files) if allow_test_symbol_additions else 0),
+        ),
         protected,
         "approval_required" if plan.dependency_changes else "deny_unplanned",
         "deny",
         "approval_required",
         symbol_scoped_files,
+        allow_test_symbol_additions,
     )
 
 

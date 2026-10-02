@@ -27,7 +27,8 @@ class FakeCompletions:
                 ),
             ]
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content="answer"))]
+            id="response-test",
+            choices=[SimpleNamespace(message=SimpleNamespace(content="answer"), finish_reason="stop")],
         )
 
 
@@ -54,6 +55,29 @@ def test_chat_preserves_local_openai_client_contract(monkeypatch):
     assert call["model"] == "model.gguf"
     assert call["messages"][-1] == {"role": "user", "content": "question"}
     assert call["max_tokens"] == 17
+
+
+def test_chat_forwards_optional_json_response_format(monkeypatch):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+    llm = client_module.LocalLLM()
+
+    assert llm.chat("{}", response_format={"type": "json_object"}) == "answer"
+
+    assert llm.client.chat.completions.calls[0]["response_format"] == {
+        "type": "json_object"
+    }
+
+
+def test_chat_forwards_json_schema_and_records_termination_metadata(monkeypatch):
+    monkeypatch.setattr(client_module, "OpenAI", FakeOpenAI)
+    llm = client_module.LocalLLM()
+    response_format = {"type": "json_schema", "json_schema": {"name": "tool_choice", "strict": True, "schema": {"type": "object"}}}
+    assert llm.chat("{}", max_tokens=768, response_format=response_format) == "answer"
+    assert llm.client.chat.completions.calls[0]["response_format"] == response_format
+    assert llm.last_response_metadata == {
+        "finish_reason": "stop", "response_id": "response-test",
+        "response_format": response_format, "max_tokens": 768,
+    }
 
 
 def test_stream_chat_yields_only_nonempty_content(monkeypatch):

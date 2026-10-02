@@ -5,11 +5,15 @@ import os
 import subprocess
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import local_ai_assistant.validation.service as validation_service_module
+from local_ai_assistant.agent import code_agent
+from local_ai_assistant.common.errors import LLMError
 from local_ai_assistant.execution.history import redact
+from local_ai_assistant.execution.registry import ToolContext
 from local_ai_assistant.planning.analysis import scope_guard_from_plan
 from local_ai_assistant.planning.models import (
     ApprovalDecision,
@@ -44,6 +48,7 @@ from local_ai_assistant.validation.failures import classify_failure
 from local_ai_assistant.validation.models import (
     DecisionStatus,
     FailureCategory,
+    FinalDecision,
     Requirement,
     ReviewFinding,
     ReviewResult,
@@ -175,6 +180,19 @@ def test_report_only_plan_uses_only_exact_approved_validation_commands(validatio
 
     assert [item.command for item in validation.final_steps] == ["cat README.md"]
     assert validation.final_steps[0].requirement is Requirement.REQUIRED
+
+
+def test_approved_unittest_full_suite_is_required_without_pytest_config(validation_repo):
+    (validation_repo / "pyproject.toml").write_text("[project]\nname='demo'\n")
+    (validation_repo / "tests/test_service.py").rename(validation_repo / "test_service.py")
+    (validation_repo / "tests").rmdir()
+    plan = replace(make_plan(validation_repo), validation_commands=("python -m unittest discover -v",))
+    validation = build_validation_plan(validation_repo, plan, "abc")
+
+    assert not any(item.step_id == "pytest-full" for item in validation.final_steps)
+    assert [(item.command, item.requirement) for item in validation.final_steps] == [
+        ("python -m unittest discover -v", Requirement.REQUIRED)
+    ]
 
 
 def test_validation_cli_exposes_stage5_workflows():
@@ -450,13 +468,14 @@ def test_validation_cache_invalidates_for_diff_command_and_config(tmp_path):
     [
         ("SyntaxError: invalid syntax", "python -m compileall .", FailureCategory.SYNTAX),
         ("ModuleNotFoundError: missing", "pytest", FailureCategory.IMPORT),
+        ("NameError: name 'math' is not defined", "pytest", FailureCategory.RUNTIME),
         ("AssertionError: expected 2 got 1", "pytest", FailureCategory.ASSERTION),
         ("incompatible type", "mypy .", FailureCategory.TYPE),
         ("E501 lint issue", "ruff check .", FailureCategory.LINT),
         ("build failed", "cargo check", FailureCategory.BUILD),
         ("command not found", "pytest", FailureCategory.ENVIRONMENT),
-        ("connection refused", "pytest", FailureCategory.INFRASTRUCTURE),
-        ("something unusual", "pytest", FailureCategory.UNKNOWN),
+        ("connection refused", "pytest", FailureCategory.TRANSPORT),
+        ("something unusual", "pytest", FailureCategory.SUBPROCESS),
     ],
 )
 def test_failure_classification(output, command, expected):
@@ -475,6 +494,13 @@ def test_flaky_requires_repeated_passes():
 def test_unknown_and_infrastructure_failures_do_not_trigger_repair():
     assert not classify_failure("pytest", 1, "unknown failure").repair_appropriate
     assert classify_failure("cargo check", 127, "command not found").category is FailureCategory.ENVIRONMENT
+
+
+def test_python_name_error_is_a_bounded_repairable_runtime_failure():
+    failure = classify_failure("python -m pytest -q", 1, "NameError: name 'math' is not defined")
+    assert failure.category is FailureCategory.RUNTIME
+    assert failure.repair_appropriate
+    assert repair_decision(failure.category, 0, 2) is DecisionStatus.REPAIR_REQUIRED
 
 
 def test_tdd_red_phase_accepts_only_behavior_failure():
@@ -498,6 +524,33 @@ def test_tdd_red_phase_accepts_only_behavior_failure():
 def test_generated_test_validity_rejects_weak_patterns(body):
     patch = "diff --git a/tests/test_x.py b/tests/test_x.py\nnew file mode 100644\n--- /dev/null\n+++ b/tests/test_x.py\n@@ -0,0 +1,10 @@\n" + "\n".join("+" + line for line in body.splitlines()) + "\n"
     assert any(item.blocking for item in validate_test_patch(patch))
+
+
+def test_contract_backed_expectation_update_preserves_test_expression():
+    changed_expectation = """diff --git a/test_service.py b/test_service.py
+--- a/test_service.py
++++ b/test_service.py
+@@ -1 +1 @@
+-        self.assertEqual(score(1), 10)
++        self.assertEqual(score(1), 15)
+"""
+    assert any(item.blocking for item in validate_test_patch(changed_expectation))
+    assert not any(item.blocking for item in validate_test_patch(
+        changed_expectation, allow_contract_expectation_updates=True,
+    ))
+    changed_input = changed_expectation.replace("score(1), 15", "score(2), 15")
+    assert any(item.blocking for item in validate_test_patch(
+        changed_input, allow_contract_expectation_updates=True,
+    ))
+
+
+def test_truncated_repair_response_is_rejected_without_applying_patch(validation_repo):
+    plan = replace(make_plan(validation_repo), symbols_to_modify=())
+    model = FakeModel({"rationale": "partial", "patch": "diff --git"})
+    model.last_response_metadata = {"finish_reason": "length"}
+    engine = BoundedRepairEngine(model, scope_guard_from_plan(plan))
+    with pytest.raises(ValidationIntelligenceError, match="Truncated model response"):
+        engine.propose(plan, classify_failure("pytest", 1, "AssertionError"), {})
 
 
 def test_generated_test_cannot_mutate_production(validation_repo):
@@ -666,6 +719,7 @@ def test_repair_termination_policy():
     assert repair_decision(FailureCategory.ASSERTION, 2, 2) is DecisionStatus.FAILED
     assert repair_decision(FailureCategory.ASSERTION, 0, 2, repeated=True) is DecisionStatus.FAILED
     assert repair_decision(FailureCategory.INFRASTRUCTURE, 0, 2) is DecisionStatus.BLOCKED
+    assert repair_decision(FailureCategory.RUNTIME, 0, 2) is DecisionStatus.REPAIR_REQUIRED
     assert repair_decision(FailureCategory.ASSERTION, 0, 2, scope_increase=True) is DecisionStatus.REAPPROVAL_REQUIRED
 
 
@@ -682,13 +736,94 @@ def test_bounded_repair_success_repeat_and_scope_rejection(validation_repo):
     model = FakeModel({"rationale": "minimal fix", "patch": patch})
     engine = BoundedRepairEngine(model, scope_guard_from_plan(plan), max_attempts=2)
     failure = classify_failure("pytest", 1, "AssertionError expected true")
-    attempt = engine.propose(plan, failure, {"source": "exact"})
+    attempt = engine.propose(
+        plan, failure,
+        {"current_diff": "y" * 50_000, "affected_source_context": "x" * 50_000,
+         "binding_contracts": "Scores 30 through 64 are review."},
+    )
     assert attempt.number == 1
+    assert model.prompts[0]["max_tokens"] == 7000
+    assert len(model.prompts[0]["prompt"]) < 14_000
+    assert "acceptance contract are authoritative" in model.prompts[0]["system_prompt"]
+    assert "correct only the expected literal to the contract" in model.prompts[0]["system_prompt"]
+    assert "valid git unified diff" in model.prompts[0]["system_prompt"]
+    assert "never change scoring components to satisfy an inconsistent test" in model.prompts[0]["system_prompt"]
+    assert "Scores 30 through 64 are review." in model.prompts[0]["prompt"]
+    patch_failure = classify_failure("git apply --check", 1, "SyntaxError: corrupt patch at line 28")
+    engine.propose(
+        plan,
+        patch_failure,
+        {"previous_rejected_patch": patch, "git_preflight_error": "corrupt patch at line 28"},
+    )
+    assert "corrupt patch at line 28" in model.prompts[1]["prompt"]
+    assert "previous_rejected_patch" in model.prompts[1]["prompt"]
     with pytest.raises(ValidationIntelligenceError, match="failed"):
         engine.propose(plan, failure, {"source": "exact"})
     widened = patch.replace("app/service.py", "app/unplanned.py")
     with pytest.raises(ValidationIntelligenceError, match="reapproval"):
         BoundedRepairEngine(FakeModel({"rationale": "wide", "patch": widened}), scope_guard_from_plan(plan)).propose(plan, classify_failure("pytest", 1, "different AssertionError"), {})
+
+
+def test_local_repair_timeout_becomes_bounded_validation_failure(validation_repo, tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "local_ai_assistant.execution.commands.sys.executable",
+        "/AI/projects/local-ai/.venv/bin/python",
+    )
+    (validation_repo / "app/service.py").write_text("def login_user(name):\n    return False\n")
+    plan = make_plan(validation_repo)
+    artifact = make_artifact(validation_repo, plan)
+    index = SimpleNamespace(repository=validation_repo, symbols=())
+    rag = SimpleNamespace(
+        symbol_index=index, llm=None,
+        retrieve=lambda _query: (), build_context=lambda _items: "",
+    )
+
+    class TimeoutModel:
+        def chat(self, **_kwargs):
+            raise LLMError("Request timed out.")
+
+    roles = SimpleNamespace(client=lambda _role: TimeoutModel())
+    config = SimpleNamespace(
+        paths=SimpleNamespace(code_index_dir=tmp_path / "code-index"),
+        execution=SimpleNamespace(
+            inspection_timeout_seconds=15, lint_timeout_seconds=30,
+            test_timeout_seconds=60, build_timeout_seconds=60,
+        ),
+    )
+    config.paths.code_index_dir.mkdir()
+    context = ToolContext(
+        validation_repo, artifact, scope_guard_from_plan(plan), index,
+        "approved-plan-token",
+    )
+    repairable = classify_failure("pytest", 1, "AssertionError: expected true")
+    failed_targeted = SimpleNamespace(
+        failures=(repairable,),
+        decision=FinalDecision(DecisionStatus.FAILED, ("validation failed",), ()),
+        results=(ValidationResult("targeted-pytest", False, False, 1, "assertion failed"),),
+        review=ReviewResult("plan-hash", "diff-hash", ()),
+        metadata={},
+    )
+    monkeypatch.setattr(
+        ValidationService,
+        "run",
+        lambda *_args, **_kwargs: failed_targeted,
+    )
+    monkeypatch.setattr(code_agent, "_mark_validation_started", lambda *_args: None)
+    monkeypatch.setattr(
+        code_agent, "_history_service", lambda _config: (_ for _ in ()).throw(RuntimeError("no history fixture"))
+    )
+
+    passed, reason, _diff_hash = code_agent.run_intelligent_validation(
+        validation_repo, artifact, rag, config, context=context, max_repairs=1, roles=roles
+    )
+
+    report = load_validation_report(
+        config.paths.code_index_dir / "validations" / f"{plan.task_id}.json"
+    )
+    assert passed is False
+    assert reason
+    assert report["decision"]["status"] == DecisionStatus.FAILED.value
+    assert "LLMError" in report["metadata"]["repair_stop_reason"]
 
 
 def test_repair_rejects_test_weakening_and_validator_disable(validation_repo):
@@ -731,3 +866,92 @@ def test_repair_rejects_test_weakening_and_validator_disable(validation_repo):
             FakeModel({"rationale": "disable", "patch": disabled}),
             scope_guard_from_plan(config_plan),
         ).propose(config_plan, failure, {})
+
+
+@pytest.mark.parametrize('output,category,disposition,repairable', [
+    ('SyntaxError: invalid syntax', FailureCategory.SYNTAX, 'repairable', True),
+    ('ModuleNotFoundError: missing', FailureCategory.IMPORT, 'repairable', True),
+    ("NameError: name 'math' is not defined", FailureCategory.RUNTIME, 'repairable', True),
+    ('TypeError: unsupported operand', FailureCategory.TYPE, 'repairable', True),
+    ('AttributeError: missing attribute', FailureCategory.ATTRIBUTE, 'repairable', True),
+    ('AssertionError: expected 4', FailureCategory.ASSERTION, 'repairable', True),
+    ('process exited', FailureCategory.SUBPROCESS, 'fatal', False),
+    ('timed out', FailureCategory.TIMEOUT, 'fatal', False),
+    ('connection refused', FailureCategory.TRANSPORT, 'infrastructure-recoverable', False),
+    ('Malformed model response', FailureCategory.MODEL_RESPONSE, 'retryable', False),
+    ('schema validation failed', FailureCategory.SCHEMA, 'retryable', False),
+    ('disk full\nSyntaxError: cache', FailureCategory.INFRASTRUCTURE, 'infrastructure-recoverable', False),
+    ('outside approved scope\nNameError: name x is not defined', FailureCategory.SCOPE_VIOLATION, 'policy-blocked', False),
+    ('bwrap: execvp python: No such file or directory', FailureCategory.ENVIRONMENT, 'infrastructure-recoverable', False),
+])
+def test_failure_policy_is_explicit_and_conservative(output, category, disposition, repairable):
+    failure = classify_failure('python -m unittest discover', 1, output)
+    assert failure.category == category
+    assert failure.disposition == disposition
+    assert failure.repair_appropriate == repairable
+    if not repairable:
+        assert repair_decision(category, 0, 2) != DecisionStatus.REPAIR_REQUIRED
+
+
+@pytest.mark.parametrize('response,finish_reason', [
+    ({'rationale': 'repair', 'patch': 123}, 'stop'),
+    ({'rationale': 'repair', 'patch': 'diff', 'command': 'unexpected'}, 'stop'),
+    ({'rationale': 'repair', 'patch': 'diff'}, 'length'),
+])
+def test_repair_rejects_invalid_schema_and_truncation(validation_repo, response, finish_reason):
+    model = FakeModel(response)
+    model.last_response_metadata = {'finish_reason': finish_reason}
+    plan = make_plan(validation_repo)
+    engine = BoundedRepairEngine(model, scope_guard_from_plan(plan))
+    failure = classify_failure('pytest', 1, "NameError: name 'math' is not defined")
+    with pytest.raises(ValidationIntelligenceError):
+        engine.propose(plan, failure, {})
+    assert not engine.attempts
+    assert model.prompts[0]['response_format']['type'] == 'json_schema'
+
+
+def test_repair_malformed_patch_is_a_bounded_rejection(validation_repo):
+    model = FakeModel({'rationale': 'repair', 'patch': 'not a unified diff'})
+    plan = make_plan(validation_repo)
+    engine = BoundedRepairEngine(model, scope_guard_from_plan(plan))
+    failure = classify_failure('pytest', 1, "NameError: name 'math' is not defined")
+
+    with pytest.raises(ValidationIntelligenceError, match='patch is malformed'):
+        engine.propose(plan, failure, {})
+
+    assert not engine.attempts
+
+
+def test_repair_retries_once_when_model_returns_no_deterministic_diff(validation_repo):
+    valid_patch = """diff --git a/app/service.py b/app/service.py
+--- a/app/service.py
++++ b/app/service.py
+@@ -1,2 +1,2 @@
+ def login_user(name):
+-    return bool(name)
++    return bool(name.strip())
+"""
+
+    class SequenceModel:
+        def __init__(self):
+            self.prompts = []
+
+        def chat(self, **kwargs):
+            self.prompts.append(kwargs)
+            response = (
+                {"rationale": "repair", "patch": "not a diff"}
+                if len(self.prompts) == 1
+                else {"rationale": "formatted repair", "patch": valid_patch}
+            )
+            return json.dumps(response)
+
+    model = SequenceModel()
+    plan = make_plan(validation_repo)
+    attempt = BoundedRepairEngine(model, scope_guard_from_plan(plan)).propose(
+        plan, classify_failure("pytest", 1, "AssertionError: expected true"), {},
+    )
+
+    assert len(model.prompts) == 2
+    assert "no deterministic file changes" in model.prompts[1]["prompt"]
+    assert attempt.rationale == "formatted repair"
+    assert attempt.patch == valid_patch

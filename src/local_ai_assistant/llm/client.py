@@ -56,6 +56,7 @@ class LocalLLM:
             http_client=self._http_client,
         )
         self._latency_observer: Callable[[str, Mapping[str, int | float]], None] | None = None
+        self.last_response_metadata: dict[str, object] = {}
         logger.info(
             "llm_client_initialized",
             extra={"event": "llm.client.initialized", "base_url": self.config.llama.base_url},
@@ -80,6 +81,7 @@ class LocalLLM:
         ),
         temperature: float = 0.2,
         max_tokens: int = 1024,
+        response_format: Mapping[str, object] | None = None,
     ) -> str:
         if max_tokens < 1 or max_tokens > self.config.llama.context_size:
             raise ConfigurationError(
@@ -96,19 +98,31 @@ class LocalLLM:
                 "prompt_characters": len(prompt),
             },
         )
+        self.last_response_metadata = {"finish_reason": None, "response_format": dict(response_format) if response_format is not None else None, "max_tokens": max_tokens}
         try:
             self._observe("LOCAL_LLM_REQUEST_DISPATCHED")
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
+            request: dict[str, object] = {
+                "model": self.model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            }
+            if response_format is not None:
+                request["response_format"] = dict(response_format)
+            response = self.client.chat.completions.create(**request)
             self._observe("LOCAL_LLM_REQUEST_ACCEPTED")
             content = self._chat_content(response)
+            choices = getattr(response, "choices", None) or []
+            choice = choices[0] if choices else None
+            self.last_response_metadata = {
+                "finish_reason": getattr(choice, "finish_reason", None),
+                "response_id": getattr(response, "id", None),
+                "response_format": dict(response_format) if response_format is not None else None,
+                "max_tokens": max_tokens,
+            }
         except Exception as exc:
             logger.warning(
                 "llm_chat_failed",
@@ -119,7 +133,9 @@ class LocalLLM:
             raise LLMError(f"Local model request failed: {self._safe_error(exc)}") from exc
         logger.info(
             "llm_chat_completed",
-            extra={"event": "llm.chat.completed", "response_characters": len(content)},
+            extra={"event": "llm.chat.completed", "response_characters": len(content),
+                   "finish_reason": self.last_response_metadata.get("finish_reason"),
+                   "response_format_type": (response_format or {}).get("type")},
         )
         return content
 

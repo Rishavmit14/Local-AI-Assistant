@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -14,6 +16,7 @@ from local_ai_assistant.execution.commands import (
 from local_ai_assistant.execution.errors import (
     CommandPolicyError,
     ExecutionHistoryError,
+    ToolArgumentError,
     ToolNotFoundError,
     ToolPermissionError,
 )
@@ -23,8 +26,17 @@ from local_ai_assistant.execution.models import (
     ToolEvent,
     ToolPermission,
     ToolRequest,
+    ToolSpec,
 )
-from local_ai_assistant.execution.registry import _safe_path, default_registry
+from local_ai_assistant.execution.registry import (
+    ToolContext,
+    ToolRegistry,
+    _file_level_approved_symbol,
+    _normalize_symbol_body,
+    _restore_worktree_diff,
+    _safe_path,
+    default_registry,
+)
 from local_ai_assistant.isolation.models import NetworkPolicy, ResourcePolicy, SandboxResult
 
 
@@ -32,6 +44,8 @@ from local_ai_assistant.isolation.models import NetworkPolicy, ResourcePolicy, S
     "command",
     [
         "python -m pytest -q",
+        "python -m unittest discover -v",
+        "python3 -m unittest discover -s tests -v",
         "pytest tests/unit",
         "ruff check .",
         "mypy src",
@@ -117,6 +131,27 @@ def test_resolve_executable_prefers_path(monkeypatch):
     )
 
     assert resolve_executable("pytest") == Path("/usr/bin/pytest")
+
+
+def test_compileall_validation_keeps_bytecode_outside_the_repository(tmp_path):
+    (tmp_path / "module.py").write_text("value = 1\n")
+
+    result = run_allowed_command("python -m compileall -q .", tmp_path, timeout=20)
+
+    assert result.return_code == 0
+    assert not tuple(tmp_path.rglob("__pycache__"))
+
+
+def test_unittest_validation_keeps_bytecode_outside_the_repository(tmp_path):
+    (tmp_path / "test_sample.py").write_text(
+        "import unittest\n\nclass TestSample(unittest.TestCase):\n"
+        "    def test_discover(self):\n        self.assertTrue(True)\n"
+    )
+
+    result = run_allowed_command("python -m unittest discover -v", tmp_path, timeout=20)
+
+    assert result.return_code == 0
+    assert not tuple(tmp_path.rglob("__pycache__"))
 
 
 def test_resolve_python_preserves_active_virtualenv_path(monkeypatch, tmp_path):
@@ -245,6 +280,172 @@ def test_registry_contains_typed_read_mutation_and_validation_tools():
     assert specs["create_file"].approval_required
 
 
+def test_registry_audits_failure_class_and_message_without_arguments(tmp_path):
+    plan = SimpleNamespace(
+        task_id="task-test",
+        to_dict=lambda: {"task_id": "task-test", "plan_hash": "plan-test"},
+        risk=SimpleNamespace(level=SimpleNamespace(value="low")),
+        approval=SimpleNamespace(status=SimpleNamespace(value="automatic")),
+    )
+    context = ToolContext(
+        repository=tmp_path,
+        artifact=SimpleNamespace(plan=plan, starting_commit="base"),
+        policy=SimpleNamespace(),
+        symbol_index=object(),
+    )
+    registry = ToolRegistry()
+
+    def fail(_context, _arguments):
+        raise ToolPermissionError("Symbol source/range is stale")
+
+    registry.register(
+        ToolSpec("inspect", "Inspect", ToolPermission.READ_ONLY, False, 1, ("private",)), fail
+    )
+    with pytest.raises(ToolPermissionError, match="Symbol source/range is stale"):
+        registry.invoke("inspect", {"private": "payload"}, context)
+
+    event = context.events[-1]
+    assert event.output_summary == "ToolPermissionError: Symbol source/range is stale"
+    assert "payload" not in event.output_summary
+
+
+def test_malformed_patch_is_audited_rejection_without_aborting_worker(tmp_path, monkeypatch):
+    import local_ai_assistant.execution.registry as registry_module
+
+    monkeypatch.setattr(registry_module, "_authorize_mutation", lambda *_args: None)
+    plan = SimpleNamespace(
+        approval=SimpleNamespace(status=registry_module.ApprovalStatus.AUTOMATIC),
+        task_id="task-patch-test",
+        to_dict=lambda: {"task_id": "task-patch-test", "plan_hash": "plan"},
+        risk=SimpleNamespace(level=SimpleNamespace(value="low")),
+    )
+    context = ToolContext(
+        repository=tmp_path,
+        artifact=SimpleNamespace(plan=plan, repository=tmp_path, starting_commit="base"),
+        policy=SimpleNamespace(),
+        symbol_index=SimpleNamespace(repository=tmp_path, symbols=()),
+    )
+
+    observation = default_registry().invoke(
+        "apply_patch", {"patch": "this is not a unified diff"}, context
+    )
+
+    assert observation.kind == "patch_rejection"
+    assert not observation.success
+    assert "no deterministic file changes" in observation.stderr
+    assert context.events[-1].output_summary.startswith("Patch could not be parsed")
+
+
+def test_file_level_scope_resolves_class_without_matching_child_methods(tmp_path):
+    approved = SimpleNamespace(
+        path="test_fraudshield.py",
+        symbol_id="registered-repository-class-id",
+        qualified_name="row61-fraudshield-happy.test_fraudshield.FraudShieldTests",
+    )
+    class_symbol = SimpleNamespace(
+        identifier="task-local-class-id",
+        path="test_fraudshield.py",
+        qualified_name="test_fraudshield.FraudShieldTests",
+    )
+    child_method = SimpleNamespace(
+        identifier="task-local-method-id",
+        path="test_fraudshield.py",
+        qualified_name="test_fraudshield.FraudShieldTests.test_categories",
+    )
+    context = ToolContext(
+        repository=tmp_path,
+        canonical_repository=tmp_path,
+        artifact=SimpleNamespace(
+            plan=SimpleNamespace(direct_scope=(approved,), dependent_scope=()),
+        ),
+        policy=SimpleNamespace(
+            allowed_files=("test_fraudshield.py",),
+            symbol_scoped_files=(),
+        ),
+        symbol_index=SimpleNamespace(
+            repository=tmp_path,
+            symbols=(class_symbol, child_method),
+        ),
+    )
+
+    assert _file_level_approved_symbol(context, approved.symbol_id)
+
+
+def test_rejected_mutation_restore_preserves_earlier_task_changes(tmp_path):
+    def git(*args):
+        return subprocess.run(args, cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    git("git", "init", "-q")
+    git("git", "config", "user.email", "friday-test@example.invalid")
+    git("git", "config", "user.name", "Friday test")
+    (tmp_path / "accepted.py").write_text("baseline = True\n")
+    (tmp_path / "rejected.py").write_text("baseline = True\n")
+    git("git", "add", ".")
+    git("git", "commit", "-m", "baseline")
+
+    (tmp_path / "accepted.py").write_text("accepted = True\n")
+    before_rejected_mutation = subprocess.run(
+        ["git", "diff", "HEAD", "--binary"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    (tmp_path / "rejected.py").write_text("out_of_scope = True\n")
+
+    assert _restore_worktree_diff(tmp_path, before_rejected_mutation)
+    assert (tmp_path / "accepted.py").read_text() == "accepted = True\n"
+    assert (tmp_path / "rejected.py").read_text() == "baseline = True\n"
+    assert git("git", "status", "--short").stdout.splitlines() == [" M accepted.py"]
+
+
+def test_full_function_with_leading_comment_is_safely_unwrapped(tmp_path):
+    path = tmp_path / "fraudshield.py"
+    path.write_text(
+        "def assess_transaction(amount, prior_chargebacks, account_age_days):\n"
+        "    raise NotImplementedError\n"
+    )
+    symbol = SimpleNamespace(name="assess_transaction", start_line=1, end_line=2)
+
+    body = _normalize_symbol_body(
+        "# Implement the approved function.\n\n"
+        "def assess_transaction(amount, prior_chargebacks, account_age_days):\n"
+        "    return (75, 'high')\n",
+        path,
+        symbol,
+    )
+
+    assert body == "return (75, 'high')"
+
+
+def test_full_class_replacement_preserves_header_and_existing_method_signatures(tmp_path):
+    path = tmp_path / "test_service.py"
+    path.write_text(
+        "class ServiceTests(unittest.TestCase):\n"
+        "    def test_existing(self, value=1):\n"
+        "        self.assertEqual(value, 1)\n"
+    )
+    symbol = SimpleNamespace(name="ServiceTests", start_line=1, end_line=3)
+    body = _normalize_symbol_body(
+        "class ServiceTests(unittest.TestCase):\n"
+        "    def test_existing(self, value=1):\n"
+        "        self.assertEqual(value, 1)\n"
+        "    def test_boundary(self):\n"
+        "        self.assertTrue(True)\n",
+        path,
+        symbol,
+    )
+    assert "def test_boundary" in body
+    with pytest.raises(ToolArgumentError, match="cannot remove or change existing method signatures"):
+        _normalize_symbol_body(
+            "class ServiceTests(unittest.TestCase):\n"
+            "    def test_boundary(self):\n"
+            "        self.assertTrue(True)\n",
+            path,
+            symbol,
+        )
+
+
 def test_unknown_tool_and_strict_tool_request_schema():
     with pytest.raises(ToolNotFoundError):
         default_registry().invoke("does_not_exist", {}, None)
@@ -348,3 +549,22 @@ def test_sensitive_and_escaping_paths_are_rejected(tmp_path):
         _safe_path(tmp_path, ".env")
     with pytest.raises(ToolPermissionError):
         _safe_path(tmp_path, "../outside")
+
+
+def test_pytest_validation_keeps_all_caches_outside_task_repository(tmp_path):
+    (tmp_path / 'test_sample.py').write_text('def test_valid():\n    assert 2 + 2 == 4\n')
+    __import__('subprocess').run(['git', 'init', '-q'], cwd=tmp_path, check=True)
+    command = __import__('subprocess').run
+    command(['git', 'add', 'test_sample.py'], cwd=tmp_path, check=True)
+    command(['git', 'config', 'user.name', 'Friday Test'], cwd=tmp_path, check=True)
+    command(['git', 'config', 'user.email', 'friday-test@example.invalid'], cwd=tmp_path, check=True)
+    command(['git', 'commit', '-qm', 'test baseline'], cwd=tmp_path, check=True)
+    result = run_allowed_command('python -m pytest -q', tmp_path, timeout=30)
+    assert result.return_code == 0, result.stderr
+    status = __import__('subprocess').run(
+        ['git', 'status', '--porcelain', '--ignored=matching'], cwd=tmp_path,
+        text=True, capture_output=True, check=True,
+    )
+    assert not status.stdout
+    assert not tuple(tmp_path.rglob('__pycache__'))
+    assert not (tmp_path / '.pytest_cache').exists()

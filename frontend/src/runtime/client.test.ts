@@ -55,23 +55,32 @@ describe("FridayRuntimeClient browser-safe project execution", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ csrf_token: "csrf-value", expires_in: 600 }), { status: 200 }))
       .mockResolvedValueOnce(new Response("{}", { status: 200 }))
       .mockResolvedValueOnce(new Response("{}", { status: 202 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ execution: { task_id: "task_aaaaaaaaaaaaaaaaaaaa", plan_hash: "a".repeat(64), attempt_id: "attempt-1", parent_attempt_id: "attempt-old", run_id: "run-1", status: "running", duplicate: false } }), { status: 202 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ execution: { task_id: "task_aaaaaaaaaaaaaaaaaaaa", plan_hash: "a".repeat(64), attempt_id: "attempt-2", parent_attempt_id: "attempt-1", run_id: "run-2", status: "running", duplicate: false } }), { status: 202 }))
       .mockResolvedValueOnce(new Response("{}", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const client = new FridayRuntimeClient();
     const csrf = await client.unlockProjectExecution("owner-session-credential");
     await client.approveObjectivePlan("objective-1", "task_aaaaaaaaaaaaaaaaaaaa", "a".repeat(64), csrf);
     await client.executeObjective("objective-1", csrf);
+    await client.recoverObjectiveExecution("objective-1", "task_aaaaaaaaaaaaaaaaaaaa", "a".repeat(64), "1bb9f5a8-a291-45ce-b896-99a3c835f6cd", csrf);
+    await client.retryObjectiveExecution("objective-1", "task_aaaaaaaaaaaaaaaaaaaa", "a".repeat(64), "53ead2e5-4d73-4997-92ac-42019bdbd7a0", "Owner explicitly retried after reviewing the rolled-back outcome.", csrf);
     await client.lockProjectExecution(csrf);
     expect(fetchMock.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([
       ["/api/v1/project-execution/unlock", "POST"],
       ["/api/v1/objectives/objective-1/approval", "POST"],
       ["/api/v1/objectives/objective-1/execute", "POST"],
+      ["/api/v1/objectives/objective-1/recover", "POST"],
+      ["/api/v1/objectives/objective-1/retry", "POST"],
       ["/api/v1/project-execution/lock", "POST"],
     ]);
     expect(fetchMock.mock.calls[1][1]?.headers).toEqual({ "Content-Type": "application/json", "X-Friday-CSRF": csrf });
-    for (const [, init] of [fetchMock.mock.calls[2], fetchMock.mock.calls[3]]) {
-      expect(init?.headers).toEqual({ "X-Friday-CSRF": csrf });
-    }
+    expect(fetchMock.mock.calls[2][1]?.headers).toEqual({ "X-Friday-CSRF": csrf });
+    expect(fetchMock.mock.calls[3][1]?.headers).toEqual({ "Content-Type": "application/json", "X-Friday-CSRF": csrf });
+    expect(fetchMock.mock.calls[5][1]?.headers).toEqual({ "X-Friday-CSRF": csrf });
+    expect(fetchMock.mock.calls[3][1]?.body).toBe(JSON.stringify({ task_id: "task_aaaaaaaaaaaaaaaaaaaa", plan_hash: "a".repeat(64), idempotency_key: "1bb9f5a8-a291-45ce-b896-99a3c835f6cd" }));
+    expect(fetchMock.mock.calls[4][1]?.headers).toEqual({ "Content-Type": "application/json", "X-Friday-CSRF": csrf });
+    expect(fetchMock.mock.calls[4][1]?.body).toBe(JSON.stringify({ task_id: "task_aaaaaaaaaaaaaaaaaaaa", plan_hash: "a".repeat(64), idempotency_key: "53ead2e5-4d73-4997-92ac-42019bdbd7a0", reason: "Owner explicitly retried after reviewing the rolled-back outcome." }));
     expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("Authorization");
     expect(JSON.stringify(fetchMock.mock.calls)).not.toContain("Bearer");
   });

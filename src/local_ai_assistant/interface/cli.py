@@ -24,6 +24,10 @@ from local_ai_assistant.gateway.execution_service import CodeAgentExecutionServi
 from local_ai_assistant.gateway.github import GitHubHttpTransport
 from local_ai_assistant.gateway.models import GatewayScope, RepositoryMapping
 from local_ai_assistant.gateway.publication import GitHubPublicationService
+from local_ai_assistant.gateway.recovery import (
+    TaskExecutionRecoveryService,
+    TaskExecutionRetryService,
+)
 from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
@@ -57,6 +61,7 @@ from .capability_routing import FridayConversationCapabilityRouter
 from .conversation import FridayConversationService
 from .events import FridayEventType
 from .interaction import FridayInteractionCoordinator
+from .local_owner import LocalOwnerTrust
 from .runtime import FridayRuntime
 from .wake_bootstrap import build_managed_wake_voice
 
@@ -199,25 +204,41 @@ def build_presentation_components(
         if resolved_config.gateway.enabled and resolved_config.gateway.token_hash else None
     )
     rollback_owner_hash = os.environ.get("LOCAL_AI_ROLLBACK_OWNER_TOKEN_HASH", "")
-    project_owner_hash = os.environ.get("LOCAL_AI_PROJECT_OWNER_TOKEN_HASH", "")
     rollback_gateway_token = os.environ.get("LOCAL_AI_ROLLBACK_GATEWAY_TOKEN", "")
     rollback_gateway_hash = os.environ.get("LOCAL_AI_ROLLBACK_GATEWAY_TOKEN_HASH", "")
     rollback_sessions = OwnerBrowserSessions(rollback_owner_hash) if rollback_owner_hash else None
+    owner_mode = os.environ.get("LOCAL_AI_OWNER_TRUST_MODE", "interactive")
+    if owner_mode not in {"interactive", "local_single_user"}:
+        raise ValueError("unsupported owner trust mode")
+    # Personal mode has no human-password/digest dependency at startup.
+    project_owner_hash = (
+        os.environ.get("LOCAL_AI_PROJECT_OWNER_TOKEN_HASH", "")
+        if owner_mode == "interactive" else ""
+    )
     project_sessions = OwnerBrowserSessions(project_owner_hash) if project_owner_hash else None
+    local_owner_trust = None
+    if owner_mode == "local_single_user":
+        capability_path = os.environ.get("LOCAL_AI_OWNER_CAPABILITY_FILE", "")
+        installation = os.environ.get("LOCAL_AI_OWNER_INSTALLATION", "")
+        if not capability_path or not installation:
+            raise ValueError("local single-user trust requires a capability path and installation")
+        local_owner_trust = LocalOwnerTrust(Path(capability_path), Path(installation))
+        project_sessions = local_owner_trust.sessions
     rollback_gateway_auth = (
         GatewayAuth(rollback_gateway_hash, frozenset({GatewayScope.REQUEST_ROLLBACK}))
         if rollback_gateway_hash and rollback_gateway_token else None
     )
     rollback_worktrees = WorktreeManager(resolved_config.paths.worktree_dir)
     rollback_checkpoints = CheckpointManager(resolved_config.paths.isolation_dir / "checkpoints")
-    rollback_service = OwnerRollbackService(
-        history, rollback_worktrees, rollback_checkpoints,
-        TransactionalRollbackService(rollback_worktrees, rollback_checkpoints, history),
-    )
     rollback_origins = tuple(
         origin.rstrip("/") for origin in os.environ.get("LOCAL_AI_ROLLBACK_ALLOWED_ORIGINS", "").split(",") if origin.strip()
     )
     execution = CodeAgentExecutionService(resolved_config, history, onboarding)
+    rollback_service = OwnerRollbackService(
+        history, rollback_worktrees, rollback_checkpoints,
+        TransactionalRollbackService(rollback_worktrees, rollback_checkpoints, history),
+        worker_status=execution.get_status,
+    )
     gateway = IntegrationGatewayService(
         history,
         mappings,
@@ -306,6 +327,13 @@ def build_presentation_components(
             "unresolved_questions": list(plan.unresolved_questions[:20]),
         }
 
+    task_recovery_service = TaskExecutionRecoveryService(
+        history, execution, None, resolved_config.paths.worktree_dir,
+    )
+    task_retry_service = TaskExecutionRetryService(
+        history, execution, None, resolved_config.paths.worktree_dir,
+        projects=projects, career_forge=career_forge,
+    )
     autonomy = ObjectiveService(
         resolved_config.paths.autonomy_db,
         plan_hash_for_task=plan_hash_for_task,
@@ -317,7 +345,11 @@ def build_presentation_components(
         cancel_task=cancel_task,
         task_state_for_task=task_state_for_task,
         task_outcome_for_task=task_outcome_for_task,
+        recover_task=task_recovery_service.recover,
+        retry_task=task_retry_service.retry,
     )
+    task_recovery_service.objectives = autonomy
+    task_retry_service.objectives = autonomy
 
     proactive = ProactiveEventEngine(
         resolved_config.paths.proactive_db,
@@ -445,6 +477,7 @@ def build_presentation_components(
         objective_execution_auth=execution_auth,
         objective_execution_requests_per_minute=resolved_config.gateway.request_rate,
         project_execution_sessions=project_sessions,
+        local_owner_trust=local_owner_trust,
         project_execution_allowed_origins=tuple(
             origin.rstrip("/") for origin in os.environ.get("LOCAL_AI_PROJECT_EXECUTION_ALLOWED_ORIGINS", "").split(",") if origin.strip()
         ),
@@ -518,6 +551,7 @@ def main() -> int:
             uvicorn.Config(
                 app,
                 host="127.0.0.1",
+                proxy_headers=False,
                 port=args.port,
                 log_level="info",
                 access_log=False,

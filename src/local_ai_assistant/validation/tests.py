@@ -63,7 +63,8 @@ def generate_test_patch(
 
 
 def validate_test_patch(
-    diff: str, existing_test_names: tuple[str, ...] = ()
+    diff: str, existing_test_names: tuple[str, ...] = (), *,
+    allow_contract_expectation_updates: bool = False,
 ) -> tuple[ReviewFinding, ...]:
     findings = []
     added_by_file: dict[str, list[str]] = {}
@@ -80,7 +81,7 @@ def validate_test_patch(
         if not is_test_path(deleted_path):
             continue
         removed = "\n".join(lines)
-        if re.search(r"^\s*(?:async\s+def|def)\s+test_|^\s*assert\b|\.assert[A-Z]", removed, re.MULTILINE):
+        if re.search(r"^\s*(?:async\s+def|def)\s+test_", removed, re.MULTILINE):
             findings.append(
                 _finding(
                     "deleted_test_behavior",
@@ -88,6 +89,29 @@ def validate_test_patch(
                     "Generated patch deletes a test or assertion.",
                 )
             )
+            continue
+        removed_assertions = [line.strip() for line in lines if _is_assertion_line(line)]
+        added_assertions = [
+            line.strip() for line in added_by_file.get(deleted_path, [])
+            if _is_assertion_line(line)
+        ]
+        if removed_assertions:
+            remaining = list(added_assertions)
+            for assertion in removed_assertions:
+                match = next((index for index, candidate in enumerate(remaining)
+                              if _same_assertion_contract_shape(assertion, candidate)), None)
+                if not allow_contract_expectation_updates or match is None:
+                    findings.append(
+                        _finding("deleted_test_behavior", deleted_path,
+                                 "Generated patch deletes or changes an assertion outside its expected value.")
+                    )
+                    break
+                remaining.pop(match)
+            if not any(f.category == "deleted_test_behavior" and f.file == deleted_path for f in findings) and remaining:
+                findings.append(
+                    _finding("deleted_test_behavior", deleted_path,
+                             "Generated patch adds assertions while replacing existing test behavior.")
+                )
     for path, lines in added_by_file.items():
         if not is_test_path(path):
             findings.append(_finding("production_mutation", path, "Generated test patch changes production code."))
@@ -178,6 +202,52 @@ def validate_test_patch(
                 if isinstance(statement, (ast.Return, ast.Raise)):
                     terminated = True
     return tuple(findings)
+
+
+def _is_assertion_line(line: str) -> bool:
+    return bool(re.match(r"\s*assert\b|.*\.assert[A-Z]\w*\s*\(", line))
+
+
+def _same_assertion_contract_shape(before: str, after: str) -> bool:
+    """Allow expected literals to follow a binding contract, preserving the tested expression."""
+    class NormalizeExpected(ast.NodeTransformer):
+        def visit_Constant(self, node):
+            return ast.copy_location(ast.Constant(type(node.value).__name__), node)
+
+    try:
+        old, new = ast.parse(before).body[0], ast.parse(after).body[0]
+        if isinstance(old, ast.Expr) and isinstance(old.value, ast.Call):
+            old = old.value
+        if isinstance(new, ast.Expr) and isinstance(new.value, ast.Call):
+            new = new.value
+        if isinstance(old, ast.Assert) and isinstance(new, ast.Assert):
+            if ast.dump(old.test.left, include_attributes=False) != ast.dump(new.test.left, include_attributes=False):
+                return False
+            old_expected, new_expected = old.test.comparators[-1], new.test.comparators[-1]
+        elif (isinstance(old, ast.Call) and isinstance(new, ast.Call)
+              and ast.unparse(old.func).split(".")[-1].startswith("assert")
+              and ast.unparse(old.func) == ast.unparse(new.func)
+              and len(old.args) == len(new.args) and len(old.args) >= 2):
+            if ast.dump(old.args[0], include_attributes=False) != ast.dump(new.args[0], include_attributes=False):
+                return False
+            if len(old.args) > 2 and ast.dump(old.args[2:], include_attributes=False) != ast.dump(new.args[2:], include_attributes=False):
+                return False
+            old_expected, new_expected = old.args[1], new.args[1]
+        else:
+            return False
+        old = NormalizeExpected().visit(old)
+        new = NormalizeExpected().visit(new)
+        # Normalize only the expected side; the assertion operator and actual
+        # expression remain byte-for-byte equivalent at the AST level.
+        if isinstance(old, ast.Assert):
+            old.test.comparators[-1] = NormalizeExpected().visit(old_expected)
+            new.test.comparators[-1] = NormalizeExpected().visit(new_expected)
+        else:
+            old.args[1] = NormalizeExpected().visit(old_expected)
+            new.args[1] = NormalizeExpected().visit(new_expected)
+        return ast.dump(old, include_attributes=False) == ast.dump(new, include_attributes=False)
+    except (SyntaxError, IndexError, ValueError, TypeError):
+        return False
 
 
 def is_test_path(path: str) -> bool:

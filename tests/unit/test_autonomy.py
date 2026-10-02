@@ -1,5 +1,5 @@
-from concurrent.futures import ThreadPoolExecutor
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, Event
 
 import pytest
@@ -20,6 +20,28 @@ def test_objective_requires_bounded_text(tmp_path):
     service = ObjectiveService(tmp_path / "objectives.sqlite3")
     with pytest.raises(ValueError, match="between"):
         service.create(" ")
+
+
+def test_objective_rebinds_only_an_unapproved_revised_plan(tmp_path):
+    task_id = "task_" + "a" * 20
+    current = {"hash": "a" * 64, "state": "awaiting_approval"}
+    service = ObjectiveService(
+        tmp_path / "objectives.sqlite3",
+        plan_hash_for_task=lambda _task: current["hash"],
+        task_state_for_task=lambda _task: current["state"],
+    )
+    objective = service.bind_plan(service.create("Revise a rejected plan").objective_id, task_id)
+    with pytest.raises(ValueError, match="unapproved revised"):
+        service.rebind_unapproved_plan(objective.objective_id, task_id, "a" * 64, "b" * 64)
+    current["hash"] = "b" * 64
+    current["state"] = "executing"
+    with pytest.raises(ValueError, match="unapproved revised"):
+        service.rebind_unapproved_plan(objective.objective_id, task_id, "a" * 64, "b" * 64)
+    current["state"] = "awaiting_approval"
+    rebound = service.rebind_unapproved_plan(objective.objective_id, task_id, "a" * 64, "b" * 64)
+    assert rebound.plan_hash == "b" * 64
+    with pytest.raises(ValueError, match="unapproved revised"):
+        service.rebind_unapproved_plan(objective.objective_id, task_id, "a" * 64, "c" * 64)
 
 
 @pytest.mark.parametrize("task_state, token, allowed", [

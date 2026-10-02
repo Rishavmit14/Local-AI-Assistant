@@ -210,6 +210,35 @@ def test_terminal_execution_artifact_is_not_implicitly_reconciled(tmp_path, arti
     assert str(tmp_path) not in json.dumps(result.to_dict())
 
 
+def test_prior_attempt_artifacts_do_not_block_recovery_of_artifactless_current_attempt(tmp_path):
+    history, task, root, _ = setup_task(tmp_path)
+    previous_attempt = "b" * 32
+    current_attempt = "c" * 32
+    plan_hash = "a" * 64
+    now = "2026-10-02T13:00:00+00:00"
+    with history.store.transaction() as connection:
+        connection.execute(
+            "UPDATE tasks SET plan_hash=? WHERE task_id=?", (plan_hash, task.task_id)
+        )
+        connection.execute(
+            "INSERT INTO executions(artifact_id,task_id,run_id,artifact_path,artifact_hash,status,duration_seconds,repairs,replans,final_commit,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            ("previous-artifact", task.task_id, previous_attempt, str(tmp_path / "old.json"), "d" * 64, "rolled_back", 1.0, 0, 0, None, "{}"),
+        )
+        connection.execute(
+            "INSERT INTO task_execution_attempts VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (current_attempt, task.task_id, plan_hash, previous_attempt, "retry", "failed",
+             current_attempt, now, now, "LLMError", "{}", None),
+        )
+
+    result = TaskRecoveryProjectionService(
+        history, root, worker_status=lambda _task: {"status": "failed"}, clock=lambda: 1000,
+    ).project(task.task_id)
+
+    assert result.reconciliation.state == "not_recorded"
+    assert result.reconciliation.execution_evidence_count == 0
+    assert result.recoverability == "blocked_or_unknown"  # Missing exact approval remains fail-closed.
+
+
 def test_terminal_task_with_recovery_required_isolation_keeps_both_sources_visible(tmp_path):
     history, task, root, metadata = setup_task(tmp_path)
     with history.store.transaction() as connection:

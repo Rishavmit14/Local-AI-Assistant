@@ -164,11 +164,16 @@ class ArtifactImporter:
         self._advance(task_id, TaskStatus.EXECUTING, report.get("plan_hash"))
         inserted = self.service.store.attach_artifact(
             "executions", task_id, "execution_" + digest[:20], str(path), digest,
-            {"run_id": "execution_" + digest[:20], "status": report.get("status"), "repairs": report.get("repairs", 0), "replans": report.get("replans", 0), "final_commit": report.get("final_commit"), "metadata": {"schema_version": report["schema_version"]}},
+            {"run_id": report.get("attempt_id") or "execution_" + digest[:20], "status": report.get("status"), "repairs": report.get("repairs", 0), "replans": report.get("replans", 0), "final_commit": report.get("final_commit"), "metadata": {"schema_version": report["schema_version"], "attempt_id": report.get("attempt_id")}},
         )
         if not inserted:
             return
         with self.service.store.transaction() as connection:
+            if report.get("attempt_id"):
+                connection.execute(
+                    "UPDATE task_execution_attempts SET artifact_id=?,updated_at=? WHERE attempt_id=? AND task_id=? AND plan_hash=? AND state='running'",
+                    ("execution_" + digest[:20], utc_now(), report["attempt_id"], task_id, report.get("plan_hash")),
+                )
             for number, event in enumerate(report.get("events", [])):
                 event_id = "tool_" + hashlib.sha256(f"{digest}:{number}".encode()).hexdigest()[:20]
                 connection.execute(

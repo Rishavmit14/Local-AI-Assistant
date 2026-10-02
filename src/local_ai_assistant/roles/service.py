@@ -61,8 +61,18 @@ class RoleClient:
     def __init__(self, orchestrator: RoleOrchestrator, role: Role) -> None:
         self._orchestrator, self.role = orchestrator, role
 
-    def chat(self, prompt: str, system_prompt: str = "", temperature: float = 0.2, max_tokens: int = 1024) -> str:
-        return self._orchestrator.chat(self.role, prompt, system_prompt, temperature, max_tokens)
+    def chat(
+        self,
+        prompt: str,
+        system_prompt: str = "",
+        temperature: float = 0.2,
+        max_tokens: int = 1024,
+        response_format: Mapping[str, object] | None = None,
+    ) -> str:
+        return self._orchestrator.chat(
+            self.role, prompt, system_prompt, temperature, max_tokens,
+            response_format=response_format,
+        )
 
     def stream_chat(self, prompt: str, system_prompt: str = "", temperature: float = 0.2, max_tokens: int = 1024) -> Iterator[str]:
         return self._orchestrator.stream_chat(self.role, prompt, system_prompt, temperature, max_tokens)
@@ -94,11 +104,27 @@ class RoleOrchestrator:
         with self._lock:
             return tuple(self._history[-limit:])
 
-    def chat(self, role: Role, prompt: str, system_prompt: str, temperature: float, max_tokens: int) -> str:
+    def chat(
+        self,
+        role: Role,
+        prompt: str,
+        system_prompt: str,
+        temperature: float,
+        max_tokens: int,
+        *,
+        response_format: Mapping[str, object] | None = None,
+    ) -> str:
         with self._invocation_lock:
             started = self._start(role)
             try:
-                value = self.model.chat(prompt, system_prompt=self._prompt(role, system_prompt), temperature=temperature, max_tokens=max_tokens)
+                kwargs: dict[str, object] = {
+                    "system_prompt": self._prompt(role, system_prompt),
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+                if response_format is not None:
+                    kwargs["response_format"] = response_format
+                value = self.model.chat(prompt, **kwargs)
             except Exception:
                 self._finish(started, False)
                 raise

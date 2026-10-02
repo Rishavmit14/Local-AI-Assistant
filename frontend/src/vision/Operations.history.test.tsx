@@ -41,7 +41,7 @@ describe("Astra History canonical read projection", () => {
     expect(mounted.textContent).not.toContain("/private/owner/secret.txt");
     expect(mounted.textContent).toContain("separate owner-authenticated review and execute flow");
     expect([...mounted.querySelectorAll("button")].map(button => button.textContent).join(" ")).not.toMatch(/approve|execute|cancel|retry|restore/i);
-    expect(methods).toEqual(["GET", "GET", "GET", "GET"]);
+    expect(methods).toEqual(["POST", "GET", "GET", "GET", "GET"]);
     expect(localStorage.length).toBe(0);
   });
 

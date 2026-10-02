@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,6 +18,26 @@ from uuid import uuid4
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def reviewed_task_commit_paths(repository: Path, starting_commit: str, final_commit: str) -> tuple[str, ...]:
+    """Read submitted file evidence from the exact reviewed Git commit."""
+    repository = repository.resolve(strict=True)
+    parent = subprocess.run(
+        ["git", "rev-parse", f"{final_commit}^"], cwd=repository, text=True, capture_output=True,
+    )
+    if parent.returncode or parent.stdout.strip() != starting_commit:
+        raise ValueError("reviewed task commit is not based on the approved starting commit")
+    changed = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=AM", "-z", starting_commit, final_commit],
+        cwd=repository, capture_output=True,
+    )
+    if changed.returncode:
+        raise ValueError("reviewed task commit files are unavailable")
+    paths = tuple(sorted({value.decode("utf-8") for value in changed.stdout.split(b"\0") if value}))
+    if not paths or any(path.startswith("/") or ".." in Path(path).parts for path in paths):
+        raise ValueError("reviewed task commit has no safe source or documentation artifacts")
+    return paths
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +88,7 @@ class ProjectService:
         ProjectTemplate("production-ai-platform", "Production AI Platform", "Serving, CI/CD, observability, and MLOps systems."),
     )
     STATES = {"assigned", "active", "under_review", "needs_revision", "completed", "archived"}
-    SCHEMA_VERSION = 1
+    SCHEMA_VERSION = 2
 
     def __init__(self, database: Path):
         self.database = Path(database).resolve()
@@ -120,6 +141,9 @@ class ProjectService:
                     project_id TEXT NOT NULL REFERENCES projects(project_id),
                     submission_id TEXT NOT NULL, competency_id TEXT NOT NULL,
                     mission_id TEXT NOT NULL, attempt_id TEXT NOT NULL UNIQUE,
+                    assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1',
+                    assessment_contract_fingerprint TEXT NOT NULL DEFAULT '',
+                    evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer',
                     PRIMARY KEY(project_id,submission_id)
                 );
                 CREATE TABLE IF NOT EXISTS project_learning_evidence (
@@ -135,6 +159,11 @@ class ProjectService:
             row = db.execute("SELECT version FROM project_schema_version WHERE singleton=1").fetchone()
             if row is None:
                 db.execute("INSERT INTO project_schema_version VALUES(1, ?)", (self.SCHEMA_VERSION,))
+            elif row[0] == 1:
+                db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1'")
+                db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_fingerprint TEXT NOT NULL DEFAULT ''")
+                db.execute("ALTER TABLE project_review_submissions ADD COLUMN evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer'")
+                db.execute("UPDATE project_schema_version SET version=? WHERE singleton=1", (self.SCHEMA_VERSION,))
             elif row[0] != self.SCHEMA_VERSION:
                 raise RuntimeError("unsupported Projects schema version")
 
@@ -232,8 +261,14 @@ class ProjectService:
 
     def reserve_review_submission(
         self, project_id: str, submission_id: str, competency_id: str, mission_id: str,
+        *, assessment_contract_fingerprint: str,
+        assessment_contract_version: str = "project_milestone_assessment_v1",
+        evaluator: str = "local_qwen_reviewer",
     ) -> dict:
-        if not submission_id or len(submission_id) > 80 or not competency_id or not mission_id:
+        if (not submission_id or len(submission_id) > 80 or not competency_id or not mission_id
+                or len(assessment_contract_fingerprint) != 64
+                or not assessment_contract_version or len(assessment_contract_version) > 80
+                or evaluator != "local_qwen_reviewer"):
             raise ValueError("bounded project assessment identity is required")
         with self._lock, self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -248,7 +283,8 @@ class ProjectService:
                 if link is None or link[0] != mission_id:
                     raise ValueError("assessment mission is not bound to this project competency")
                 row = db.execute(
-                    "SELECT project_id,submission_id,competency_id,mission_id,attempt_id "
+                    "SELECT project_id,submission_id,competency_id,mission_id,attempt_id,"
+                    "assessment_contract_version,assessment_contract_fingerprint,evaluator "
                     "FROM project_review_submissions WHERE project_id=? AND submission_id=?",
                     (project_id, submission_id),
                 ).fetchone()
@@ -257,16 +293,25 @@ class ProjectService:
                         raise ValueError("project artifacts must be submitted before Career Forge review")
                     attempt_id = "attempt_" + uuid4().hex
                     db.execute(
-                        "INSERT INTO project_review_submissions VALUES(?,?,?,?,?)",
-                        (project_id, submission_id, competency_id, mission_id, attempt_id),
+                        "INSERT INTO project_review_submissions "
+                        "(project_id,submission_id,competency_id,mission_id,attempt_id,"
+                        "assessment_contract_version,assessment_contract_fingerprint,evaluator) "
+                        "VALUES(?,?,?,?,?,?,?,?)",
+                        (project_id, submission_id, competency_id, mission_id, attempt_id,
+                         assessment_contract_version, assessment_contract_fingerprint, evaluator),
                     )
                     row = db.execute(
-                        "SELECT project_id,submission_id,competency_id,mission_id,attempt_id "
+                        "SELECT project_id,submission_id,competency_id,mission_id,attempt_id,"
+                        "assessment_contract_version,assessment_contract_fingerprint,evaluator "
                         "FROM project_review_submissions WHERE project_id=? AND submission_id=?",
                         (project_id, submission_id),
                     ).fetchone()
                 if row[2] != competency_id or row[3] != mission_id:
                     raise ValueError("submission ID is already bound to another assessment")
+                if (row[5], row[6], row[7]) != (
+                    assessment_contract_version, assessment_contract_fingerprint, evaluator,
+                ):
+                    raise ValueError("submission ID is already bound to a different assessment contract")
                 db.commit()
             except BaseException:
                 db.rollback()
@@ -281,6 +326,17 @@ class ProjectService:
                 (project_id, submission_id),
             ).fetchone()
         return dict(row) if row else None
+
+    def review_submissions(self, project_id: str) -> tuple[dict, ...]:
+        """Return durable links to canonical Career Forge assessment attempts."""
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT project_id,submission_id,competency_id,mission_id,attempt_id,"
+                "assessment_contract_version,assessment_contract_fingerprint,evaluator "
+                "FROM project_review_submissions WHERE project_id=? ORDER BY rowid",
+                (project_id,),
+            ).fetchall()
+        return tuple(dict(row) for row in rows)
 
     def link_learning_evidence(self, project_id: str, competency_id: str, evidence_id: str, attempt_id: str) -> None:
         with self._lock, self._connect() as db:

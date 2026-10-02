@@ -53,6 +53,17 @@ mastery, and retention consequences. The relation keeps the source
 path/version/milestone so refresh and process restart reconstruct the same
 learning context.
 
+The qualified Stage 22 Project path submits paths from the reviewed task commit,
+including newly created documentation. Its bounded learning contract normalizes
+ordered inclusive score tiers and exact boundary examples before the same local
+Qwen Reviewer assesses the explanation. A complete two-line verdict is required;
+truncated or malformed output is `uncertain`. Correct assessment creates one
+provenance-linked Career Forge evidence record; failed attempts create none.
+Project completion does not raise mastery. The FraudShield browser journey
+reconstructed after reload and API restart, then returned to Learn with an
+evidence-aware reinforcement recommendation. Broader owner qualification and
+final visual design acceptance remain open.
+
 ## Validation and limits
 
 `CurriculumValidator` independently checks required text, IDs, mode/lifecycle,

@@ -37,6 +37,17 @@ def test_roles_use_one_model_with_bounded_prompt_only_context():
     assert "never mutate canonical curriculum or learner mastery" in model.calls[-1][1]["system_prompt"]
 
 
+def test_role_forwards_json_response_format_to_local_model():
+    model = FakeModel()
+    orchestrator = RoleOrchestrator(model)
+    response_format = {"type": "json_object"}
+    assert orchestrator.client(Role.CODER).chat(
+        "choose a tool", response_format=response_format
+    ) == "ok"
+    assert model.calls[0][1]["response_format"] == response_format
+    assert orchestrator.recent()[0].success is True
+
+
 def test_stream_failure_is_recorded_and_history_is_bounded():
     model = FakeModel()
     orchestrator = RoleOrchestrator(model, max_history=1)

@@ -3,7 +3,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FridayRuntimeClient } from "../runtime/client";
-import type { LearningPath, LearningPathDetail, LearningPathSequence } from "../runtime/types";
+import type { LearningPath, LearningPathDetail, LearningPathSequence, LearningProject, LearningProjectMilestone } from "../runtime/types";
 import { LearningPathsPanel } from "./CanonicalLearn";
 
 const path = (id: string, selected = false, state = "draft"): LearningPath => ({
@@ -112,6 +112,27 @@ describe("Learn Dynamic Learning Paths integration", () => {
     expect(edit).toHaveBeenCalledWith("p-equivalent",1,{type:"set_node_policy",node_id:"n1",equivalence_key:"python.foundations",required_mastery:"apply_independently"});
     expect(getDetail).toHaveBeenCalled();
     expect(container.textContent).toContain("Prior Career Forge evidence from path p-source / node sql");
+  });
+
+  it("reconstructs accepted project assessment, rationale, and evidence after a fresh Learn load", async () => {
+    const activePath=path("project-recovery",true,"active");
+    const milestone={milestone_id:"project-milestone",title:"Validated data project",node_id:"n1",project_ref:"fraudshield",description:"Build and explain a tested data tool.",kind:"capstone",assignment_reason:"Apply the prior learning.",competency_keys:["node:n1"],prerequisite_node_ids:[],expected_outcome:"A tested data tool.",evidence_expectations:["Explain design and validation."]};
+    const current={...detail(activePath),current:{...detail(activePath).current,nodes:[{...detail(activePath).current.nodes[0],type:"capstone",competency_key:"node:n1"}],milestones:[milestone]}};
+    const project={
+      project_id:"proj-recovered",template_id:"fraudshield",title:"Validated data project",brief:"Build it.",state:"completed",mission_id:"mission-1",objective_id:null,task_id:"task-1",created_at:"now",updated_at:"now",
+      template:{template_id:"fraudshield",name:"FraudShield",focus:"Data quality"},learning:{path_id:"project-recovery",path_version:1,milestone_id:"project-milestone",milestone},objective:null,artifacts:[],career_forge_missions:[{project_id:"proj-recovered",competency_id:"dynamic.project",mission_id:"mission-1"}],career_forge_evidence:[{evidence_id:"evidence-project-1",mission_id:"mission-1",competency_id:"dynamic.project",evidence_type:"project_milestone_assessment",assistance_level:null,artifact_ref:"project:proj-recovered:task-1",created_at:"2026-09-30T10:00:00Z"}],career_forge_reviews:[{project_id:"proj-recovered",submission_id:"submission-1",competency_id:"dynamic.project",mission_id:"mission-1",attempt_id:"attempt-1",assessment_contract_version:"project_milestone_assessment_v1",assessment_contract_fingerprint:"a".repeat(64),evaluator:"local_qwen_reviewer",evaluation:"correct",feedback:"The explanation accurately connects validation behavior to the tested edge cases.",created_at:"2026-09-30T09:59:00Z",evaluated_at:"2026-09-30T10:00:00Z",evidence_id:"evidence-project-1"}],return_to_learning:{path_id:"project-recovery",path_version:1,milestone_id:"project-milestone"},
+    } as LearningProject;
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([activePath]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(current);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue({...sequence,path_id:"project-recovery"});
+    vi.spyOn(FridayRuntimeClient.prototype,"getProjectMilestone").mockResolvedValue({path:{path_id:"project-recovery",version:1,state:"active",selected:true},node:current.current.nodes[0],milestone,prerequisite_node_ids:[],prerequisites_satisfied:true,project,can_assign:false} satisfies LearningProjectMilestone);
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    expect(container.textContent).toContain("Project state: completed");
+    expect(container.textContent).toContain("Local Career Forge Reviewer · correct");
+    expect(container.textContent).toContain("The explanation accurately connects validation behavior to the tested edge cases.");
+    expect(container.textContent).toContain("project_milestone_assessment_v1 · local_qwen_reviewer · evidence evidence-project-1");
+    expect(container.textContent).toContain("Return here to continue the learning path");
   });
 
   it("exposes minimal manual editing and persists an added lesson through the canonical API", async () => {

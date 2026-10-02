@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from uuid import uuid4
+import time
 from pathlib import Path
+from uuid import uuid4
 
 from local_ai_assistant.code_index.languages import build_language_registry
 from local_ai_assistant.execution.history import redact
@@ -77,8 +78,8 @@ class TaskHistoryService:
     def release_planning_claim(self, task_id: str, claim_id: str) -> None:
         self.store.release_planning_claim(task_id, claim_id)
 
-    def claim_execution(self, task_id: str, *, lease_seconds: int = 86_400) -> str | None:
-        claim_id = uuid4().hex
+    def claim_execution(self, task_id: str, *, lease_seconds: int = 86_400, claim_id: str | None = None) -> str | None:
+        claim_id = claim_id or uuid4().hex
         return claim_id if self.store.claim_execution(task_id, claim_id, lease_seconds=lease_seconds) else None
 
     def release_execution_claim(self, task_id: str, claim_id: str) -> None:
@@ -182,11 +183,34 @@ class TaskHistoryService:
             )
         return attached
 
-    def load_approved_plan(self, task_id: str, plan_hash: str) -> tuple[PlanningArtifact, Path]:
+    def load_approved_plan(
+        self, task_id: str, plan_hash: str, *, execution_attempt_id: str | None = None,
+        allow_recovery_state: bool = False, allow_rolled_back_retry: bool = False,
+    ) -> tuple[PlanningArtifact, Path]:
         """Load the canonical approved bytes, never regenerate an approved plan."""
         task = self.get(task_id)
-        if task is None or task.status is not TaskStatus.APPROVED or task.plan_hash != plan_hash:
+        authorized_recovery = bool(
+            task is not None and execution_attempt_id
+            and task.status is TaskStatus.EXECUTING
+            and self.store.execution_attempt_is_claimed(task_id, execution_attempt_id, plan_hash)
+        )
+        claim = self.store.task_claims(task_id)["execution"] if task is not None else None
+        inspected_recovery = bool(
+            allow_recovery_state and task is not None
+            and task.status in {
+                TaskStatus.EXECUTING, TaskStatus.VALIDATING, TaskStatus.RECOVERY_REQUIRED,
+            }
+            and (claim is None or claim["expires_at"] <= int(time.time()))
+        )
+        inspected_retry = bool(
+            allow_rolled_back_retry and task is not None
+            and task.status is TaskStatus.ROLLED_BACK
+        )
+        if task is None or (task.status is not TaskStatus.APPROVED and not authorized_recovery and not inspected_recovery and not inspected_retry) or task.plan_hash != plan_hash:
             raise ValueError("exact canonical approved plan is required")
+        approvals = self.store.approvals_for(task_id, plan_hash)
+        if not approvals or approvals[-1]["state"] != "explicitly_approved" or task.approval_state != "explicitly_approved":
+            raise ValueError("current exact-plan approval is required")
         records = [row for row in self.artifacts(task_id)["plans"] if row["plan_hash"] == plan_hash]
         if len(records) != 1:
             raise ValueError("unique canonical approved plan artifact is required")
@@ -204,6 +228,33 @@ class TaskHistoryService:
         ):
             raise ValueError("canonical approved plan identity changed")
         return artifact, path
+
+    def begin_recovery_attempt(self, task_id, plan_hash, attempt_id, idempotency_key, *, principal):
+        return self.store.begin_recovery_attempt(
+            task_id, plan_hash, attempt_id, idempotency_key, principal=principal,
+        )
+
+    def begin_rolled_back_retry(self, task_id, plan_hash, attempt_id, idempotency_key, *, principal, workspace_fingerprint, worker_state, reason):
+        return self.store.begin_rolled_back_retry(
+            task_id, plan_hash, attempt_id, idempotency_key, principal=principal,
+            workspace_fingerprint=workspace_fingerprint, worker_state=worker_state, reason=reason,
+        )
+
+    def mark_recovery_required(self, task_id, plan_hash, *, worker_state, workspace_fingerprint, failure_type=None, idempotency_key=None):
+        return self.store.mark_recovery_required(
+            task_id, plan_hash, worker_state=worker_state,
+            workspace_fingerprint=workspace_fingerprint, failure_type=failure_type,
+            idempotency_key=idempotency_key,
+        )
+
+    def create_execution_attempt(self, task_id, plan_hash, attempt_id):
+        self.store.create_execution_attempt(task_id, plan_hash, attempt_id)
+
+    def finish_execution_attempt(self, attempt_id, *, failure_type=None):
+        self.store.finish_execution_attempt(attempt_id, failure_type=failure_type)
+
+    def execution_attempt_by_key(self, task_id, idempotency_key):
+        return self.store.execution_attempt_by_key(task_id, idempotency_key)
 
     def attach_approval(self, task_id: str, plan_hash: str, state: str, *, actor="human", reason="") -> str:
         if state not in {"explicitly_approved", "historical_execution_evidence"}:
