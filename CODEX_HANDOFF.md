@@ -6,6 +6,21 @@
 - Retention: a candidate-only deterministic clock delivered that due review; the browser answered through local Qwen. It completed correct, changed confidence to `reinforced`, left mastery at `recognize`, and created no new evidence. Submitted answers now persist before model calls, recover for exact retry after interruption/restart, and reject changed or duplicate answers. Source drift, insufficient/incomplete assessment, stale interview contract, superseded review, and negative/duplicate evidence controls have deterministic coverage. Browser reload and candidate API restart reconstructed three evidence records, the review, mastery, interview readiness, and Owner trust. Candidate DLP contains no path; Learn reports truthful next competency and no adaptive replan without evidence.
 - Publication: the existing authenticated `GITHUB_WRITE` gateway verifies that the approved artifact is a regular blob in the exact promoted task commit and persists commit/blob identity. Deterministic fake-transport integration covers failure, retry, idempotency, binding changes, and restart. No real external learner-artifact publication occurred; the candidate has zero publication records. Stage 22 Project evidence and restrictions remain protected by the full repository regression. Contextual page attachment is an independent next Row 61 dependency. Row 61 remains PARTIAL; whole-product visual acceptance also remains open. Do not begin the next major slice in this takeover.
 - Final acceptance: `scripts/maintenance/verify-repository.sh` passed with 1,342 Python tests passed, 6 skipped, compile/CLI and `pip check` passed. Frontend full suite passed 126 tests in 20 files plus two bridge checks; ESLint and TypeScript/Vite production build passed (existing chunk-size advisory). Changed-file Ruff and `git diff --check` passed. The final diff, tracked scope, private capability, and built assets were audited for secrets. Logs are ignored under `var/stage23-evidence/acceptance-logs/`. Next development dependency after this bounded checkpoint is contextual page attachment, then remaining owner integration and whole-product visual acceptance, subject to the canonical Row 61 order.
+- Capability recovery commit: `b00c8d27b86673c865bb82a03461dedc717293fd`. It was pushed to the Stage 23 branch and fast-forwarded to remote `main`; fetched refs both matched. GitHub resolved its author and committer to `Rishavmit14`. This documentation-only Row 61 audit follows that qualified capability and must also be published to both refs; the final fetched ref head is the recovery point for this handoff. The Stage 23 worktree is clean after publication. The separate owner-dirty main checkout was not modified or moved.
+
+## Final Row 61 audit after Stage 23 publication
+
+| Requirement | Status | Evidence / remaining boundary |
+| --- | --- | --- |
+| Physical selected-code | QUALIFIED | Owner browser, local Qwen, exact physical-file identity, durable evidence, restart reconstruction, negative controls. |
+| Retention and review | QUALIFIED | Due browser review, correct local assessment, durable exact-answer retry, reinforced confidence, unchanged mastery rung. |
+| Interview | QUALIFIED | Two no-help browser assessments with independent evidence, stale-contract and duplicate/recovery controls. |
+| Authenticated publication boundary | PARTIAL | Owner auth, exact promoted artifact blob, fake-transport failure/retry/idempotency and durable binding qualified; no real external learner-artifact publication. |
+| Evidence unification | PARTIAL | Source-specific records coexist without automatic mastery; Stage 22 Project regression and deterministic policy controls pass. Broader cross-path owner qualification remains. |
+| Contextual page attachment | NOT STARTED | Independent next Row 61 dependency; no page-context artifact was represented by this selected-code path. |
+| Whole-product visual acceptance | NOT STARTED | Final owner product design acceptance remains deferred. |
+
+Row 61 as a whole remains **PARTIAL**. Stage 22 successful Project qualification stays closed. Do not infer full Career Forge completion from this bounded slice; the next major dependency is contextual page attachment, followed by broader owner integration and whole-product visual acceptance.
 
 # Stage 22 successful Project qualification handoff (published history)
 
