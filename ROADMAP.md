@@ -1844,3 +1844,31 @@ assessments returned valid labels. This does not close browser project
 execution/assessment, broader production
 qualification, or final visual acceptance. Row 61 remains PARTIAL. See ADR 0036
 and `docs/architecture/dynamic-learning-paths.md`.
+
+## Stage 24 — contextual page attachment (row 61, bounded qualification)
+
+A shared, explicit attachment contract now connects current Learn paths and
+Projects to ordinary local-Qwen Conversation. Owner-selected source IDs are
+resolved on the server, snapshotted with full-state digests and versions, bound
+to durable messages, and checked again for stale or unavailable state. A
+candidate native browser attached both surfaces together, got a contextual
+answer, reconstructed history after reload and API restart, and rejected a
+stale Learn attachment after an owner-facing curriculum edit. Local Owner trust
+restored automatically. The attachment never grants evidence, mastery,
+execution, filesystem, Memory or publication authority. See ADR 0042.
+
+Row 61 remains **PARTIAL**. Stage 23 selected-code, retention and interview
+qualification remains intact. The bounded Learn-path and Project adapters do
+not yet cover Practice Lab selected-code, Research or private-document page
+attachments; those are future adapters only if owner workflows need them.
+Broader cross-path owner integration and real authenticated external learner
+artifact publication remain PARTIAL. Final whole-product visual acceptance
+remains NOT STARTED. Do not infer whole-row completion from this slice.
+
+Stage 24 acceptance gates: 1,347 Python passed, 6 expected skips; 127 frontend
+tests across 20 files plus two Owner-bridge checks passed; repository verifier,
+CLI/syntax, `pip check`, ESLint, TypeScript, production build, changed-file
+Ruff, `git diff --check`, and private-capability/bundle secret audit passed.
+The browser's second contextual question used the canonical saved Project
+assignment at path version 1 while the attached current Learn path was version
+2, preserving the distinction between historical assignment and live context.

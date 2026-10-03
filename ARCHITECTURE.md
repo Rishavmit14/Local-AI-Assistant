@@ -380,6 +380,19 @@ cancellation, terminal outcome, and restart recovery. Task success never creates
 learning evidence, advances mastery, completes a mission, or qualifies public
 evidence automatically.
 
+### Stage 24 — explicit contextual Conversation attachments
+
+The canonical Learn path and Project services supply two bounded source adapters to
+an owner-private `ContextAttachmentStore`. It records immutable source version,
+full-state digest, bounded snapshot, route, owner and message binding in local
+SQLite. The existing Owner session, exact loopback Origin and CSRF protect
+creation and attached sends. Conversation re-resolves source state before
+binding and gives local Qwen structured untrusted reference JSON. Runtime SSE
+carries attachment IDs; durable attached-message history reconstructs after
+reload/restart. Attached context grants no Memory, evidence, mastery, Objective,
+Gateway, filesystem or publication authority. See ADR 0042 and
+`docs/architecture/context-attachments.md`.
+
 ### Astra presentation integration foundation
 
 UX-60A wraps these existing projections in one Friday product shell. Home mounts

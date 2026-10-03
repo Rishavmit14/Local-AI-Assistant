@@ -485,3 +485,7 @@ existing mastery, confidence, and retention state. It does not copy mastery or
 evidence. DLP targets may require a higher mastery rung, never below independent
 application. Milestone requirements remain path-specific. See ADR 0036 and
 `dynamic-learning-paths.md`.
+
+## Stage 24 contextual Conversation boundary
+
+Stage 24 context attachments are ordinary Conversation references. They do not create a Practice Lab assessment or selected-code evidence, and they do not write Career Forge mastery. A future selected-code attachment must reuse the Stage 23 canonical file/range/digest provenance rather than inventing another source identity. See `context-attachments.md`.

@@ -1,3 +1,26 @@
+## 2026-10-03 — Stage 24 contextual page attachment
+
+Added explicit owner-selected Learn path and Project attachments to ordinary
+Conversation. The server stores versioned, digested, bounded snapshots and
+owner/message identity in private SQLite, re-resolves live source state, rejects
+stale/unavailable/duplicate/replayed/cross-owner context, and keeps attachment
+content as untrusted local-Qwen data. Browser controls attach, remove, refresh
+and show status; durable bound-message history survives reload and candidate API
+restart. An isolated owner browser attached the current FraudShield path and
+completed Project together, received a context-specific local-Qwen answer,
+reloaded the conversation, then advanced the path to version 2 via the Learn
+editor. The unsent version-1 attachment became stale and its send was blocked.
+Candidate API restart reconstructed original provenance and live statuses, and
+the browser restored local Owner trust automatically. Stage 22/23 behavior,
+external publication and final visual acceptance retain their separate gates.
+The final verifier passed 1,347 Python tests with 6 expected skips, syntax/CLI
+checks and `pip check`. The frontend suite passed 127 tests across 20 files plus
+two Owner-bridge checks; ESLint, TypeScript, production build, changed-file
+Ruff, and `git diff --check` passed. The candidate diff, generated bundle and
+private Owner capability were audited for secrets; the capability stayed outside
+Git and the browser bundle. See ADR 0042 and
+`docs/architecture/context-attachments.md`.
+
 ## 2026-09-30 — Project / Capstone lifecycle integration
 
 Added durable Project instances joined to immutable DLP path versions/milestones,

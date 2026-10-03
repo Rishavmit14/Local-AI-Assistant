@@ -73,3 +73,7 @@ qualification. The project evaluator reviews the explicit explanation against
 canonical task outcomes and artifact references; it does not inspect repository
 source code itself. These limits keep the first integration bounded and are
 part of the remaining roadmap audit.
+
+## Stage 24 contextual Conversation boundary
+
+Stage 24 exposes an owner-selected Project as an explicit Conversation attachment. Its snapshot includes canonical Project/Objective/task references, bounded artifact references, and the DLP assignment when present. Re-resolution and a full-state digest detect Project transitions without granting plan approval, REQUEST_EXECUTION, review, publication, or evidence authority. See `context-attachments.md`.

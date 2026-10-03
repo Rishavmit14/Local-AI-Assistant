@@ -123,6 +123,7 @@ export class FridayRuntimeStore {
   async sendConversation(
     request: ConversationRequest,
     signal?: AbortSignal,
+    csrf?: string,
   ): Promise<void> {
     this.patch({
       assistantText: "",
@@ -138,6 +139,7 @@ export class FridayRuntimeStore {
           // duplicating assistant text already emitted by the runtime.
         },
         signal,
+        csrf,
       );
     } catch (error) {
       if (signal?.aborted) {
@@ -210,6 +212,9 @@ export class FridayRuntimeStore {
           status: "completed" as const,
           sequence: event.sequence,
           timestamp: event.timestamp,
+          ...(Array.isArray(event.metadata.attachment_ids) && event.metadata.attachment_ids.length
+            ? { attachment_ids: event.metadata.attachment_ids.filter((id): id is string => typeof id === "string") }
+            : {}),
         },
       ].slice(-100);
     }

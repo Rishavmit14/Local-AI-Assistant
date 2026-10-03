@@ -336,3 +336,7 @@ reconstruction. This is functional qualification only. Learn remains a
 FUNCTIONAL INTEGRATION SHELL; final visual design is not owner accepted and is
 deferred until the capability stack is complete. Matrix rows 60 and 61 remain
 PARTIAL for whole-product qualification and remaining learning capabilities.
+
+## Stage 24 contextual Conversation boundary
+
+Stage 24 exposes the current Learn path as an explicit Conversation attachment. The adapter reads the canonical version and bounded curriculum projection, hashes the full current path, and treats changes as stale. It does not alter path selection, eligibility, replanning, evidence, or mastery. See `context-attachments.md`.

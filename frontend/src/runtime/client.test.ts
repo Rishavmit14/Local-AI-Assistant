@@ -5,6 +5,26 @@ import { FridayRuntimeClient } from "./client";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("FridayRuntimeClient canonical conversation boundary", () => {
+  it("binds explicit context using the restored Owner CSRF token", async () => {
+    const item = { attachment_id: "ctx_test", kind: "project", source_id: "project-one", status: "current" };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(item), { status: 200 }))
+      .mockResolvedValueOnce(new Response("Contextual reply", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new FridayRuntimeClient();
+    await expect(client.createContextAttachment("project", "project-one", "csrf-value")).resolves.toEqual(item);
+    await client.streamConversation({ prompt: "Explain this", attachment_ids: ["ctx_test"] }, () => undefined, undefined, "csrf-value");
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Friday-CSRF": "csrf-value" },
+      body: JSON.stringify({ kind: "project", source_id: "project-one" }),
+    });
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Friday-CSRF": "csrf-value" },
+      body: JSON.stringify({ prompt: "Explain this", attachment_ids: ["ctx_test"] }),
+    });
+  });
   it("sends only the owner's text to Friday's stream endpoint", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response("Friday response", { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

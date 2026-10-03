@@ -175,6 +175,10 @@ def build_presentation_components(
         generator=LocalCurriculumGenerator(roles.client(Role.CURRICULUM_DESIGNER)),
     )
     projects = ProjectService(resolved_config.paths.projects_db)
+    from .context_attachments import ContextAttachmentStore
+    context_attachments = ContextAttachmentStore(
+        resolved_config.paths.var_dir / "conversation/context-attachments.sqlite3", learning_paths, projects,
+    )
     onboarding = RepositoryOnboardingService(resolved_config)
     source_roots = tuple(Path(profile.canonical_root) for profile in onboarding.list_profiles())
     source_roots += resolved_config.desktop_control.allowed_file_roots
@@ -484,6 +488,7 @@ def build_presentation_components(
         career_forge=career_forge,
         learning_paths=learning_paths,
         projects=projects,
+        context_attachments=context_attachments,
         practice_lab=practice_lab,
         perception=perception,
         active_window=ActiveWindowService(),

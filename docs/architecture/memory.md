@@ -89,3 +89,11 @@ The Astra Memory workspace displays provenance, lifecycle, eligibility, and
 which records are supplied, and offers the canonical reversible opt-in control.
 No behavior is inferred from usage and no memory is written or reinforced by
 applying preferences. See ADR 0027.
+
+## Context attachments
+
+Stage 24 Conversation attachments persist source provenance and bound message
+history in a separate owner-private SQLite ledger. They are not Memory records.
+Creating, sending, or reloading an attachment never writes a personal Memory
+record or changes the active-session memory policy. See
+`context-attachments.md`.

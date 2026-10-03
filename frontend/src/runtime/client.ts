@@ -15,6 +15,8 @@ import type {
   CodeAttentionQuestion,
   PracticeLab,
   ConversationRequest,
+  FridayContextAttachment,
+  FridayAttachedMessage,
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
   FridayScreenCapture,
@@ -73,6 +75,28 @@ export class FridayRuntimeClient {
 
   constructor(baseUrl = "") {
     this.baseUrl = baseUrl.replace(/\/$/, "");
+  }
+
+  async createContextAttachment(kind: "learning_path" | "project", sourceId: string, csrf: string): Promise<FridayContextAttachment> {
+    const response = await fetch(`${this.baseUrl}/api/v1/conversation/attachments`, {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Friday-CSRF": csrf },
+      body: JSON.stringify({ kind, source_id: sourceId }),
+    });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    return response.json() as Promise<FridayContextAttachment>;
+  }
+
+  async getContextAttachment(id: string): Promise<FridayContextAttachment> {
+    const response = await fetch(`${this.baseUrl}/api/v1/conversation/attachments/${encodeURIComponent(id)}`, { credentials: "same-origin" });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    return response.json() as Promise<FridayContextAttachment>;
+  }
+
+  async getAttachedMessageHistory(): Promise<FridayAttachedMessage[]> {
+    const response = await fetch(`${this.baseUrl}/api/v1/conversation/attachment-history`, { credentials: "same-origin" });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    return (await response.json() as { messages: FridayAttachedMessage[] }).messages;
   }
 
   async getLearningPaths(): Promise<LearningPath[]> {
@@ -914,13 +938,16 @@ export class FridayRuntimeClient {
     request: ConversationRequest,
     onChunk: (chunk: string) => void,
     signal?: AbortSignal,
+    csrf?: string,
   ): Promise<void> {
     const response = await fetch(
       `${this.baseUrl}/api/v1/conversation/stream`,
       {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
+          ...(csrf ? { "X-Friday-CSRF": csrf } : {}),
         },
         body: JSON.stringify(request),
         signal,

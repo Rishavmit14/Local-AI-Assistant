@@ -64,6 +64,7 @@ from local_ai_assistant.rag.knowledge import KnowledgeIndexError, PrivateDocumen
 from local_ai_assistant.research import ResearchService
 
 from .capabilities import FridayCapabilityRegistry
+from .context_attachments import MAX_ATTACHMENTS, ContextAttachmentStore
 from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator
 from .runtime import FridayRuntime
@@ -468,6 +469,7 @@ def create_presentation_app(
     career_forge: CareerForgeService | None = None,
     learning_paths: LearningPathService | None = None,
     projects: ProjectService | None = None,
+    context_attachments: ContextAttachmentStore | None = None,
     practice_lab: PracticeLabService | None = None,
     perception: ScreenCaptureService | None = None,
     active_window: ActiveWindowService | None = None,
@@ -600,6 +602,57 @@ def create_presentation_app(
         if not project_execution_limiter.allow(principal):
             raise HTTPException(429, detail="project execution request rate limit exceeded")
         return principal
+
+    def context_owner(request: Request, *, mutation: bool = False) -> str:
+        # Context can reveal owner data. Use the existing local Owner session,
+        # but never infer any Gateway action scope from that session.
+        if mutation:
+            project_execution_origin(request)
+        else:
+            authority = urlsplit("//" + request.headers.get("host", ""))
+            if authority.hostname not in {"127.0.0.1", "localhost"}:
+                raise HTTPException(403, detail="local owner access required")
+        if project_execution_sessions is None:
+            raise HTTPException(503, detail="owner session is unavailable")
+        csrf = request.headers.get("x-friday-csrf") if mutation else None
+        if mutation and not csrf:
+            raise HTTPException(401, detail="CSRF token required")
+        principal = project_execution_sessions.principal(
+            request.cookies.get("friday_project_session"), csrf,
+        )
+        if principal is None:
+            raise HTTPException(401, detail="owner authentication required")
+        return principal
+
+    @app.post("/api/v1/conversation/attachments")
+    async def create_context_attachment(request: Request):
+        owner = context_owner(request, mutation=True)
+        if context_attachments is None:
+            raise HTTPException(503, detail="context attachments are unavailable")
+        body = await rollback_json(request)
+        try:
+            return context_attachments.create(owner, body.get("kind"), body.get("source_id"))
+        except KeyError as exc:
+            raise HTTPException(404, detail="context source is unavailable") from exc
+        except ValueError as exc:
+            raise HTTPException(422, detail=str(exc)) from exc
+
+    @app.get("/api/v1/conversation/attachments/{attachment_id}")
+    def get_context_attachment(attachment_id: str, request: Request):
+        owner = context_owner(request)
+        if context_attachments is None:
+            raise HTTPException(503, detail="context attachments are unavailable")
+        try:
+            return context_attachments.get(owner, attachment_id)
+        except (KeyError, ValueError) as exc:
+            raise HTTPException(404, detail="attachment is unavailable") from exc
+
+    @app.get("/api/v1/conversation/attachment-history")
+    def context_attachment_history(request: Request):
+        owner = context_owner(request)
+        if context_attachments is None:
+            raise HTTPException(503, detail="context attachments are unavailable")
+        return {"messages": context_attachments.history(owner)}
 
     @app.post("/api/v1/project-execution/restore")
     def project_execution_restore(request: Request):
@@ -2641,6 +2694,9 @@ def create_presentation_app(
                 detail="malformed JSON request",
             ) from exc
 
+        if not isinstance(body, dict):
+            raise HTTPException(400, detail="JSON object required")
+
         prompt = body.get("prompt")
         if (
             not isinstance(prompt, str)
@@ -2658,6 +2714,13 @@ def create_presentation_app(
         )
         temperature = body.get("temperature", 0.2)
         max_tokens = body.get("max_tokens", 1024)
+        attachment_ids = body.get("attachment_ids", [])
+        if not isinstance(attachment_ids, list) or len(attachment_ids) > MAX_ATTACHMENTS or any(
+            not isinstance(value, str) for value in attachment_ids
+        ):
+            raise HTTPException(400, detail="bounded attachment IDs are required")
+        if attachment_ids and system_prompt != "You are Friday, a precise, technically accurate AI assistant.":
+            raise HTTPException(400, detail="custom system prompts cannot accompany attachments")
 
         if not isinstance(system_prompt, str) or len(system_prompt) > max_prompt_chars:
             raise HTTPException(
@@ -2692,6 +2755,29 @@ def create_presentation_app(
             lease.release()
             raise
 
+        bound_message = None
+        resolved_attachments = []
+        if attachment_ids:
+            try:
+                owner = context_owner(request, mutation=True)
+                if context_attachments is None:
+                    raise HTTPException(503, detail="context attachments are unavailable")
+                bound_message, resolved_attachments = context_attachments.bind(owner, attachment_ids, prompt)
+            except (ValueError, KeyError) as exc:
+                try:
+                    if presentation_resume is not None:
+                        presentation_resume()
+                finally:
+                    lease.release()
+                raise HTTPException(409, detail=str(exc)) from exc
+            except BaseException:
+                try:
+                    if presentation_resume is not None:
+                        presentation_resume()
+                finally:
+                    lease.release()
+                raise
+
         cleanup_lock = threading.Lock()
         cleaned_up = False
 
@@ -2707,14 +2793,29 @@ def create_presentation_app(
             finally:
                 lease.release()
 
-        chunks = _CancellableInteractionStream(
-            conversation.stream_response(
+        def attached_stream():
+            parts = []
+            try:
+                for chunk in conversation.stream_response(
                 prompt,
                 system_prompt=system_prompt,
                 temperature=float(temperature),
                 max_tokens=max_tokens,
                 apply_owner_preferences=True,
-            ),
+                attachments=resolved_attachments,
+                ):
+                    parts.append(chunk)
+                    yield chunk
+            except BaseException:
+                if bound_message and context_attachments is not None:
+                    context_attachments.finish(owner, bound_message, "".join(parts), "failed")
+                raise
+            else:
+                if bound_message and context_attachments is not None:
+                    context_attachments.finish(owner, bound_message, "".join(parts), "completed")
+
+        chunks = _CancellableInteractionStream(
+            attached_stream(),
             cleanup,
         )
 

@@ -87,10 +87,34 @@ export interface FridayConversationMessage {
   status: FridayConversationStatus;
   sequence: number;
   timestamp: string;
+  attachment_ids?: string[];
+}
+
+export interface FridayContextAttachment {
+  attachment_id: string;
+  kind: "learning_path" | "project";
+  source_id: string;
+  source_version: string;
+  route: string;
+  digest: string;
+  created_at: string;
+  message_id: string | null;
+  status: "current" | "stale" | "unavailable";
+  snapshot: Record<string, unknown>;
+}
+
+export interface FridayAttachedMessage {
+  message_id: string;
+  prompt: string;
+  answer: string;
+  state: "pending" | "completed" | "failed";
+  created_at: string;
+  attachments: FridayContextAttachment[];
 }
 
 export interface ConversationRequest {
   prompt: string;
+  attachment_ids?: string[];
   system_prompt?: string;
   temperature?: number;
   max_tokens?: number;

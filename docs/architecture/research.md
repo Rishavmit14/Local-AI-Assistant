@@ -87,3 +87,11 @@ interpretation, returns source identity/hash metadata, and makes no citation
 validation claim. It bypasses normal conversation session history, memory,
 learning hooks, web fetching, and action tools; generated prose is not
 persisted as research.
+
+## Context attachment status
+
+Stage 24 does not add a Research or private-document attachment adapter.
+Research source identity and hash could support a future explicit adapter, but
+its authorization and content bounds must remain those of the canonical
+Research and Knowledge services. Existing selected-source RAG and research
+answer routes are unchanged. See `context-attachments.md`.
