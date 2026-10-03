@@ -71,5 +71,7 @@ export class FridayPresentation implements FridayPresentationActions {
   runCanonicalPractice(action: "run" | "test" | "submit", code: string) { return this.runtime.practiceAction(action, code); }
   requestCanonicalPracticeHint(message: string) { return this.runtime.practiceHint(message); }
   askCanonicalPracticeCodeQuestion() { return this.runtime.askPracticeCodeQuestion(); }
-  answerCanonicalPracticeCodeQuestion(response: string) { return this.runtime.answerPracticeCodeQuestion(response); }
+  askCanonicalPhysicalCodeQuestion(path: string, startLine: number, endLine: number, symbol?: string) { return this.runtime.askPhysicalCodeQuestion(path, startLine, endLine, symbol); }
+  currentCanonicalPracticeCodeQuestion() { return this.runtime.currentPracticeCodeQuestion(); }
+  answerCanonicalPracticeCodeQuestion(response?: string) { return this.runtime.answerPracticeCodeQuestion(response); }
 }

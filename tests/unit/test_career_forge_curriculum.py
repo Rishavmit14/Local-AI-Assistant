@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -115,6 +116,56 @@ def test_due_retention_review_is_delivered_once_without_changing_mastery_or_evid
     assert forge.evidence_history()[0].evidence_id == evidence
     with pytest.raises(ValueError, match="already been delivered"):
         forge.deliver_retention_review(review.review_id)
+
+
+def test_retention_answer_binding_survives_restart_and_rejects_replacement(tmp_path):
+    store = tmp_path / "learner.sqlite3"
+    forge = CareerForgeService(store)
+    mission = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    review = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
+    forge.deliver_retention_review(review.review_id)
+    forge.submit_retention_response(review.review_id, "A default list is shared")
+    resumed = CareerForgeService(store)
+    assert resumed.pending_retention_response(review.review_id) == "A default list is shared"
+    assert resumed.submit_retention_response(review.review_id, "A default list is shared") == "A default list is shared"
+    with pytest.raises(ValueError, match="not available"):
+        resumed.submit_retention_response(review.review_id, "Different answer")
+    assert resumed.evidence_history()[0].evidence_id == evidence
+    assert resumed.competencies()[0].mastery is MasteryLevel.RECOGNIZE
+    completed = resumed.evaluate_retention_review(
+        review.review_id, "A default list is shared", AttemptEvaluation.INCORRECT, "Incomplete.",
+    )
+    assert completed.state == "completed"
+    with pytest.raises(ValueError, match="already been evaluated"):
+        resumed.evaluate_retention_review(
+            review.review_id, "A default list is shared", AttemptEvaluation.CORRECT, "Duplicate.",
+        )
+
+
+def test_successful_transfer_supersedes_old_review_without_reaccepting_it(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    first = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(first.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    old_review = forge.retention_reviews()[0]
+    newer = forge.start_mission("se.engineering", "Verify engineering")
+    transfer = forge.interleaving_candidate(newer.mission_id)
+    assert transfer is not None and transfer.competency_id == "se.python"
+    forge.submit_interleaving(transfer.interleave_id, "A fresh list avoids shared default state.")
+    forge.evaluate_interleaving(transfer.interleave_id, AttemptEvaluation.CORRECT, "Correct transfer.")
+    assert forge.retention_review(old_review.review_id).state == "superseded"
+    assert len([r for r in forge.retention_reviews() if r.state == "scheduled"]) == 1
+    with pytest.raises(ValueError, match="already been delivered"):
+        forge.deliver_retention_review(old_review.review_id)
+    with pytest.raises(ValueError, match="must be delivered"):
+        forge.evaluate_retention_review(
+            old_review.review_id, "Old answer", AttemptEvaluation.CORRECT, "Stale.",
+        )
+    assert forge.competencies()[0].mastery is MasteryLevel.RECOGNIZE
 
 
 def test_retention_outcome_derives_weak_area_without_changing_mastery(tmp_path):
@@ -340,6 +391,49 @@ def test_interview_mode_runs_bounded_no_help_followups_and_records_only_earned_e
     assert forge.active_interview(mission.mission_id) is None
     assert forge.latest_interview(mission.mission_id) == completed
     assert forge.competencies()[0].mastery is MasteryLevel.UNVERIFIED
+
+
+def test_interview_recovers_assessed_attempt_without_duplicate_evidence(tmp_path):
+    path = tmp_path / "learner.sqlite3"
+    forge = CareerForgeService(path)
+    mission = forge.start_mission("se.python", "Verify Python")
+    session = forge.start_interview(mission.mission_id)
+    answer = forge.submit_interview_answer(session.interview_id, "The list is reused across calls.")
+    forge.evaluate_attempt(
+        answer.attempt_id, AttemptEvaluation.CORRECT, "Shared mutable default explained.",
+        evidence_type="interview_response",
+    )
+    restored = CareerForgeService(path)
+    advanced, evaluated = restored.evaluate_interview_answer(
+        session.interview_id, AttemptEvaluation.UNCERTAIN, "A second model response must not replace the first.",
+    )
+    assert advanced.state == "awaiting_answer"
+    assert evaluated.evaluation is AttemptEvaluation.CORRECT
+    assert restored.evidence_for_attempt(answer.attempt_id) is not None
+    assert len(restored.evidence_history()) == 1
+    assert restored.competencies()[0].mastery is MasteryLevel.UNVERIFIED
+
+
+def test_retention_due_uses_injected_qualification_clock_without_editing_records(tmp_path):
+    current = datetime.now(UTC)
+    forge = CareerForgeService(tmp_path / "learner.sqlite3", clock=lambda: current)
+    mission = forge.start_mission("se.python", "Verify Python")
+    attempt = forge.record_attempt(mission.mission_id, "why_default", "A correct explanation.", mode=TutorMode.INTERVIEW)
+    accepted = forge.evaluate_attempt(
+        attempt.attempt_id, AttemptEvaluation.CORRECT, "Correct mechanism.",
+        evidence_type="interview_response",
+    )
+    evidence_id = forge.evidence_for_attempt(accepted.attempt_id)
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence_id)
+    review = forge.retention_reviews()[0]
+    assert review.state == "scheduled"
+    with pytest.raises(ValueError, match="not due"):
+        forge.deliver_retention_review(review.review_id)
+    future = CareerForgeService(forge.path, clock=lambda: current + timedelta(days=4))
+    assert next(item for item in future.learner_confidence() if item.competency_id == "se.python").status == "stale"
+    delivered, _ = future.deliver_retention_review(review.review_id)
+    assert delivered.state == "delivered"
+    assert future.evidence_for_attempt(accepted.attempt_id) == evidence_id
 
 
 def test_public_evidence_gate_rejects_fake_or_unsafe_activity():

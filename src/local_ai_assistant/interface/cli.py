@@ -158,13 +158,29 @@ def build_presentation_components(
         embedding_model=resolved_config.embedding.model,
         embedding_device=resolved_config.embedding.device,
     )
-    career_forge = CareerForgeService(resolved_config.paths.career_forge_db)
+    qualification_now = os.environ.get("LOCAL_AI_CAREER_FORGE_QUALIFICATION_NOW")
+    if qualification_now:
+        if not resolved_config.runtime.test_mode or not resolved_config.paths.var_dir.is_relative_to(
+            Path(__file__).resolve().parents[3] / "var"
+        ):
+            raise ValueError("Career Forge qualification clock requires isolated test mode")
+        parsed_now = datetime.fromisoformat(qualification_now)
+        if parsed_now.tzinfo is None:
+            raise ValueError("Career Forge qualification clock requires a timezone")
+        career_forge = CareerForgeService(resolved_config.paths.career_forge_db, clock=lambda: parsed_now)
+    else:
+        career_forge = CareerForgeService(resolved_config.paths.career_forge_db)
     learning_paths = LearningPathService(
         resolved_config.paths.learning_paths_db,
         generator=LocalCurriculumGenerator(roles.client(Role.CURRICULUM_DESIGNER)),
     )
     projects = ProjectService(resolved_config.paths.projects_db)
-    practice_lab = PracticeLabService(career_forge, resolved_config.paths.career_forge_lab_dir)
+    onboarding = RepositoryOnboardingService(resolved_config)
+    source_roots = tuple(Path(profile.canonical_root) for profile in onboarding.list_profiles())
+    source_roots += resolved_config.desktop_control.allowed_file_roots
+    practice_lab = PracticeLabService(
+        career_forge, resolved_config.paths.career_forge_lab_dir, source_roots=source_roots,
+    )
     perception = ScreenCaptureService(resolved_config.paths.perception_dir)
     perception.set_vision_classifier(LocalVisionClassifier(resolved_config.paths.vision_cache_dir))
     desktop_control = DesktopControlService(
@@ -182,7 +198,6 @@ def build_presentation_components(
             resolved_config.paths.task_history_db.parent,
         ),
     )
-    onboarding = RepositoryOnboardingService(resolved_config)
     mappings = _repository_mappings(
         resolved_config.paths.code_repo_dir, onboarding.list_profiles(),
     )

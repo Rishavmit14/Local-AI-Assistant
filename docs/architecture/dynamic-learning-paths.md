@@ -316,9 +316,13 @@ No visual redesign or final visual acceptance is included.
 
 Learn uses the existing Career Forge retention-review authority to deliver a
 canonical prompt, accept the owner's answer, and display the local evaluator's
-result. The browser holds only the transient answer draft. After submission it
+result. The browser holds a transient draft until submission; Career Forge binds
+the exact submitted answer before local Qwen inference. If evaluation is
+interrupted, the owner-only local journey projection restores that pending
+answer as read-only text for an exact retry after reload or API restart. Completed
+answers are not projected. After a completed evaluation, Learn
 reloads the DLP sequence from the backend; it does not infer mastery or unlocks.
-Delivered reviews are reconstructed from Career Forge after page reload.
+Delivered and pending reviews are reconstructed from Career Forge after page reload.
 
 Review and reinforcement handoffs support fixed competencies and registered
 dynamic DLP subjects. Dynamic reinforcement reuses the same active Career Forge

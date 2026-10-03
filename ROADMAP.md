@@ -1746,6 +1746,40 @@ artifacts remain required; see ADRs 0038–0040. This qualifies the specific
 successful Project lifecycle. Row 61 remains PARTIAL for broader owner product
 qualification and final visual design acceptance; row 60 remains PARTIAL.
 
+### Stage 23 Career Forge evidence qualification — QUALIFIED (bounded owner path)
+
+An isolated owner browser selected exact lines from a physical local Python
+file under an allowed root, reloaded that question, and obtained a correct
+local-Qwen explanation assessment. The resulting `code_explanation` evidence
+retains canonical source path, file version, full and selected digests, line
+range, question and criterion. Draft-backed code questions retain separate
+provenance. Two no-help interview answers earned independent evidence. Neither
+channel changed mastery automatically. One explicit matching-evidence
+advancement moved `se.python` from `unverified` to `recognize` and scheduled a
+review. A deterministic candidate-only time control made the review due; the
+browser delivered it, submitted a correct local-Qwen answer, and showed
+`reinforced` confidence with mastery still `recognize`.
+
+Backend negative controls cover source/version/digest/range/symbol drift,
+missing/out-of-scope files, changed source during inference, duplicate or weak
+answers, interrupted and incomplete local-model output, stale interview
+question/contract, stale/superseded reviews, and exact retry without evidence
+inflation. Learn and Progress reconstruct a pending retention answer from the
+Career Forge store. Browser reload and candidate API restart reconstructed
+selected-code, review, interview, evidence, mastery, and automatic local Owner
+trust without manual unlock. The existing `GITHUB_WRITE` publication gateway
+now binds a candidate artifact to a regular blob in the exact promoted task
+commit; authenticated fake-transport tests cover failure, retry, idempotency,
+binding changes, and restart persistence. No real external publication was
+performed for this qualification.
+
+Row 61 remains **PARTIAL**. This bounded evidence slice does not qualify
+contextual page attachment or final whole-product visual acceptance. Existing
+cross-path equivalence and Project/capstone restrictions remain governed by
+their own contract and milestone rules; no evidence channel automatically
+grants mastery or public publication authority. See ADR 0041 and
+`docs/architecture/career-forge.md`.
+
 
 ### Manual curriculum editing with prerequisite protection — QUALIFIED (bounded candidate path)
 

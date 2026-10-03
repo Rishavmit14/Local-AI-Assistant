@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 
 from local_ai_assistant.autonomy import ObjectiveService
@@ -16,6 +17,7 @@ from local_ai_assistant.gateway.github import FakeGitHubTransport
 from local_ai_assistant.gateway.models import GatewayScope, RepositoryMapping
 from local_ai_assistant.gateway.publication import GitHubPublicationService
 from local_ai_assistant.gateway.service import IntegrationGatewayService
+from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
@@ -234,6 +236,19 @@ def test_real_bounded_project_lifecycle_recovers_exact_publication(tmp_path, mon
         history, (mapping,), transport,
         push=lambda _repo, branch, commit: transport.branches.__setitem__(("acme", "career-project", branch), commit),
     )
+    commit_sha, blob_sha = publication.validate_artifact_identity(
+        objective.task_id, repository_id="career-project", artifact_ref="artifacts/model_card.md",
+    )
+    assert commit_sha == completed_task.final_commit
+    assert blob_sha == _git(repository, "rev-parse", f"{commit_sha}:artifacts/model_card.md").strip()
+    with pytest.raises(HistoryDatabaseError, match="invalid"):
+        publication.validate_artifact_identity(
+            objective.task_id, repository_id="career-project", artifact_ref="../README.md",
+        )
+    with pytest.raises(HistoryDatabaseError, match="absent"):
+        publication.validate_artifact_identity(
+            objective.task_id, repository_id="career-project", artifact_ref="artifacts/missing.md",
+        )
     token = "bounded-publication-token"
     auth = GatewayAuth(hashlib.sha256(token.encode()).hexdigest(), frozenset({GatewayScope.GITHUB_WRITE}))
     runtime = FridayRuntime("career-project-lifecycle")
@@ -257,6 +272,7 @@ def test_real_bounded_project_lifecycle_recovers_exact_publication(tmp_path, mon
     )
     assert recovered.state == recovered.publication_state == "published"
     assert recovered.publication_url and recovered.published_at
+    assert (recovered.publication_commit_sha, recovered.artifact_blob_sha) == (commit_sha, blob_sha)
     assert recovered_forge.project_link(mission.mission_id).project_name == "FraudShield"
     assert recovered_forge.mission_objective(mission.mission_id).objective_id == objective.objective_id
     assert recovered_forge.career_readiness().published_artifacts == 1

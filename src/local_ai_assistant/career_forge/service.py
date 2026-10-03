@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sqlite3
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -248,6 +249,8 @@ class PublicEvidenceCandidate:
     publication_url: str | None = None
     publication_error: str | None = None
     published_at: str | None = None
+    publication_commit_sha: str | None = None
+    artifact_blob_sha: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -278,8 +281,9 @@ MISSION_LOOP = (
 class CareerForgeService:
     """Deterministic persistence; evidence never upgrades mastery by itself."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, clock: Callable[[], datetime] | None = None) -> None:
         self.path = path.resolve()
+        self.clock = clock or (lambda: datetime.now(UTC))
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.graph = {item.competency_id: item for item in competency_graph()}
         with self._db() as db:
@@ -382,6 +386,9 @@ class CareerForgeService:
             ):
                 if name not in columns:
                     db.execute(f"ALTER TABLE retention_reviews ADD COLUMN {name} {declaration}")
+            interview_columns = {row[1] for row in db.execute("PRAGMA table_info(career_interview_attempts)")}
+            if "question_fingerprint" not in interview_columns:
+                db.execute("ALTER TABLE career_interview_attempts ADD COLUMN question_fingerprint TEXT")
             evidence_columns = {row[1] for row in db.execute("PRAGMA table_info(mission_evidence)")}
             if "source_attempt_id" not in evidence_columns:
                 db.execute("ALTER TABLE mission_evidence ADD COLUMN source_attempt_id TEXT")
@@ -403,6 +410,7 @@ class CareerForgeService:
             for name in (
                 "task_id", "repository_id", "base_branch", "publication_state",
                 "publication_url", "publication_error", "published_at",
+                "publication_commit_sha", "artifact_blob_sha",
             ):
                 if name not in candidate_columns:
                     db.execute(f"ALTER TABLE public_evidence_candidates ADD COLUMN {name} TEXT")
@@ -830,12 +838,13 @@ class CareerForgeService:
         interleavings = self.interleavings(limit=limit)
         readiness = self.career_readiness()
         evidenced = tuple(item for item in self.competencies() if item.mastery is not MasteryLevel.UNVERIFIED)
-        due_review = next((item for item in reviews if item.state == "scheduled" and item.due_at <= _now()), None)
-        delivered_review = next((item for item in reviews if item.state == "delivered"), None)
+        due_review = next((item for item in reviews if item.state == "scheduled" and item.due_at <= self.clock().astimezone(UTC).isoformat()), None)
+        delivered_review = next((item for item in reviews if item.state in {"delivered", "awaiting_evaluation"}), None)
         if due_review:
             next_action = f"Complete the scheduled retention review for '{self._competency_title(due_review.competency_id)}'."
         elif delivered_review:
-            next_action = f"Answer the delivered retention review for '{self._competency_title(delivered_review.competency_id)}'."
+            verb = "Retry the saved answer for" if delivered_review.state == "awaiting_evaluation" else "Answer"
+            next_action = f"{verb} the delivered retention review for '{self._competency_title(delivered_review.competency_id)}'."
         elif active and any(item.mission_id == active.mission_id for item in retries):
             next_action = f"Retry the active mission '{active.title}' using its recorded feedback."
         elif weak_areas:
@@ -925,7 +934,7 @@ class CareerForgeService:
 
     def learner_confidence(self) -> tuple[LearnerConfidence, ...]:
         """Derive categorical confidence without changing canonical mastery."""
-        now = _now()
+        now = self.clock().astimezone(UTC).isoformat()
         weak_ids = {item.competency_id for item in self.weak_areas(limit=100)}
         with self._db() as db:
             evidence_counts = dict(db.execute(
@@ -1230,7 +1239,8 @@ class CareerForgeService:
             rows = db.execute(
                 "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at, "
                 "evaluation, feedback, evaluated_at FROM retention_reviews "
-                "ORDER BY CASE state WHEN 'scheduled' THEN 0 WHEN 'delivered' THEN 1 ELSE 2 END, due_at ASC LIMIT ?",
+                "ORDER BY CASE state WHEN 'scheduled' THEN 0 WHEN 'delivered' THEN 1 "
+                "WHEN 'awaiting_evaluation' THEN 1 ELSE 2 END, due_at ASC LIMIT ?",
                 (limit,),
             ).fetchall()
         return tuple(self._retention_review(row) for row in rows)
@@ -1270,11 +1280,43 @@ class CareerForgeService:
         objectives = "; ".join(contract["objectives"])
         return f"Reassess retention for {contract['title']}. Explain or apply: {objectives}. Use no assistance."
 
+    def pending_retention_response(self, review_id: str) -> str | None:
+        with self._db() as db:
+            row = db.execute(
+                "SELECT response FROM retention_reviews WHERE review_id=? AND state='awaiting_evaluation'",
+                (review_id,),
+            ).fetchone()
+        return str(row[0]) if row and row[0] else None
+
+    def submit_retention_response(self, review_id: str, response: str) -> str:
+        """Bind one owner answer before model inference so an interrupted call can resume."""
+        if not isinstance(response, str) or not response.strip():
+            raise ValueError("a retention review response is required")
+        response = response.strip()
+        with self._db() as db:
+            row = db.execute(
+                "SELECT state, response FROM retention_reviews WHERE review_id=?", (review_id,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(review_id)
+            if row[0] == "awaiting_evaluation" and row[1] == response:
+                return response
+            if row[0] != "delivered":
+                raise ValueError("retention review is not available for this answer")
+            changed = db.execute(
+                "UPDATE retention_reviews SET state='awaiting_evaluation', response=? "
+                "WHERE review_id=? AND state='delivered'",
+                (response, review_id),
+            ).rowcount
+        if changed != 1:
+            raise ValueError("retention review answer was already submitted")
+        return response
+
     def deliver_retention_review(self, review_id: str) -> tuple[RetentionReview, str]:
         """Deliver one due review without creating evidence or changing mastery."""
         if not isinstance(review_id, str) or not review_id.strip():
             raise ValueError("review ID is required")
-        now = _now()
+        now = self.clock().astimezone(UTC).isoformat()
         with self._db() as db:
             row = db.execute(
                 "SELECT review_id, competency_id, evidence_id, mastery, due_at, state, created_at, "
@@ -1312,8 +1354,9 @@ class CareerForgeService:
         with self._db() as db:
             changed = db.execute(
                 "UPDATE retention_reviews SET state='completed', response=?, evaluation=?, feedback=?, evaluated_at=? "
-                "WHERE review_id=? AND state='delivered'",
-                (response.strip(), evaluation, feedback.strip(), _now(), review_id),
+                "WHERE review_id=? AND state IN ('delivered', 'awaiting_evaluation') "
+                "AND (response IS NULL OR response=?)",
+                (response.strip(), evaluation, feedback.strip(), _now(), review_id, response.strip()),
             ).rowcount
         if changed != 1:
             if self.retention_review(review_id).state == "completed":
@@ -1473,8 +1516,9 @@ class CareerForgeService:
         )
         with self._db() as db:
             db.execute(
-                "INSERT INTO career_interview_attempts VALUES(?,?)",
-                (interview_id, attempt.attempt_id),
+                "INSERT INTO career_interview_attempts "
+                "(interview_id, attempt_id, question_fingerprint) VALUES(?,?,?)",
+                (interview_id, attempt.attempt_id, self._interview_fingerprint(session)),
             )
             changed = db.execute(
                 "UPDATE career_interviews SET state='awaiting_evaluation', current_attempt_id=?, updated_at=? "
@@ -1485,16 +1529,48 @@ class CareerForgeService:
             raise ValueError("interview answer could not be bound")
         return attempt
 
+    @staticmethod
+    def _interview_fingerprint(session: InterviewSession) -> str:
+        contract = ["interview-assessment-v1", COMPETENCY_GRAPH_VERSION,
+                    session.mission_id, session.competency_id, session.question_id,
+                    session.prompt, session.turn_number]
+        return hashlib.sha256(json.dumps(contract, ensure_ascii=False).encode()).hexdigest()
+
+    def interview_assessment_stale(self, interview_id: str) -> bool:
+        session = self.interview(interview_id)
+        if session.state != "awaiting_evaluation" or session.current_attempt_id is None:
+            raise ValueError("interview is not awaiting evaluation")
+        attempt = self.attempt(session.current_attempt_id)
+        with self._db() as db:
+            row = db.execute(
+                "SELECT question_fingerprint FROM career_interview_attempts "
+                "WHERE interview_id=? AND attempt_id=?",
+                (interview_id, attempt.attempt_id),
+            ).fetchone()
+        return (row is None or row[0] != self._interview_fingerprint(session)
+                or attempt.question_id != session.question_id
+                or attempt.competency_id != session.competency_id)
+
     def evaluate_interview_answer(
         self, interview_id: str, evaluation: AttemptEvaluation, feedback: str,
     ) -> tuple[InterviewSession, LessonAttempt]:
         session = self.interview(interview_id)
         if session.state != "awaiting_evaluation" or session.current_attempt_id is None:
             raise ValueError("interview is not awaiting evaluation")
-        attempt = self.evaluate_attempt(
-            session.current_attempt_id, evaluation, feedback,
-            evidence_type="interview_response" if evaluation is AttemptEvaluation.CORRECT else None,
-        )
+        pending = self.attempt(session.current_attempt_id)
+        if pending.evaluation is AttemptEvaluation.PENDING:
+            if self.interview_assessment_stale(interview_id):
+                evaluation = AttemptEvaluation.UNCERTAIN
+                feedback = "The interview question or assessment contract changed before evaluation; no evidence was earned."
+            attempt = self.evaluate_attempt(
+                session.current_attempt_id, evaluation, feedback,
+                evidence_type="interview_response" if evaluation is AttemptEvaluation.CORRECT else None,
+            )
+        else:
+            # A process may stop after the canonical attempt commits but before
+            # the interview advances. Resume from durable truth without scoring
+            # the same owner response or creating evidence twice.
+            attempt = pending
         if session.turn_number >= 2:
             state, question_id, prompt, turn = "completed", session.question_id, session.prompt, session.turn_number
         else:
@@ -1654,7 +1730,8 @@ class CareerForgeService:
             row = db.execute(
                 "SELECT candidate_id, mission_id, artifact_ref, state, reasons_json, "
                 "created_at, updated_at, approved_at, task_id, repository_id, base_branch, "
-                "publication_state, publication_url, publication_error, published_at "
+                "publication_state, publication_url, publication_error, published_at, "
+                "publication_commit_sha, artifact_blob_sha "
                 "FROM public_evidence_candidates WHERE candidate_id=?",
                 (candidate_id,),
             ).fetchone()
@@ -1663,7 +1740,7 @@ class CareerForgeService:
         return PublicEvidenceCandidate(
             str(row[0]), str(row[1]), str(row[2]), str(row[3]), tuple(json.loads(row[4])),
             str(row[5]), str(row[6]), str(row[7]) if row[7] else None,
-            *(str(value) if value else None for value in row[8:15]),
+            *(str(value) if value else None for value in row[8:17]),
         )
 
     def approve_public_evidence(self, candidate_id: str) -> PublicEvidenceCandidate:
@@ -1682,6 +1759,7 @@ class CareerForgeService:
 
     def bind_public_evidence_publication(
         self, candidate_id: str, task_id: str, repository_id: str, base_branch: str,
+        *, publication_commit_sha: str | None = None, artifact_blob_sha: str | None = None,
     ) -> PublicEvidenceCandidate:
         """Bind explicit approved evidence to one already-validated gateway task."""
         candidate = self.public_evidence_candidate(candidate_id)
@@ -1692,6 +1770,13 @@ class CareerForgeService:
             raise ValueError("publication binding exceeds the configured bound")
         binding = (task_id.strip(), repository_id.strip(), base_branch.strip())
         existing = (candidate.task_id, candidate.repository_id, candidate.base_branch)
+        identity = (publication_commit_sha, artifact_blob_sha)
+        if any(identity) and (not all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value)
+                                  for value in identity)):
+            raise ValueError("publication artifact identity must contain exact Git object IDs")
+        recorded_identity = (candidate.publication_commit_sha, candidate.artifact_blob_sha)
+        if any(recorded_identity) and recorded_identity != identity:
+            raise ValueError("public evidence is already bound to another artifact revision")
         if candidate.state == "published":
             if existing != binding:
                 raise ValueError("published evidence cannot be rebound")
@@ -1703,8 +1788,9 @@ class CareerForgeService:
         with self._db() as db:
             db.execute(
                 "UPDATE public_evidence_candidates SET task_id=?, repository_id=?, base_branch=?, "
+                "publication_commit_sha=?, artifact_blob_sha=?, "
                 "publication_state='ready', publication_error=NULL, updated_at=? WHERE candidate_id=?",
-                (*binding, _now(), candidate_id),
+                (*binding, *identity, _now(), candidate_id),
             )
         return self.public_evidence_candidate(candidate_id)
 

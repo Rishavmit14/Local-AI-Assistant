@@ -13,8 +13,10 @@ export function CanonicalProgress({ openLearn }: { openLearn: () => void }) {
     return <section className="learning-canonical-summary"><p>{view.state === "loading" ? "Reading canonical learning progress…" : "Career Forge is unavailable; no specimen progress is shown."}</p></section>;
   }
   const { progress } = view.journey;
-  const resumableReview = progress.retention_reviews.find((review) => review.state === "delivered" && review.prompt);
+  const resumableReview = progress.retention_reviews.find((review) => ["delivered", "awaiting_evaluation"].includes(review.state) && review.prompt);
   const activeDelivery = delivery ?? (resumableReview ? { reviewId: resumableReview.review_id, prompt: resumableReview.prompt ?? "" } : null);
+  const pendingAnswer = resumableReview?.state === "awaiting_evaluation" ? resumableReview.pending_response ?? "" : "";
+  const reviewAnswer = pendingAnswer || answer;
   const deliver = async (reviewId: string) => {
     setBusy(true); setReviewState("");
     try { setDelivery({ reviewId, prompt: await view.deliverReview(reviewId) }); }
@@ -22,10 +24,10 @@ export function CanonicalProgress({ openLearn }: { openLearn: () => void }) {
     finally { setBusy(false); }
   };
   const evaluate = async () => {
-    if (!activeDelivery || !answer.trim()) return;
+    if (!activeDelivery || !reviewAnswer.trim()) return;
     setBusy(true); setReviewState("");
     try {
-      await view.evaluateReview(activeDelivery.reviewId, answer);
+      await view.evaluateReview(activeDelivery.reviewId, reviewAnswer);
       setDelivery(null); setAnswer(""); setReviewState("Review evaluated from your explicit answer. Mastery was not changed automatically.");
     } catch { setReviewState("Friday could not evaluate this answer. The delivered review remains available."); }
     finally { setBusy(false); }
@@ -42,11 +44,11 @@ export function CanonicalProgress({ openLearn }: { openLearn: () => void }) {
     <div className="canonical-projection-heading"><div><span className="eyebrow">CAREER FORGE / CANONICAL PROGRESS</span><h2>Evidence and next steps</h2><p>Friday reports recorded attempts and evidence, not invented completion percentages.</p></div><BookOpenCheck size={22} aria-hidden="true" /></div>
     <p className="canonical-next-action">{progress.next_action}</p>
     {reviewState && <p className="canonical-next-action">{reviewState}</p>}
-    {activeDelivery && <section className="canonical-review-response"><h3>Retention review</h3><p>{activeDelivery.prompt}</p><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} aria-label="Retention review answer" placeholder="Answer in your own words…" /><button className="text-link" disabled={busy || !answer.trim()} onClick={() => void evaluate()}>Evaluate answer</button></section>}
+    {activeDelivery && <section className="canonical-review-response"><h3>Retention review</h3><p>{activeDelivery.prompt}</p><textarea value={reviewAnswer} readOnly={Boolean(pendingAnswer)} onChange={(event) => setAnswer(event.target.value)} aria-label="Retention review answer" placeholder="Answer in your own words…" /><button className="text-link" disabled={busy || !reviewAnswer.trim()} onClick={() => void evaluate()}>{pendingAnswer ? "Retry evaluation" : "Evaluate answer"}</button></section>}
     <div className="canonical-progress-counts"><span><strong>{progress.recent_attempts.length}</strong> recent attempts</span><span><strong>{progress.evidence.length}</strong> evidence records</span><span><strong>{progress.assistance.length}</strong> assistance records</span><span><strong>{progress.weak_areas.length}</strong> weak areas</span></div>
     <div className="canonical-progress-columns">
       <section><h3>Recent attempts</h3>{progress.recent_attempts.length ? <ol className="canonical-record-list">{progress.recent_attempts.map((attempt) => <li key={attempt.attempt_id}><strong>{attempt.competency_id} · {attempt.evaluation}</strong><span>Attempt {attempt.attempt_order}{attempt.retry_needed ? " · retry needed" : ""}</span>{attempt.feedback && <p>{attempt.feedback}</p>}<small>{attempt.evidence_type ?? "no evidence"} · {attempt.assistance_level ?? "no assistance"}</small></li>)}</ol> : <p>No canonical attempts are recorded yet.</p>}</section>
-      <section><h3>Retention reviews</h3>{progress.retention_reviews.length ? <ol className="canonical-record-list">{progress.retention_reviews.map((review) => <li key={review.review_id}><strong>{review.competency_id} · {review.state}</strong><span>Due {new Date(review.due_at).toLocaleDateString()}</span><small>{review.evaluation ? `${review.evaluation} · ${review.feedback ?? "no feedback"}` : `Scheduled from ${review.mastery} evidence; completion is not claimed.`}</small>{review.state === "scheduled" && new Date(review.due_at) <= new Date() && <button className="text-link" disabled={busy} onClick={() => void deliver(review.review_id)}>Begin review</button>}</li>)}</ol> : <p>No evidence-backed review is scheduled yet.</p>}</section>
+      <section><h3>Retention reviews</h3>{progress.retention_reviews.length ? <ol className="canonical-record-list">{progress.retention_reviews.map((review) => <li key={review.review_id}><strong>{review.competency_id} · {review.state}</strong><span>Due {new Date(review.due_at).toLocaleDateString()}</span><small>{review.evaluation ? `${review.evaluation} · ${review.feedback ?? "no feedback"}` : `Scheduled from ${review.mastery} evidence; completion is not claimed.`}</small>{review.state === "scheduled" && review.due === true && <button className="text-link" disabled={busy} onClick={() => void deliver(review.review_id)}>Begin review</button>}</li>)}</ol> : <p>No evidence-backed review is scheduled yet.</p>}</section>
       <section><h3>Weak areas</h3>{progress.weak_areas.length ? <ol className="canonical-record-list">{progress.weak_areas.map((area) => <li key={area.competency_id}><strong>{area.title}</strong><span>{area.reasons.join(" · ")}</span><small>{area.assistance_events} recorded assistance events</small>{progress.active_mission?.competency_id !== area.competency_id && <button className="text-link" disabled={busy} onClick={() => void reinforce(area.competency_id)}>Start reinforcement</button>}</li>)}</ol> : <p>No weak area is currently supported by recorded evidence.</p>}</section>
       <section><h3>Confidence and retention</h3><ol className="canonical-record-list">{progress.learner_confidence.filter((item) => item.status !== "unverified").map((item) => <li key={item.competency_id}><strong>{item.title} · {item.status}</strong><span>{item.reason}</span><small>{item.mastery} mastery · {item.retention_state} retention · {item.independent_correct_attempts} independent correct attempts</small></li>)}</ol>{!progress.learner_confidence.some((item) => item.status !== "unverified")&&<p>No competency has evidence-backed confidence yet.</p>}</section>
       <section><h3>Interleaved transfer</h3>{progress.interleavings.length?<ol className="canonical-record-list">{progress.interleavings.map((item)=><li key={item.interleave_id}><strong>{item.competency_id} · {item.state}</strong><span>{item.reason}</span><small>{item.relationship.replaceAll("_", " ")} · {item.evaluation ?? "not evaluated"}</small></li>)}</ol>:<p>No older concept has been interleaved into a newer mission yet.</p>}</section>

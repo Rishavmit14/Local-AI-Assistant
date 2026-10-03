@@ -276,6 +276,7 @@ const retryProjectTask = async (project: LearningProject, csrf: string) => {
 
   return <section className="canonical-projection" aria-label="Canonical Career Forge projects">
     <div className="canonical-projection-heading"><div><span className="eyebrow">LEARNING PROJECTS</span><h2>Work that grows with your skills</h2><p>These are learning project families connected to your recorded missions. They are not a general project workspace.</p></div><Boxes size={22} aria-hidden="true" /></div>
+    {projectCsrf && localOwnerMode && <p className="canonical-next-action">Local Owner session ready for governed Project actions.</p>}
     {message && <p className="canonical-next-action">{message}</p>}
     <div className="canonical-project-grid">{projects.map((project) => <article className="canonical-project" key={project.name}>
       <span className="eyebrow">EVOLVING PROJECT FAMILY</span><h3>{project.name}</h3><p>{project.focus}</p>

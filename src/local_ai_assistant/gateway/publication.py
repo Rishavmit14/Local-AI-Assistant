@@ -47,6 +47,32 @@ class GitHubPublicationService:
             raise HistoryDatabaseError("Configured GitHub remote does not match repository mapping")
         return task
 
+    def validate_artifact_identity(self, task_id: str, *, repository_id: str,
+                                   artifact_ref: str) -> tuple[str, str]:
+        """Bind an approved artifact path to a blob in the exact promoted task commit."""
+        task = self.validate_eligibility(task_id, repository_id=repository_id)
+        if (not isinstance(artifact_ref, str) or not artifact_ref or len(artifact_ref) > 2000
+                or artifact_ref.startswith("/") or "\\" in artifact_ref or ":" in artifact_ref
+                or any(part in {"", ".", ".."} for part in artifact_ref.split("/"))):
+            raise HistoryDatabaseError("Publication artifact path is invalid")
+        result = subprocess.run(
+            git_argv("ls-tree", "-z", "--full-tree", task.final_commit, "--", artifact_ref),
+            cwd=Path(task.repository).resolve(), env=safe_git_environment(),
+            check=True, capture_output=True, timeout=10,
+        )
+        rows = [row for row in result.stdout.split(b"\0") if row]
+        if len(rows) != 1:
+            raise HistoryDatabaseError("Publication artifact is absent from the promoted commit")
+        try:
+            metadata, raw_path = rows[0].split(b"\t", 1)
+            mode, kind, blob_sha = metadata.decode("ascii").split(" ")
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise HistoryDatabaseError("Publication artifact identity is malformed") from exc
+        if (raw_path.decode("utf-8", errors="surrogateescape") != artifact_ref or kind != "blob"
+                or mode not in {"100644", "100755"}):
+            raise HistoryDatabaseError("Publication artifact is not a regular committed file")
+        return task.final_commit, blob_sha
+
     def publish(self, task_id: str, *, repository_id: str, base: str = "main") -> dict:
         task = self.history.get(task_id)
         mapping = next((item for item in self.mappings if item.repository_id == repository_id), None)

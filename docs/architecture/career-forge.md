@@ -159,9 +159,14 @@ reuses the existing tutor/evidence/one-rung advancement gates; completing it
 restores the preserved newer-topic mission as the current resume target.
 
 The next governed slice evaluates an explicit delivered answer through Friday's
-existing local-Qwen conversation and interaction boundary. Only a bounded
-correct/incorrect/uncertain outcome plus feedback is persisted; the private
-answer is excluded from journey projections. Weak areas are deterministically
+existing local-Qwen conversation and interaction boundary. Before calling Qwen,
+Friday persists the exact owner answer as an `awaiting_evaluation` review. A
+local-model failure or incomplete verdict leaves it retryable after restart;
+a different answer cannot replace it. The owner-only journey projection returns
+this pending answer to the local Learn/Progress form so a browser reload does not
+lose it. Completed answers are excluded from journey projections. A completed
+review stores a bounded correct/incorrect/uncertain outcome plus feedback.
+Weak areas are deterministically
 derived from incorrect/uncertain completed retention reviews and the latest
 still-failing attempt for a mission question. Historical retries resolved by a
 later correct attempt are not current weakness. Recorded assistance is visible
@@ -300,6 +305,13 @@ Friday task and explicit onboarded `OWNER/REPOSITORY` mapping. It delegates push
 remote reconciliation, and pull-request creation to the existing gateway
 publisher, then records the authoritative result or a bounded retryable failure;
 Career Forge has no independent GitHub transport or publisher.
+Before publication, that same gateway verifies the approved artifact path is a
+regular blob in the task's exact promoted commit. Career Forge persists the
+commit and blob object IDs with the candidate's task/repository/base binding.
+An authenticated retry with the same published binding returns the durable
+result without calling the transport again; a changed binding is rejected.
+Synthetic transport tests prove this boundary but do not claim external
+publication.
 The PROJECTS workspace reads those durable candidate records after refresh and
 shows their qualification, approval, failure, or published URL. It exposes no
 publish mutation and never receives the gateway bearer credential.
@@ -375,6 +387,23 @@ assistance-free challenge attempt evaluated through the existing bounded local-
 model assessment parser. Only a correct assessment records typed
 `code_explanation` evidence; the route cannot advance mastery, execute new code,
 or treat Friday's own question as learner evidence.
+
+The Stage 23 extension also accepts explicit line selections from a physical
+UTF-8 code file under an onboarded repository or configured local-file root.
+Friday binds the canonical path, device/inode/time/size version, whole-file
+digest, selected-text digest, exact line range, optional symbol, competency and
+verification criterion before assessment. It reopens and checks the source
+before and after the local Qwen assessment. Changed, missing, moved, out-of-scope
+or mismatched sources cannot earn evidence; a model interruption retains the
+exact pending answer for retry. Correct assessments create one
+`code_explanation` record with `local_file:` provenance and never advance
+mastery automatically. Draft-backed questions retain their distinct
+`practice_lab_draft:` source identity. A complete labelled verdict with nonempty
+feedback is required before any selected-code or interview assessment commits.
+Each interview answer also binds the exact question, competency, turn,
+curriculum graph version, and assessment-contract fingerprint. A changed
+question or contract resolves the pending attempt as uncertain without Qwen
+assessment or evidence.
 
 Learner confidence is a read-only categorical projection, never a second mastery
 store or a fabricated percentage. Each competency is `unverified`, `current`,

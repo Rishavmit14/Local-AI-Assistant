@@ -486,7 +486,22 @@ export class FridayRuntimeClient {
     return (await response.json() as { question: CodeAttentionQuestion }).question;
   }
 
-  async answerPracticeCodeQuestion(responseText: string): Promise<{ question: CodeAttentionQuestion; attempt: { evaluation: string; feedback: string | null; evidence_type: string | null } }> {
+  async askPhysicalCodeQuestion(path: string, startLine: number, endLine: number, symbol?: string): Promise<CodeAttentionQuestion> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/file-code-question`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, start_line: startLine, end_line: endLine, symbol: symbol || null }),
+    });
+    if (!response.ok) throw new Error(`Local file code question failed: ${response.status}`);
+    return (await response.json() as { question: CodeAttentionQuestion }).question;
+  }
+
+  async currentPracticeCodeQuestion(): Promise<{ question: CodeAttentionQuestion | null; pending_assessment: boolean }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/code-question/current`);
+    if (!response.ok) throw new Error(`Current code question failed: ${response.status}`);
+    return response.json() as Promise<{ question: CodeAttentionQuestion | null; pending_assessment: boolean }>;
+  }
+
+  async answerPracticeCodeQuestion(responseText?: string): Promise<{ question: CodeAttentionQuestion; attempt: { evaluation: string; feedback: string | null; evidence_type: string | null } }> {
     const response = await fetch(`${this.baseUrl}/api/v1/career-forge/practice-lab/code-question/answer`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ response: responseText }) });
     if (!response.ok) throw new Error(`Practice Lab code answer failed: ${response.status}`);
     return response.json() as Promise<{ question: CodeAttentionQuestion; attempt: { evaluation: string; feedback: string | null; evidence_type: string | null } }>;

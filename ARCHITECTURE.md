@@ -649,6 +649,17 @@ competencies are versioned and dependency ordered, every state is initialized as
 UNVERIFIED, and a mission retains exact resume and assistance-bearing evidence.
 No self-report or a working solution automatically advances mastery; an explicit,
 matching evidence-backed one-rung decision is required.
+Stage 23 selected-code evidence now binds a physical allowed local source file
+to its canonical path, file identity/version, whole-file and exact selected-range
+digests, line range, and optional symbol. Career Forge persists the question and
+owner answer before local Qwen assessment, checks source freshness again before
+awarding evidence, and keeps draft-backed evidence distinct. Retention and
+interview answers remain durable through local-model interruption; incomplete
+model verdicts cannot become accepted evidence. The existing authenticated
+GitHub publisher validates an approved artifact as a regular blob in the exact
+promoted task commit and stores both object identities with the publication
+candidate. None of these paths grants mastery without Career Forge's explicit
+matching-evidence advancement.
 
 Stage 13 uses `local_ai_assistant.memory.FridayMemoryService`, a separate local
 SQLite boundary rather than a reinterpretation of task-history audit data. It

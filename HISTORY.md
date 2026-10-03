@@ -2153,3 +2153,27 @@ Project path and its recovery/security regressions. Row 61 remains PARTIAL for
 broader owner-facing qualification and final visual design acceptance; row 60
 remains PARTIAL. See ADRs 0038–0040 and the current handoff for the published
 recovery SHA and protected production state.
+
+## 2026-10-03 — Stage 23 Career Forge evidence qualification
+
+The isolated Stage 23 candidate bound owner-selected physical local code to
+canonical file/version and exact range digests, then produced one assessed
+`code_explanation` record through the real browser and local Qwen. Two no-help
+interview answers produced separate evidence. Evidence alone left mastery
+`unverified`; one explicit matching-evidence advancement set `se.python` to
+`recognize` and scheduled a review. The browser delivered and answered that
+review through local Qwen; it completed correctly, reinforced confidence, and
+did not further raise mastery. Browser reload and candidate API restart
+reconstructed the records and automatically restored local Owner trust.
+
+Deterministic regressions now reject stale, missing, changed, out-of-scope or
+digest-mismatched selected code; duplicate and insufficient answers; stale
+interview questions/contracts; incomplete model verdicts; and stale or
+superseded reviews without false evidence. Exact answers persist before model
+calls and can be retried after interruption. The existing authenticated GitHub
+publisher verifies the approved artifact is a regular blob in the promoted
+task commit and persists the commit/blob identity. Fake transport tests prove
+failure/retry and idempotency; no real external publication was performed.
+Row 61 remains PARTIAL for contextual page attachment, broader owner
+integration, and whole-product visual acceptance. Qualification gates and
+accepted recovery SHA are recorded in `CODEX_HANDOFF.md`.

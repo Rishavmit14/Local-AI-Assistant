@@ -219,6 +219,21 @@ describe("Learn Dynamic Learning Paths integration", () => {
     expect(container.textContent).toContain("Restart-safe canonical prompt.");expect(container.querySelector("#learning-path-review-answer")).toBeTruthy();
   });
 
+  it("restores the exact pending retention answer after a failed local assessment", async () => {
+    const activePath=path("p1",true,"active");
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([activePath]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(detail(activePath));
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue({...sequence,nodes:[{...sequence.nodes[0],decision:"REVIEW_FIRST"}]});
+    vi.spyOn(FridayRuntimeClient.prototype,"getCareerJourney").mockResolvedValue({progress:{retention_reviews:[{review_id:"r1",competency_id:"se.python",state:"awaiting_evaluation",prompt:"Explain shared defaults.",pending_response:"The same list is reused."}]}} as never);
+    const evaluate=vi.spyOn(FridayRuntimeClient.prototype,"evaluateRetentionReview").mockResolvedValue({review:{evaluation:"correct",feedback:"Correct."}} as never);
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    const input=container.querySelector<HTMLTextAreaElement>("#learning-path-review-answer");
+    expect(input?.value).toBe("The same list is reused.");expect(input?.readOnly).toBe(true);
+    await act(async()=>{[...container.querySelectorAll("button")].find(b=>b.textContent==="Retry evaluation")?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(evaluate).toHaveBeenCalledWith("r1","The same list is reused.");
+  });
+
   it("offers dynamic-subject reinforcement through the Career Forge handoff", async () => {
     const activePath=path("p-dynamic",true,"active");
     const dynamicDetail:LearningPathDetail={...detail(activePath),current:{...detail(activePath).current,nodes:[{node_id:"sql",module_id:"m1",title:"SQL query optimization",type:"lesson",objectives:["Compare index and table scans"],evidence_requirements:["Explain query cost"],competency_key:null,estimated_hours:1}]}};

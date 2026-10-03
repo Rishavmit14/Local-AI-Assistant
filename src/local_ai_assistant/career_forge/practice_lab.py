@@ -9,11 +9,14 @@ from __future__ import annotations
 
 import difflib
 import hashlib
+import json
 import sqlite3
+import stat
 import tempfile
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from local_ai_assistant.isolation.errors import SandboxUnavailableError
@@ -24,6 +27,10 @@ from .models import AssistanceLevel, AttemptEvaluation, TutorMode
 from .service import CareerForgeService, LessonAttempt, _now
 
 MAX_CODE_CHARS = 32_000
+LOCAL_CODE_SUFFIXES = frozenset({
+    ".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java", ".c", ".h",
+    ".cpp", ".hpp", ".cs", ".rb", ".sh", ".sql",
+})
 LAB_RESOURCES = ResourcePolicy(
     wall_seconds=8, cpu_seconds=4, max_processes=8, max_open_files=64,
     max_output_bytes=16_000, memory_bytes=256 * 1024**2,
@@ -71,6 +78,12 @@ class CodeAttentionQuestion:
     end_line: int
     prompt: str
     evaluation_criteria: str
+    source_hash: str
+    source_kind: str = "practice_lab_draft"
+    source_path: str | None = None
+    source_version: str | None = None
+    selected_hash: str | None = None
+    symbol: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,9 +145,11 @@ if __name__ == \"__main__\":
 class PracticeLabService:
     """Exercise drafts/runs share the Learner Twin SQLite authority, not a second DB."""
 
-    def __init__(self, career_forge: CareerForgeService, workspace_root: Path) -> None:
+    def __init__(self, career_forge: CareerForgeService, workspace_root: Path, *,
+                 source_roots: tuple[Path, ...] = ()) -> None:
         self.career_forge = career_forge
         self.workspace_root = workspace_root.resolve()
+        self.source_roots = tuple(root.resolve() for root in source_roots)
         self.workspace_root.mkdir(parents=True, exist_ok=True, mode=0o700)
         with self._db() as db:
             db.executescript("""
@@ -193,9 +208,11 @@ class PracticeLabService:
         with self._db() as db:
             row = db.execute("SELECT draft_code FROM practice_lab_drafts WHERE mission_id=?", (mission.mission_id,)).fetchone()
             if row is None:
-                db.execute("INSERT INTO practice_lab_drafts VALUES(?,?,?,?)", (
+                db.execute("INSERT OR IGNORE INTO practice_lab_drafts VALUES(?,?,?,?)", (
                     mission.mission_id, exercise.exercise_id, exercise.starter_code, _now()))
-                draft = exercise.starter_code
+                draft = db.execute(
+                    "SELECT draft_code FROM practice_lab_drafts WHERE mission_id=?", (mission.mission_id,)
+                ).fetchone()[0]
             else:
                 draft = row[0]
         return self.projection(mission.mission_id, draft_code=draft)
@@ -240,6 +257,20 @@ class PracticeLabService:
 
     def ask_about_code(self, mission_id: str) -> CodeAttentionQuestion:
         """Select one bounded function and ask for owner understanding evidence."""
+        mission = self.career_forge.mission(mission_id)
+        previous_id = mission.resume_point.get("question_id")
+        if isinstance(previous_id, str) and previous_id.startswith(("code_attention:", "code_file:")):
+            pending = next((item for item in self.career_forge.attempts(mission_id)
+                            if item.question_id == previous_id
+                            and item.evaluation is AttemptEvaluation.PENDING), None)
+            if pending is not None:
+                try:
+                    return self.current_code_question(mission_id)
+                except ValueError:
+                    self.career_forge.evaluate_attempt(
+                        pending.attempt_id, AttemptEvaluation.UNCERTAIN,
+                        "Selected code changed or disappeared before assessment; ask a fresh question.",
+                    )
         projection = self.projection(mission_id)
         lines = projection.draft_code.splitlines()
         start = next((index for index, line in enumerate(lines) if line.startswith("def ")), None)
@@ -249,13 +280,14 @@ class PracticeLabService:
         while end < len(lines) and (not lines[end].strip() or lines[end].startswith((" ", "\t"))):
             end += 1
         selected = "\n".join(lines[start:end]).strip()
-        question_id = "code_attention:" + hashlib.sha256(selected.encode()).hexdigest()[:16]
+        source_hash = hashlib.sha256(projection.draft_code.encode()).hexdigest()
+        question_id = f"code_attention:{source_hash[:16]}:{uuid.uuid4().hex}"
         question = CodeAttentionQuestion(
             question_id, mission_id, selected, start + 1, end,
             "Why did you choose this default-argument and initialization pattern, and what failure does it prevent?",
             projection.exercise.evaluation_criteria,
+            source_hash,
         )
-        mission = self.career_forge.mission(mission_id)
         self.career_forge.update_resume(
             mission_id,
             {
@@ -267,11 +299,89 @@ class PracticeLabService:
                     "end_line": question.end_line,
                     "prompt": question.prompt,
                     "evaluation_criteria": question.evaluation_criteria,
+                    "source_hash": question.source_hash,
                 },
             },
             assistance_level=mission.assistance_level,
         )
         return question
+
+    def ask_about_file(self, mission_id: str, path: str, start_line: int, end_line: int,
+                       *, symbol: str | None = None) -> CodeAttentionQuestion:
+        """Ask about exact bytes from a currently allowed physical source file."""
+        mission = self.career_forge.mission(mission_id)
+        if mission.state != "active":
+            raise ValueError("an active mission is required")
+        previous_id = mission.resume_point.get("question_id")
+        if isinstance(previous_id, str) and previous_id.startswith("code_file:"):
+            pending = next((item for item in self.career_forge.attempts(mission_id)
+                            if item.question_id == previous_id
+                            and item.evaluation is AttemptEvaluation.PENDING), None)
+            if pending is not None:
+                try:
+                    current = self.current_code_question(mission_id)
+                except ValueError:
+                    current = None
+                if current is not None and (current.source_path, current.start_line,
+                                            current.end_line, current.symbol) == (
+                        str(Path(path).resolve()), start_line, end_line, symbol):
+                    return current
+                self.career_forge.evaluate_attempt(
+                    pending.attempt_id, AttemptEvaluation.UNCERTAIN,
+                    "The selected local file changed or the owner replaced its selection.",
+                )
+        source, content, version = self._read_source_file(path)
+        lines = content.splitlines()
+        if not (1 <= start_line <= end_line <= len(lines) and end_line - start_line < 200):
+            raise ValueError("selected file range is invalid or exceeds 200 lines")
+        selected = "\n".join(lines[start_line - 1:end_line])
+        if not selected.strip() or len(selected) > 12_000:
+            raise ValueError("selected file content must contain 1 to 12000 characters")
+        if symbol is not None and (not symbol.strip() or len(symbol) > 128 or
+                                   symbol not in selected):
+            raise ValueError("selected symbol must occur in the exact selected range")
+        brief = self.career_forge.mission_brief_for(mission.competency_id)
+        source_hash = hashlib.sha256(content.encode()).hexdigest()
+        question = CodeAttentionQuestion(
+            f"code_file:{source_hash[:16]}:{uuid.uuid4().hex}", mission_id,
+            selected, start_line, end_line,
+            "Explain what this selected code does, why it works, and one relevant failure or tradeoff.",
+            brief.verification, source_hash, "local_file", str(source), version,
+            hashlib.sha256(selected.encode()).hexdigest(), symbol,
+        )
+        self.career_forge.update_resume(mission_id, {
+            "phase": "question", "question_id": question.question_id,
+            "code_attention": asdict(question),
+        }, assistance_level=mission.assistance_level)
+        return question
+
+    def _read_source_file(self, path: str) -> tuple[Path, str, str]:
+        if not isinstance(path, str) or not path or len(path) > 2048 or not Path(path).is_absolute():
+            raise ValueError("an absolute local source path is required")
+        candidate = Path(path)
+        try:
+            resolved = candidate.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise ValueError("source file is missing or cannot be resolved") from exc
+        root = next((root for root in self.source_roots if resolved.is_relative_to(root)), None)
+        if root is None:
+            raise ValueError("source path is outside allowed local roots")
+        if (resolved.suffix.lower() not in LOCAL_CODE_SUFFIXES or
+                any(part.startswith(".") for part in resolved.relative_to(root).parts)):
+            raise ValueError("source must be a visible supported code file")
+        before = resolved.stat()
+        if not stat.S_ISREG(before.st_mode) or before.st_size > 256_000:
+            raise ValueError("source must be a regular file of at most 256000 bytes")
+        raw = resolved.read_bytes()
+        after = resolved.stat()
+        identity = (before.st_dev, before.st_ino, before.st_mtime_ns, before.st_size)
+        if identity != (after.st_dev, after.st_ino, after.st_mtime_ns, after.st_size):
+            raise ValueError("source changed while it was read")
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError("source must be UTF-8 text") from exc
+        return resolved, content, json.dumps(identity, separators=(",", ":"))
 
     def current_code_question(self, mission_id: str) -> CodeAttentionQuestion:
         mission = self.career_forge.mission(mission_id)
@@ -279,10 +389,46 @@ class PracticeLabService:
         question_id = mission.resume_point.get("question_id")
         if not isinstance(details, dict) or not isinstance(question_id, str):
             raise ValueError("Friday has not selected code for an explanation question")
-        return CodeAttentionQuestion(
+        question = CodeAttentionQuestion(
             question_id, mission_id, str(details["selected_code"]), int(details["start_line"]),
             int(details["end_line"]), str(details["prompt"]), str(details["evaluation_criteria"]),
+            str(details.get("source_hash", "")),
+            str(details.get("source_kind", "practice_lab_draft")),
+            details.get("source_path"), details.get("source_version"),
+            details.get("selected_hash"), details.get("symbol"),
         )
+        if question.source_kind == "local_file":
+            if not question.source_path:
+                raise ValueError("selected file source identity is missing")
+            source, content, version = self._read_source_file(question.source_path)
+            if (str(source) != question.source_path or version != question.source_version or
+                    hashlib.sha256(content.encode()).hexdigest() != question.source_hash):
+                raise ValueError("selected file source changed; ask a fresh question")
+        elif question.source_kind == "practice_lab_draft":
+            with self._db() as db:
+                row = db.execute(
+                    "SELECT draft_code FROM practice_lab_drafts WHERE mission_id=?", (mission_id,)
+                ).fetchone()
+            if row is None or hashlib.sha256(row[0].encode()).hexdigest() != question.source_hash:
+                raise ValueError("selected code source changed; ask a fresh question")
+            content = row[0]
+        else:
+            raise ValueError("unsupported selected-code source")
+        lines = content.splitlines()
+        if not (1 <= question.start_line <= question.end_line <= len(lines)):
+            raise ValueError("selected code range is no longer valid")
+        selected = "\n".join(lines[question.start_line - 1:question.end_line])
+        if selected.strip() != question.selected_code.strip():
+            raise ValueError("selected code no longer matches its source")
+        if question.source_kind == "local_file" and (
+            hashlib.sha256(selected.encode()).hexdigest() != question.selected_hash or
+            (question.symbol is not None and question.symbol not in selected)
+        ):
+            raise ValueError("selected file range or symbol no longer matches")
+        if any(item.question_id == question_id and item.evaluation is not AttemptEvaluation.PENDING
+               for item in self.career_forge.attempts(mission_id)):
+            raise ValueError("selected code question has already been assessed")
+        return question
 
     def projection(self, mission_id: str, *, draft_code: str | None = None) -> PracticeLabProjection:
         exercise = self.exercise_for(mission_id)

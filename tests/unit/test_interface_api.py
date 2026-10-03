@@ -930,12 +930,20 @@ def test_presentation_shutdown_runs_configured_local_cleanup():
 
 
 def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
+    class SequentialEvaluator(FakeStreamingLLM):
+        def stream_chat(self, prompt, system_prompt="", temperature=0.2, max_tokens=1024):
+            self.calls.append({"prompt": prompt, "system_prompt": system_prompt})
+            yield self.chunks.pop(0)
+
     runtime = FridayRuntime("career-api")
     forge = CareerForgeService(tmp_path / "learner.sqlite3")
     client = TestClient(
         create_presentation_app(
             runtime,
-            FridayConversationService(FakeStreamingLLM(["Try a prediction first."]), runtime),
+            FridayConversationService(SequentialEvaluator([
+                "Try a prediction first.",
+                "ASSESSMENT: uncertain\nThe answer incorrectly describes object lifetime.",
+            ]), runtime),
             career_forge=forge,
         )
     )
@@ -1020,12 +1028,70 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     assert client.post(f"/api/v1/career-forge/missions/{mission_id}/project").status_code == 409
 
 
+def test_retention_model_failure_preserves_bound_answer_for_retry(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    evidence = forge.record_evidence(mission.mission_id, "explanation", "Explained defaults")
+    forge.advance_mastery("se.python", MasteryLevel.RECOGNIZE, evidence_id=evidence)
+    review = forge.retention_reviews()[0]
+    with forge._db() as db:
+        db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
+    forge.deliver_retention_review(review.review_id)
+
+    class FailingLLM(FakeStreamingLLM):
+        def stream_chat(self, prompt, system_prompt="", temperature=0.2, max_tokens=1024):
+            raise RuntimeError("local evaluator interrupted")
+            yield ""  # pragma: no cover
+
+    runtime = FridayRuntime("retention-failure")
+    failed_client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FailingLLM(), runtime), career_forge=forge,
+    ))
+    path = f"/api/v1/career-forge/retention-reviews/{review.review_id}/evaluate"
+    failed = failed_client.post(path, json={"response": "The default list is shared across calls."})
+    assert failed.status_code == 503
+    assert forge.retention_review(review.review_id).state == "awaiting_evaluation"
+    assert forge.pending_retention_response(review.review_id) == "The default list is shared across calls."
+    assert len(forge.evidence_history()) == 1
+    assert failed_client.post(path, json={"response": "A different answer"}).status_code == 409
+
+    recovered = CareerForgeService(tmp_path / "learner.sqlite3")
+    malformed_runtime = FridayRuntime("retention-incomplete")
+    malformed_client = TestClient(create_presentation_app(
+        malformed_runtime,
+        FridayConversationService(FakeStreamingLLM(["ASSESSMENT: correct"]), malformed_runtime),
+        career_forge=recovered,
+    ))
+    assert malformed_client.post(path, json={}).status_code == 503
+    assert recovered.pending_retention_response(review.review_id) == "The default list is shared across calls."
+    assert len(recovered.evidence_history()) == 1
+    runtime2 = FridayRuntime("retention-retry")
+    retry_client = TestClient(create_presentation_app(
+        runtime2,
+        FridayConversationService(FakeStreamingLLM(["ASSESSMENT: correct\nAccurate mechanism."]), runtime2),
+        career_forge=recovered,
+    ))
+    resumed = retry_client.get("/api/v1/career-forge/journey").json()["progress"]["retention_reviews"][0]
+    assert resumed["pending_response"] == "The default list is shared across calls."
+    completed = retry_client.post(path, json={})
+    assert completed.status_code == 200
+    assert completed.json()["review"]["evaluation"] == "correct"
+    assert retry_client.post(path, json={}).status_code == 409
+    assert len(recovered.evidence_history()) == 1
+    assert recovered.competencies()[0].mastery is MasteryLevel.RECOGNIZE
+
+
 def test_career_interview_uses_no_help_attempt_and_governed_local_evaluation(tmp_path):
+    class SequentialInterviewEvaluator(FakeStreamingLLM):
+        def stream_chat(self, prompt, system_prompt="", temperature=0.2, max_tokens=1024):
+            self.calls.append({"prompt": prompt, "system_prompt": system_prompt})
+            yield self.chunks.pop(0)
+
     runtime = FridayRuntime("career-interview-api")
     forge = CareerForgeService(tmp_path / "learner.sqlite3")
     client = TestClient(create_presentation_app(
         runtime,
-        FridayConversationService(FakeStreamingLLM([
+        FridayConversationService(SequentialInterviewEvaluator([
             "ASSESSMENT: correct\nThe answer names the shared object and cross-call consequence.",
             "ASSESSMENT: incorrect\nThe defense does not name a concrete regression test.",
         ]), runtime),
@@ -1047,6 +1113,10 @@ def test_career_interview_uses_no_help_attempt_and_governed_local_evaluation(tmp
     assert submitted.status_code == 200
     assert submitted.json()["attempt"]["assistance_level"] is None
     assert "response" not in submitted.json()["attempt"]
+    assert client.post(
+        f"/api/v1/career-forge/interviews/{interview_id}/answers",
+        json={"response": "A duplicate answer"},
+    ).status_code == 400
     evaluated = client.post(f"/api/v1/career-forge/interviews/{interview_id}/evaluate")
     assert evaluated.status_code == 200
     assert evaluated.json()["attempt"]["evaluation"] == "correct"
@@ -1061,12 +1131,108 @@ def test_career_interview_uses_no_help_attempt_and_governed_local_evaluation(tmp
     completed = client.post(f"/api/v1/career-forge/interviews/{interview_id}/evaluate")
     assert completed.status_code == 200
     assert completed.json()["interview"]["state"] == "completed"
+    assert len(forge.evidence_history()) == 1
+    assert forge.competencies()[0].mastery is MasteryLevel.UNVERIFIED
+    assert client.post(f"/api/v1/career-forge/interviews/{interview_id}/evaluate").status_code == 409
     recovered = client.get(
         "/api/v1/career-forge/interviews/current", params={"mission_id": mission.mission_id},
     )
     assert recovered.status_code == 200
     assert recovered.json()["interview"]["interview_id"] == interview_id
     assert recovered.json()["interview"]["state"] == "completed"
+
+
+def test_interview_truncated_assessment_keeps_answer_pending_without_evidence(tmp_path):
+    store = tmp_path / "learner.sqlite3"
+    forge = CareerForgeService(store)
+    mission = forge.start_mission("se.python", "Verify Python")
+    interview = forge.start_interview(mission.mission_id)
+    attempt = forge.submit_interview_answer(interview.interview_id, "The default list is reused.")
+    path = f"/api/v1/career-forge/interviews/{interview.interview_id}/evaluate"
+    runtime = FridayRuntime("interview-truncated")
+    bad = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(["ASSESSMENT: correct"]), runtime),
+        career_forge=forge,
+    ))
+    assert bad.post(path).status_code == 503
+    assert forge.attempt(attempt.attempt_id).evaluation.value == "pending"
+    assert forge.evidence_history() == ()
+    recovered = CareerForgeService(store)
+    runtime2 = FridayRuntime("interview-retry")
+    good = TestClient(create_presentation_app(
+        runtime2, FridayConversationService(FakeStreamingLLM([
+            "ASSESSMENT: correct\nThe answer identifies shared state across calls.",
+        ]), runtime2), career_forge=recovered,
+    ))
+    assert good.post(path).status_code == 200
+    assert len(recovered.evidence_history()) == 1
+
+    assert good.post(path).status_code == 409
+    assert len(recovered.evidence_history()) == 1
+
+
+def test_interview_model_failure_retries_same_answer_after_restart(tmp_path):
+    class FailingLLM:
+        def stream_chat(self, prompt, system_prompt="", **_kwargs):
+            raise RuntimeError("local model unavailable")
+            yield ""  # pragma: no cover
+
+    store = tmp_path / "learner.sqlite3"
+    forge = CareerForgeService(store)
+    mission = forge.start_mission("se.python", "Verify Python")
+    interview = forge.start_interview(mission.mission_id)
+    answer = forge.submit_interview_answer(interview.interview_id, "The default list is reused.")
+    path = f"/api/v1/career-forge/interviews/{interview.interview_id}/evaluate"
+    runtime = FridayRuntime("interview-model-failure")
+    failed = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FailingLLM(), runtime), career_forge=forge,
+    ))
+    assert failed.post(path).status_code == 503
+    assert forge.attempt(answer.attempt_id).evaluation.value == "pending"
+    assert forge.evidence_history() == ()
+    resumed = CareerForgeService(store)
+    runtime2 = FridayRuntime("interview-model-recovered")
+    recovered = TestClient(create_presentation_app(
+        runtime2, FridayConversationService(FakeStreamingLLM([
+            "ASSESSMENT: correct\nShared default state is explained.",
+        ]), runtime2), career_forge=resumed,
+    ))
+    assert recovered.post(path).status_code == 200
+    assert len(resumed.evidence_history()) == 1
+    assert recovered.post(path).status_code == 409
+    assert len(resumed.evidence_history()) == 1
+
+
+def test_interview_stale_question_or_contract_cannot_earn_evidence(tmp_path):
+    class MustNotEvaluate:
+        def stream_chat(self, prompt, system_prompt="", **_kwargs):
+            raise AssertionError("stale question must not reach Qwen")
+            yield ""  # pragma: no cover
+
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    interview = forge.start_interview(mission.mission_id)
+    first = forge.submit_interview_answer(interview.interview_id, "The same list is reused.")
+    with forge._db() as db:
+        db.execute("UPDATE career_interviews SET prompt='Changed question' WHERE interview_id=?", (interview.interview_id,))
+    runtime = FridayRuntime("interview-stale")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(MustNotEvaluate(), runtime), career_forge=forge,
+    ))
+    path = f"/api/v1/career-forge/interviews/{interview.interview_id}/evaluate"
+    assert client.post(path).status_code == 409
+    assert forge.attempt(first.attempt_id).evaluation.value == "uncertain"
+    assert forge.evidence_history() == ()
+    assert forge.interview(interview.interview_id).state == "awaiting_answer"
+    second = forge.submit_interview_answer(interview.interview_id, "A different answer.")
+    with forge._db() as db:
+        db.execute(
+            "UPDATE career_interview_attempts SET question_fingerprint='0' WHERE attempt_id=?",
+            (second.attempt_id,),
+        )
+    assert client.post(path).status_code == 409
+    assert forge.attempt(second.attempt_id).evaluation.value == "uncertain"
+    assert forge.evidence_history() == ()
 
 
 def test_contextual_tutor_uses_only_explicit_bounded_code_or_retained_screen_text(tmp_path):
@@ -1147,7 +1313,181 @@ def test_friday_initiated_code_question_records_assessed_understanding_evidence(
     assert answered.json()["attempt"]["evaluation"] == "correct"
     assert answered.json()["attempt"]["evidence_type"] == "code_explanation"
     assert forge.evidence_history()[0].evidence_type == "code_explanation"
+    assert forge.evidence_history()[0].artifact_ref == (
+        f"practice_lab_draft:{mission.mission_id}:{question['source_hash']}:"
+        f"L{question['start_line']}-L{question['end_line']}"
+    )
     assert forge.competencies()[0].mastery.value == "unverified"
+    duplicate = client.post(
+        "/api/v1/career-forge/practice-lab/code-question/answer",
+        json={"response": "The mutable default is allocated once."},
+    )
+    assert duplicate.status_code == 400
+    assert len(forge.evidence_history()) == 1
+
+
+def test_code_question_model_failure_reuses_pending_answer_on_retry(tmp_path):
+    class FlakyEvaluator:
+        calls = 0
+
+        def stream_chat(self, prompt, system_prompt="", **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("local evaluator interrupted")
+            if self.calls == 2:
+                yield "ASSESSMENT: correct"
+                return
+            yield "ASSESSMENT: correct\nThe shared default persists across calls."
+
+    evaluator = FlakyEvaluator()
+    runtime = FridayRuntime("career-code-question-retry")
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(evaluator, runtime),
+        career_forge=forge, practice_lab=PracticeLabService(forge, tmp_path / "lab"),
+    ), raise_server_exceptions=False)
+    assert client.post("/api/v1/career-forge/practice-lab/code-question").status_code == 200
+    answer = {"response": "The mutable default list is allocated once and reused across calls."}
+    assert client.post("/api/v1/career-forge/practice-lab/code-question/answer", json=answer).status_code == 503
+    assert len(forge.attempts(mission.mission_id)) == 1
+    assert forge.evidence_history() == ()
+    assert client.get("/api/v1/career-forge/practice-lab/code-question/current").json()["pending_assessment"] is True
+    assert client.post("/api/v1/career-forge/practice-lab/code-question/answer", json={}).status_code == 503
+    assert forge.evidence_history() == ()
+    assert client.post("/api/v1/career-forge/practice-lab/code-question/answer", json={}).status_code == 200
+    assert len(forge.attempts(mission.mission_id)) == 1
+    assert len(forge.evidence_history()) == 1
+
+
+def test_physical_file_code_evidence_uses_exact_source_and_reconstructs(tmp_path):
+    class Evaluator:
+        def stream_chat(self, prompt, system_prompt="", **_kwargs):
+            assert "def append_item(item, bucket=[])" in system_prompt
+            assert "allocated once" in prompt
+            yield "ASSESSMENT: correct\nThe shared mutable default persists across calls."
+
+    root = tmp_path / "project"
+    root.mkdir()
+    source = root / "defaults.py"
+    source.write_text("def append_item(item, bucket=[]):\n    bucket.append(item)\n    return bucket\n")
+    db = tmp_path / "learner.sqlite3"
+    forge = CareerForgeService(db)
+    forge.start_mission("se.python", "Verify Python")
+    runtime = FridayRuntime("physical-file-evidence")
+
+    def app():
+        restored = CareerForgeService(db)
+        return create_presentation_app(
+            runtime, FridayConversationService(Evaluator(), runtime),
+            career_forge=restored,
+            practice_lab=PracticeLabService(restored, tmp_path / "lab", source_roots=(root,)),
+        )
+
+    client = TestClient(app())
+    asked = client.post("/api/v1/career-forge/practice-lab/file-code-question", json={
+        "path": str(source), "start_line": 1, "end_line": 3, "symbol": "append_item",
+    })
+    assert asked.status_code == 200
+    question = asked.json()["question"]
+    assert question["source_kind"] == "local_file"
+    assert question["source_path"] == str(source.resolve())
+    assert client.get("/api/v1/career-forge/practice-lab/code-question/current").json()["question"] == question
+    restarted = TestClient(app())
+    assert restarted.get("/api/v1/career-forge/practice-lab/code-question/current").json()["question"] == question
+    answer = restarted.post("/api/v1/career-forge/practice-lab/code-question/answer", json={
+        "response": "The mutable default is allocated once and reused across calls; use None instead.",
+    })
+    assert answer.status_code == 200
+    evidence = CareerForgeService(db).evidence_history()
+    assert len(evidence) == 1
+    assert evidence[0].evidence_type == "code_explanation"
+    assert evidence[0].artifact_ref.startswith("local_file:")
+    provenance = json.loads(evidence[0].artifact_ref.removeprefix("local_file:"))
+    assert provenance["path"] == str(source.resolve())
+    assert provenance["source_hash"] == question["source_hash"]
+    assert provenance["selected_hash"] == question["selected_hash"]
+    assert provenance["range"] == [1, 3]
+    assert restarted.post("/api/v1/career-forge/practice-lab/code-question/answer", json={
+        "response": "same answer",
+    }).status_code == 400
+    assert len(CareerForgeService(db).evidence_history()) == 1
+    assert CareerForgeService(db).competencies()[0].mastery.value == "unverified"
+
+
+def test_physical_file_code_rejects_stale_source_and_failed_assessment(tmp_path):
+    class Evaluator:
+        calls = 0
+
+        def stream_chat(self, prompt, system_prompt="", **_kwargs):
+            self.calls += 1
+            if self.calls == 1:
+                yield "ASSESSMENT: incorrect\nThe answer does not explain shared default state."
+            else:
+                yield "ASSESSMENT: uncertain\nThe answer is too short to demonstrate the mechanism."
+
+    root = tmp_path / "project"
+    root.mkdir()
+    source = root / "defaults.py"
+    source.write_text("def append_item(item, bucket=[]):\n    return bucket\n")
+    runtime = FridayRuntime("physical-file-negative")
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    forge.start_mission("se.python", "Verify Python")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(Evaluator(), runtime), career_forge=forge,
+        practice_lab=PracticeLabService(forge, tmp_path / "lab", source_roots=(root,)),
+    ))
+    request = {"path": str(source), "start_line": 1, "end_line": 2}
+    assert client.post("/api/v1/career-forge/practice-lab/file-code-question", json=request).status_code == 200
+    source.write_text("def append_item(item, bucket=None):\n    return bucket\n")
+    assert client.post("/api/v1/career-forge/practice-lab/code-question/answer", json={
+        "response": "A weak answer.",
+    }).status_code == 400
+    assert forge.evidence_history() == ()
+    assert client.post("/api/v1/career-forge/practice-lab/file-code-question", json=request).status_code == 200
+    rejected = client.post("/api/v1/career-forge/practice-lab/code-question/answer", json={
+        "response": "It returns a bucket.",
+    })
+    assert rejected.status_code == 200
+    assert rejected.json()["attempt"]["evaluation"] == "incorrect"
+    assert forge.evidence_history() == ()
+    assert forge.competencies()[0].mastery.value == "unverified"
+    assert client.post("/api/v1/career-forge/practice-lab/file-code-question", json=request).status_code == 200
+    insufficient = client.post("/api/v1/career-forge/practice-lab/code-question/answer", json={
+        "response": "It works.",
+    })
+    assert insufficient.status_code == 200
+    assert insufficient.json()["attempt"]["evaluation"] == "uncertain"
+    assert forge.evidence_history() == ()
+
+
+def test_physical_file_changed_during_model_assessment_creates_no_evidence(tmp_path):
+    root = tmp_path / "project"
+    root.mkdir()
+    source = root / "defaults.py"
+    source.write_text("def append_item(item, bucket=[]):\n    return bucket\n")
+
+    class ChangingEvaluator:
+        def stream_chat(self, prompt, system_prompt="", **_kwargs):
+            source.write_text("def append_item(item, bucket=None):\n    return bucket\n")
+            yield "ASSESSMENT: correct\nA seemingly correct answer."
+
+    runtime = FridayRuntime("physical-file-race")
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    mission = forge.start_mission("se.python", "Verify Python")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(ChangingEvaluator(), runtime), career_forge=forge,
+        practice_lab=PracticeLabService(forge, tmp_path / "lab", source_roots=(root,)),
+    ))
+    assert client.post("/api/v1/career-forge/practice-lab/file-code-question", json={
+        "path": str(source), "start_line": 1, "end_line": 2,
+    }).status_code == 200
+    result = client.post("/api/v1/career-forge/practice-lab/code-question/answer", json={
+        "response": "The mutable default is shared across calls.",
+    })
+    assert result.status_code == 409
+    assert forge.attempts(mission.mission_id)[0].evaluation.value == "uncertain"
+    assert forge.evidence_history() == ()
 
 
 def test_api_runs_governed_interleaved_prerequisite_assessment(tmp_path):
@@ -1277,8 +1617,15 @@ def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_
         def validate_eligibility(self, task_id, *, repository_id):
             self.calls.append(("validate", task_id, repository_id))
 
+        def validate_artifact_identity(self, task_id, *, repository_id, artifact_ref):
+            self.validate_eligibility(task_id, repository_id=repository_id)
+            self.calls.append(("artifact", task_id, repository_id, artifact_ref))
+            return "a" * 40, "b" * 40
+
         def publish(self, task_id, *, repository_id, base):
             self.calls.append(("publish", task_id, repository_id, base))
+            if sum(call[0] == "publish" for call in self.calls) == 1:
+                raise RuntimeError("synthetic publication transport failure")
             return {"state": "published", "pr_url": "https://github.com/acme/fraud/pull/7"}
 
     publication = Publication()
@@ -1292,15 +1639,33 @@ def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_
     path = f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/publish"
     body = {"task_id": "task_123", "repository_id": "fraud-shield", "base": "main"}
     assert client.post(path, json=body).status_code == 401
+    failed = client.post(path, json=body, headers={"Authorization": f"Bearer {token}"})
+    assert failed.status_code == 502
+    assert forge.public_evidence_candidate(candidate.candidate_id).publication_state == "failed"
+    assert forge.public_evidence_candidate(candidate.candidate_id).state == "approved"
+    assert len(forge.evidence_history()) == 1
     response = client.post(path, json=body, headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     assert response.json()["candidate"]["state"] == "published"
     assert response.json()["candidate"]["task_id"] == "task_123"
     assert response.json()["candidate"]["publication_url"].endswith("/pull/7")
+    assert response.json()["candidate"]["publication_commit_sha"] == "a" * 40
+    assert response.json()["candidate"]["artifact_blob_sha"] == "b" * 40
     assert publication.calls == [
         ("validate", "task_123", "fraud-shield"),
+        ("artifact", "task_123", "fraud-shield", "artifacts/fraud-report.md"),
+        ("publish", "task_123", "fraud-shield", "main"),
+        ("validate", "task_123", "fraud-shield"),
+        ("artifact", "task_123", "fraud-shield", "artifacts/fraud-report.md"),
         ("publish", "task_123", "fraud-shield", "main"),
     ]
+    repeated = client.post(path, json=body, headers={"Authorization": f"Bearer {token}"})
+    assert repeated.status_code == 200
+    assert repeated.json()["candidate"]["publication_url"] == response.json()["candidate"]["publication_url"]
+    assert len(publication.calls) == 6
+    assert client.post(path, json={**body, "base": "other"}, headers={"Authorization": f"Bearer {token}"}).status_code == 409
+    assert len(publication.calls) == 6
+    assert forge.evidence_history()[0].evidence_type == "validated_project"
 
 
 def test_project_publication_must_match_linked_successful_objective_task(tmp_path):
@@ -1346,6 +1711,11 @@ def test_project_publication_must_match_linked_successful_objective_task(tmp_pat
         def validate_eligibility(self, task_id, *, repository_id):
             self.calls.append(("validate", task_id, repository_id))
 
+        def validate_artifact_identity(self, task_id, *, repository_id, artifact_ref):
+            self.validate_eligibility(task_id, repository_id=repository_id)
+            self.calls.append(("artifact", task_id, repository_id, artifact_ref))
+            return "a" * 40, "b" * 40
+
         def publish(self, task_id, *, repository_id, base):
             self.calls.append(("publish", task_id, repository_id, base))
             return {"state": "published", "pr_url": "https://github.com/acme/python/pull/9"}
@@ -1374,6 +1744,7 @@ def test_project_publication_must_match_linked_successful_objective_task(tmp_pat
     assert response.json()["candidate"]["state"] == "published"
     assert publication.calls == [
         ("validate", objective.task_id, "python-project"),
+        ("artifact", objective.task_id, "python-project", "artifacts/python-project.md"),
         ("publish", objective.task_id, "python-project", "main"),
     ]
 
@@ -1962,6 +2333,8 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/practice-lab/submit",
             "/api/v1/career-forge/practice-lab/hint",
             "/api/v1/career-forge/practice-lab/code-question",
+            "/api/v1/career-forge/practice-lab/file-code-question",
+            "/api/v1/career-forge/practice-lab/code-question/current",
             "/api/v1/career-forge/practice-lab/code-question/answer",
         "/api/v1/memory/recall",
         "/api/v1/memory/remember",

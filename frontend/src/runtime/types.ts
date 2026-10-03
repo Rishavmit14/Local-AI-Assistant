@@ -380,7 +380,7 @@ export interface CareerForgeJourney {
     evidence: Array<{ evidence_type: string; competency_id: string; assistance_level: string | null; created_at: string }>;
     evidenced_competencies: CareerForgeCompetency[];
     unresolved_retries: Array<{ question_id: string; feedback: string | null }>;
-    retention_reviews: Array<{ review_id: string; competency_id: string; evidence_id: string; mastery: string; due_at: string; state: string; created_at: string; evaluation: string | null; feedback: string | null; evaluated_at: string | null; prompt?: string }>;
+    retention_reviews: Array<{ review_id: string; competency_id: string; evidence_id: string; mastery: string; due_at: string; due?: boolean; state: string; created_at: string; evaluation: string | null; feedback: string | null; evaluated_at: string | null; prompt?: string; pending_response?: string }>;
     weak_areas: Array<{ competency_id: string; title: string; retention_failures: number; unresolved_retries: number; assistance_events: number; reasons: string[]; last_observed_at: string }>;
     cognitive_improvements: Array<{ competency_id: string; title: string; status: string; reinforcement_mission_id: string; baseline_mastery: string; baseline_review_ids: string[]; baseline_attempt_ids: string[]; intervention_reasons: string[]; assistance_ids: string[]; practice_attempt_id: string | null; practice_evidence_id: string | null; practice_evidence_type: string | null; reassessment_review_id: string | null; reassessment_evaluation: string | null; current_mastery: string; objective_score_delta: number; mastery_rung_delta: number; weak_area_resolved: boolean; evidence_positive: boolean }>;
     learner_confidence: Array<{ competency_id: string; title: string; mastery: string; status: string; retention_state: string; evidence_count: number; independent_correct_attempts: number; reason: string }>;
@@ -409,6 +409,12 @@ export interface CodeAttentionQuestion {
   end_line: number;
   prompt: string;
   evaluation_criteria: string;
+  source_hash: string;
+  source_kind?: "practice_lab_draft" | "local_file";
+  source_path?: string | null;
+  source_version?: string | null;
+  selected_hash?: string | null;
+  symbol?: string | null;
 }
 
 export interface CareerForgeInterleaving {
