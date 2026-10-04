@@ -36,3 +36,7 @@
 .product-main .op-notifications-authority{padding:8px 0;margin:0 0 20px;background:none;border:0}.product-main .op-notifications-authority summary{cursor:pointer;color:var(--accent);font-size:14px}.product-main .op-notifications-authority p{margin:9px 0 0;font-size:14px}
 /* Explicit, bounded context stays legible in the existing Conversation shell. */
 .context-chips{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 10px;font-size:12px;line-height:1.4}.context-chips>span{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%;padding:5px 9px;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-elevated);overflow-wrap:anywhere}.context-chips button{border:0;background:transparent;color:var(--accent);font:inherit;cursor:pointer;padding:2px 4px}.context-chips button:hover{text-decoration:underline}.product-conversation .conversation-turn .context-chips{margin-top:10px}.product-conversation [aria-label="Contextual conversation history"]{border-bottom:1px solid var(--border);margin-bottom:12px}
+.related-context { display: grid; gap: .4rem; max-height: 11rem; overflow: auto; padding: .4rem .7rem; font-size: .78rem; }
+.related-context section { display: grid; gap: .3rem; }
+.related-context section > div { display: flex; gap: .45rem; align-items: center; flex-wrap: wrap; }
+.related-context button { border: 0; background: transparent; color: inherit; text-decoration: underline; cursor: pointer; padding: .15rem; }

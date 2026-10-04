@@ -17,3 +17,26 @@ Runtime SSE carries attachment IDs with the owner turn. The owner UI shows pendi
 ## Scope
 
 The initial adapters are Learn paths and Projects. A path attachment gives a bounded current curriculum view; it is not a full per-lesson or retention-question adapter. Stage 23 physical selected-code provenance and Practice Lab questions remain in their existing Career Forge authority. Future attachment adapters must reference that provenance instead of defining a second file identity or arbitrary path-read API. Research has stable source IDs and hashes, but no adapter is added in this slice; private-document and RAG retrieval remain under their existing explicit source-selection route. Whole-product visual acceptance and real authenticated external publication remain separate Row 61 gaps.
+
+## Stage 25 cross-path resolution
+
+`CrossPathResolver` is the read-only owner relationship boundary (ADR 0043).
+The owner-authenticated `/api/v1/relationships/{kind}/{source_id}` endpoint
+accepts Learn path, Project, competency, evidence and review identities. It
+resolves the current Learn version and sequence, the saved Project assignment,
+validated Project evidence from the exact task/artifact/attempt/submission
+chain, and Career Forge evidence/review/mastery/confidence. Physical selected
+code is revalidated through Practice Lab's existing allowed-root, version,
+whole-file digest and range digest checks. Interview evidence is explicitly
+typed and never stands in for code or Project work. Project assignment without
+accepted assessment remains `assigned_practice`.
+
+The same resolver extends Stage 24 attachments to competency, evidence and
+review. Its bounded structured projection accompanies contextual Conversation
+as untrusted read-only data. Factual provenance questions receive a bounded,
+deterministic answer through the ordinary durable message/runtime stream;
+other contextual questions continue through local Qwen. Due reviews are
+identified from canonical state and time; a scheduled future review is not
+reported as due. Currentness is recalculated at send and after reload/restart.
+The related-context UI offers explicit attach and workspace navigation actions;
+it cannot award evidence or invoke Project execution. Memory remains separate.

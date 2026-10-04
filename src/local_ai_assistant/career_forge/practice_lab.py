@@ -383,6 +383,24 @@ class PracticeLabService:
             raise ValueError("source must be UTF-8 text") from exc
         return resolved, content, json.dumps(identity, separators=(",", ":"))
 
+    def validate_local_evidence_reference(self, reference: dict) -> str:
+        """Check historical selected-code identity through the Stage 23 allowed roots."""
+        try:
+            source, content, version = self._read_source_file(reference["path"])
+            start, end = reference["range"]
+            if not (isinstance(start, int) and isinstance(end, int)
+                    and 1 <= start <= end <= len(content.splitlines())):
+                return "unavailable"
+            selected = "\n".join(content.splitlines()[start - 1:end])
+            if (str(source) != reference["path"] or version != reference["version"]
+                    or hashlib.sha256(content.encode()).hexdigest() != reference["source_hash"]
+                    or hashlib.sha256(selected.encode()).hexdigest() != reference["selected_hash"]
+                    or (reference.get("symbol") is not None and reference["symbol"] not in selected)):
+                return "stale"
+        except (KeyError, TypeError, ValueError, IndexError, OSError):
+            return "unavailable"
+        return "current"
+
     def current_code_question(self, mission_id: str) -> CodeAttentionQuestion:
         mission = self.career_forge.mission(mission_id)
         details = mission.resume_point.get("code_attention")

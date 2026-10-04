@@ -1872,3 +1872,35 @@ Ruff, `git diff --check`, and private-capability/bundle secret audit passed.
 The browser's second contextual question used the canonical saved Project
 assignment at path version 1 while the attached current Learn path was version
 2, preserving the distinction between historical assignment and live context.
+
+## Stage 25 — broader cross-path owner integration (row 61)
+
+Stage 25 connects Conversation/context attachments, Learn/DLP, Career Forge,
+Projects, Practice Lab selected-code, retention and interview through one
+canonical read-only relationship resolver. The owner can move from a Learn
+item to assessed evidence, Project assignment and contribution, and back from
+competency/evidence/review to the current Learn decision. Project contribution
+requires the exact accepted task/artifact/assessment chain; an assignment alone
+is labeled practice. Selected-file evidence retains Stage 23 source identity
+and currentness. Review due status and mastery advancement are taken from the
+exact Career Forge records. Factual provenance answers are deterministic;
+other explicit attached discussion remains on local Qwen. Attachments grant no
+Memory, evidence, mastery, Project, publication or execution authority.
+
+The bounded candidate browser used the real Stage 22 Project/Stage 24 path
+qualification records for Learn→evidence, Project→competency, competency→Project
+and due review→origin journeys. A separate disposable copy of the qualified
+Stage 23 selected-file/interview/review records was linked to a new validated
+Learn path for the matching `se.python` competency, without modifying those
+Career Forge records. The browser traced selected-file evidence and separate
+interview evidence to that path and preserved the explicit `recognize` mastery
+advance only for the matching selected-file evidence. Reload, candidate API
+restart and local Owner restoration reconstructed the bound history. Research
+retains stable source IDs but has no Stage 25 adapter; its private source
+selection policy stays separate. Final acceptance totals and published recovery
+identity are in `CODEX_HANDOFF.md` after the final gates.
+
+Row 61 remains **PARTIAL**: real authenticated external learner-artifact
+publication is PARTIAL and final whole-product visual acceptance is NOT STARTED.
+The next major dependency is determined by the final Row 61 audit; Stage 25
+does not implement full screen/computer agency or the visual redesign.

@@ -259,6 +259,16 @@ class ProjectService:
             ).fetchall()
         return tuple(ProjectMissionLink(*row) for row in rows)
 
+    def related_project_ids(self, competency_id: str) -> tuple[str, ...]:
+        """Return explicit assignments or evidence links, including archived history."""
+        with self._connect() as db:
+            rows = db.execute(
+                "SELECT project_id FROM project_learning_missions WHERE competency_id=? "
+                "UNION SELECT project_id FROM project_learning_evidence WHERE competency_id=? "
+                "ORDER BY project_id", (competency_id, competency_id),
+            ).fetchall()
+        return tuple(str(row[0]) for row in rows)
+
     def reserve_review_submission(
         self, project_id: str, submission_id: str, competency_id: str, mission_id: str,
         *, assessment_contract_fingerprint: str,

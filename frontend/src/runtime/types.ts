@@ -92,7 +92,7 @@ export interface FridayConversationMessage {
 
 export interface FridayContextAttachment {
   attachment_id: string;
-  kind: "learning_path" | "project";
+  kind: "learning_path" | "project" | "competency" | "evidence" | "review";
   source_id: string;
   source_version: string;
   route: string;
@@ -101,6 +101,20 @@ export interface FridayContextAttachment {
   message_id: string | null;
   status: "current" | "stale" | "unavailable";
   snapshot: Record<string, unknown>;
+}
+
+export interface FridayRelationshipView {
+  kind: FridayContextAttachment["kind"];
+  source_id: string;
+  title?: string;
+  mastery?: string;
+  evidence?: {evidence_id:string;evidence_type:string;selected_source?:{status:string;path?:string;range?:number[]}}[];
+  reviews?: {review_id:string;state:string;evidence_id:string;due:boolean}[];
+  nodes?: {node_id:string;title:string;competency_id:string|null;decision:string;competency?:{mastery:string;evidence:{evidence_id:string;evidence_type:string}[];reviews:{review_id:string;state:string;due:boolean}[]}|null}[];
+  projects?: {project_id:string;title:string;relation?:string;state?:string}[];
+  assignment?: {path_id:string;path_version:number;milestone_id:string}|null;
+  competencies?: {competency_id:string;title:string;mastery:string;evidence:{evidence_id:string;evidence_type:string}[];reviews:{review_id:string;state:string}[]}[];
+  accepted_evidence?: {evidence_id:string;competency_id:string}[];
 }
 
 export interface FridayAttachedMessage {

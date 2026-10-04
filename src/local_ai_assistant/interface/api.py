@@ -66,6 +66,7 @@ from local_ai_assistant.research import ResearchService
 from .capabilities import FridayCapabilityRegistry
 from .context_attachments import MAX_ATTACHMENTS, ContextAttachmentStore
 from .conversation import FridayConversationService
+from .cross_path import CrossPathResolver
 from .interaction import FridayInteractionCoordinator
 from .runtime import FridayRuntime
 from .task_explanation import TaskExplanationNotFound, TaskExplanationService
@@ -470,6 +471,7 @@ def create_presentation_app(
     learning_paths: LearningPathService | None = None,
     projects: ProjectService | None = None,
     context_attachments: ContextAttachmentStore | None = None,
+    cross_path: CrossPathResolver | None = None,
     practice_lab: PracticeLabService | None = None,
     perception: ScreenCaptureService | None = None,
     active_window: ActiveWindowService | None = None,
@@ -653,6 +655,18 @@ def create_presentation_app(
         if context_attachments is None:
             raise HTTPException(503, detail="context attachments are unavailable")
         return {"messages": context_attachments.history(owner)}
+
+    @app.get("/api/v1/relationships/{kind}/{source_id}")
+    def owner_relationships(kind: str, source_id: str, request: Request):
+        context_owner(request)
+        if cross_path is None:
+            raise HTTPException(503, detail="relationships are unavailable")
+        try:
+            return cross_path.resolve(kind, source_id)
+        except KeyError as exc:
+            raise HTTPException(404, detail="relationship source is unavailable") from exc
+        except ValueError as exc:
+            raise HTTPException(422, detail=str(exc)) from exc
 
     @app.post("/api/v1/project-execution/restore")
     def project_execution_restore(request: Request):
@@ -2763,6 +2777,12 @@ def create_presentation_app(
                 if context_attachments is None:
                     raise HTTPException(503, detail="context attachments are unavailable")
                 bound_message, resolved_attachments = context_attachments.bind(owner, attachment_ids, prompt)
+                if cross_path is not None:
+                    for item in resolved_attachments:
+                        try:
+                            item["relationships"] = cross_path.model_context(item["kind"], item["source_id"])
+                        except (KeyError, ValueError):
+                            item["relationships"] = {"status": "unavailable"}
             except (ValueError, KeyError) as exc:
                 try:
                     if presentation_resume is not None:
@@ -2796,6 +2816,11 @@ def create_presentation_app(
         def attached_stream():
             parts = []
             try:
+                canonical_response = (
+                    cross_path.relationship_answer(prompt, resolved_attachments)
+                    if cross_path is not None and resolved_attachments
+                    and cross_path.is_relationship_question(prompt) else None
+                )
                 for chunk in conversation.stream_response(
                 prompt,
                 system_prompt=system_prompt,
@@ -2803,6 +2828,7 @@ def create_presentation_app(
                 max_tokens=max_tokens,
                 apply_owner_preferences=True,
                 attachments=resolved_attachments,
+                canonical_response=canonical_response,
                 ):
                     parts.append(chunk)
                     yield chunk

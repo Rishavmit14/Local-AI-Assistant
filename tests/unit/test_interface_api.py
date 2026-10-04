@@ -2349,6 +2349,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
             "/api/v1/conversation/attachments",
             "/api/v1/conversation/attachments/{attachment_id}",
             "/api/v1/conversation/attachment-history",
+            "/api/v1/relationships/{kind}/{source_id}",
         "/api/v1/rollback/unlock",
         "/api/v1/rollback/lock",
         "/api/v1/rollback/tasks/{task_id}/checkpoints",

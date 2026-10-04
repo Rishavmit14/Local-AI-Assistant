@@ -1091,3 +1091,16 @@ isolated execution, validation, review, and recovery flow. A validated task
 alone creates no learning evidence, and project completion never advances
 mastery. The durable data model and evaluator boundary are specified in
 `docs/architecture/projects.md` and ADR 0034.
+
+### Stage 25 cross-path owner relationships
+
+Friday's owner relationship resolver reads canonical Learn/DLP, Projects,
+Career Forge and Practice Lab records without creating a second evidence store.
+Owner-authenticated reads and explicit contextual attachments expose exact
+path/version-to-Project assignment, Project assessment provenance, competency
+and Learn links, physical selected-code currentness, interview evidence, and
+review origin/currentness. Factual provenance answers are deterministic;
+open-ended attached discussion uses local Qwen with structured untrusted
+context. No relationship read writes Memory, mastery, evidence, permission,
+approval, execution or publication state. See ADR 0043 and
+`docs/architecture/context-attachments.md`.

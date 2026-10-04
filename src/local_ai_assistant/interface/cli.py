@@ -185,6 +185,9 @@ def build_presentation_components(
     practice_lab = PracticeLabService(
         career_forge, resolved_config.paths.career_forge_lab_dir, source_roots=source_roots,
     )
+    from .cross_path import CrossPathResolver
+    cross_path = CrossPathResolver(learning_paths, career_forge, projects, practice_lab)
+    context_attachments.cross_path = cross_path
     perception = ScreenCaptureService(resolved_config.paths.perception_dir)
     perception.set_vision_classifier(LocalVisionClassifier(resolved_config.paths.vision_cache_dir))
     desktop_control = DesktopControlService(
@@ -489,6 +492,7 @@ def build_presentation_components(
         learning_paths=learning_paths,
         projects=projects,
         context_attachments=context_attachments,
+        cross_path=cross_path,
         practice_lab=practice_lab,
         perception=perception,
         active_window=ActiveWindowService(),

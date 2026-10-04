@@ -2200,3 +2200,19 @@ failure/retry and idempotency; no real external publication was performed.
 Row 61 remains PARTIAL for contextual page attachment, broader owner
 integration, and whole-product visual acceptance. Qualification gates and
 accepted recovery SHA are recorded in `CODEX_HANDOFF.md`.
+
+## 2026-10-04 — Stage 25 cross-path owner integration
+
+An isolated Stage 25 candidate added a canonical, read-only relationship
+resolver over DLP, Projects, Career Forge and Practice Lab. Owner-authenticated
+relationship reads and contextual attachments now expose exact Project
+assignment/contribution, assessed evidence, selected physical code, interview
+source, review origin and current Learn sequencing. Factual provenance answers
+use fresh deterministic resolution through the normal Conversation stream;
+open-ended context stays with local Qwen. No read grants Memory, mastery,
+evidence, execution, approval or publication authority. Browser qualification
+used copied Stage 22/24 and Stage 23 disposable records, including a validated
+new Learn mapping for Stage 23's existing `se.python` evidence. A browser
+presentation defect that labeled competency attachments as paths and hid the
+due review behind future reviews was corrected. See ADR 0043, roadmap Stage 25
+and the handoff for final gates and recovery.

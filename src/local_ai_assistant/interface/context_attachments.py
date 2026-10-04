@@ -24,10 +24,11 @@ _ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 class ContextAttachmentStore:
     """Resolve only supported canonical records and retain immutable provenance."""
 
-    def __init__(self, database: Path, learning_paths, projects):
+    def __init__(self, database: Path, learning_paths, projects, cross_path=None):
         self.database = Path(database).resolve()
         self.learning_paths = learning_paths
         self.projects = projects
+        self.cross_path = cross_path
         self._lock = RLock()
         self.database.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(self.database.parent, 0o700)
@@ -78,6 +79,9 @@ class ContextAttachmentStore:
                        "artifacts": [asdict(item) for item in self.projects.artifacts(source_id)],
                        "missions": [asdict(item) for item in self.projects.mission_links(source_id)]}
             return project.updated_at, payload
+        if kind in {"competency", "evidence", "review"} and self.cross_path is not None:
+            payload = self.cross_path.resolve(kind, source_id)
+            return str(payload.get("version", "canonical")), payload
         raise ValueError("unsupported context type")
 
     @staticmethod
@@ -96,7 +100,7 @@ class ContextAttachmentStore:
                                    ("node_id", "title", "type", "competency_key", "objectives")}
                                   for node in payload["nodes"][:8]],
                         "content_omitted": len(payload["nodes"]) > 8}
-        else:
+        elif kind == "project":
             project = payload["project"]
             brief = str(project.get("brief") or "")
             snapshot = {"project": {key: project.get(key) for key in
@@ -106,13 +110,16 @@ class ContextAttachmentStore:
                         "artifact_count": len(payload["artifacts"]),
                         "artifacts": payload["artifacts"][:8],
                         "content_omitted": len(payload["artifacts"]) > 8}
+        else:
+            snapshot = self.cross_path.model_context(kind, source_id)
         if len(self._canonical(snapshot)) > MAX_SNAPSHOT_CHARS:
             # Keep exact source identity and digest even when content is omitted.
             snapshot = {"source_id": source_id, "kind": kind, "content_omitted": True,
                         "title": payload.get("path", payload.get("project", {})).get("title", "")}
         digest = hashlib.sha256(canonical.encode()).hexdigest()
         attachment_id = "ctx_" + uuid4().hex
-        route = "#learn" if kind == "learning_path" else "#projects"
+        route = {"learning_path": "#learn", "project": "#projects", "competency": "#progress",
+                 "evidence": "#progress", "review": "#learn"}[kind]
         created_at = datetime.now(UTC).isoformat()
         with self._lock, self._connect() as db:
             db.execute("INSERT INTO attachments VALUES(?,?,?,?,?,?,?,?,?,NULL)",

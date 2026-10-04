@@ -16,6 +16,7 @@ import type {
   PracticeLab,
   ConversationRequest,
   FridayContextAttachment,
+  FridayRelationshipView,
   FridayAttachedMessage,
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
@@ -77,7 +78,7 @@ export class FridayRuntimeClient {
     this.baseUrl = baseUrl.replace(/\/$/, "");
   }
 
-  async createContextAttachment(kind: "learning_path" | "project", sourceId: string, csrf: string): Promise<FridayContextAttachment> {
+  async createContextAttachment(kind: FridayContextAttachment["kind"], sourceId: string, csrf: string): Promise<FridayContextAttachment> {
     const response = await fetch(`${this.baseUrl}/api/v1/conversation/attachments`, {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json", "X-Friday-CSRF": csrf },
@@ -97,6 +98,13 @@ export class FridayRuntimeClient {
     const response = await fetch(`${this.baseUrl}/api/v1/conversation/attachment-history`, { credentials: "same-origin" });
     if (!response.ok) throw new Error(await responseDetail(response));
     return (await response.json() as { messages: FridayAttachedMessage[] }).messages;
+  }
+
+  async getRelationships(kind: FridayContextAttachment["kind"], sourceId: string): Promise<FridayRelationshipView> {
+    const response = await fetch(`${this.baseUrl}/api/v1/relationships/${encodeURIComponent(kind)}/${encodeURIComponent(sourceId)}`,
+      { credentials: "same-origin" });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    return response.json() as Promise<FridayRelationshipView>;
   }
 
   async getLearningPaths(): Promise<LearningPath[]> {

@@ -824,6 +824,45 @@ class CareerForgeService:
             row = db.execute("SELECT evidence_id FROM mission_evidence WHERE source_attempt_id=?", (attempt_id,)).fetchone()
         return str(row[0]) if row else None
 
+    def evidence_links(self, competency_id: str, *, limit: int = 100) -> tuple[dict, ...]:
+        """Read exact assessed provenance without exposing learner answers."""
+        if not competency_id or not 1 <= limit <= 100:
+            raise ValueError("invalid bounded evidence query")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT e.evidence_id,e.mission_id,COALESCE(e.competency_id,m.competency_id),"
+                "e.evidence_type,e.artifact_ref,e.source_attempt_id,e.created_at,"
+                "a.question_id,a.evaluation,a.assistance_level,e.contract_fingerprint "
+                "FROM mission_evidence e JOIN missions m ON m.mission_id=e.mission_id "
+                "LEFT JOIN lesson_attempts a ON a.attempt_id=e.source_attempt_id "
+                "WHERE COALESCE(e.competency_id,m.competency_id)=? "
+                "ORDER BY e.created_at DESC,e.evidence_id LIMIT ?",
+                (competency_id, limit),
+            ).fetchall()
+        keys = ("evidence_id", "mission_id", "competency_id", "evidence_type", "artifact_ref",
+                "attempt_id", "created_at", "question_id", "evaluation", "assistance_level",
+                "contract_fingerprint")
+        return tuple(dict(zip(keys, row, strict=True)) for row in rows)
+
+    def evidence_link(self, evidence_id: str) -> dict:
+        if not evidence_id or len(evidence_id) > 100:
+            raise KeyError(evidence_id)
+        with self._db() as db:
+            row = db.execute(
+                "SELECT e.evidence_id,e.mission_id,COALESCE(e.competency_id,m.competency_id),"
+                "e.evidence_type,e.artifact_ref,e.source_attempt_id,e.created_at,"
+                "a.question_id,a.evaluation,a.assistance_level,e.contract_fingerprint "
+                "FROM mission_evidence e JOIN missions m ON m.mission_id=e.mission_id "
+                "LEFT JOIN lesson_attempts a ON a.attempt_id=e.source_attempt_id "
+                "WHERE e.evidence_id=?", (evidence_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(evidence_id)
+        keys = ("evidence_id", "mission_id", "competency_id", "evidence_type", "artifact_ref",
+                "attempt_id", "created_at", "question_id", "evaluation", "assistance_level",
+                "contract_fingerprint")
+        return dict(zip(keys, row, strict=True))
+
     def progress(self, *, limit: int = 20) -> CareerForgeProgress:
         """Return one bounded, read-only projection of canonical learning records."""
         attempts = self.recent_attempts(limit=limit)
@@ -1242,6 +1281,17 @@ class CareerForgeService:
                 "ORDER BY CASE state WHEN 'scheduled' THEN 0 WHEN 'delivered' THEN 1 "
                 "WHEN 'awaiting_evaluation' THEN 1 ELSE 2 END, due_at ASC LIMIT ?",
                 (limit,),
+            ).fetchall()
+        return tuple(self._retention_review(row) for row in rows)
+
+    def retention_reviews_for_competency(self, competency_id: str, *, limit: int = 100) -> tuple[RetentionReview, ...]:
+        if not competency_id or not 1 <= limit <= 100:
+            raise ValueError("invalid bounded review query")
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT review_id,competency_id,evidence_id,mastery,due_at,state,created_at,"
+                "evaluation,feedback,evaluated_at FROM retention_reviews WHERE competency_id=? "
+                "ORDER BY created_at DESC,review_id LIMIT ?", (competency_id, limit),
             ).fetchall()
         return tuple(self._retention_review(row) for row in rows)
 
