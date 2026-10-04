@@ -107,11 +107,13 @@ export interface FridayRelationshipView {
   kind: FridayContextAttachment["kind"];
   source_id: string;
   title?: string;
+  version?: number;
   mastery?: string;
   evidence?: {evidence_id:string;evidence_type:string;selected_source?:{status:string;path?:string;range?:number[]}}[];
   reviews?: {review_id:string;state:string;evidence_id:string;due:boolean}[];
   nodes?: {node_id:string;title:string;competency_id:string|null;decision:string;competency?:{mastery:string;evidence:{evidence_id:string;evidence_type:string}[];reviews:{review_id:string;state:string;due:boolean}[]}|null}[];
   projects?: {project_id:string;title:string;relation?:string;state?:string}[];
+  learning_items?: {path_id:string;path_version:number;node_id:string;decision:string}[];
   assignment?: {path_id:string;path_version:number;milestone_id:string}|null;
   competencies?: {competency_id:string;title:string;mastery:string;evidence:{evidence_id:string;evidence_type:string}[];reviews:{review_id:string;state:string}[]}[];
   accepted_evidence?: {evidence_id:string;competency_id:string}[];

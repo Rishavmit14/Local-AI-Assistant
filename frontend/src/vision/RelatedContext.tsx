@@ -6,7 +6,7 @@ import type { VisionView } from './types';
 export function RelatedContext({attachments, client, onOpen, onAttach}:{
   attachments:FridayContextAttachment[];
   client:FridayRuntimeClient;
-  onOpen:(view:VisionView)=>void;
+  onOpen:(view:VisionView,sourceId?:string,nodeId?:string,version?:number)=>void;
   onAttach:(kind:FridayContextAttachment['kind'], id:string)=>void;
 }) {
   const [views,setViews]=useState<Record<string,FridayRelationshipView>>({});
@@ -29,7 +29,7 @@ export function RelatedContext({attachments, client, onOpen, onAttach}:{
         {view.nodes?.slice(0,6).map(node=><div key={node.node_id}>
           <span>{node.title} · {node.decision.replaceAll('_',' ').toLowerCase()}</span>
           {node.competency&&<span> {node.competency.mastery} · {node.competency.evidence.length} evidence</span>}
-          <button type="button" onClick={()=>onOpen('learn')}>Open Learn</button>
+          <button type="button" onClick={()=>onOpen('learn',item.source_id,node.node_id,view.version)}>Open Learn</button>
           {node.competency_id&&<button type="button" onClick={()=>onAttach('competency',node.competency_id!)}>Attach competency</button>}
           {node.competency?.evidence.slice(0,6).map(evidence=><button key={evidence.evidence_id} type="button" onClick={()=>onAttach('evidence',evidence.evidence_id)}>Attach {evidence.evidence_type.replaceAll('_',' ')} evidence</button>)}
           {node.competency?.reviews.filter(review=>review.due).slice(0,2).map(review=><button key={review.review_id} type="button" onClick={()=>onAttach('review',review.review_id)}>Attach due review</button>)}
@@ -37,18 +37,22 @@ export function RelatedContext({attachments, client, onOpen, onAttach}:{
         </div>)}
         {view.projects?.slice(0,6).map(project=><div key={project.project_id}>
           <span>{project.title} · {project.relation?.replaceAll('_',' ')||project.state}</span>
-          <button type="button" onClick={()=>onOpen('projects')}>Open Project</button>
+          <button type="button" onClick={()=>onOpen('projects',project.project_id)}>Open Project</button>
           <button type="button" onClick={()=>onAttach('project',project.project_id)}>Attach Project</button>
         </div>)}
         {view.assignment&&<div>
           <span>Assigned from Learn path version {view.assignment.path_version}</span>
-          <button type="button" onClick={()=>onOpen('learn')}>Open Learn</button>
+          <button type="button" onClick={()=>onOpen('learn',view.assignment!.path_id,undefined,view.assignment!.path_version)}>Open Learn</button>
           <button type="button" onClick={()=>onAttach('learning_path',view.assignment!.path_id)}>Attach Learn path</button>
         </div>}
         {view.competencies?.map(competency=><div key={competency.competency_id}>
           <span>{competency.title} · {competency.mastery} · {competency.evidence.length} evidence · {competency.reviews.length} reviews</span>
           <button type="button" onClick={()=>onOpen('progress')}>Open Progress</button>
           <button type="button" onClick={()=>onAttach('competency',competency.competency_id)}>Attach competency</button>
+        </div>)}
+        {view.learning_items?.slice(0,8).map(learning=><div key={`${learning.path_id}:${learning.node_id}`}>
+          <span>Learn item {learning.node_id} · {learning.decision.replaceAll('_',' ').toLowerCase()}</span>
+          <button type="button" onClick={()=>onOpen('learn',learning.path_id,learning.node_id,learning.path_version)}>Open Learn item</button>
         </div>)}
         {view.accepted_evidence?.slice(0,6).map(evidence=><div key={evidence.evidence_id}>
           <span>Accepted evidence for {evidence.competency_id}</span>
