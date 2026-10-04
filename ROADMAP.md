@@ -1900,6 +1900,13 @@ retains stable source IDs but has no Stage 25 adapter; its private source
 selection policy stays separate. Final acceptance totals and published recovery
 identity are in `CODEX_HANDOFF.md` after the final gates.
 
+Related-context Open actions for supported Learn paths/nodes and assigned
+Projects carry stable IDs in the route. The target workspace fetches canonical
+records, focuses the exact item after load and after reload, and reports a
+missing, malformed, or stale target without selecting an unrelated item.
+Review and Practice Lab relationships remain explicit attachment/provenance
+actions; those surfaces do not expose stable deep item routes in Stage 25.
+
 Row 61 remains **PARTIAL**: real authenticated external learner-artifact
 publication is PARTIAL and final whole-product visual acceptance is NOT STARTED.
 The next major dependency is determined by the final Row 61 audit; Stage 25

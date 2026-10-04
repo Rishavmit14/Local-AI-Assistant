@@ -2216,3 +2216,7 @@ new Learn mapping for Stage 23's existing `se.python` evidence. A browser
 presentation defect that labeled competency attachments as paths and hid the
 due review behind future reviews was corrected. See ADR 0043, roadmap Stage 25
 and the handoff for final gates and recovery.
+The final navigation repair bound supported related-context Open actions to
+exact Learn path/node and Project routes. Owner-browser checks followed both
+actions, confirmed exact focus and reload, and exercised missing, wrong-kind,
+deleted-node and stale-version fallbacks without creating evidence or authority.

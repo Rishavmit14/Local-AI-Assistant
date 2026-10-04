@@ -39,4 +39,7 @@ other contextual questions continue through local Qwen. Due reviews are
 identified from canonical state and time; a scheduled future review is not
 reported as due. Currentness is recalculated at send and after reload/restart.
 The related-context UI offers explicit attach and workspace navigation actions;
-it cannot award evidence or invoke Project execution. Memory remains separate.
+Learn and Project links carry stable entity IDs in the hash route and focus the
+resolved Learn node or Project record after canonical data loads. Leaving and
+returning to Conversation preserves the pending attachment identity. The UI
+cannot award evidence or invoke Project execution. Memory remains separate.
