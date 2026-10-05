@@ -2389,4 +2389,18 @@ bounded resolution/fallback completed safely, and no prompt-tuning retry was
 performed. Real reboot/login and physical microphone evidence remain open.
 Unsupported clauses such as appending a shell-command instruction to a safe
 native goal are rejected before candidate selection or model ranking.
-Stage 26 is still uncommitted/unpublished pending final Git/remote audit.
+The capability is committed locally as `03033f2f219f659ade45457759f8039517a5811d`;
+its final documentation/recovery audit is the following publication checkpoint.
+
+### 2026-10-05 — Stage 26 published recovery and owner-state audit
+
+Capability commit `03033f2f219f659ade45457759f8039517a5811d` and the final
+recovery/documentation audit are published on `stage-26/full-computer-agency`.
+The final audit commit is also the fast-forwarded `origin/main` head; fetched
+Stage 26 and main refs were verified equal. GitHub resolves the author and
+committer to `Rishavmit14` (`rishavmit14@gmail.com`). The owning worktree is
+clean. The separate owner-dirty main checkout remains unchanged. Production
+Friday/Qwen remained healthy, Pocket/Anna and `NeuralPresence.tsx` were not
+modified, and no Stage 26 capability or screenshot is tracked. Stage 26 is
+qualified for its bounded workflows. Real reboot/login and physical microphone
+evidence remain open; Row 61 remains PARTIAL.

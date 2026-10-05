@@ -1,6 +1,6 @@
 # ADR 0044: Goal-bound computer agency with trusted legal actions
 
-- Status: Stage 26 candidate; unaccepted until final qualification and publication
+- Status: Accepted with the published Stage 26 recovery commit
 - Date: 2026-10-05
 
 ## Decision

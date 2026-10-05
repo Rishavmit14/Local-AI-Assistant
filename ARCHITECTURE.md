@@ -537,8 +537,8 @@ pending action and requires a local confirmation dialog before the explicit
 approval/execution click; it cannot bypass policy.
 
 Stage 26's bounded computer agency is qualified for the journeys and limits
-recorded in `ROADMAP.md`; publishing its recovery commits remains required
-before it is accepted as a shared checkpoint. A bounded read-only
+recorded in `ROADMAP.md`. Its published recovery commit is shared by the Stage
+26 branch and remote `main`. A bounded read-only
 AT-SPI/GDK observer, private screenshot-portal fallback and owner-authenticated
 Perception routes provide local visual/semantic evidence. The owner granted
 GNOME RemoteDesktop pointer/keyboard control once; a private persistent restore

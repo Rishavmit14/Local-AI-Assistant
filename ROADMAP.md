@@ -1912,7 +1912,7 @@ publication is PARTIAL and final whole-product visual acceptance is NOT STARTED.
 The next major dependency is determined by the final Row 61 audit; Stage 25
 does not implement full screen/computer agency or the visual redesign.
 
-## Stage 26 — Full Screen Understanding / Computer Agency (**QUALIFIED; publication pending**)
+## Stage 26 — Full Screen Understanding / Computer Agency (**QUALIFIED**)
 
 Target: a governed owner-request → observe → understand → plan → act → observe
 → verify → correct/recover loop across real browser and native Linux apps.
@@ -1987,11 +1987,11 @@ restart, and permission restoration without new consent. A live screen account
 identified the active disposable app and visible "Details ready" label after
 filtering GNOME's decorative active compositor frame; private screenshot
 portal capture and local OCR were exercised.
-Stage 26 is **QUALIFIED** for these bounded local workflows. Its audited
-capability and final-recovery commits still must be published to the Stage 26
-branch and fast-forwarded to remote `main` before it is accepted as a recovery
-checkpoint. Real machine reboot/login and physical microphone evidence remain
-unproven; arbitrary browser pointer occlusion and canonical consequential
-action authorization remain outside this bounded qualification. Row 61 remains
-PARTIAL, with external learner publication PARTIAL and final whole-product
-visual acceptance NOT STARTED.
+Stage 26 is **QUALIFIED** for these bounded local workflows. The capability
+commit and final recovery audit are published on
+`stage-26/full-computer-agency`; remote `main` and the Stage 26 branch point to
+the same verified recovery commit. Real machine reboot/login and physical
+microphone evidence remain unproven; arbitrary browser pointer occlusion and
+canonical consequential-action authorization remain outside this bounded
+qualification. Row 61 remains PARTIAL, with external learner publication
+PARTIAL and final whole-product visual acceptance NOT STARTED.
