@@ -2220,3 +2220,173 @@ The final navigation repair bound supported related-context Open actions to
 exact Learn path/node and Project routes. Owner-browser checks followed both
 actions, confirmed exact focus and reload, and exercised missing, wrong-kind,
 deleted-node and stale-version fallbacks without creating evidence or authority.
+
+## 2026-10-04 — Stage 26 computer-agency discovery and observation candidate (unaccepted)
+
+Fetched `origin/main` and the Stage 25 branch at
+`c443a6ef1bfdb4631e094787f3ba82da841584ff`; created the clean isolated
+`stage-26/full-computer-agency` worktree. The separate owner-dirty main checkout
+and production Friday/Qwen/Pocket/Anna were not changed. Existing Stage 15
+screen capture/OCR and Stage 16 allowlisted desktop action boundaries were
+recovered. Direct GNOME capture and fixed focus query are denied/unavailable;
+the desktop Screenshot portal did provide a live private candidate capture,
+which was removed after qualification. The installed AT-SPI binding's indexed
+child API corrected the existing semantic action traversal. A new read-only
+AT-SPI/GDK observation reports timed, digested bounded UI/monitor metadata
+through an owner-authenticated route. Capture files and metadata now use 0700/
+0600 permissions. Existing Perception presentation routes also now require the
+restored local Owner session and Origin/CSRF on mutations. The RemoteDesktop
+portal control `Start` request did not
+complete without desktop authorization. Focused candidate tests passed; no
+computer action loop or Stage 26 product acceptance is claimed.
+An isolated private SQLite ledger subsequently added bounded typed action
+claims, observation provenance, cancellation and in-doubt crash recovery.
+It has no desktop executor or action authority and blocks consequential
+claims until canonical approval exists.
+
+The owner then granted GNOME RemoteDesktop persistent pointer/keyboard control
+through the physical portal dialog. The host's version-2 portal returned a
+restore token without a persistence-mode result field, and returned the same
+token on subsequent restore. A private 0700/0600 capability store and worker
+restored new sessions without another dialog. Two fresh candidate API processes
+restored pointer and keyboard control. The candidate gained exact target and
+window fingerprints, a typed portal/AT-SPI controller, post-action checks,
+Owner/CSRF task routes, finite task/observation age, and a bounded text-only
+verifier. Live disposable GTK click/type/shortcut and stale re-grounding,
+Chrome navigation and no-submit form, GNOME Text Editor selection, and an
+owner-private portal screenshot with OCR were exercised. These are candidate
+engineering proofs; general task planning, consequence integration, voice
+stop, reboot/login verification, full regression/security gates and remote
+publication remain unfinished. No Stage 26 acceptance is claimed.
+The candidate subsequently added an exact owner-goal interpreter for Chrome
+navigation, named no-submit form fields and allowlisted GNOME Text Editor
+files. One owner task executes multiple verified actions. A live loopback
+browser goal navigated and filled two fields without a POST; a native file
+goal focused the requested document. A synthetic visible error dialog was
+described from AT-SPI evidence and closed with a verified semantic action.
+Cancellation during a multi-step form goal prevented the next action. The
+worker survived a hard-kill by restoring a new session without owner consent.
+The Owner Perception view now has minimal computer-task status, run, stop and
+screen-account controls backed by Owner/CSRF routes and a private recent-task
+list. Added exact workflow parsing so appended instructions cannot cause
+partial execution, one safe pre-action stale re-ground, and exact worker
+acknowledgment validation. A focused 62-test Stage 26 deterministic set and
+39 focused frontend tests passed against the candidate; these are not final
+acceptance gates. General planning, occlusion-safe pointer use, autonomous
+in-doubt reconciliation, physical voice stop, full gates and publication remain open.
+The disposable Owner UI on :5191 restored local Owner trust and desktop
+permission after browser reload and candidate API restart without a new GNOME
+dialog. Its Chrome navigation goal succeeded and reconstructed its durable
+task state after reload. An initial Owner UI form run exposed a 10-second
+AT-SPI hang while reading an unrelated app root and returned an uncontrolled
+500. The adapter now sets a bounded AT-SPI call/startup timeout, skips failed
+root queries, and classifies subprocess timeout. The repaired Owner UI form
+goal filled two exact synthetic fields in four verified actions; the loopback
+fixture recorded zero submissions. An earlier focus attempt failed safely
+while several disposable windows were stacked; closing only those disposable
+fixtures made the browser focus path succeed. Exact voice stop now calls a
+computer-task cancel hook and releases portal input; deterministic tests pass,
+physical voice qualification remains. Stage 26 remains unaccepted.
+An exact owner-named native goal then activated the disposable GTK "Open details"
+control and verified the new "Details ready" label; the private task ledger
+recorded one `activate_accessible` action as `postcondition_verified`.
+Deterministic dispatch and appended-instruction refusal passed. A bounded
+single-step native proposal path using the existing local Qwen model passed
+fake-model policy tests, but four live safe-fixture qualifications, including
+one after deriving the expected result from the owner goal, returned blocked
+with zero actions. This is not general goal-planning acceptance.
+The controller now rejects an innocuous-looking control when its containing
+dialog names a consequential operation or includes a visible authentication
+field; focused tests prove zero action claims in both cases.
+The action ledger gained a private process-shared guard around controller
+transactions and runner app/file launches. Restart recovery waits for a live
+transaction to settle before classifying in-flight claims. A concurrent
+constructor test preserves a verified action; the existing crash test still
+marks a truly interrupted claim in doubt without replay.
+Simple semantic actions now persist a bounded expected result before their
+physical claim. An Owner/CSRF recovery route can collect fresh accessibility
+evidence and record a uniquely present result on an in-doubt action. It leaves
+the task in `recovery_required` and never replays or auto-resumes; absent or
+ambiguous results remain unresolved. Ledger/controller/API regression passed.
+The private action-status list and Perception recovery controls now let the
+owner inspect an interrupted task after page reload and request result
+re-observation without restarting it. The panel now shows safe target app/name,
+execution start, expected result and persisted recovery status. Missing or
+ambiguous evidence remains uncertain rather than being called a failed action.
+Focused frontend tests verified the Owner CSRF request and persistent paused
+state.
+The live isolated Owner UI then recovered a disposable GTK action deliberately
+interrupted after its semantic effect. It showed one uncertain action, re-observed
+the expected `Details ready` label, recorded result-present, and kept the task
+paused with action count one across browser reload and candidate API restart.
+The saved GNOME permission restored active without a new dialog. The same Owner
+screen-account journey initially reported uncertainty because a decorative
+Mutter frame was also marked active. Filtering that frame produced a truthful
+app/title/visible-label account on targeted requalification; the private
+screenshot portal and local OCR ran. Candidate services and GTK fixture were
+stopped afterward, leaving production Friday/Qwen unchanged.
+
+## 2026-10-05 — Stage 26 trusted legal planner and explicit recovery continuation candidate (unaccepted)
+
+The raw one-step Qwen proposal experiment remained blocked in four earlier
+safe live attempts. The candidate now derives legal native semantic controls
+from the current window and owner object words, rejects hostile/consequential
+candidates through controller policy, and uses Qwen only to rank multiple legal
+choices. A unique candidate follows a deterministic path. Natural variants of
+“open/show/reveal details” selected the same disposable control. A trusted
+changed-content postcondition rejected pre-existing unchanged labels. One live
+GTK goal completed with one verified action, and a separate Owner UI goal
+opened a menu and showed details in two verified actions under one task. Common
+browser URL wording now shares the existing bounded navigation workflow.
+
+The ledger separately records actor start, persists stop intent before waiting
+on a process-shared whole-task guard, and binds recovery results to the original
+window. A wrong-window matching label failed deterministic reconciliation.
+Explicit Owner Resume permits only a never-started actor or a recovered exact
+result that remains uniquely visible in a fresh observation; it skips prior
+verified steps and never replays an uncertain action. A real GTK action was
+interrupted after its effect, re-observed, and explicitly completed through the
+Owner panel with its original one-action count. Browser reload and candidate
+API restart reconstructed the result. A second live window-bound recovery
+probe also completed without replay. A live two-step stop race cancelled the
+task after its first verified action, prevented its second action, and released
+portal input. Candidate API/UI/fixtures were stopped after qualification.
+Stage 26 remains unaccepted/unpublished pending the final gates and remaining
+scope; production Friday/Qwen and the separate dirty main checkout were not
+changed.
+
+### 2026-10-05 — Stage 26 typed legal-action and recovery evidence (unaccepted)
+
+The trusted planner now exposes a typed legal-action catalog before selection.
+Candidates carry an observation-bound semantic target ID, typed action,
+application/window and geometry, goal match, low-risk classification,
+preconditions, trusted postcondition class, and the reason policy admits the
+candidate. Catalog generation requires an active task; Qwen can see and rank
+only these already-legal entries. The Owner recovery view now includes the
+original containing window and latest recovery-observation ID, alongside its
+existing actor-start, expected-result and uncertainty state. Deterministic
+coverage was extended for those fields and additional natural wording. Focused
+desktop tests and the Owner API case passed; 40 focused frontend tests passed.
+This remains an uncommitted Stage 26 candidate. Full acceptance gates,
+publication, real reboot/login evidence, and physical microphone qualification
+were still outstanding at this checkpoint. See the final deterministic gate
+result below.
+
+### 2026-10-05 — Stage 26 final deterministic acceptance gates passed (publication pending)
+
+After fixing the model-swap qualification harness to preserve the isolated
+dependency overlay in disposable candidate processes, the repository verifier
+passed **1,459 Python tests, 6 expected skips**, compile/CLI checks and
+`pip check`. A focused Stage 26 set passed **198 tests**. The frontend passed
+**132 tests across 20 files** plus **2 Owner bridge checks**; full ESLint,
+TypeScript, and production build passed with the existing large-chunk advisory.
+Changed-file Ruff, `git diff --check`, the exact-capability/high-confidence
+secret scan, tracked scope, and candidate screenshot review passed. One earlier
+full run failed only because the harness discarded the caller's test-only
+`PYTHONPATH`; the corrected qualification passed individually and then in the
+full suite. The Qwen legal-candidate live probe returned `blocked`; trusted
+bounded resolution/fallback completed safely, and no prompt-tuning retry was
+performed. Real reboot/login and physical microphone evidence remain open.
+Unsupported clauses such as appending a shell-command instruction to a safe
+native goal are rejected before candidate selection or model ranking.
+Stage 26 is still uncommitted/unpublished pending final Git/remote audit.

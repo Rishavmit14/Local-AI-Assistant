@@ -250,6 +250,7 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
 
   it("reads only screen-capture metadata and requests capture explicitly", async () => {
     const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ mode: "restored", csrf_token: "owner-csrf" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ captures: [] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ capture: {
         capture_id: "screen_1", captured_at: "now", sha256: "a", byte_size: 1,
@@ -259,9 +260,17 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
     const client = new FridayRuntimeClient();
 
     await expect(client.getScreenCaptures()).resolves.toEqual([]);
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/perception/screen/captures?limit=100", { signal: undefined });
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/project-execution/restore", {
+      method: "POST", credentials: "same-origin",
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/perception/screen/captures?limit=100", {
+      method: "GET", credentials: "same-origin", signal: undefined,
+    });
     await expect(client.captureScreen()).resolves.toMatchObject({ capture_id: "screen_1" });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/perception/screen/capture", { method: "POST" });
+    expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/v1/perception/screen/capture", {
+      method: "POST", credentials: "same-origin", signal: undefined,
+      headers: { "X-Friday-CSRF": "owner-csrf" },
+    });
   });
 
   it("starts only the API-selected dependency-ready mission", async () => {

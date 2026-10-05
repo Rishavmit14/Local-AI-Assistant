@@ -14,14 +14,14 @@ gi.require_version('Atspi', '2.0')
 from gi.repository import Atspi
 app_name, control_name, action_name = sys.argv[1].split('::')
 Atspi.init(); desktop = Atspi.get_desktop(0)
-queue = list(desktop.get_children()); seen = 0
+queue = [desktop.get_child_at_index(i) for i in range(desktop.get_child_count())]; seen = 0
 while queue and seen < 500:
     node = queue.pop(0); seen += 1
     if node.get_name() == control_name and node.get_application().get_name() == app_name:
         for index in range(node.get_n_actions()):
             if node.get_action_name(index) == action_name:
                 raise SystemExit(0 if node.do_action(index) else 2)
-    queue.extend(node.get_children())
+    queue.extend(node.get_child_at_index(i) for i in range(node.get_child_count()))
 raise SystemExit(3)
 """
 

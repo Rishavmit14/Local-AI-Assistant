@@ -1175,6 +1175,7 @@ def build_managed_wake_voice(
     runtime: FridayRuntime,
     conversation: FridayConversationService,
     interactions: FridayInteractionCoordinator | None = None,
+    on_explicit_stop: Callable[[], None] | None = None,
 ) -> FridayManagedWakeVoice | None:
 
     if not config.wake.enabled:
@@ -1282,6 +1283,7 @@ def build_managed_wake_voice(
                 barge_in_monitor
             ),
             latency_stage=telemetry.mark,
+            on_explicit_stop=on_explicit_stop,
         )
     )
 

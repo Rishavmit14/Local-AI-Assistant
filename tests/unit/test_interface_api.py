@@ -13,6 +13,8 @@ from local_ai_assistant.career_forge import (
     TutorMode,
 )
 from local_ai_assistant.desktop import DesktopControlService
+from local_ai_assistant.desktop.agency_ledger import ComputerAgencyLedger
+from local_ai_assistant.desktop.observation import DesktopObservation
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.models import GatewayScope
 from local_ai_assistant.history.models import TaskStatus
@@ -75,6 +77,11 @@ def make_client(chunks=None):
     return TestClient(app), runtime
 
 
+class PerceptionSessions:
+    def principal(self, session, csrf):
+        return "local-owner" if session == "trusted-session" and csrf in {None, "trusted-csrf"} else None
+
+
 def test_perception_presentation_projects_canonical_metadata_and_explicit_local_observations(tmp_path):
     class UnavailableWindow:
         @staticmethod
@@ -96,7 +103,11 @@ def test_perception_presentation_projects_canonical_metadata_and_explicit_local_
     client = TestClient(create_presentation_app(
         runtime, FridayConversationService(FakeStreamingLLM(), runtime),
         perception=perception, active_window=UnavailableWindow(),
-    ))
+        project_execution_sessions=PerceptionSessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+    ), base_url="http://127.0.0.1")
+    assert client.get("/api/v1/perception/screen/captures").status_code == 401
+    client.cookies.set("friday_project_session", "trusted-session")
 
     listed = client.get("/api/v1/perception/screen/captures").json()["captures"]
     assert len(listed) == 1
@@ -105,12 +116,14 @@ def test_perception_presentation_projects_canonical_metadata_and_explicit_local_
     assert listed[0]["expires_at"]
     assert "path" not in listed[0] and "pixels" not in listed[0]
     assert client.get("/api/v1/perception/active-window").json()["context"]["status"] == "unavailable"
-    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/ocr").json()["ocr"]["text"] == "Traceback: failed"
-    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/ui-state").json()["ui_state"]["evidence"] == ["traceback", "failed"]
-    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/visual-labels").json()["labels"] == [{"label": "monitor", "confidence": 0.8}]
+    headers = {"Origin": "http://127.0.0.1", "X-Friday-CSRF": "trusted-csrf"}
+    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/ocr").status_code == 403
+    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/ocr", headers=headers).json()["ocr"]["text"] == "Traceback: failed"
+    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/ui-state", headers=headers).json()["ui_state"]["evidence"] == ["traceback", "failed"]
+    assert client.post(f"/api/v1/perception/screen/captures/{capture.capture_id}/visual-labels", headers=headers).json()["labels"] == [{"label": "monitor", "confidence": 0.8}]
 
 
-def test_perception_capture_api_surfaces_desktop_privacy_denial_without_fallback(tmp_path):
+def test_perception_capture_api_surfaces_denial_after_portal_fallback(tmp_path):
     from types import SimpleNamespace
 
     def denied(_command, **_kwargs):
@@ -120,13 +133,164 @@ def test_perception_capture_api_surfaces_desktop_privacy_denial_without_fallback
     client = TestClient(create_presentation_app(
         runtime, FridayConversationService(FakeStreamingLLM(), runtime),
         perception=ScreenCaptureService(tmp_path / "private", runner=denied),
-    ))
+        project_execution_sessions=PerceptionSessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+    ), base_url="http://127.0.0.1")
+    client.cookies.set("friday_project_session", "trusted-session")
 
-    result = client.post("/api/v1/perception/screen/capture")
+    result = client.post("/api/v1/perception/screen/capture", headers={
+        "Origin": "http://127.0.0.1", "X-Friday-CSRF": "trusted-csrf",
+    })
 
     assert result.status_code == 503
-    assert result.json() == {"detail": "desktop privacy permission is required for screen capture"}
+    assert result.json() == {"detail": "desktop screenshot portal consent is required or capture failed"}
     assert client.get("/api/v1/perception/screen/captures").json() == {"captures": []}
+
+
+def test_semantic_screen_observation_requires_restored_local_owner_session():
+    class Sessions:
+        def principal(self, session, _csrf):
+            return "local-owner" if session == "valid-session" else None
+
+    class Observer:
+        def observe(self):
+            return DesktopObservation("observation_test", "2026-10-04T00:00:00Z", "a" * 64, ())
+
+    runtime = FridayRuntime("screen-owner")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        project_execution_sessions=Sessions(), accessibility_observation=Observer(),
+    ), base_url="http://127.0.0.1")
+    route = "/api/v1/perception/accessibility/observe"
+    assert client.get(route).status_code == 401
+    client.cookies.set("friday_project_session", "valid-session")
+    result = client.get(route)
+    assert result.status_code == 200
+    assert result.json()["observation"]["digest"] == "a" * 64
+
+
+def test_computer_task_routes_require_owner_and_csrf_and_reject_malformed_actions(tmp_path):
+    class Sessions:
+        def principal(self, session, csrf):
+            if session == "valid-session" and csrf in {None, "valid-csrf"}:
+                return "local-owner"
+            if session == "other-session" and csrf in {None, "valid-csrf"}:
+                return "other-owner"
+            return None
+
+    class Portal:
+        def start(self):
+            return "active"
+
+        def revoke_local(self):
+            self.revoked = True
+
+    class Agency:
+        ledger = ComputerAgencyLedger(tmp_path / "private" / "computer.sqlite3")
+
+        def observe(self, _task_id):
+            return DesktopObservation("observation_" + "a" * 32, "2026-10-04T00:00:00Z", "a" * 64, ())
+
+        def act(self, _task_id, _action):
+            raise AssertionError("invalid action reached controller")
+
+        def reconcile(self, _task_id, _action_id):
+            return False
+
+        def cancel(self, task_id):
+            self.ledger.cancel(task_id)
+
+    agency = Agency()
+
+    class Runner:
+        calls = []
+        resume_calls = []
+
+        def run(self, task_id):
+            self.calls.append(task_id)
+            return agency.ledger.complete(task_id, succeeded=True)
+
+        def resume(self, task_id):
+            self.resume_calls.append(task_id)
+            return agency.ledger.task(task_id)
+
+    runner = Runner()
+    portal = Portal()
+
+    runtime = FridayRuntime("computer-owner")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        project_execution_sessions=Sessions(), project_execution_allowed_origins=("http://127.0.0.1",),
+        computer_agency=agency, computer_portal=portal, computer_runner=runner,
+    ), base_url="http://127.0.0.1")
+    route = "/api/v1/computer/tasks"
+    payload = {"request": "Open settings", "action_budget": 2}
+    assert client.get("/api/v1/computer/permission").status_code == 401
+    assert client.get(route).status_code == 401
+    assert client.post(route, json=payload).status_code == 403
+    client.cookies.set("friday_project_session", "valid-session")
+    assert client.post(route, json=payload, headers={"Origin": "http://127.0.0.1"}).status_code == 401
+    headers = {"Origin": "http://127.0.0.1", "X-Friday-CSRF": "valid-csrf"}
+    assert client.get("/api/v1/computer/permission").json() == {"status": "active"}
+    task_id = client.post(route, json=payload, headers=headers).json()["task"]["task_id"]
+    assert [item["task_id"] for item in client.get(route).json()["tasks"]] == [task_id]
+    client.cookies.set("friday_project_session", "other-session")
+    assert client.get(route).json() == {"tasks": []}
+    assert client.get(f"{route}/{task_id}").status_code == 404
+    client.cookies.set("friday_project_session", "valid-session")
+    assert client.get(f"{route}/{task_id}").json()["task"]["request"] == "Open settings"
+    assert client.get(f"{route}/{task_id}/actions").json() == {"actions": []}
+    assert client.post(f"{route}/invalid/observe", headers=headers).status_code == 404
+    assert client.post(f"{route}/invalid/actions", json={"kind": "click"}, headers=headers).status_code == 404
+    assert client.post(f"{route}/invalid/actions/invalid/reconcile", headers=headers).status_code == 404
+    assert client.post(f"{route}/invalid/cancel", headers=headers).status_code == 404
+    assert client.post(f"{route}/invalid/run", headers=headers).status_code == 404
+    assert client.post(f"{route}/invalid/resume", headers=headers).status_code == 404
+    assert client.post(f"{route}/{task_id}/observe", headers=headers).status_code == 200
+    assert client.post(f"{route}/{task_id}/actions", json={"kind": "click"}, headers=headers).status_code == 409
+    recovery_route = f"{route}/{task_id}/actions/{'a' * 32}/reconcile"
+    assert client.post(recovery_route, headers={"Origin": "http://127.0.0.1"}).status_code == 401
+    assert client.post(recovery_route, headers=headers).json() == {"status": "unresolved"}
+    assert client.post(f"{route}/{task_id}/cancel", headers=headers).json()["task"]["state"] == "cancelled"
+    next_id = client.post(route, json=payload, headers=headers).json()["task"]["task_id"]
+    assert client.post(f"{route}/{next_id}/run", headers={"Origin": "http://127.0.0.1"}).status_code == 401
+    assert client.post(f"{route}/{next_id}/resume", headers={"Origin": "http://127.0.0.1"}).status_code == 401
+    client.cookies.set("friday_project_session", "other-session")
+    assert client.post(f"{route}/{next_id}/resume", headers=headers).status_code == 404
+    client.cookies.set("friday_project_session", "valid-session")
+    assert client.post(f"{route}/{next_id}/resume", headers=headers).json()["task"]["task_id"] == next_id
+    assert runner.resume_calls == [next_id]
+    assert client.post(f"{route}/{next_id}/run", headers=headers).json()["task"]["state"] == "succeeded"
+    assert runner.calls == [next_id]
+    assert client.post("/api/v1/computer/permission/revoke",
+                       headers={"Origin": "http://127.0.0.1"}).status_code == 401
+    assert client.post("/api/v1/computer/permission/revoke", headers=headers).json() == {
+        "status": "permission_required",
+    }
+    assert portal.revoked is True
+
+
+def test_perception_routes_do_not_expose_screen_context_without_owner_session(tmp_path):
+    runtime = FridayRuntime("screen-private")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        perception=ScreenCaptureService(tmp_path / "private"),
+        project_execution_sessions=PerceptionSessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+    ), base_url="http://127.0.0.1")
+    for route in (
+        "/api/v1/perception/active-window",
+        "/api/v1/perception/screen/captures",
+        "/api/v1/perception/accessibility/observe",
+    ):
+        assert client.get(route).status_code == 401
+    for route in (
+        "/api/v1/perception/screen/capture",
+        "/api/v1/perception/screen/captures/screen_missing/ocr",
+        "/api/v1/perception/screen/captures/screen_missing/ui-state",
+        "/api/v1/perception/screen/captures/screen_missing/visual-labels",
+    ):
+        assert client.post(route, headers={"Origin": "http://127.0.0.1"}).status_code == 401
 
 
 def test_health_identifies_presentation_service():
@@ -2294,10 +2458,23 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/desktop/actions/{action_id}/execute",
         "/api/v1/perception/screen/capture",
         "/api/v1/perception/active-window",
+        "/api/v1/perception/accessibility/observe",
         "/api/v1/perception/screen/captures",
         "/api/v1/perception/screen/captures/{capture_id}/ocr",
         "/api/v1/perception/screen/captures/{capture_id}/ui-state",
         "/api/v1/perception/screen/captures/{capture_id}/visual-labels",
+        "/api/v1/computer/permission",
+        "/api/v1/computer/permission/enroll",
+        "/api/v1/computer/permission/revoke",
+        "/api/v1/computer/screen/describe",
+        "/api/v1/computer/tasks",
+        "/api/v1/computer/tasks/{task_id}",
+        "/api/v1/computer/tasks/{task_id}/observe",
+        "/api/v1/computer/tasks/{task_id}/actions",
+        "/api/v1/computer/tasks/{task_id}/actions/{action_id}/reconcile",
+        "/api/v1/computer/tasks/{task_id}/cancel",
+        "/api/v1/computer/tasks/{task_id}/run",
+        "/api/v1/computer/tasks/{task_id}/resume",
             "/api/v1/career-forge/journey",
             "/api/v1/career-forge/curriculum-research",
         "/api/v1/career-forge/retention-reviews/{review_id}/deliver",

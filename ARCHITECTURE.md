@@ -536,6 +536,61 @@ mouse, browser, file, or perception shortcut. The cinematic UI can display a
 pending action and requires a local confirmation dialog before the explicit
 approval/execution click; it cannot bypass policy.
 
+Stage 26's bounded computer agency is qualified for the journeys and limits
+recorded in `ROADMAP.md`; publishing its recovery commits remains required
+before it is accepted as a shared checkpoint. A bounded read-only
+AT-SPI/GDK observer, private screenshot-portal fallback and owner-authenticated
+Perception routes provide local visual/semantic evidence. The owner granted
+GNOME RemoteDesktop pointer/keyboard control once; a private persistent restore
+capability outside Git creates new sessions after worker/API restart without a
+routine GNOME dialog. A trusted worker receives bounded typed input from a
+controller, never raw model prose. An owner-private task ledger binds an exact
+element/window/geometry fingerprint to a fresh observation and one-time action
+claim, records post-action verification, rejects stale targets, and marks
+interrupted actions in doubt without replay. The controller has live candidate
+proof for GTK, Chrome and GNOME Text Editor, including no-submit and stale
+geometry. A deterministic owner-goal runner handles exact browser navigation,
+named no-submit Chrome forms, allowlisted Text Editor files, and an exact
+native control/result pair. A live disposable native goal changed the expected
+label with one verified action. A guarded one-step proposal path uses the same
+local Qwen model but remains unqualified after four safe live proposals,
+including an owner-bound result revision; each returned blocked without action.
+The Owner
+Perception view can create, inspect and stop these tasks and request a bounded
+screen account; the recent task list reconstructs from the private ledger after
+reload. The runner re-grounds once after proven pre-action UI drift and never
+replays an uncertain effect. For simple semantic actions, an exact owner-bound
+expected result is persisted before execution. A private Owner recovery route
+may re-observe an in-doubt action and record that result as present, but keeps
+the task paused and does not infer whether the action caused it or resume
+execution. The Owner Perception panel can inspect the private action history
+and request this read-only physical re-observation after reload. An isolated
+owner browser/API restart retained one interrupted GTK action as
+`recovery_required`, recorded its expected label present on re-observation,
+and kept action count one. On-demand screen understanding combines private
+portal capture, local OCR and AT-SPI; known decorative GNOME frames are
+excluded from active-window selection, and unseen work remains uncertain. See
+`docs/architecture/perception.md` and
+`docs/architecture/desktop-control.md`. The older Stage 16 per-action approval
+path remains separate. Exact existing voice stop now invokes a computer-task
+cancel hook when managed wake is enabled; physical microphone qualification
+remains open. Trusted legal native candidates now precede any Qwen selection;
+one unique legal target follows a deterministic path. An Owner UI task
+completed two ordered GTK actions with fresh result verification after each.
+Window-bound recovery and explicit Owner Resume can continue a native plan
+after a never-started actor or a freshly confirmed result without replay.
+Durable stop intent precedes the process-shared task guard. See candidate
+ADR 0044. Broader general planning, complete consequence
+integration, occlusion-safe arbitrary pointer targeting, reboot evidence and
+full Stage 26 acceptance are still open.
+
+The planner exposes a typed legal-action catalog bound to the active task,
+fresh observation, semantic target identity, exact app/window and geometry,
+owner-object match, risk, preconditions, and trusted postcondition class. Qwen
+can rank only catalog entries; unresolved ambiguity blocks. The recovery panel
+also projects the original action window and latest recovery-observation ID so
+the Owner can inspect precisely what was reconciled.
+
 Stage 17 begins with a durable local objective lifecycle. It records bounded
 create/resume/cancel state and may bind exactly one canonical task-history record
 by task ID and exact plan token. After explicit resume, it may reserve one

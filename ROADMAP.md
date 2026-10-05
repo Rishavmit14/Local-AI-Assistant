@@ -1911,3 +1911,87 @@ Row 61 remains **PARTIAL**: real authenticated external learner-artifact
 publication is PARTIAL and final whole-product visual acceptance is NOT STARTED.
 The next major dependency is determined by the final Row 61 audit; Stage 25
 does not implement full screen/computer agency or the visual redesign.
+
+## Stage 26 — Full Screen Understanding / Computer Agency (**QUALIFIED; publication pending**)
+
+Target: a governed owner-request → observe → understand → plan → act → observe
+→ verify → correct/recover loop across real browser and native Linux apps.
+Typed actions need fresh semantic/visual grounding, risk and approval checks,
+bounded retries, durable audit, stop/cancel, and crash-safe recovery. Screen
+content remains untrusted and grants no execution, Memory, Career Forge
+evidence, Project, or external-publication authority.
+
+Initial isolated candidate on the published Stage 25 baseline adds an
+owner-authenticated, read-only AT-SPI/GDK observation with timed IDs/digests,
+monitor geometry and bounded visible element metadata. It corrects AT-SPI
+child traversal and uses the desktop Screenshot portal when direct GNOME
+capture is denied; candidate pixel/metadata permissions are tightened.
+Perception presentation routes require restored local Owner trust and canonical
+Origin/CSRF on mutations.
+An isolated private SQLite task ledger now records bounded action claims,
+observation digests, cancellation and in-doubt crash recovery without granting
+desktop authority. Consequential claims remain blocked pending canonical
+approval integration.
+The owner physically granted GNOME RemoteDesktop pointer/keyboard permission
+once. A private persisted restore capability now opens a fresh worker/session
+without another GNOME dialog. Two fresh candidate API processes restored it
+and executed safe pointer/keyboard checks; this host returned the same token
+on restore, while atomic replacement remains implemented for a changed token.
+The controller now claims exact target/window/geometry fingerprints, not an
+unrelated whole-desktop clock label, and verifies each result. Live disposable
+GTK click/text/focus/shortcut, stale-geometry refusal and re-grounding,
+Chrome local navigation and one-goal no-submit form fill, GNOME Text Editor
+file focus, a visible error dialog, stop/cancel, worker restart, and two API
+process restores passed as candidate proofs. Protected Owner task/action/run/
+list/cancel routes, bounded permission status, an on-demand screen account and
+minimal Perception controls exist. The deterministic runner accepts exact
+Chrome navigation, named no-submit form fields, allowlisted Text Editor
+file goals, and a native owner-named click with an expected visible result;
+appended instructions fail closed. The native click goal changed a disposable
+GTK label and recorded one verified action. It re-grounds one proven stale
+pre-action target. A single-step local Qwen native proposal path exists, but
+four live qualifications, including an owner-bound expected-result revision,
+returned blocked with zero actions. An Owner-private route can re-observe an
+in-doubt semantic action's persisted result and record it as present without
+replay. Trusted legal native candidates, owner-object binding, and deterministic
+selection for one unique legal control replaced the repeatedly blocked raw
+Qwen proposal path. A live Owner UI request opened a menu and showed details
+in two independently verified steps with no per-action approval and no model
+call. Natural wording variants map to the same safe control; common browser
+URL wording shares the existing navigation workflow. Exact interrupted results
+are now bound to the original window. Explicit Owner Resume can skip a
+re-observed effect or continue after a never-started actor, while uncertain
+effects remain paused. A live GTK interruption completed after Owner
+re-observation/Resume with one original action and no replay; browser and API
+reload reconstructed the result. Stop intent is durable before waiting on the
+process-shared task guard; a live two-step cancellation stopped after the first
+verified action. The planner now exposes a typed, task-state-checked legal-action
+catalog with target/window/geometry identity, source observation, owner-goal
+match, risk, preconditions, trusted result class, and policy rationale. The
+Owner recovery projection shows the original window and latest recovery
+observation ID. The final deterministic suites qualify the legal-action
+catalog, ambiguity refusal/fallback, recovery invariants, Owner API/UI, and
+Stages 22–25 regression protections. The full repository gate passed 1,459
+Python tests with 6 expected skips; the frontend passed 132 tests plus two
+Owner bridge checks, lint, TypeScript and production build. Secret/security
+audit, CLI/syntax, dependency check, Ruff and diff checks passed. Ambiguous
+Qwen ranking itself remains unqualified: its live candidate returned blocked,
+then trusted bounded resolution completed without widening authority.
+Arbitrary browser pointer occlusion and canonical consequential-action
+authorization remain outside the accepted boundary. Real reboot/login and
+physical microphone qualification remain unproven; they were not simulated.
+An isolated Owner browser recovery journey showed one action interrupted after
+its real semantic effect, `recovery_required` reconstruction, a fresh
+result-present observation, unchanged one-action count after browser and API
+restart, and permission restoration without new consent. A live screen account
+identified the active disposable app and visible "Details ready" label after
+filtering GNOME's decorative active compositor frame; private screenshot
+portal capture and local OCR were exercised.
+Stage 26 is **QUALIFIED** for these bounded local workflows. Its audited
+capability and final-recovery commits still must be published to the Stage 26
+branch and fast-forwarded to remote `main` before it is accepted as a recovery
+checkpoint. Real machine reboot/login and physical microphone evidence remain
+unproven; arbitrary browser pointer occlusion and canonical consequential
+action authorization remain outside this bounded qualification. Row 61 remains
+PARTIAL, with external learner publication PARTIAL and final whole-product
+visual acceptance NOT STARTED.

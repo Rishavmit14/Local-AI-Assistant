@@ -510,6 +510,41 @@ export interface FridayVisualLabel {
   confidence: number;
 }
 
+export interface FridayComputerTask {
+  task_id: string;
+  owner_id: string;
+  request: string;
+  state: string;
+  created_at: string;
+  action_budget: number;
+  action_count: number;
+}
+
+export interface FridayComputerActionStatus {
+  action_id: string;
+  kind: string;
+  state: string;
+  outcome: string | null;
+  created_at: string;
+  target_app: string | null;
+  target_name: string | null;
+  expected_name: string | null;
+  execution_started: boolean;
+  recovery_status: string | null;
+  target_window: [string, string, string] | null;
+  recovery_observation_id: string | null;
+}
+
+export interface FridayScreenAccount {
+  summary: string;
+  application: string | null;
+  window: string | null;
+  capture_id: string | null;
+  semantic_elements: number;
+  ocr_available: boolean;
+  uncertainty: string;
+}
+
 export type FridayCapabilityMaturity =
   | "absent"
   | "partial"

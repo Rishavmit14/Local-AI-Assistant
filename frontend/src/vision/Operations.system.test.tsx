@@ -21,6 +21,7 @@ const capabilityRecords = [
 
 function systemResponses() {
   return {
+    "/api/v1/project-execution/restore": { mode: "restored", csrf_token: "owner-csrf" },
     "/api/v1/capabilities": { capabilities: capabilityRecords },
     "/health": { status: "ok", service: "friday-presentation", api_version: "v1" },
     "/api/v1/voice/health": {
@@ -115,10 +116,11 @@ describe("Astra System canonical projection", () => {
     expect(setItem).not.toHaveBeenCalled();
     expect(fetchMock.mock.calls.map(([url]) => url).sort()).toEqual([
       "/api/v1/capabilities", "/api/v1/interaction/state", "/api/v1/perception/active-window",
+      "/api/v1/project-execution/restore",
       "/api/v1/proactive/watches", "/api/v1/runtime/state", "/api/v1/voice/health",
       "/api/v1/voice/latency", "/health",
     ].sort());
-    expect(methods.every((method) => method === "GET")).toBe(true);
+    expect(methods.filter((method) => method === "POST")).toHaveLength(1);
     expect([...container!.querySelectorAll("button")].map((button) => button.textContent).join(" ")).toContain("Refresh status");
     expect(container?.textContent).not.toContain("Run demo diagnostics");
     expect(container?.textContent).not.toContain("Demo checks complete");

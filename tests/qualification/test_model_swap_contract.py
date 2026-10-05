@@ -131,7 +131,11 @@ def _candidate_env(base_url: str, model_id: str, state_root: Path) -> dict[str, 
         if not key.startswith("LOCAL_AI_")
     }
     inherited.update({
-        "PYTHONPATH": str(ROOT / "src"),
+        # Keep the candidate checkout first while preserving caller-provided
+        # test-only dependency overlays for disposable subprocesses.
+        "PYTHONPATH": os.pathsep.join(filter(None, (
+            str(ROOT / "src"), os.environ.get("PYTHONPATH", ""),
+        ))),
         "LOCAL_AI_BASE_URL": base_url,
         "LOCAL_AI_MODEL": model_id,
         "LOCAL_AI_CONTEXT_SIZE": "32",

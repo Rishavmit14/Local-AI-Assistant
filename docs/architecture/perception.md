@@ -44,7 +44,22 @@ records source provenance as `owner-selected-local-file`; it does not retain a
 link to the external source.
 
 On the current GNOME/Wayland host, direct session-bus capture is denied by the
-desktop privacy policy. Friday returns only a bounded permission-required result
-and cannot bypass that control. The owner-selected native screenshot route has
-qualified a retained capture locally; the direct GNOME route remains unavailable
-until the desktop grants its own consent.
+desktop privacy policy. The Stage 26 candidate uses the desktop Screenshot
+portal as an explicit capture fallback. A live portal request returned a local
+image; the service copied it into retained state and removed the disposable
+qualification copy afterward. Portal denial remains a bounded failure. This
+does not grant RemoteDesktop input permission or continuous screen streaming.
+Capture storage is tightened to a 0700 directory and 0600 image/SQLite files;
+the portal's temporary source remains managed by the desktop portal.
+The presentation capture, metadata, active-window, OCR, UI-state, and label
+routes now require the existing local Owner browser session; mutations require
+the canonical loopback Origin and CSRF check. The Perception and System clients
+restore that session through the accepted local Owner bridge and retry a single
+expired-session response. No Gateway action scope is inferred from observation.
+Stage 26 owner-requested screen accounts exclude GNOME's decorative
+`mutter-x11-frames` and `gnome-shell` active frames when selecting one real
+application window. A live disposable GTK window was then identified by app,
+title and the visible `Details ready` label; a private desktop Screenshot
+portal capture and local OCR were available. The account states that visible
+metadata cannot establish unseen work or intent. No image-native Qwen vision
+claim is made from this structured AT-SPI/OCR path.

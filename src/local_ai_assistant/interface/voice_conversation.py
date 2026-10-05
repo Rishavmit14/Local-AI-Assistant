@@ -111,6 +111,7 @@ class FridayVoiceConversationService:
         speech_player: VoiceSpeechPlayer | None = None,
         barge_in_monitor: VoiceBargeInMonitor | None = None,
         latency_stage: Callable[[str], None] | None = None,
+        on_explicit_stop: Callable[[], None] | None = None,
     ) -> None:
         if (
             speech_synthesizer
@@ -148,6 +149,7 @@ class FridayVoiceConversationService:
             barge_in_monitor
         )
         self.latency_stage = latency_stage
+        self.on_explicit_stop = on_explicit_stop
         self._explicit_session_close = False
 
     def begin_session(self) -> None:
@@ -258,8 +260,12 @@ class FridayVoiceConversationService:
             FridayRuntimeState.IDLE,
             reason="voice_explicit_stop",
         )
-        self.close_session()
-        self._explicit_session_close = True
+        try:
+            if self.on_explicit_stop is not None:
+                self.on_explicit_stop()
+        finally:
+            self.close_session()
+            self._explicit_session_close = True
 
         return True
 

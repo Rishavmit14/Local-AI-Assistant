@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import threading
+import time
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -32,7 +33,19 @@ from local_ai_assistant.career_forge import (
     TutorMode,
 )
 from local_ai_assistant.common.repository_files import read_repo_file_bounded
-from local_ai_assistant.desktop import DesktopAction, DesktopControlService
+from local_ai_assistant.desktop import (
+    AccessibilityObservationService,
+    DesktopAction,
+    DesktopControlService,
+)
+from local_ai_assistant.desktop.agency import (
+    AgencyAction,
+    ComputerAgencyController,
+    ElementIdentity,
+)
+from local_ai_assistant.desktop.portal_client import PortalDesktopClient
+from local_ai_assistant.desktop.runner import ComputerAgencyRunner
+from local_ai_assistant.desktop.screen_understanding import ScreenUnderstandingService
 from local_ai_assistant.execution.history import redact
 from local_ai_assistant.gateway.auth import (
     GatewayAuth,
@@ -476,6 +489,11 @@ def create_presentation_app(
     perception: ScreenCaptureService | None = None,
     active_window: ActiveWindowService | None = None,
     desktop_control: DesktopControlService | None = None,
+    accessibility_observation: AccessibilityObservationService | None = None,
+    computer_agency: ComputerAgencyController | None = None,
+    computer_portal: PortalDesktopClient | None = None,
+    computer_runner: ComputerAgencyRunner | None = None,
+    screen_understanding: ScreenUnderstandingService | None = None,
     autonomy: ObjectiveService | None = None,
     objective_execution_auth: GatewayAuth | None = None,
     objective_execution_requests_per_minute: int = 30,
@@ -932,6 +950,11 @@ def create_presentation_app(
         if desktop_control is None:
             raise HTTPException(status_code=404, detail="desktop control is unavailable")
         return desktop_control
+
+    def owner_computer_agency() -> ComputerAgencyController:
+        if computer_agency is None:
+            raise HTTPException(status_code=404, detail="computer agency is unavailable")
+        return computer_agency
 
     def owner_autonomy() -> ObjectiveService:
         if autonomy is None:
@@ -1511,6 +1534,216 @@ def create_presentation_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.get("/api/v1/computer/permission")
+    def computer_permission(request: Request):
+        context_owner(request)
+        if computer_portal is None:
+            raise HTTPException(404, detail="computer permission is unavailable")
+        try:
+            return {"status": computer_portal.start()}
+        except RuntimeError:
+            return {"status": "unavailable"}
+
+    @app.post("/api/v1/computer/screen/describe")
+    def describe_owner_screen(request: Request):
+        context_owner(request, mutation=True)
+        if screen_understanding is None:
+            raise HTTPException(503, detail="screen understanding is unavailable")
+        try:
+            return {"account": asdict(screen_understanding.describe())}
+        except RuntimeError as exc:
+            raise HTTPException(503, detail=str(exc)) from exc
+
+    last_computer_enrollment = 0.0
+    enrollment_lock = threading.Lock()
+
+    @app.post("/api/v1/computer/permission/enroll")
+    def enroll_computer_permission(request: Request):
+        nonlocal last_computer_enrollment
+        context_owner(request, mutation=True)
+        if computer_portal is None:
+            raise HTTPException(404, detail="computer permission is unavailable")
+        if computer_portal.start() == "active":
+            return {"status": "active"}
+        with enrollment_lock:
+            if time.monotonic() - last_computer_enrollment < 300:
+                raise HTTPException(429, detail="desktop permission recovery is rate limited")
+            last_computer_enrollment = time.monotonic()
+        try:
+            return {"status": computer_portal.enroll()}
+        except RuntimeError:
+            return {"status": "unavailable"}
+
+    @app.post("/api/v1/computer/permission/revoke")
+    def revoke_computer_permission(request: Request):
+        context_owner(request, mutation=True)
+        if computer_portal is None:
+            raise HTTPException(404, detail="computer permission is unavailable")
+        try:
+            computer_portal.revoke_local()
+            return {"status": "permission_required"}
+        except (OSError, RuntimeError) as exc:
+            raise HTTPException(409, detail="desktop permission could not be revoked safely") from exc
+
+    @app.get("/api/v1/computer/tasks")
+    def recent_computer_tasks(request: Request):
+        owner = context_owner(request)
+        return {"tasks": [asdict(task) for task in owner_computer_agency().ledger.recent_tasks(owner)]}
+
+    @app.post("/api/v1/computer/tasks")
+    async def create_computer_task(request: Request):
+        owner = context_owner(request, mutation=True)
+        body = await request.body()
+        if len(body) > 21_000:
+            raise HTTPException(413, detail="computer task is too large")
+        try:
+            payload = json.loads(body)
+            if not isinstance(payload, dict) or set(payload) != {"request", "action_budget"}:
+                raise ValueError("computer task is invalid")
+            if not isinstance(payload["request"], str) or type(payload["action_budget"]) is not int:
+                raise ValueError("computer task is invalid")
+            task = owner_computer_agency().ledger.create(
+                owner, payload["request"], action_budget=payload["action_budget"],
+            )
+            return {"task": asdict(task)}
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(400, detail=str(exc)) from exc
+
+    @app.get("/api/v1/computer/tasks/{task_id}")
+    def computer_task(task_id: str, request: Request):
+        owner = context_owner(request)
+        try:
+            task = owner_computer_agency().ledger.task(task_id)
+            if task.owner_id != owner:
+                raise ValueError("computer task is unavailable")
+            return {"task": asdict(task)}
+        except ValueError as exc:
+            raise HTTPException(404, detail=str(exc)) from exc
+
+    def owned_computer_task(task_id: str, owner: str):
+        try:
+            task = owner_computer_agency().ledger.task(task_id)
+        except ValueError as exc:
+            raise HTTPException(404, detail="computer task is unavailable") from exc
+        if task.owner_id != owner:
+            raise HTTPException(404, detail="computer task is unavailable")
+        return task
+
+    @app.get("/api/v1/computer/tasks/{task_id}/actions")
+    def recent_computer_actions(task_id: str, request: Request):
+        owner = context_owner(request)
+        service = owner_computer_agency()
+        owned_computer_task(task_id, owner)
+        return {"actions": [asdict(action) for action in service.ledger.recent_actions(task_id)]}
+
+    @app.post("/api/v1/computer/tasks/{task_id}/observe")
+    def observe_computer_task(task_id: str, request: Request):
+        owner = context_owner(request, mutation=True)
+        service = owner_computer_agency()
+        owned_computer_task(task_id, owner)
+        try:
+            return {"observation": asdict(service.observe(task_id))}
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/computer/tasks/{task_id}/actions")
+    async def act_computer_task(task_id: str, request: Request):
+        owner = context_owner(request, mutation=True)
+        service = owner_computer_agency()
+        owned_computer_task(task_id, owner)
+        raw = await request.body()
+        if len(raw) > 3072:
+            raise HTTPException(413, detail="computer action is too large")
+
+        def identity(value, *, expected=False):
+            if not isinstance(value, dict) or set(value) != {"path", "application", "role", "name"}:
+                raise ValueError("semantic identity is invalid")
+            path = value["path"]
+            if (not isinstance(path, list) or not (0 if expected else 1) <= len(path) <= 32
+                    or any(type(index) is not int or not 0 <= index < 100 for index in path)):
+                raise ValueError("semantic identity is invalid")
+            for key, limit in (("application", 128), ("role", 64), ("name", 256)):
+                if not isinstance(value[key], str) or len(value[key]) > limit:
+                    raise ValueError("semantic identity is invalid")
+            if value["role"] == "*" and (not expected or path):
+                raise ValueError("semantic identity is invalid")
+            return ElementIdentity(tuple(path), value["application"], value["role"], value["name"])
+
+        try:
+            payload = json.loads(raw)
+            required = {"kind", "observation_id", "target", "expected", "value"}
+            if (not isinstance(payload, dict) or not required.issubset(payload)
+                    or set(payload) - required - {
+                        "expected_focused", "expected_selection_all", "expected_text_exact",
+                        "expected_active", "expected_url",
+                    }):
+                raise ValueError("computer action is invalid")
+            if (not isinstance(payload["kind"], str) or not isinstance(payload["observation_id"], str)
+                    or not isinstance(payload["value"], str) or len(payload["value"]) > 256
+                    or (payload.get("expected_focused") is not None
+                        and type(payload["expected_focused"]) is not bool)
+                    or type(payload.get("expected_selection_all", False)) is not bool
+                    or type(payload.get("expected_text_exact", False)) is not bool
+                    or (payload.get("expected_active") is not None
+                        and type(payload["expected_active"]) is not bool)
+                    or not isinstance(payload.get("expected_url", ""), str)
+                    or len(payload.get("expected_url", "")) > 2048):
+                raise ValueError("computer action is invalid")
+            action = AgencyAction(payload["kind"], payload["observation_id"],
+                                  identity(payload["target"]), identity(payload["expected"], expected=True),
+                                  payload["value"], payload.get("expected_focused"),
+                                  payload.get("expected_selection_all", False),
+                                  payload.get("expected_text_exact", False),
+                                  payload.get("expected_active"), payload.get("expected_url", ""))
+            status = await run_in_threadpool(service.act, task_id, action)
+            return {"status": status}
+        except (RuntimeError, ValueError, TypeError) as exc:
+            raise HTTPException(409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/computer/tasks/{task_id}/actions/{action_id}/reconcile")
+    async def reconcile_computer_action(task_id: str, action_id: str, request: Request):
+        owner = context_owner(request, mutation=True)
+        service = owner_computer_agency()
+        owned_computer_task(task_id, owner)
+        try:
+            present = await run_in_threadpool(service.reconcile, task_id, action_id)
+            return {"status": "result_present" if present else "unresolved"}
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/computer/tasks/{task_id}/cancel")
+    def cancel_computer_task(task_id: str, request: Request):
+        owner = context_owner(request, mutation=True)
+        service = owner_computer_agency()
+        owned_computer_task(task_id, owner)
+        try:
+            service.cancel(task_id)
+            return {"task": asdict(service.ledger.task(task_id))}
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/computer/tasks/{task_id}/run")
+    async def run_computer_task(task_id: str, request: Request):
+        owner = context_owner(request, mutation=True)
+        owned_computer_task(task_id, owner)
+        if computer_runner is None:
+            raise HTTPException(503, detail="computer goal runner is unavailable")
+        try:
+            return {"task": asdict(await run_in_threadpool(computer_runner.run, task_id))}
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/computer/tasks/{task_id}/resume")
+    async def resume_computer_task(task_id: str, request: Request):
+        owner = context_owner(request, mutation=True)
+        owned_computer_task(task_id, owner)
+        if computer_runner is None:
+            raise HTTPException(503, detail="computer goal runner is unavailable")
+        try:
+            return {"task": asdict(await run_in_threadpool(computer_runner.resume, task_id))}
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(409, detail=str(exc)) from exc
+
     @app.post("/api/v1/desktop/actions")
     async def propose_desktop_action(request: Request):
         try:
@@ -1538,42 +1771,58 @@ def create_presentation_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/api/v1/perception/active-window")
-    def active_window_context():
+    def active_window_context(request: Request):
+        context_owner(request)
         if active_window is None:
             return {"context": {"status": "unavailable"}}
         return {"context": asdict(active_window.current())}
 
-    @app.post("/api/v1/perception/screen/capture")
-    def capture_screen():
-        """An explicit local request only; metadata never grants desktop control."""
+    @app.get("/api/v1/perception/accessibility/observe")
+    def observe_accessibility(request: Request):
+        context_owner(request)
+        if accessibility_observation is None:
+            raise HTTPException(status_code=503, detail="local accessibility observation is unavailable")
         try:
-            return {"capture": asdict(owner_perception().capture())}
+            return {"observation": asdict(accessibility_observation.observe())}
+        except RuntimeError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    @app.post("/api/v1/perception/screen/capture")
+    def capture_screen(request: Request):
+        """An explicit local request only; metadata never grants desktop control."""
+        context_owner(request, mutation=True)
+        try:
+            return {"capture": asdict(owner_perception().capture_with_consent())}
         except RuntimeError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     @app.get("/api/v1/perception/screen/captures")
-    def recent_screen_captures(limit: int = 20):
+    def recent_screen_captures(request: Request, limit: int = 20):
+        context_owner(request)
         try:
             return {"captures": [asdict(item) for item in owner_perception().recent(limit)]}
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.post("/api/v1/perception/screen/captures/{capture_id}/ocr")
-    def ocr_screen_capture(capture_id: str):
+    def ocr_screen_capture(capture_id: str, request: Request):
+        context_owner(request, mutation=True)
         try:
             return {"ocr": asdict(owner_perception().ocr(capture_id))}
         except (RuntimeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/v1/perception/screen/captures/{capture_id}/ui-state")
-    def inspect_screen_ui_state(capture_id: str):
+    def inspect_screen_ui_state(capture_id: str, request: Request):
+        context_owner(request, mutation=True)
         try:
             return {"ui_state": asdict(owner_perception().inspect_ui_state(capture_id))}
         except (RuntimeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/v1/perception/screen/captures/{capture_id}/visual-labels")
-    def classify_screen_capture(capture_id: str, top_k: int = 3):
+    def classify_screen_capture(capture_id: str, request: Request, top_k: int = 3):
+        context_owner(request, mutation=True)
         try:
             return {
                 "labels": [

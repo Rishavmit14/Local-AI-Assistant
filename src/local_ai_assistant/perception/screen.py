@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 import sqlite3
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 from uuid import uuid4
 
 from .vision import LocalVisionClassifier, VisualLabel
@@ -68,8 +70,10 @@ class ScreenCaptureService:
             return pytesseract.image_to_string(image, lang="eng")
 
     def _db(self) -> sqlite3.Connection:
-        self.capture_dir.mkdir(parents=True, exist_ok=True)
-        db = sqlite3.connect(self.capture_dir / "captures.sqlite3")
+        self._private_dir()
+        database = self.capture_dir / "captures.sqlite3"
+        db = sqlite3.connect(database)
+        database.chmod(0o600)
         db.execute(
             "CREATE TABLE IF NOT EXISTS captures (capture_id TEXT PRIMARY KEY, captured_at TEXT NOT NULL, "
             "sha256 TEXT NOT NULL, byte_size INTEGER NOT NULL, source TEXT NOT NULL "
@@ -80,7 +84,12 @@ class ScreenCaptureService:
             db.execute("ALTER TABLE captures ADD COLUMN source TEXT NOT NULL DEFAULT 'gnome-shell-screenshot'")
         return db
 
+    def _private_dir(self) -> None:
+        self.capture_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        self.capture_dir.chmod(0o700)
+
     def _record(self, capture_id: str, image_path: Path, *, source: str) -> ScreenCapture:
+        image_path.chmod(0o600)
         payload = image_path.read_bytes()
         if not payload:
             image_path.unlink(missing_ok=True)
@@ -98,7 +107,7 @@ class ScreenCaptureService:
         return capture
 
     def capture(self) -> ScreenCapture:
-        self.capture_dir.mkdir(parents=True, exist_ok=True)
+        self._private_dir()
         self.purge_expired()
         capture_id = f"screen_{uuid4().hex}"
         image_path = self.capture_dir / f"{capture_id}.png"
@@ -118,12 +127,78 @@ class ScreenCaptureService:
             raise RuntimeError("local screen capture failed")
         return self._record(capture_id, image_path, source="gnome-shell-screenshot")
 
+    def capture_with_consent(self) -> ScreenCapture:
+        """Use the desktop portal when Shell capture is denied by session policy."""
+        try:
+            return self.capture()
+        except RuntimeError as exc:
+            if str(exc) != "desktop privacy permission is required for screen capture":
+                raise
+        return self.capture_portal()
+
+    _PORTAL_SCRIPT = r"""
+import json, sys
+from gi.repository import Gio, GLib
+
+bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+loop = GLib.MainLoop()
+state = {'request': None, 'response': None}
+
+def on_response(_bus, _sender, path, _interface, _signal, parameters, _data):
+    if path != state['request']:
+        return
+    code, results = parameters.unpack()
+    state['response'] = results.get('uri') if code == 0 else None
+    loop.quit()
+
+bus.signal_subscribe('org.freedesktop.portal.Desktop',
+    'org.freedesktop.portal.Request', 'Response', None, None,
+    Gio.DBusSignalFlags.NONE, on_response, None)
+options = {'interactive': GLib.Variant('b', False),
+           'handle_token': GLib.Variant('s', 'friday_capture')}
+reply = bus.call_sync('org.freedesktop.portal.Desktop',
+    '/org/freedesktop/portal/desktop', 'org.freedesktop.portal.Screenshot',
+    'Screenshot', GLib.Variant('(sa{sv})', ('', options)),
+    GLib.VariantType.new('(o)'), Gio.DBusCallFlags.NONE, 10000, None)
+state['request'] = reply.unpack()[0]
+GLib.timeout_add_seconds(55, lambda: (loop.quit(), False)[1])
+loop.run()
+if not state['response']:
+    raise SystemExit(2)
+print(json.dumps({'uri': state['response']}))
+"""
+
+    def capture_portal(self) -> ScreenCapture:
+        """Request desktop-mediated screenshot consent and retain a private copy."""
+        self._private_dir()
+        self.purge_expired()
+        result = self._runner(
+            ["/usr/bin/python3", "-c", self._PORTAL_SCRIPT], capture_output=True,
+            text=True, check=False, timeout=65,
+        )
+        if result.returncode != 0:
+            raise RuntimeError("desktop screenshot portal consent is required or capture failed")
+        try:
+            uri = json.loads(result.stdout)["uri"]
+            parsed = urlsplit(uri)
+            if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
+                raise ValueError("invalid screenshot portal URI")
+            source = Path(unquote(parsed.path))
+            if not source.is_file() or source.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+                raise ValueError("invalid screenshot portal image")
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError("desktop screenshot portal returned no usable image") from exc
+        capture_id = f"screen_{uuid4().hex}"
+        image_path = self.capture_dir / f"{capture_id}.png"
+        shutil.copyfile(source, image_path)
+        return self._record(capture_id, image_path, source="desktop-screenshot-portal")
+
     def ingest_owner_file(self, source_path: Path) -> ScreenCapture:
         """Copy an owner-selected local image into private retention-controlled state."""
         source_path = source_path.expanduser().resolve()
         if source_path.suffix.lower() not in {".png", ".jpg", ".jpeg"} or not source_path.is_file():
             raise ValueError("owner-selected screenshot image is unavailable")
-        self.capture_dir.mkdir(parents=True, exist_ok=True)
+        self._private_dir()
         self.purge_expired()
         capture_id = f"screen_{uuid4().hex}"
         image_path = self.capture_dir / f"{capture_id}.png"

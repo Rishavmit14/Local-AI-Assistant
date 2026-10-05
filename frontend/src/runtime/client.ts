@@ -25,6 +25,9 @@ import type {
   FridayScreenText,
   FridayScreenUiState,
   FridayVisualLabel,
+  FridayComputerTask,
+  FridayComputerActionStatus,
+  FridayScreenAccount,
   FridayCapabilitiesSnapshot,
   FridayPresentationHealth,
   FridayVoiceRuntimeHealth,
@@ -73,6 +76,8 @@ async function responseDetail(response: Response): Promise<string> {
 
 export class FridayRuntimeClient {
   private readonly baseUrl: string;
+  private perceptionCsrf: string | null = null;
+  private perceptionRestore: Promise<string | null> | null = null;
 
   constructor(baseUrl = "") {
     this.baseUrl = baseUrl.replace(/\/$/, "");
@@ -545,40 +550,124 @@ export class FridayRuntimeClient {
     return response.json() as Promise<PracticeLab>;
   }
 
+  private async perceptionRequest(url: string, method: "GET" | "POST", signal?: AbortSignal, body?: unknown): Promise<Response> {
+    if (!this.perceptionCsrf) this.perceptionCsrf = await this.restorePerceptionOwner();
+    if (!this.perceptionCsrf) throw new Error("local Owner session is required for perception");
+    const send = () => fetch(url, {
+      method, credentials: "same-origin", signal,
+      ...(method === "POST" ? { headers: { "X-Friday-CSRF": this.perceptionCsrf!, ...(body === undefined ? {} : { "Content-Type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) } : {}),
+    });
+    let response = await send();
+    if (response.status === 401 || response.status === 403) {
+      this.perceptionCsrf = await this.restorePerceptionOwner();
+      if (!this.perceptionCsrf) throw new Error("local Owner session is required for perception");
+      response = await send();
+    }
+    return response;
+  }
+
+  private async restorePerceptionOwner(): Promise<string | null> {
+    if (!this.perceptionRestore) {
+      this.perceptionRestore = this.restoreProjectExecution().finally(() => { this.perceptionRestore = null; });
+    }
+    return this.perceptionRestore;
+  }
+
   async getScreenCaptures(signal?: AbortSignal): Promise<FridayScreenCapture[]> {
-    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures?limit=100`, { signal });
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/perception/screen/captures?limit=100`, "GET", signal);
     if (!response.ok) throw await this.perceptionError("screen metadata request failed", response);
     return (await response.json() as { captures: FridayScreenCapture[] }).captures;
   }
 
   async captureScreen(): Promise<FridayScreenCapture> {
-    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/capture`, { method: "POST" });
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/perception/screen/capture`, "POST");
     if (!response.ok) throw await this.perceptionError("screen capture request failed", response);
     return (await response.json() as { capture: FridayScreenCapture }).capture;
   }
 
   async getActiveWindowContext(signal?: AbortSignal): Promise<FridayActiveWindowContext> {
-    const response = await fetch(`${this.baseUrl}/api/v1/perception/active-window`, { signal });
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/perception/active-window`, "GET", signal);
     if (!response.ok) throw await this.perceptionError("active-window request failed", response);
     return (await response.json() as { context: FridayActiveWindowContext }).context;
   }
 
   async getScreenText(captureId: string): Promise<FridayScreenText> {
-    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures/${encodeURIComponent(captureId)}/ocr`, { method: "POST" });
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/perception/screen/captures/${encodeURIComponent(captureId)}/ocr`, "POST");
     if (!response.ok) throw await this.perceptionError("screen OCR request failed", response);
     return (await response.json() as { ocr: FridayScreenText }).ocr;
   }
 
   async getScreenUiState(captureId: string): Promise<FridayScreenUiState> {
-    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures/${encodeURIComponent(captureId)}/ui-state`, { method: "POST" });
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/perception/screen/captures/${encodeURIComponent(captureId)}/ui-state`, "POST");
     if (!response.ok) throw await this.perceptionError("screen UI-state request failed", response);
     return (await response.json() as { ui_state: FridayScreenUiState }).ui_state;
   }
 
   async getScreenVisualLabels(captureId: string): Promise<FridayVisualLabel[]> {
-    const response = await fetch(`${this.baseUrl}/api/v1/perception/screen/captures/${encodeURIComponent(captureId)}/visual-labels`, { method: "POST" });
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/perception/screen/captures/${encodeURIComponent(captureId)}/visual-labels`, "POST");
     if (!response.ok) throw await this.perceptionError("visual-label request failed", response);
     return (await response.json() as { labels: FridayVisualLabel[] }).labels;
+  }
+
+  async getComputerPermission(): Promise<string> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/permission`, "GET");
+    if (!response.ok) throw await this.perceptionError("computer permission request failed", response);
+    return (await response.json() as { status: string }).status;
+  }
+
+  async describeCurrentScreen(): Promise<FridayScreenAccount> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/screen/describe`, "POST");
+    if (!response.ok) throw await this.perceptionError("screen account request failed", response);
+    return (await response.json() as { account: FridayScreenAccount }).account;
+  }
+
+  async createComputerTask(request: string, actionBudget = 16): Promise<FridayComputerTask> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/tasks`, "POST", undefined,
+      { request, action_budget: actionBudget });
+    if (!response.ok) throw await this.perceptionError("computer task creation failed", response);
+    return (await response.json() as { task: FridayComputerTask }).task;
+  }
+
+  async getRecentComputerTasks(): Promise<FridayComputerTask[]> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/tasks`, "GET");
+    if (!response.ok) throw await this.perceptionError("computer task list failed", response);
+    return (await response.json() as { tasks: FridayComputerTask[] }).tasks;
+  }
+
+  async runComputerTask(taskId: string): Promise<FridayComputerTask> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/tasks/${encodeURIComponent(taskId)}/run`, "POST");
+    if (!response.ok) throw await this.perceptionError("computer task failed", response);
+    return (await response.json() as { task: FridayComputerTask }).task;
+  }
+
+  async resumeComputerTask(taskId: string): Promise<FridayComputerTask> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/tasks/${encodeURIComponent(taskId)}/resume`, "POST");
+    if (!response.ok) throw await this.perceptionError("computer task recovery failed", response);
+    return (await response.json() as { task: FridayComputerTask }).task;
+  }
+
+  async getComputerTask(taskId: string): Promise<FridayComputerTask> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/tasks/${encodeURIComponent(taskId)}`, "GET");
+    if (!response.ok) throw await this.perceptionError("computer task request failed", response);
+    return (await response.json() as { task: FridayComputerTask }).task;
+  }
+
+  async getComputerActions(taskId: string): Promise<FridayComputerActionStatus[]> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/tasks/${encodeURIComponent(taskId)}/actions`, "GET");
+    if (!response.ok) throw await this.perceptionError("computer action history failed", response);
+    return (await response.json() as { actions: FridayComputerActionStatus[] }).actions;
+  }
+
+  async reconcileComputerAction(taskId: string, actionId: string): Promise<string> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/tasks/${encodeURIComponent(taskId)}/actions/${encodeURIComponent(actionId)}/reconcile`, "POST");
+    if (!response.ok) throw await this.perceptionError("computer recovery observation failed", response);
+    return (await response.json() as { status: string }).status;
+  }
+
+  async cancelComputerTask(taskId: string): Promise<FridayComputerTask> {
+    const response = await this.perceptionRequest(`${this.baseUrl}/api/v1/computer/tasks/${encodeURIComponent(taskId)}/cancel`, "POST");
+    if (!response.ok) throw await this.perceptionError("computer task cancellation failed", response);
+    return (await response.json() as { task: FridayComputerTask }).task;
   }
 
   private async perceptionError(prefix: string, response: Response): Promise<Error> {

@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -16,6 +17,9 @@ def test_screen_capture_is_private_metadata_and_uses_gnome_shell(tmp_path):
     assert capture.capture_id.startswith("screen_")
     assert capture.byte_size == len(b"private-screen")
     assert (tmp_path / f"{capture.capture_id}.png").is_file()
+    assert tmp_path.stat().st_mode & 0o777 == 0o700
+    assert (tmp_path / f"{capture.capture_id}.png").stat().st_mode & 0o777 == 0o600
+    assert (tmp_path / "captures.sqlite3").stat().st_mode & 0o777 == 0o600
 
 
 def test_screen_capture_removes_failed_or_empty_output(tmp_path):
@@ -119,6 +123,51 @@ def test_owner_selected_image_is_copied_into_private_retention_state(tmp_path):
     capture = ScreenCaptureService(tmp_path / "private").ingest_owner_file(source)
     assert capture.source == "owner-selected-local-file"
     assert (tmp_path / "private" / f"{capture.capture_id}.png").is_file()
+
+
+def test_portal_capture_copies_only_consented_image_into_private_retention(tmp_path):
+    source = tmp_path / "portal.png"
+    source.write_bytes(b"portal-image")
+    service = ScreenCaptureService(
+        tmp_path / "private",
+        runner=lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout=json.dumps({"uri": source.as_uri()}),
+        ),
+    )
+    capture = service.capture_portal()
+    assert capture.source == "desktop-screenshot-portal"
+    assert (tmp_path / "private" / f"{capture.capture_id}.png").read_bytes() == b"portal-image"
+    assert source.read_bytes() == b"portal-image"
+
+
+def test_owner_capture_uses_portal_after_shell_privacy_denial(tmp_path):
+    source = tmp_path / "portal.png"
+    source.write_bytes(b"portal-image")
+
+    def runner(command, **_kwargs):
+        if command[0] == "gdbus":
+            return SimpleNamespace(returncode=1, stderr="GDBus.Error:org.freedesktop.DBus.Error.AccessDenied")
+        return SimpleNamespace(returncode=0, stdout=json.dumps({"uri": source.as_uri()}))
+
+    capture = ScreenCaptureService(tmp_path / "private", runner=runner).capture_with_consent()
+    assert capture.source == "desktop-screenshot-portal"
+
+
+@pytest.mark.parametrize("returncode,uri", [
+    (2, ""),
+    (0, "https://example.com/screenshot.png"),
+    (0, "file:///missing/screenshot.png"),
+])
+def test_portal_capture_fails_closed_without_usable_consented_image(tmp_path, returncode, uri):
+    service = ScreenCaptureService(
+        tmp_path / "private",
+        runner=lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=returncode, stdout=json.dumps({"uri": uri}),
+        ),
+    )
+    with pytest.raises(RuntimeError, match="portal"):
+        service.capture_portal()
+    assert not list((tmp_path / "private").glob("*.png"))
 
 
 def test_visual_labels_require_retained_capture_and_explicit_specialist(tmp_path):

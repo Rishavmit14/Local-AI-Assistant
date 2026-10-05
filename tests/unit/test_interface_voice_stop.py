@@ -47,7 +47,7 @@ class FixedTranscriber:
         )
 
 
-def build_voice(*, transcript: str = "unused"):
+def build_voice(*, transcript: str = "unused", on_explicit_stop=None):
     runtime = FridayRuntime(
         "stage12d-stop-contract"
     )
@@ -60,6 +60,7 @@ def build_voice(*, transcript: str = "unused"):
         transcriber=transcriber,
         conversation=conversation,
         runtime=runtime,
+        on_explicit_stop=on_explicit_stop,
     )
     voice.start_listening()
 
@@ -69,6 +70,17 @@ def build_voice(*, transcript: str = "unused"):
         conversation,
         transcriber,
     )
+
+
+def test_exact_voice_stop_invokes_computer_cancel_hook_once_without_llm():
+    calls = []
+    voice, runtime, conversation, _transcriber = build_voice(
+        on_explicit_stop=lambda: calls.append("cancelled"),
+    )
+    assert list(voice.stream_text("Friday, stop.")) == []
+    assert calls == ["cancelled"]
+    assert conversation.prompts == []
+    assert runtime.state is FridayRuntimeState.IDLE
 
 
 @pytest.mark.parametrize(

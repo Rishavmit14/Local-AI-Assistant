@@ -18,7 +18,13 @@ from local_ai_assistant.code_index.repository import CodeRAG
 from local_ai_assistant.cognition import CognitiveController
 from local_ai_assistant.common.config import AppConfig, get_config
 from local_ai_assistant.common.logging import configure_logging
-from local_ai_assistant.desktop import DesktopControlService
+from local_ai_assistant.desktop import AccessibilityObservationService, DesktopControlService
+from local_ai_assistant.desktop.agency import ComputerAgencyController
+from local_ai_assistant.desktop.agency_ledger import ComputerAgencyLedger
+from local_ai_assistant.desktop.goal_planner import GroundedGoalPlanner
+from local_ai_assistant.desktop.portal_client import PortalDesktopClient
+from local_ai_assistant.desktop.runner import ComputerAgencyRunner
+from local_ai_assistant.desktop.screen_understanding import ScreenUnderstandingService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
 from local_ai_assistant.gateway.github import GitHubHttpTransport
@@ -197,6 +203,25 @@ def build_presentation_components(
         allowed_file_roots=resolved_config.desktop_control.allowed_file_roots,
         allowed_accessibility_targets=resolved_config.desktop_control.allowed_accessibility_targets,
         approval_seconds=resolved_config.desktop_control.approval_seconds,
+    )
+    restore_file = Path(os.environ.get(
+        "LOCAL_AI_DESKTOP_RESTORE_TOKEN_FILE",
+        str(Path.home() / ".local/state/friday/desktop-restore-token"),
+    ))
+    computer_portal = PortalDesktopClient(restore_file)
+    if restore_file.is_file():
+        try:
+            computer_portal.start()
+        except RuntimeError:
+            pass  # Explicit Owner status reports unavailable; startup remains safe.
+    computer_agency = ComputerAgencyController(
+        ComputerAgencyLedger(resolved_config.paths.var_dir / "computer-agency/tasks.sqlite3"),
+        AccessibilityObservationService(), computer_portal,
+    )
+    computer_runner = ComputerAgencyRunner(
+        computer_agency.ledger, computer_portal,
+        allowed_file_roots=resolved_config.desktop_control.allowed_file_roots,
+        goal_planner=GroundedGoalPlanner(roles.client(Role.COMPUTER)),
     )
     history = TaskHistoryService(
         TaskHistoryStore(resolved_config.paths.task_history_db),
@@ -475,6 +500,7 @@ def build_presentation_components(
         runtime=runtime,
         conversation=conversation,
         interactions=interactions,
+        on_explicit_stop=computer_agency.stop_all,
     )
 
     app = create_presentation_app(
@@ -496,6 +522,11 @@ def build_presentation_components(
         practice_lab=practice_lab,
         perception=perception,
         active_window=ActiveWindowService(),
+        accessibility_observation=AccessibilityObservationService(),
+        computer_agency=computer_agency,
+        computer_portal=computer_portal,
+        computer_runner=computer_runner,
+        screen_understanding=ScreenUnderstandingService(AccessibilityObservationService(), perception),
         desktop_control=desktop_control,
         autonomy=autonomy,
         objective_execution_auth=execution_auth,
@@ -524,7 +555,7 @@ def build_presentation_components(
         rollback_gateway_token=rollback_gateway_token or None,
         rollback_allowed_origins=rollback_origins,
         on_startup=(proactive_runtime.start if resolved_config.proactive.enabled else None),
-        on_shutdown=lambda: (proactive_runtime.close(), gateway.close(), execution.close()),
+        on_shutdown=lambda: (computer_portal.close(), proactive_runtime.close(), gateway.close(), execution.close()),
     )
 
     return (

@@ -8,6 +8,9 @@ import type {
   FridayScreenText,
   FridayScreenUiState,
   FridayVisualLabel,
+  FridayComputerTask,
+  FridayComputerActionStatus,
+  FridayScreenAccount,
 } from "../runtime";
 import { SectionHeader, Status } from "./ui";
 import "./Perception.css";
@@ -15,6 +18,103 @@ import "./Perception.css";
 function displayTime(value: string): string {
   const parsed = new Date(value);
   return Number.isNaN(parsed.valueOf()) ? value : parsed.toLocaleString();
+}
+
+function ComputerAgencyPanel({ client }: { client: FridayRuntimeClient }) {
+  const [goal, setGoal] = useState("");
+  const [permission, setPermission] = useState<string | null>(null);
+  const [task, setTask] = useState<FridayComputerTask | null>(null);
+  const [account, setAccount] = useState<FridayScreenAccount | null>(null);
+  const [actions, setActions] = useState<FridayComputerActionStatus[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    void client.getRecentComputerTasks().then((tasks) => {
+      if (mounted) setTask(tasks[0] ?? null);
+    }).catch(() => {});
+    return () => { mounted = false; };
+  }, [client]);
+
+  async function runGoal() {
+    if (!goal.trim() || busy) return;
+    setBusy("task");
+    setError(null);
+    let current: FridayComputerTask | null = null;
+    try {
+      current = await client.createComputerTask(goal.trim());
+      setActions(null);
+      setTask(current);
+      setTask(await client.runComputerTask(current.task_id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Computer task failed");
+      if (current) void client.getComputerTask(current.task_id).then(setTask).catch(() => {});
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function cancelGoal() {
+    if (!task || !["active", "recovery_required"].includes(task.state)) return;
+    try { setTask(await client.cancelComputerTask(task.task_id)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Computer task could not be stopped"); }
+  }
+
+  async function inspectScreen() {
+    setBusy("screen");
+    setError(null);
+    try { setAccount(await client.describeCurrentScreen()); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Screen account is unavailable"); }
+    finally { setBusy(null); }
+  }
+
+  async function inspectRecovery() {
+    if (!task || busy) return;
+    setBusy("recovery");
+    setError(null);
+    try { setActions(await client.getComputerActions(task.task_id)); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Recovery history is unavailable"); }
+    finally { setBusy(null); }
+  }
+
+  async function reconcileAction(actionId: string) {
+    if (!task || busy) return;
+    setBusy("recovery");
+    setError(null);
+    try {
+      await client.reconcileComputerAction(task.task_id, actionId);
+      setActions(await client.getComputerActions(task.task_id));
+      setTask(await client.getComputerTask(task.task_id));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Recovery observation failed"); }
+    finally { setBusy(null); }
+  }
+
+  async function resumeRecoveredTask() {
+    if (!task || busy) return;
+    setBusy("recovery");
+    setError(null);
+    try {
+      const resumed = await client.resumeComputerTask(task.task_id);
+      setTask(resumed);
+      setActions(await client.getComputerActions(task.task_id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Computer task could not resume safely");
+      void client.getComputerTask(task.task_id).then(setTask).catch(() => {});
+    } finally { setBusy(null); }
+  }
+
+  return <section className="op-screen-computer" aria-label="Computer agency">
+    <div className="op-screen-section-heading"><div><Monitor size={17}/><h2>Computer tasks</h2></div><Status tone={permission === "active" ? "green" : "amber"}>{permission ?? "Status not checked"}</Status></div>
+    <p className="op-screen-explainer">Owner requested desktop tasks use the saved local GNOME permission. Friday checks the result after each action. Supported goals include Chrome navigation, a named Chrome form with “do not submit”, opening an allowed text file in Text Editor, and up to three safe native control steps such as “Open menu then Show details”. Friday selects only controls tied to the goal and verifies new visible content. Other goals stop safely.</p>
+    <div className="op-screen-actions"><button className="btn" type="button" onClick={() => void client.getComputerPermission().then(setPermission).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Permission status unavailable"))}>Check permission</button><button className="btn" type="button" onClick={() => void inspectScreen()} disabled={busy !== null}>{busy === "screen" ? "Looking…" : "Tell me what is on screen"}</button></div>
+    <label className="op-screen-goal">Computer task goal<textarea value={goal} maxLength={2000} onChange={(event) => setGoal(event.target.value)} placeholder="Open Chrome and go to https://example.com" /></label>
+    <div className="op-screen-actions"><button className="btn btn-primary" type="button" onClick={() => void runGoal()} disabled={!goal.trim() || busy !== null}>{busy === "task" ? "Running task…" : "Run bounded task"}</button><button className="btn" type="button" onClick={() => void cancelGoal()} disabled={!task || !["active", "recovery_required"].includes(task.state)}>Stop task</button>{task ? <button className="btn" type="button" onClick={() => void client.getComputerTask(task.task_id).then(setTask).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Task status unavailable"))}>Refresh task</button> : null}{task?.state === "recovery_required" ? <button className="btn" type="button" onClick={() => void inspectRecovery()} disabled={busy !== null}>Inspect recovery</button> : null}</div>
+    {task ? <p className="op-screen-task-status" role="status">Task {task.task_id}: {task.state.replaceAll("_", " ")} · {task.action_count}/{task.action_budget} actions</p> : null}
+    {task?.state === "recovery_required" && actions ? <div className="op-screen-result"><h3>Paused action history</h3><p>A fresh observation can show an expected result. Friday never replays an uncertain physical action automatically. A safe native plan can continue only after the Owner chooses Resume and Friday checks current evidence again.</p>{actions.map((action) => <div key={action.action_id}><p>{action.kind.replaceAll("_", " ")} · {action.state.replaceAll("_", " ")} · {action.execution_started ? "execution started" : "not started"}</p><p>{action.target_app ?? "Unknown app"}{action.target_name ? ` · ${action.target_name}` : ""}{action.target_window ? ` · window: ${action.target_window[2]}` : " · window unknown"}{action.expected_name ? ` · expected: ${action.expected_name}` : ""}</p><p>{action.recovery_status === "result_present" ? "Expected result is visible; task remains paused." : action.recovery_status === "not_observed" ? "Expected result was not seen; action outcome remains uncertain." : action.recovery_status === "ambiguous" ? "Multiple matching results were seen; action outcome remains uncertain." : action.recovery_status === "window_unbound" ? "This older action has no trusted window binding; its effect cannot be reconciled automatically." : "No recovery observation yet."}{action.recovery_observation_id ? ` Latest observation: ${action.recovery_observation_id}.` : ""}</p>{action.state === "in_doubt" && action.recovery_status !== "window_unbound" ? <button className="btn" type="button" disabled={busy !== null} onClick={() => void reconcileAction(action.action_id)}>Re-observe result</button> : null}</div>)}{actions[0] && (actions[0].state === "result_present" || (actions[0].state === "in_doubt" && !actions[0].execution_started)) ? <button className="btn" type="button" disabled={busy !== null} onClick={() => void resumeRecoveredTask()}>Resume safe plan</button> : null}</div> : null}
+    {account ? <div className="op-screen-result" role="status"><h3>Current screen account</h3><p>{account.summary}</p><small>{account.uncertainty}</small></div> : null}
+    {error ? <div className="op-screen-error" role="alert"><p>{error}</p></div> : null}
+  </section>;
 }
 
 export function PerceptionWorkspace() {
@@ -105,7 +205,7 @@ export function PerceptionWorkspace() {
     <SectionHeader
       eyebrow="FRIDAY / EXPLICIT LOCAL OBSERVATION"
       title="Perception"
-      description="Inspect retained capture metadata and request bounded local observations. Friday does not receive screen control here."
+      description="Inspect private local observations and run bounded Owner computer tasks."
       actions={<>
         <button className="btn" type="button" onClick={() => void refresh()} disabled={refreshing}>
           <RefreshCw size={15}/>{refreshing ? "Refreshing" : "Refresh"}
@@ -116,7 +216,9 @@ export function PerceptionWorkspace() {
       </>}
     />
 
-    <div className="op-screen-authority" role="note"><ShieldCheck size={18}/><p>Capture is an explicit request to Friday's GNOME screenshot service. The desktop can deny it. Pixels stay in private local retention; this view receives metadata and only the text or labels you explicitly request. No click, typing, focus, shell, file, Git, objective, or learner action is available here.</p></div>
+    <div className="op-screen-authority" role="note"><ShieldCheck size={18}/><p>Capture is an explicit request through the desktop screenshot service or consent portal. Pixels stay in private local retention. Computer tasks use separate Owner authorization, a saved local desktop grant, bounded actions, and result checks. Screen content cannot grant new authority.</p></div>
+
+    <ComputerAgencyPanel client={client}/>
 
     {error ? <div className="op-screen-error" role="alert"><p>Friday's canonical capture list could not be read: {error}{hasSnapshot ? " The last confirmed list remains visible." : " No capture data is available."}</p><button className="btn" type="button" onClick={() => void refresh()} disabled={refreshing}>Retry</button></div> : null}
     {actionError ? <div className="op-screen-error" role="alert"><p>{actionError}</p><button className="btn" type="button" onClick={() => setActionError(null)}>Dismiss</button></div> : null}
