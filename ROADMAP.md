@@ -1996,7 +1996,7 @@ canonical consequential-action authorization remain outside this bounded
 qualification. Row 61 remains PARTIAL, with external learner publication
 PARTIAL and final whole-product visual acceptance NOT STARTED.
 
-## Stage 27 — Authenticated learner-artifact publication (**EXTERNAL JOURNEY QUALIFIED; final acceptance pending**)
+## Stage 27 — Authenticated learner-artifact publication (**QUALIFIED**)
 
 The isolated candidate adds an Owner-session/CSRF browser path to request
 publication of an already approved Career Forge artifact through the existing
@@ -2027,6 +2027,8 @@ fake-transport tests cover idempotency and uncertain side-effect reconciliation.
 This bounded external journey is qualified. Final Stage 27 and Stage 22–26
 Python/repository gates pass (1,467 passed, 6 skipped), as do the 133-test
 frontend suite, Owner bridge checks, lint, typecheck, build, dependency
-consistency checks, changed-file Ruff, and secret-pattern audit. Stage 27 code
-commit/push and remote recovery verification remain before acceptance. Row 61
-remains PARTIAL because whole-product visual acceptance is NOT STARTED.
+consistency checks, changed-file Ruff, and secret-pattern audit pass. Capability
+commit `672c9e9b8d562f868437e4518349c1ca3735ac43` is published to the Stage 27
+branch and fast-forwarded to `origin/main`; fetched refs match and GitHub
+attributes author and committer to `Rishavmit14`. Row 61 remains PARTIAL because
+whole-product visual acceptance is NOT STARTED.

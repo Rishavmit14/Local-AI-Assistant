@@ -2463,5 +2463,7 @@ Final Stage 27 and Stage 22–26 Python/repository regressions now pass:
 for all **98 packages**. Frontend verification passes **133 tests across 20
 files**, 2 Owner bridge checks, ESLint, TypeScript, and production build (the
 existing large-chunk advisory remains). Changed-file Ruff, diff checks, and the
-final secret-pattern audit pass. Stage 27 code commit/push and fetched remote
-recovery verification remain pending.
+final secret-pattern audit pass. Capability commit
+`672c9e9b8d562f868437e4518349c1ca3735ac43` is pushed to
+`stage-27/authenticated-learner-publication` and fast-forwarded to `origin/main`;
+fetched refs match and GitHub attributes author and committer to `Rishavmit14`.

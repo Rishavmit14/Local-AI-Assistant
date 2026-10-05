@@ -44,6 +44,7 @@ credential. One real publication to
 commit and blob. The record reconstructed after candidate API restart and
 browser reload. Deterministic fake transport remains the primary retry,
 idempotency, and uncertain-side-effect recovery evidence; the real repository
-was written only once. Full Stage 27 acceptance remains gated on final
-regression/security checks and publication of the Stage 27 code recovery
-commit.
+was written only once. Full Stage 27 and Stage 22–26 regression/security gates
+passed. Capability commit `672c9e9b8d562f868437e4518349c1ca3735ac43` is
+published to the Stage 27 branch and fast-forwarded to `origin/main`; GitHub
+attributes both author and committer to `Rishavmit14`.
