@@ -293,7 +293,35 @@ def build_presentation_components(
         executor=execution,
     )
     github_token = os.environ.get("LOCAL_AI_GITHUB_TOKEN", "").strip()
-    publication_mappings = tuple(item for item in mappings if item.github_owner and item.github_name)
+    credential_ref = resolved_config.gateway.github_credential_ref
+    allowed_repository = resolved_config.gateway.github_allowed_repository
+    if resolved_config.gateway.github_enabled and credential_ref:
+        from local_ai_assistant.gateway.github import GitHubCliKeyringCredential
+
+        expected_login = credential_ref.split(":", 2)[2]
+        github_token = GitHubCliKeyringCredential().resolve()
+        identity_transport = GitHubHttpTransport(
+            github_token, api_host=resolved_config.gateway.github_api_host,
+        )
+        actual_login = identity_transport.get_authenticated_user()["login"]
+        if actual_login.casefold() != expected_login.casefold():
+            raise ValueError("configured GitHub keyring identity does not match authenticated account")
+        owner, repository_name = allowed_repository.split("/", 1)
+        destination = identity_transport.get_repository(owner, repository_name)
+        if (
+            destination.get("full_name", "").casefold() != allowed_repository.casefold()
+            or destination.get("private") is not False
+            or not isinstance(destination.get("permissions"), dict)
+            or destination["permissions"].get("push") is not True
+        ):
+            raise ValueError("configured GitHub destination is not the exact public writable repository")
+    publication_mappings = tuple(
+        item for item in mappings
+        if item.github_owner and item.github_name
+        and (not allowed_repository or f"{item.github_owner}/{item.github_name}".casefold() == allowed_repository.casefold())
+    )
+    if resolved_config.gateway.github_enabled and credential_ref and not publication_mappings:
+        raise ValueError("exact GitHub publication destination is not registered")
     career_publication = (
         GitHubPublicationService(
             history,

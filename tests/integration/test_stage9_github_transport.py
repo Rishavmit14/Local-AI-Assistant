@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import json
-
-import pytest
 from urllib.error import HTTPError
 
+import pytest
+
+from local_ai_assistant.gateway.errors import (
+    GitHubAuthenticationError,
+    GitHubOversizedResponseError,
+    GitHubPermissionError,
+    GitHubRateLimitError,
+    GitHubTransientError,
+    GitHubValidationError,
+)
 from local_ai_assistant.gateway.github import GitHubHttpTransport
-from local_ai_assistant.gateway.publication import RetryPolicy
-from local_ai_assistant.gateway.errors import GitHubTransientError
-from local_ai_assistant.gateway.errors import GitHubAuthenticationError, GitHubPermissionError, GitHubRateLimitError, GitHubTransientError, GitHubValidationError, GitHubOversizedResponseError
-from local_ai_assistant.gateway.publication import GitHubPublicationService
+from local_ai_assistant.gateway.publication import GitHubPublicationService, RetryPolicy
 
 
 class _Response:
@@ -55,6 +60,13 @@ def test_production_transport_typed_http_errors(monkeypatch, code, headers, erro
     assert str(caught.value) and getattr(caught.value, "category")
 
 
+def test_missing_external_branch_is_a_normal_unpublished_state(monkeypatch):
+    def missing(request, timeout):
+        raise HTTPError(request.full_url, 404, "missing", {}, None)
+    monkeypatch.setattr("local_ai_assistant.gateway.github.urlopen", missing)
+    assert GitHubHttpTransport("token").get_branch_sha("acme", "demo", "friday/task/new") is None
+
+
 def test_retry_policy_is_bounded_and_injectable():
     delays = []
     policy = RetryPolicy(max_attempts=3, initial_backoff=1, max_backoff=2)
@@ -65,16 +77,20 @@ def test_retry_policy_is_bounded_and_injectable():
             raise GitHubTransientError("temporary")
     for attempt in range(1, policy.max_attempts + 1):
         try:
-            operation(); break
+            operation()
+            break
         except GitHubTransientError:
-            if attempt == policy.max_attempts: raise
+            if attempt == policy.max_attempts:
+                raise
             delays.append(min(policy.max_backoff, policy.initial_backoff * (2 ** (attempt - 1))))
     assert attempts["n"] == 3 and delays == [1, 2]
 
 
 def test_pr_timeout_after_remote_success_reconciles_without_duplicate_create():
     class Transport:
-        def __init__(self): self.creates = 0; self.reconciled = False
+        def __init__(self):
+            self.creates = 0
+            self.reconciled = False
         def create_pull_request(self, *args, **kwargs):
             self.creates += 1
             raise GitHubTransientError("timeout after remote success")
@@ -82,7 +98,9 @@ def test_pr_timeout_after_remote_success_reconciles_without_duplicate_create():
             self.reconciled = True
             return [{"id": 9, "number": 9}]
     service = object.__new__(GitHubPublicationService)
-    service.transport = Transport(); service.retry_policy = __import__("local_ai_assistant.gateway.publication", fromlist=["RetryPolicy"]).RetryPolicy(max_attempts=3, initial_backoff=0, max_backoff=0); service._sleeper = lambda _delay: None
+    service.transport = Transport()
+    service.retry_policy = RetryPolicy(max_attempts=3, initial_backoff=0, max_backoff=0)
+    service._sleeper = lambda _delay: None
     mapping = type("M", (), {"github_owner": "acme", "github_name": "demo"})()
     task = type("T", (), {"task_id": "task-x", "branch": "friday/task/x", "final_commit": "abc", "original_request": "x", "risk": "low", "outcome": "ok"})()
     result = service._create_pr_reconciled(mapping, task, "main", "Friday-Task-ID: task-x")

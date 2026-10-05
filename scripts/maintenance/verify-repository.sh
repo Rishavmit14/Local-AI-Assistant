@@ -25,7 +25,16 @@ export PYTHONPATH="${repository_dir}/src${PYTHONPATH:+:${PYTHONPATH}}"
 "${python_command}" -m local_ai_assistant.code_index.repository --help >/dev/null
 "${python_command}" -m local_ai_assistant.history.cli --help >/dev/null
 "${python_command}" -m local_ai_assistant.perception.cli --help >/dev/null
-"${python_command}" -m pip check
+if "${python_command}" -m pip --version >/dev/null 2>&1; then
+  "${python_command}" -m pip check
+elif command -v uv >/dev/null 2>&1; then
+  # uv-managed environments may intentionally omit pip. Keep dependency
+  # consistency validation mandatory through uv's equivalent check.
+  uv pip check --python "${python_command}"
+else
+  printf 'Neither pip nor uv is available for dependency consistency validation.\n' >&2
+  exit 1
+fi
 
 if git ls-files | grep -E '(^|/)(\.venv|venv|__pycache__|rag_data|index|documents|logs?)(/|$)|\.gguf$|\.faiss$|\.db$|\.pyc$'; then
   printf 'Forbidden generated/private artifact is tracked.\n' >&2

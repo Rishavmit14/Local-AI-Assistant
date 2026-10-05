@@ -387,6 +387,24 @@ export interface CareerForgePublicEvidenceCandidate {
   publication_url: string | null;
   publication_error: string | null;
   published_at: string | null;
+  publication_commit_sha: string | null;
+  artifact_blob_sha: string | null;
+}
+
+export interface CareerForgePublicationPlan {
+  candidate_id: string;
+  mission_id: string;
+  project_name: string;
+  objective_id: string;
+  task_id: string;
+  repository_id: string;
+  github_owner: string;
+  github_repository: string;
+  artifact_ref: string;
+  target_branch: string;
+  operation: "create_pull_request";
+  commit_sha: string;
+  artifact_blob_sha: string;
 }
 
 export interface CareerForgeJourney {

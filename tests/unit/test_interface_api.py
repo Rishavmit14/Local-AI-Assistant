@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import threading
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
@@ -80,6 +81,11 @@ def make_client(chunks=None):
 class PerceptionSessions:
     def principal(self, session, csrf):
         return "local-owner" if session == "trusted-session" and csrf in {None, "trusted-csrf"} else None
+
+
+class ProjectOwnerSessions:
+    def principal(self, session, csrf):
+        return "local-owner" if session == "owner-session" and csrf in {None, "owner-csrf"} else None
 
 
 def test_perception_presentation_projects_canonical_metadata_and_explicit_local_observations(tmp_path):
@@ -1734,7 +1740,9 @@ def test_public_evidence_requires_project_evidence_gate_then_separate_owner_appr
     runtime = FridayRuntime("career-public-evidence-api")
     client = TestClient(create_presentation_app(
         runtime, FridayConversationService(FakeStreamingLLM(), runtime), career_forge=forge,
-    ))
+        project_execution_sessions=ProjectOwnerSessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+    ), base_url="http://127.0.0.1")
     checks = {
         "genuine_work": True, "validation_passed": True, "secret_scan_passed": True,
         "privacy_review_passed": True, "documentation_complete": True,
@@ -1751,11 +1759,80 @@ def test_public_evidence_requires_project_evidence_gate_then_separate_owner_appr
     assert client.get(
         f"/api/v1/career-forge/missions/{mission.mission_id}/public-evidence",
     ).json()["candidates"][0]["candidate_id"] == candidate["candidate_id"]
+    approve_path = f"/api/v1/career-forge/public-evidence/{candidate['candidate_id']}/approve"
+    assert client.post(approve_path, headers={"Origin": "http://127.0.0.1"}).status_code == 401
+    client.cookies.set("friday_project_session", "owner-session")
+    assert client.post(approve_path, headers={
+        "Origin": "https://attacker.invalid", "x-friday-csrf": "owner-csrf",
+    }).status_code == 403
     approved = client.post(
-        f"/api/v1/career-forge/public-evidence/{candidate['candidate_id']}/approve",
+        approve_path,
+        headers={"Origin": "http://127.0.0.1", "x-friday-csrf": "owner-csrf"},
     )
     assert approved.json()["candidate"]["state"] == "approved"
     assert "published" not in approved.json()["candidate"]
+
+
+def test_friday_assisted_task_evidence_is_owner_bound_idempotent_and_never_advances_mastery(tmp_path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    with forge._db() as db:
+        db.execute("UPDATE learner_competencies SET mastery='recognize' WHERE competency_id != 'ml.classical'")
+    mission = forge.start_mission("ml.classical", "Synthetic FraudShield artifact")
+    forge.link_project(mission.mission_id)
+    objective_id = "a" * 32
+    forge.link_mission_objective(mission.mission_id, objective_id)
+    task_id, commit_sha, blob_sha = "task_" + "1" * 20, "a" * 40, "b" * 40
+    repository = tmp_path / "fraud-shield"
+
+    class Autonomy:
+        @staticmethod
+        def get(_objective_id):
+            return SimpleNamespace(task_id=task_id, repository_id="fraud-shield", task_state="succeeded")
+
+    class History:
+        @staticmethod
+        def get(_task_id):
+            return SimpleNamespace(
+                status=TaskStatus.SUCCEEDED, final_commit=commit_sha,
+                repository=str(repository),
+            )
+
+    class Publication:
+        mappings = (SimpleNamespace(
+            repository_id="fraud-shield", local_path=str(repository),
+            github_owner="acme", github_name="fraud",
+        ),)
+
+        @staticmethod
+        def validate_artifact_identity(_task_id, *, repository_id, artifact_ref):
+            assert (repository_id, artifact_ref) == ("fraud-shield", "artifacts/model_card.md")
+            return commit_sha, blob_sha
+
+    runtime = FridayRuntime("career-assisted-task-evidence")
+    client = TestClient(create_presentation_app(
+        runtime, FridayConversationService(FakeStreamingLLM(), runtime),
+        career_forge=forge, autonomy=Autonomy(), task_history=History(),
+        career_publication=Publication(), project_execution_sessions=ProjectOwnerSessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+    ), base_url="http://127.0.0.1")
+    client.cookies.set("friday_project_session", "owner-session")
+    path = f"/api/v1/career-forge/missions/{mission.mission_id}/task-artifact-evidence"
+    payload = {
+        "task_id": task_id, "repository_id": "fraud-shield",
+        "artifact_ref": "artifacts/model_card.md",
+    }
+    origin = {"Origin": "http://127.0.0.1", "x-friday-csrf": "owner-csrf"}
+    assert client.post(path, json=payload, headers={"Origin": "http://127.0.0.1"}).status_code == 401
+    first = client.post(path, json=payload, headers=origin)
+    second = client.post(path, json=payload, headers=origin)
+    assert first.status_code == second.status_code == 200
+    assert first.json()["evidence_id"] == second.json()["evidence_id"]
+    assert first.json()["mastery_advanced"] is False
+    evidence = forge.evidence_history()[0]
+    assert evidence.evidence_type == "friday_assisted_task_artifact"
+    assert evidence.assistance_level.value == "full_demonstration"
+    assert evidence.source_task_id == task_id and evidence.source_commit_sha == commit_sha
+    assert next(item for item in forge.competencies() if item.competency.competency_id == "ml.classical").mastery.value == "unverified"
 
 
 def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_path):
@@ -1772,11 +1849,22 @@ def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_
         validation_passed=True, secret_scan_passed=True, privacy_review_passed=True,
         documentation_complete=True, artifact_quality_passed=True,
     )
-    forge.approve_public_evidence(candidate.candidate_id)
+    objective_id = "a" * 32
+    forge.link_mission_objective(mission.mission_id, objective_id)
+
+    class Autonomy:
+        @staticmethod
+        def get(_objective_id):
+            return SimpleNamespace(
+                task_id="task_123", repository_id="fraud-shield", task_state="succeeded",
+            )
 
     class Publication:
         def __init__(self):
             self.calls = []
+            self.mappings = (SimpleNamespace(
+                repository_id="fraud-shield", github_owner="acme", github_name="fraud",
+            ),)
 
         def validate_eligibility(self, task_id, *, repository_id):
             self.calls.append(("validate", task_id, repository_id))
@@ -1786,8 +1874,8 @@ def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_
             self.calls.append(("artifact", task_id, repository_id, artifact_ref))
             return "a" * 40, "b" * 40
 
-        def publish(self, task_id, *, repository_id, base):
-            self.calls.append(("publish", task_id, repository_id, base))
+        def publish(self, task_id, *, repository_id, base, artifact_ref, expected_blob_sha):
+            self.calls.append(("publish", task_id, repository_id, base, artifact_ref, expected_blob_sha))
             if sum(call[0] == "publish" for call in self.calls) == 1:
                 raise RuntimeError("synthetic publication transport failure")
             return {"state": "published", "pr_url": "https://github.com/acme/fraud/pull/7"}
@@ -1798,11 +1886,29 @@ def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_
     runtime = FridayRuntime("career-publication-api")
     client = TestClient(create_presentation_app(
         runtime, FridayConversationService(FakeStreamingLLM(), runtime), career_forge=forge,
-        career_publication=publication, objective_execution_auth=auth,
-    ))
+        career_publication=publication, objective_execution_auth=auth, autonomy=Autonomy(),
+        project_execution_sessions=ProjectOwnerSessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+    ), base_url="http://127.0.0.1")
     path = f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/publish"
     body = {"task_id": "task_123", "repository_id": "fraud-shield", "base": "main"}
-    assert client.post(path, json=body).status_code == 401
+    client.cookies.set("friday_project_session", "owner-session")
+    origin = {"Origin": "http://127.0.0.1", "x-friday-csrf": "owner-csrf"}
+    plan_response = client.get(
+        f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/publication-plan"
+        "?task_id=task_123&repository_id=fraud-shield&base=main",
+        headers={"Origin": "http://127.0.0.1"},
+    )
+    assert plan_response.status_code == 200
+    plan = plan_response.json()["plan"]
+    approval_path = f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/approve"
+    assert client.post(approval_path, json={**plan, "github_repository": "other"}, headers=origin).status_code == 409
+    approved = client.post(approval_path, json=plan, headers=origin)
+    assert approved.status_code == 200
+    assert approved.json()["candidate"]["task_id"] == "task_123"
+    assert approved.json()["candidate"]["repository_id"] == "fraud-shield"
+    assert approved.json()["candidate"]["artifact_blob_sha"] == "b" * 40
+    assert client.post(path, json=body, headers={"Origin": "http://127.0.0.1"}).status_code == 401
     failed = client.post(path, json=body, headers={"Authorization": f"Bearer {token}"})
     assert failed.status_code == 502
     assert forge.public_evidence_candidate(candidate.candidate_id).publication_state == "failed"
@@ -1815,20 +1921,29 @@ def test_public_evidence_publication_reuses_authenticated_promotion_gateway(tmp_
     assert response.json()["candidate"]["publication_url"].endswith("/pull/7")
     assert response.json()["candidate"]["publication_commit_sha"] == "a" * 40
     assert response.json()["candidate"]["artifact_blob_sha"] == "b" * 40
-    assert publication.calls == [
-        ("validate", "task_123", "fraud-shield"),
-        ("artifact", "task_123", "fraud-shield", "artifacts/fraud-report.md"),
-        ("publish", "task_123", "fraud-shield", "main"),
-        ("validate", "task_123", "fraud-shield"),
-        ("artifact", "task_123", "fraud-shield", "artifacts/fraud-report.md"),
-        ("publish", "task_123", "fraud-shield", "main"),
+    assert [call[0] for call in publication.calls] == [
+        "validate", "artifact", "validate", "artifact", "validate", "artifact",
+        "validate", "artifact", "publish",
+        "validate", "artifact", "publish",
     ]
     repeated = client.post(path, json=body, headers={"Authorization": f"Bearer {token}"})
     assert repeated.status_code == 200
     assert repeated.json()["candidate"]["publication_url"] == response.json()["candidate"]["publication_url"]
-    assert len(publication.calls) == 6
+    assert len(publication.calls) == 12
+    client.cookies.clear()
+    assert client.post(path, json=body, headers={"Origin": "http://127.0.0.1", "x-friday-csrf": "owner-csrf"}).status_code == 401
+    client.cookies.set("friday_project_session", "owner-session")
+    assert client.post(
+        path, json=body, headers={"Origin": "https://attacker.invalid", "x-friday-csrf": "owner-csrf"},
+    ).status_code == 403
+    owner_publish = client.post(
+        path, json=body, headers={"Origin": "http://127.0.0.1", "x-friday-csrf": "owner-csrf"},
+    )
+    assert owner_publish.status_code == 200
+    assert owner_publish.json()["publication"]["state"] == "published"
+    assert len(publication.calls) == 12
     assert client.post(path, json={**body, "base": "other"}, headers={"Authorization": f"Bearer {token}"}).status_code == 409
-    assert len(publication.calls) == 6
+    assert len(publication.calls) == 12
     assert forge.evidence_history()[0].evidence_type == "validated_project"
 
 
@@ -1846,7 +1961,6 @@ def test_project_publication_must_match_linked_successful_objective_task(tmp_pat
         validation_passed=True, secret_scan_passed=True, privacy_review_passed=True,
         documentation_complete=True, artifact_quality_passed=True,
     )
-    forge.approve_public_evidence(candidate.candidate_id)
     plan_hashes: dict[str, str] = {}
     task_states: dict[str, str] = {}
 
@@ -1871,6 +1985,9 @@ def test_project_publication_must_match_linked_successful_objective_task(tmp_pat
     class Publication:
         def __init__(self):
             self.calls = []
+            self.mappings = (SimpleNamespace(
+                repository_id="python-project", github_owner="acme", github_name="python",
+            ),)
 
         def validate_eligibility(self, task_id, *, repository_id):
             self.calls.append(("validate", task_id, repository_id))
@@ -1880,8 +1997,8 @@ def test_project_publication_must_match_linked_successful_objective_task(tmp_pat
             self.calls.append(("artifact", task_id, repository_id, artifact_ref))
             return "a" * 40, "b" * 40
 
-        def publish(self, task_id, *, repository_id, base):
-            self.calls.append(("publish", task_id, repository_id, base))
+        def publish(self, task_id, *, repository_id, base, artifact_ref, expected_blob_sha):
+            self.calls.append(("publish", task_id, repository_id, base, artifact_ref, expected_blob_sha))
             return {"state": "published", "pr_url": "https://github.com/acme/python/pull/9"}
 
     publication = Publication()
@@ -1892,7 +2009,9 @@ def test_project_publication_must_match_linked_successful_objective_task(tmp_pat
         FridayConversationService(FakeStreamingLLM(), FridayRuntime("career-linked-conversation")),
         career_forge=forge, autonomy=autonomy, career_publication=publication,
         objective_execution_auth=auth,
-    ))
+        project_execution_sessions=ProjectOwnerSessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+    ), base_url="http://127.0.0.1")
     path = f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/publish"
     headers = {"Authorization": f"Bearer {token}"}
     wrong = {"task_id": "task_" + "b" * 20, "repository_id": "python-project", "base": "main"}
@@ -1903,13 +2022,26 @@ def test_project_publication_must_match_linked_successful_objective_task(tmp_pat
     assert publication.calls == []
 
     task_states[objective.task_id] = "succeeded"
+    client.cookies.set("friday_project_session", "owner-session")
+    owner_headers = {"Origin": "http://127.0.0.1", "x-friday-csrf": "owner-csrf"}
+    preview = client.get(
+        f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/publication-plan"
+        f"?task_id={objective.task_id}&repository_id=python-project&base=main",
+        headers={"Origin": "http://127.0.0.1"},
+    )
+    assert preview.status_code == 200
+    plan = preview.json()["plan"]
+    assert plan["github_owner"] == "acme" and plan["github_repository"] == "python"
+    approved = client.post(
+        f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/approve",
+        json=plan, headers=owner_headers,
+    )
+    assert approved.status_code == 200
     response = client.post(path, json=body, headers=headers)
     assert response.status_code == 200
     assert response.json()["candidate"]["state"] == "published"
-    assert publication.calls == [
-        ("validate", objective.task_id, "python-project"),
-        ("artifact", objective.task_id, "python-project", "artifacts/python-project.md"),
-        ("publish", objective.task_id, "python-project", "main"),
+    assert [call[0] for call in publication.calls] == [
+        "validate", "artifact", "validate", "artifact", "validate", "artifact", "publish",
     ]
 
 
@@ -1936,7 +2068,19 @@ def test_career_mission_objective_reuses_guarded_autonomy_and_recovers_by_link(t
     assert recovered.json()["objective"]["objective_id"] == body["objective"]["objective_id"]
     repeated = client.post(path, json={"text": "must not replace the existing objective"})
     assert repeated.json()["objective"]["objective_id"] == body["objective"]["objective_id"]
-    assert len(autonomy.recent()) == 1
+    autonomy.cancel(body["objective"]["objective_id"])
+    replacement = client.post(path, json={"text": "Retry with the full project test suite"})
+    assert replacement.status_code == 200
+    assert replacement.json()["objective"]["objective_id"] != body["objective"]["objective_id"]
+    assert replacement.json()["objective"]["state"] == "planning"
+    assert forge.mission_objective(mission.mission_id).objective_id == replacement.json()["objective"]["objective_id"]
+    import sqlite3
+    with sqlite3.connect(forge.path) as db:
+        assert db.execute(
+            "SELECT objective_id FROM mission_objective_history WHERE mission_id=?",
+            (mission.mission_id,),
+        ).fetchone()[0] == body["objective"]["objective_id"]
+    assert len(autonomy.recent()) == 2
     assert forge.evidence_history() == ()
 
 
@@ -2499,7 +2643,9 @@ def test_presentation_api_has_no_unbounded_execution_routes():
             "/api/v1/career-forge/missions/{mission_id}/desktop-actions",
             "/api/v1/career-forge/missions/{mission_id}/objective",
         "/api/v1/career-forge/missions/{mission_id}/public-evidence",
+        "/api/v1/career-forge/missions/{mission_id}/task-artifact-evidence",
             "/api/v1/career-forge/public-evidence/{candidate_id}/approve",
+            "/api/v1/career-forge/public-evidence/{candidate_id}/publication-plan",
             "/api/v1/career-forge/public-evidence/{candidate_id}/publish",
         "/api/v1/career-forge/competencies/{competency_id}/advance",
         "/api/v1/career-forge/practice-lab",

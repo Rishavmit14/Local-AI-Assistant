@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -242,6 +243,9 @@ class GatewayConfig:
     scopes: tuple[str, ...] = ("read_status", "read_history")
     github_enabled: bool = False
     github_api_host: str = "https://api.github.com"
+    github_credential_ref: str = ""
+    github_allowed_repository: str = ""
+    github_publication_purpose: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -350,6 +354,31 @@ class AppConfig:
             raise ConfigurationError("LOCAL_AI_CODE_CHUNK_OVERLAP must be smaller than chunk lines")
         gateway_host = values.get("LOCAL_AI_GATEWAY_HOST", "127.0.0.1").strip()
         github_api_host = values.get("LOCAL_AI_GITHUB_API_HOST", "https://api.github.com").strip()
+        gateway_scopes = tuple(item.strip().lower() for item in values.get("LOCAL_AI_GATEWAY_SCOPES", "read_status,read_history").split(",") if item.strip())
+        allowed_gateway_scopes = {"read_status", "read_history", "create_task", "request_plan", "submit_approval", "request_execution", "request_rollback", "request_cancel", "github_read", "github_write"}
+        if not gateway_scopes or not set(gateway_scopes) <= allowed_gateway_scopes:
+            raise ConfigurationError("LOCAL_AI_GATEWAY_SCOPES contains an invalid or empty scope")
+        github_credential_ref = values.get("LOCAL_AI_GITHUB_CREDENTIAL_REF", "").strip()
+        github_allowed_repository = values.get("LOCAL_AI_GITHUB_ALLOWED_REPOSITORY", "").strip()
+        github_publication_purpose = values.get("LOCAL_AI_GITHUB_PUBLICATION_PURPOSE", "").strip()
+        github_enabled = _boolean(values, "LOCAL_AI_GITHUB_ENABLED", False)
+        if github_credential_ref and not re.fullmatch(
+            r"gh-keyring:github\.com:[A-Za-z0-9-]{1,39}", github_credential_ref,
+        ):
+            raise ConfigurationError("LOCAL_AI_GITHUB_CREDENTIAL_REF must identify a GitHub CLI keyring account")
+        if github_allowed_repository and not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9_.-]{1,100}", github_allowed_repository,
+        ):
+            raise ConfigurationError("LOCAL_AI_GITHUB_ALLOWED_REPOSITORY must be OWNER/REPOSITORY")
+        if github_credential_ref and (
+            not github_enabled or "github_write" not in gateway_scopes or not github_allowed_repository
+            or github_publication_purpose != "learner_project_public_proof"
+        ):
+            raise ConfigurationError(
+                "keyring GitHub publication requires enabled GitHub, github_write scope, one exact repository, and the learner-public-proof purpose"
+            )
+        if github_publication_purpose and github_publication_purpose != "learner_project_public_proof":
+            raise ConfigurationError("unsupported GitHub publication purpose")
         wake_phrase = values.get(
             "LOCAL_AI_WAKE_PHRASE",
             "hey friday",
@@ -361,10 +390,6 @@ class AppConfig:
                 "must not be empty"
             )
 
-        gateway_scopes = tuple(item.strip().lower() for item in values.get("LOCAL_AI_GATEWAY_SCOPES", "read_status,read_history").split(",") if item.strip())
-        allowed_gateway_scopes = {"read_status", "read_history", "create_task", "request_plan", "submit_approval", "request_execution", "request_rollback", "request_cancel", "github_read", "github_write"}
-        if not gateway_scopes or not set(gateway_scopes) <= allowed_gateway_scopes:
-            raise ConfigurationError("LOCAL_AI_GATEWAY_SCOPES contains an invalid or empty scope")
         if not gateway_host or not github_api_host.startswith("https://"):
             raise ConfigurationError("Gateway host and HTTPS GitHub API host must be valid")
         return cls(
@@ -465,8 +490,11 @@ class AppConfig:
                 max_events=_integer(values, "LOCAL_AI_GATEWAY_MAX_EVENTS", 1000, maximum=10_000),
                 request_rate=_integer(values, "LOCAL_AI_GATEWAY_REQUEST_RATE", 30, maximum=10_000),
                 scopes=gateway_scopes,
-                github_enabled=_boolean(values, "LOCAL_AI_GITHUB_ENABLED", False),
+                github_enabled=github_enabled,
                 github_api_host=github_api_host,
+                github_credential_ref=github_credential_ref,
+                github_allowed_repository=github_allowed_repository,
+                github_publication_purpose=github_publication_purpose,
             ),
             desktop_control=desktop_control,
             proactive=ProactiveConfig(

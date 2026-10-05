@@ -12,6 +12,7 @@ import type {
   DynamicLearningAttemptResult,
   DynamicLearningEvaluation,
   CareerForgePublicEvidenceCandidate,
+  CareerForgePublicationPlan,
   CodeAttentionQuestion,
   PracticeLab,
   ConversationRequest,
@@ -442,9 +443,46 @@ export class FridayRuntimeClient {
     return (await response.json() as { candidate: CareerForgePublicEvidenceCandidate }).candidate;
   }
 
-  async approveCareerPublicEvidence(candidateId: string): Promise<CareerForgePublicEvidenceCandidate> {
-    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/public-evidence/${encodeURIComponent(candidateId)}/approve`, { method: "POST" });
+  async recordCareerTaskArtifactEvidence(
+    missionId: string, taskId: string, repositoryId: string, artifactRef: string, csrf: string,
+  ): Promise<{ evidence_id: string; commit_sha: string; artifact_blob_sha: string; mastery_advanced: false }> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/missions/${encodeURIComponent(missionId)}/task-artifact-evidence`, {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Friday-CSRF": csrf },
+      body: JSON.stringify({ task_id: taskId, repository_id: repositoryId, artifact_ref: artifactRef }),
+    });
+    if (!response.ok) throw new Error(`Career Forge task-artifact evidence failed: ${response.status}`);
+    return response.json() as Promise<{ evidence_id: string; commit_sha: string; artifact_blob_sha: string; mastery_advanced: false }>;
+  }
+
+  async getCareerPublicEvidencePlan(
+    candidateId: string, taskId: string, repositoryId: string, base: string,
+  ): Promise<CareerForgePublicationPlan> {
+    const query = new URLSearchParams({ task_id: taskId, repository_id: repositoryId, base });
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/public-evidence/${encodeURIComponent(candidateId)}/publication-plan?${query}`, { credentials: "same-origin" });
+    if (!response.ok) throw new Error(await responseDetail(response));
+    return (await response.json() as { plan: CareerForgePublicationPlan }).plan;
+  }
+
+  async approveCareerPublicEvidence(
+    plan: CareerForgePublicationPlan, csrf: string,
+  ): Promise<CareerForgePublicEvidenceCandidate> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/public-evidence/${encodeURIComponent(plan.candidate_id)}/approve`, {
+      method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Friday-CSRF": csrf },
+      body: JSON.stringify(plan),
+    });
     if (!response.ok) throw new Error(`Career Forge public-evidence approval failed: ${response.status}`);
+    return (await response.json() as { candidate: CareerForgePublicEvidenceCandidate }).candidate;
+  }
+
+  async publishCareerPublicEvidence(
+    candidateId: string, taskId: string, repositoryId: string, csrf: string,
+  ): Promise<CareerForgePublicEvidenceCandidate> {
+    const response = await fetch(`${this.baseUrl}/api/v1/career-forge/public-evidence/${encodeURIComponent(candidateId)}/publish`, {
+      method: "POST", headers: { "Content-Type": "application/json", "x-friday-csrf": csrf },
+      body: JSON.stringify({ task_id: taskId, repository_id: repositoryId, base: "main" }),
+    });
+    if (!response.ok) throw new Error(`Career Forge publication failed: ${response.status}`);
     return (await response.json() as { candidate: CareerForgePublicEvidenceCandidate }).candidate;
   }
 

@@ -121,6 +121,33 @@ def test_model_and_context_are_configuration_driven():
     assert (second.llama.model, second.llama.context_size) == ("fixture-B", 64)
 
 
+def test_github_keyring_publication_requires_exact_repository_and_write_scope():
+    config = AppConfig.from_env({
+        "LOCAL_AI_GITHUB_ENABLED": "true",
+        "LOCAL_AI_GITHUB_CREDENTIAL_REF": "gh-keyring:github.com:Rishavmit14",
+        "LOCAL_AI_GITHUB_ALLOWED_REPOSITORY": "Rishavmit14/ML-AI-Engineering",
+        "LOCAL_AI_GITHUB_PUBLICATION_PURPOSE": "learner_project_public_proof",
+        "LOCAL_AI_GATEWAY_SCOPES": "read_status,github_write",
+    })
+    assert config.gateway.github_credential_ref == "gh-keyring:github.com:Rishavmit14"
+    assert config.gateway.github_allowed_repository == "Rishavmit14/ML-AI-Engineering"
+    for override in (
+        {"LOCAL_AI_GATEWAY_SCOPES": "read_status"},
+        {"LOCAL_AI_GITHUB_ALLOWED_REPOSITORY": ""},
+        {"LOCAL_AI_GITHUB_ENABLED": "false"},
+    ):
+        invalid = {
+            "LOCAL_AI_GITHUB_ENABLED": "true",
+            "LOCAL_AI_GITHUB_CREDENTIAL_REF": "gh-keyring:github.com:Rishavmit14",
+            "LOCAL_AI_GITHUB_ALLOWED_REPOSITORY": "Rishavmit14/ML-AI-Engineering",
+            "LOCAL_AI_GITHUB_PUBLICATION_PURPOSE": "learner_project_public_proof",
+            "LOCAL_AI_GATEWAY_SCOPES": "read_status,github_write",
+            **override,
+        }
+        with pytest.raises(ConfigurationError, match="keyring GitHub publication"):
+            AppConfig.from_env(invalid)
+
+
 def test_default_path_types_are_paths():
     paths = AppConfig.from_env({}).paths
     assert all(

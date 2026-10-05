@@ -370,6 +370,13 @@ existing gateway publisher remains the sole external authority for repository
 identity, final commit, `friday/task/` branch, remote reconciliation, push, and
 pull-request creation; its URL/result is copied back into the Learner Twin. A
 failed external attempt preserves approval and the exact binding for safe retry.
+The Friday Projects browser invokes this gateway through the local Owner
+session and CSRF boundary without exposing its bearer credential. Publication
+configuration must independently grant `GITHUB_WRITE` and map the exact
+learner-artifact repository. After promotion, the publisher verifies the
+remote branch commit and returned pull-request repository, head, base, commit,
+and trusted URL before recording success; mismatch remains in reconciliation.
+See ADR 0045.
 
 Bounded Career Forge mission autonomy is an audit link, not a second executor.
 An active project-linked mission may prepare exactly one durable Friday
@@ -728,6 +735,16 @@ GitHub publisher validates an approved artifact as a regular blob in the exact
 promoted task commit and stores both object identities with the publication
 candidate. None of these paths grants mastery without Career Forge's explicit
 matching-evidence advancement.
+
+Stage 27 adds an Owner-session publication flow from Career Forge Projects to
+the existing GitHub gateway. Friday resolves a configured GitHub CLI
+OS-keyring credential on the server, verifies the authenticated account and
+exact writable repository, and enforces `GITHUB_WRITE` plus a single-purpose
+destination policy. The owner plan binds path, blob, promoted task commit,
+repository, base branch, and pull-request operation. Remote branch, artifact,
+and pull-request identities are checked before the durable publication record
+becomes published. Friday-assisted artifacts persist their task/commit source
+and `full_demonstration` assistance level; they never advance mastery.
 
 Stage 13 uses `local_ai_assistant.memory.FridayMemoryService`, a separate local
 SQLite boundary rather than a reinterpretation of task-history audit data. It

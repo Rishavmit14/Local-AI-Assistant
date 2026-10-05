@@ -13,7 +13,7 @@
 | code retrieval | `LOCAL_AI_CODE_CHUNK_LINES`, `LOCAL_AI_CODE_CHUNK_OVERLAP`, `LOCAL_AI_CODE_VECTOR_TOP_K`, `LOCAL_AI_CODE_BM25_TOP_K`, `LOCAL_AI_CODE_FINAL_TOP_K`, `LOCAL_AI_RRF_K` | 120/20 lines, 12/12 candidates, final 6, RRF 60 |
 | OCR | `LOCAL_AI_OCR_ENABLED`, `LOCAL_AI_OCR_LANGUAGE`, `LOCAL_AI_OCR_MIN_TEXT_LENGTH`, `LOCAL_AI_OCR_DPI` | enabled, English, 80 characters, 200 DPI |
 | runtime/tests | `LOCAL_AI_LOG_LEVEL`, `LOCAL_AI_LOG_FORMAT`, `LOCAL_AI_COMMAND_TIMEOUT`, `LOCAL_AI_TEST_MODE` | INFO, JSON, 900 seconds, false |
-| authenticated gateway/GitHub | `LOCAL_AI_GATEWAY_ENABLED`, `LOCAL_AI_GATEWAY_TOKEN_HASH`, `LOCAL_AI_GATEWAY_SCOPES`, `LOCAL_AI_GITHUB_ENABLED`, `LOCAL_AI_GITHUB_API_HOST`, optional secret `LOCAL_AI_GITHUB_TOKEN` | disabled, loopback-only, no publication credential |
+| authenticated gateway/GitHub | `LOCAL_AI_GATEWAY_ENABLED`, `LOCAL_AI_GATEWAY_TOKEN_HASH`, `LOCAL_AI_GATEWAY_SCOPES`, `LOCAL_AI_GITHUB_ENABLED`, `LOCAL_AI_GITHUB_API_HOST`, exact `LOCAL_AI_GITHUB_ALLOWED_REPOSITORY`, `LOCAL_AI_GITHUB_PUBLICATION_PURPOSE`, `LOCAL_AI_GITHUB_CREDENTIAL_REF` | disabled, loopback-only, no publication credential |
 
 The general-purpose model uses one local OpenAI-compatible chat-completions boundary. `LOCAL_AI_BASE_URL` must be HTTP(S) on a loopback host (`localhost`, `127.0.0.0/8`, or `::1`); URL credentials, query strings, fragments, remote hosts, and empty values fail at configuration time. The HTTP client ignores proxy environment variables, performs no retries, and does not fall back to a cloud or alternate model. Configure `LOCAL_AI_BASE_URL`, `LOCAL_AI_MODEL`, `LOCAL_AI_CONTEXT_SIZE`, and `LOCAL_AI_LLM_TIMEOUT` before starting Friday; changing these values takes effect on the next process start. There is no browser model switch or live hot swap. `LOCAL_AI_API_KEY` defaults to the local compatibility value `local` and is never included in model status or qualification reports.
 
@@ -23,11 +23,16 @@ The supported cognition contract is local chat-completions with system/user text
 
 Invalid integers, booleans, or overlapping chunk ranges raise `ConfigurationError` at startup. Prompts and document contents are deliberately omitted from structured logs; only operational metadata such as sizes, counts, paths, commands, and outcomes is logged.
 
-`LOCAL_AI_GITHUB_TOKEN` is read only when constructing the optional publication
-transport and must remain in a protected local EnvironmentFile. It is never
-written to Friday configuration, onboarding state, task history, the Learner
-Twin, logs, or the browser. Publication additionally requires an explicit
-onboarding `OWNER/REPOSITORY` mapping and the `github_write` gateway scope.
+The preferred server-side publication credential reference is
+`LOCAL_AI_GITHUB_CREDENTIAL_REF=gh-keyring:github.com:ACCOUNT`, which resolves
+the GitHub CLI credential from the owner's OS keyring at Friday startup and
+verifies `/user` identity. The token is held only in server memory. This mode
+also requires `github_write`, an exact `OWNER/REPOSITORY` allowlist, and the
+`learner_project_public_proof` purpose; the transport is restricted to that
+single mapped repository. The legacy `LOCAL_AI_GITHUB_TOKEN` remains supported
+for protected deployments but should not be used where a keyring reference is
+available. Credentials are never written to Friday configuration, onboarding
+state, task history, the Learner Twin, logs, or the browser.
 
 ## MSI migration
 

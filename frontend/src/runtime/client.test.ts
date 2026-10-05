@@ -438,24 +438,50 @@ describe("FridayRuntimeClient Career Forge boundary", () => {
     );
   });
 
-  it("records public-evidence qualification separately from owner approval", async () => {
+  it("reviews and approves one exact public-evidence publication plan", async () => {
     const candidate = { candidate_id: "candidate 1", mission_id: "m1", artifact_ref: "report.md", state: "qualified", reasons: [], created_at: "now", updated_at: "now", approved_at: null };
+    const plan = { candidate_id: "candidate 1", mission_id: "m1", project_name: "FraudShield", objective_id: "objective", task_id: "task", repository_id: "repo", github_owner: "Rishavmit14", github_repository: "ML-AI-Engineering", artifact_ref: "report.md", target_branch: "main", operation: "create_pull_request", commit_sha: "a".repeat(40), artifact_blob_sha: "b".repeat(40) };
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ candidate }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ plan }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ candidate: { ...candidate, state: "approved", approved_at: "later" } }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const client = new FridayRuntimeClient();
     const checks = { genuine_work: true, validation_passed: true, secret_scan_passed: true, privacy_review_passed: true, documentation_complete: true, artifact_quality_passed: true };
 
     await client.createCareerPublicEvidence("m1", "report.md", checks);
-    await client.approveCareerPublicEvidence("candidate 1");
+    const reviewed = await client.getCareerPublicEvidencePlan("candidate 1", "task", "repo", "main");
+    await client.approveCareerPublicEvidence(reviewed, "csrf-value");
 
     expect(fetchMock).toHaveBeenNthCalledWith(1,
       "/api/v1/career-forge/missions/m1/public-evidence",
       expect.objectContaining({ method: "POST", body: JSON.stringify({ artifact_ref: "report.md", ...checks }) }),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(2,
-      "/api/v1/career-forge/public-evidence/candidate%201/approve", { method: "POST" },
+      "/api/v1/career-forge/public-evidence/candidate%201/publication-plan?task_id=task&repository_id=repo&base=main",
+      { credentials: "same-origin" },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(3,
+      "/api/v1/career-forge/public-evidence/candidate%201/approve",
+      { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-Friday-CSRF": "csrf-value" }, body: JSON.stringify(plan) },
+    );
+  });
+
+  it("publishes an approved artifact through the owner session without a gateway bearer", async () => {
+    const candidate = { candidate_id: "candidate 1", mission_id: "m1", artifact_ref: "report.md", state: "published", reasons: [], publication_state: "published" };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidate }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new FridayRuntimeClient().publishCareerPublicEvidence(
+      "candidate 1", "task_123", "fraud-shield", "csrf-value",
+    )).resolves.toEqual(candidate);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/v1/career-forge/public-evidence/candidate%201/publish",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-friday-csrf": "csrf-value" },
+        body: JSON.stringify({ task_id: "task_123", repository_id: "fraud-shield", base: "main" }),
+      }),
     );
   });
 

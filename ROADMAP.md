@@ -1995,3 +1995,38 @@ microphone evidence remain unproven; arbitrary browser pointer occlusion and
 canonical consequential-action authorization remain outside this bounded
 qualification. Row 61 remains PARTIAL, with external learner publication
 PARTIAL and final whole-product visual acceptance NOT STARTED.
+
+## Stage 27 — Authenticated learner-artifact publication (**EXTERNAL JOURNEY QUALIFIED; final acceptance pending**)
+
+The isolated candidate adds an Owner-session/CSRF browser path to request
+publication of an already approved Career Forge artifact through the existing
+`GITHUB_WRITE` gateway. The browser receives no bearer credential. Gateway
+publication now verifies the promoted remote branch SHA and the pull request's
+repository, head branch/commit, base repository/branch, and trusted URL before
+recording `published`; mismatches remain `reconciliation_required`. A disposable
+real Friday browser journey qualified Owner unlock, explicit review/approval,
+locked-session refusal, publication, reload, and candidate API restart against
+a fake transport. Deterministic tests cover authorization, binding and
+reconciliation.
+
+The owner selected and the authenticated account verified the public empty
+destination `Rishavmit14/ML-AI-Engineering`. The isolated candidate configured
+the exact repository mapping, `GITHUB_WRITE` scope, and the keyring-backed
+`Rishavmit14` credential reference server-side. One Owner-approved Friday task
+created `artifacts/model_card.md`, passed its complete project suite, and was
+promoted through the exact reviewed task-branch flow. The Career Forge record
+links the artifact, task, commit, and blob digest as full-assistance evidence;
+it explicitly is not an independent learner assessment and does not advance
+mastery (`ml.classical` remains UNVERIFIED).
+
+The canonical publisher made one real external publication and verified the
+exact remote branch commit, artifact blob, repository, and open PR identity:
+`https://github.com/Rishavmit14/ML-AI-Engineering/pull/1`. Candidate API restart
+and browser reload reconstructed the record without another write. Deterministic
+fake-transport tests cover idempotency and uncertain side-effect reconciliation.
+This bounded external journey is qualified. Final Stage 27 and Stage 22–26
+Python/repository gates pass (1,467 passed, 6 skipped), as do the 133-test
+frontend suite, Owner bridge checks, lint, typecheck, build, dependency
+consistency checks, changed-file Ruff, and secret-pattern audit. Stage 27 code
+commit/push and remote recovery verification remain before acceptance. Row 61
+remains PARTIAL because whole-product visual acceptance is NOT STARTED.

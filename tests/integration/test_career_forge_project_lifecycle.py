@@ -229,12 +229,16 @@ def test_real_bounded_project_lifecycle_recovers_exact_publication(tmp_path, mon
         validation_passed=True, secret_scan_passed=True, privacy_review_passed=True,
         documentation_complete=True, artifact_quality_passed=True,
     )
-    forge.approve_public_evidence(candidate.candidate_id)
-
     transport = FakeGitHubTransport()
+    def fake_push(_repo, branch, commit):
+        transport.branches[("acme", "career-project", branch)] = commit
+        if branch.startswith("friday/task/"):
+            transport.branches[("acme", "career-project", "main")] = completed_task.starting_commit
+            transport.files[("acme", "career-project", branch, "artifacts/model_card.md")] = _git(
+                repository, "rev-parse", f"{commit}:artifacts/model_card.md",
+            )
     publication = GitHubPublicationService(
-        history, (mapping,), transport,
-        push=lambda _repo, branch, commit: transport.branches.__setitem__(("acme", "career-project", branch), commit),
+        history, (mapping,), transport, push=fake_push,
     )
     commit_sha, blob_sha = publication.validate_artifact_identity(
         objective.task_id, repository_id="career-project", artifact_ref="artifacts/model_card.md",
@@ -251,18 +255,41 @@ def test_real_bounded_project_lifecycle_recovers_exact_publication(tmp_path, mon
         )
     token = "bounded-publication-token"
     auth = GatewayAuth(hashlib.sha256(token.encode()).hexdigest(), frozenset({GatewayScope.GITHUB_WRITE}))
+    owner_token = "separate-project-owner-session"
     runtime = FridayRuntime("career-project-lifecycle")
     client = TestClient(create_presentation_app(
         runtime, FridayConversationService(_LLM(), runtime), career_forge=forge,
         autonomy=autonomy, career_publication=publication, objective_execution_auth=auth,
-    ))
+        project_execution_sessions=OwnerRollbackSessions(hashlib.sha256(owner_token.encode()).hexdigest()),
+        project_execution_allowed_origins=("http://127.0.0.1:5191",),
+    ), base_url="http://127.0.0.1:8766")
     path = f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/publish"
     body = {"task_id": objective.task_id, "repository_id": "career-project", "base": "main"}
-    assert client.post(path, json={**body, "task_id": "task_" + "b" * 20}, headers={"Authorization": f"Bearer {token}"}).status_code == 409
-    published = client.post(path, json=body, headers={"Authorization": f"Bearer {token}"})
+    origin = {"Origin": "http://127.0.0.1:5191"}
+    assert client.post(path, json=body, headers=origin).status_code == 401
+    unlocked = client.post("/api/v1/project-execution/unlock", json={"token": owner_token}, headers=origin)
+    assert unlocked.status_code == 200 and "HttpOnly" in unlocked.headers["set-cookie"]
+    assert token not in unlocked.text
+    owner_headers = {**origin, "X-Friday-CSRF": unlocked.json()["csrf_token"]}
+    approve_path = f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/approve"
+    assert client.post(approve_path, headers=origin).status_code == 401
+    plan_response = client.get(
+        f"/api/v1/career-forge/public-evidence/{candidate.candidate_id}/publication-plan"
+        f"?task_id={objective.task_id}&repository_id=career-project&base=main",
+        headers=origin,
+    )
+    assert plan_response.status_code == 200
+    plan = plan_response.json()["plan"]
+    assert plan["github_owner"] == "acme" and plan["github_repository"] == "career-project"
+    assert client.post(approve_path, json=plan, headers=owner_headers).status_code == 200
+    auth._scopes = frozenset()
+    assert client.post(path, json=body, headers=owner_headers).status_code == 403
+    auth._scopes = frozenset({GatewayScope.GITHUB_WRITE})
+    assert client.post(path, json={**body, "task_id": "task_" + "b" * 20}, headers=owner_headers).status_code == 409
+    published = client.post(path, json=body, headers=owner_headers)
     assert published.status_code == 200
     assert len(transport.pull_requests) == 1
-    replay = client.post(path, json=body, headers={"Authorization": f"Bearer {token}"})
+    replay = client.post(path, json=body, headers=owner_headers)
     assert replay.status_code == 200 and len(transport.pull_requests) == 1
 
     recovered_forge = CareerForgeService(learner_db)

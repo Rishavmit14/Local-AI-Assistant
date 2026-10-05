@@ -1,7 +1,7 @@
 import { ArrowRight, Boxes, Link2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import type { CareerForgeMissionObjective, CareerForgePublicEvidenceCandidate } from "../runtime";
+import type { CareerForgeMissionObjective, CareerForgePublicEvidenceCandidate, CareerForgePublicationPlan } from "../runtime";
 import type { FridayTaskRecovery, LearningProject, LearningProjectTemplate } from "../runtime/types";
 import { FridayRuntimeClient } from "../runtime/client";
 import { FridayPresentation } from "./FridayPresentation";
@@ -17,6 +17,8 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
   const [message, setMessage] = useState("");
   const [artifactRef, setArtifactRef] = useState("");
   const [candidate, setCandidate] = useState<CareerForgePublicEvidenceCandidate | null>(null);
+  const [publicationPlan, setPublicationPlan] = useState<CareerForgePublicationPlan | null>(null);
+  const [taskEvidenceRecorded, setTaskEvidenceRecorded] = useState(false);
   const [candidates, setCandidates] = useState<CareerForgePublicEvidenceCandidate[]>([]);
   const [missionObjective, setMissionObjective] = useState<CareerForgeMissionObjective | null>(null);
   const [objectiveText, setObjectiveText] = useState("");
@@ -81,7 +83,13 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
     void presentation.current.getCareerPublicEvidence(activeMissionId)
       .then((value) => { if (active) setCandidates(value); })
       .catch(() => { if (active) setCandidates([]); });
-    return () => { active = false; };
+    const refreshObjective = () => {
+      void presentation.current.getCareerMissionObjective(activeMissionId)
+        .then((value) => { if (active) setMissionObjective(value); })
+        .catch(() => { if (active) setMissionObjective(null); });
+    };
+    const timer = window.setInterval(refreshObjective, 1_500);
+    return () => { active = false; window.clearInterval(timer); };
   }, [activeMissionId]);
   if (view.state !== "ready" || !view.journey) {
     return <section className="learning-canonical-summary"><p>{view.state === "loading" ? "Reading canonical project links…" : "Career Forge projects are unavailable; no specimen links are shown."}</p></section>;
@@ -103,20 +111,63 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
     setBusy(true); setMessage("");
     try {
       const next = await presentation.current.createCareerPublicEvidence(activeMissionId, artifactRef, checks);
-      setCandidate(next); setCandidates((current) => [next, ...current.filter((item) => item.candidate_id !== next.candidate_id)]);
+      setCandidate(next); setPublicationPlan(null); setCandidates((current) => [next, ...current.filter((item) => item.candidate_id !== next.candidate_id)]);
     }
     catch { setMessage("Friday could not create this evidence review. No publication approval was recorded."); }
     finally { setBusy(false); }
   };
+  const recordAssistedTaskEvidence = async () => {
+    const objective = currentMissionObjective?.objective;
+    if (!activeMissionId || !projectCsrf || !objective?.task_id || !objective.repository_id || !artifactRef.trim()) return;
+    setBusy(true); setMessage("");
+    try {
+      const result = await new FridayRuntimeClient().recordCareerTaskArtifactEvidence(
+        activeMissionId, objective.task_id, objective.repository_id, artifactRef.trim(), projectCsrf,
+      );
+      setTaskEvidenceRecorded(true);
+      setMessage(`Friday-assisted evidence recorded for task ${objective.task_id}, commit ${result.commit_sha}. It does not advance mastery.`);
+    } catch { setMessage("Friday could not link this exact successful task artifact as assisted evidence."); }
+    finally { setBusy(false); }
+  };
+  const reviewPublication = async (item: CareerForgePublicEvidenceCandidate) => {
+    const objective = currentMissionObjective?.objective;
+    if (!projectCsrf || !objective?.task_id || !objective.repository_id || objective.task_state !== "succeeded") return;
+    setBusy(true); setMessage("");
+    try {
+      const plan = await presentation.current.getCareerPublicEvidencePlan(
+        item.candidate_id, objective.task_id, objective.repository_id, "main",
+      );
+      setCandidate(item); setPublicationPlan(plan);
+    } catch {
+      setPublicationPlan(null); setMessage("Friday could not validate the exact artifact and destination for owner review.");
+    } finally { setBusy(false); }
+  };
   const approveEvidence = async () => {
-    if (!candidate) return;
+    if (!candidate || !publicationPlan || candidate.candidate_id !== publicationPlan.candidate_id) return;
     setBusy(true);
     try {
-      const next = await presentation.current.approveCareerPublicEvidence(candidate.candidate_id);
+      if (!projectCsrf) throw new Error("Owner session required");
+      const next = await presentation.current.approveCareerPublicEvidence(publicationPlan, projectCsrf);
       setCandidate(next); setCandidates((current) => current.map((item) => item.candidate_id === next.candidate_id ? next : item));
+      setMessage("Owner approval is bound to the displayed artifact digest, destination, target branch, task commit, and pull-request operation.");
     }
     catch { setMessage("Only a fully qualified candidate can receive owner publication approval."); }
     finally { setBusy(false); }
+  };
+  const publishEvidence = async (item: CareerForgePublicEvidenceCandidate) => {
+    const objective = currentMissionObjective?.objective;
+    if (!projectCsrf || !objective?.task_id || !objective.repository_id || objective.task_state !== "succeeded") return;
+    setBusy(true); setMessage("");
+    try {
+      const next = await presentation.current.publishCareerPublicEvidence(
+        item.candidate_id, objective.task_id, objective.repository_id, projectCsrf,
+      );
+      setCandidate(next); setCandidates((current) => current.map((candidate) => candidate.candidate_id === next.candidate_id ? next : candidate));
+      setMessage("Friday verified the external repository, exact task commit, artifact content, and pull-request identity.");
+    } catch {
+      setMessage("Friday could not complete publication. The approved candidate and any retryable gateway result remain recorded.");
+      void presentation.current.getCareerPublicEvidence(item.mission_id).then(setCandidates).catch(() => {});
+    } finally { setBusy(false); }
   };
   const createMissionObjective = async () => {
     if (!activeMissionId || !objectiveText.trim()) return;
@@ -173,6 +224,34 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
       setMessage("Friday accepted the approved task through its isolated execution path.");
       await refreshProjects();
     } catch { setMessage("Friday rejected execution because the session, exact approval, plan revision, or execution scope was unavailable."); }
+    finally { setBusy(false); }
+  };
+  const refreshCareerMissionObjective = async () => {
+    if (!activeMissionId) return;
+    setMissionObjective(await presentation.current.getCareerMissionObjective(activeMissionId));
+  };
+  const approveCareerMissionTask = async () => {
+    const objective = currentMissionObjective?.objective;
+    if (!projectCsrf || !objective?.task_id || !objective.plan_hash) return;
+    setBusy(true); setMessage("");
+    try {
+      await new FridayRuntimeClient().approveObjectivePlan(
+        objective.objective_id, objective.task_id, objective.plan_hash, projectCsrf,
+      );
+      setMessage("The reviewed exact plan is approved. Isolated execution remains a separate Owner action.");
+      await refreshCareerMissionObjective();
+    } catch { setMessage("Friday rejected this approval because its exact plan or Owner authorization changed."); }
+    finally { setBusy(false); }
+  };
+  const executeCareerMissionTask = async () => {
+    const objective = currentMissionObjective?.objective;
+    if (!projectCsrf || !objective?.objective_id || objective.task_state !== "approved") return;
+    setBusy(true); setMessage("");
+    try {
+      await new FridayRuntimeClient().executeObjective(objective.objective_id, projectCsrf);
+      setMessage("Friday accepted the approved task through its isolated execution path.");
+      await refreshCareerMissionObjective();
+    } catch { setMessage("Friday rejected execution because Owner authorization, plan identity, or isolation readiness changed."); }
     finally { setBusy(false); }
   };
   const submitTaskArtifacts = async (project: LearningProject) => {
@@ -289,7 +368,11 @@ const retryProjectTask = async (project: LearningProject, csrf: string) => {
       {project.canLinkActiveMission && project.activeMissionId && <button className="text-link" disabled={busy} onClick={() => { if (project.activeMissionId) void connect(project.activeMissionId); }}><Link2 size={14} />Connect active mission</button>}
       {project.activeMissionId && !project.canLinkActiveMission && <small className="canonical-marker">Active mission already connected</small>}
     </article>)}</div>
-    {assignedProjects.length > 0 && <section className="canonical-review-response" aria-label="Assigned learning projects"><span className="eyebrow">ACTIVE LEARNING PROJECTS</span><h3>Projects from your learning paths</h3>{!projectCsrf && localOwnerMode ? <button className="text-link" disabled={busy} onClick={() => void resumeLocalSession()}>Resume local owner session</button> : !projectCsrf ? <div><label>Owner session credential<input type="password" autoComplete="current-password" value={ownerCredential} onChange={(event) => setOwnerCredential(event.target.value)} /></label><button className="text-link" disabled={busy || !ownerCredential} onClick={() => void unlockProjectSession()}>Unlock project approval and execution</button></div> : <button className="text-link" disabled={busy} onClick={() => void lockProjectSession()}>Lock project execution session</button>}<ol className="canonical-record-list">{assignedProjects.map((project) => { const taskRecovery = project.objective_id ? recoveryByObjective[project.objective_id] : undefined; const latestAttempt = taskRecovery?.execution_attempts.at(-1); const failedSetupCanReconcile = (taskRecovery?.task_status === "executing" || taskRecovery?.task_status === "reviewing") && taskRecovery.rollback.state === "succeeded" && (taskRecovery.worker_status === "failed" || taskRecovery.worker_status === "process_replaced") && latestAttempt?.attempt_kind === "retry" && latestAttempt.state === "failed" && !latestAttempt.artifact_id; return <li key={project.project_id} id={`friday-project-${project.project_id}`} tabIndex={-1}><strong>{project.title} · {project.state.replaceAll("_", " ")}</strong><span>{project.template.name} · {project.learning?.milestone_id ?? "learning milestone"}{project.objective ? ` · Objective ${project.objective.state}${project.objective.task_state ? ` · task ${project.objective.task_state}` : ""}` : ""}</span><span>Career Forge evidence: {project.career_forge_evidence.length} · validated artifacts: {project.artifacts.length}</span>{taskRecovery && <span>Canonical task: {taskRecovery.task_status} · recovery {taskRecovery.overall_status}</span>}{project.objective?.task_id && project.objective.plan_hash && <div>{project.objective.task_state === "awaiting_approval" || project.objective.task_state === "reapproval_required" ? <><button className="text-link" disabled={busy} onClick={() => void inspectProjectPlan(project.objective!.objective_id)}>Review exact plan</button><button className="text-link" disabled={busy || !projectCsrf || planReview?.objectiveId !== project.objective.objective_id || planReview.planHash !== project.objective.plan_hash} onClick={() => void approveProjectPlan(project)}>Approve this exact plan</button></> : project.objective.task_state === "approved" ? <button className="text-link" disabled={busy || !projectCsrf} onClick={() => void executeProjectTask(project)}>Execute approved task</button> : null}{taskRecovery?.recoverability === "candidate_requires_server_preflight" && (taskRecovery.task_status === "executing" || taskRecovery.task_status === "validating" || taskRecovery.task_status === "recovery_required") && <button className="text-link" disabled={busy || !projectCsrf} onClick={() => { if (projectCsrf) void recoverProjectTask(project, projectCsrf); }}>Recover interrupted execution</button>}{failedSetupCanReconcile && <button className="text-link" disabled={busy || !projectCsrf} onClick={() => { if (projectCsrf) void reconcileFailedRetry(project, projectCsrf); }}>Restore verified baseline after failed retry setup</button>}{taskRecovery?.task_status === "rolled_back" && <button className="text-link" disabled={busy || !projectCsrf} onClick={() => { if (projectCsrf) void retryProjectTask(project, projectCsrf); }}>Retry rolled-back task</button>}{planReview?.objectiveId === project.objective.objective_id && <p>{planReview.summary} · risk {planReview.risk} · plan {planReview.planHash}</p>}</div>}<button className="text-link" onClick={() => onAttach?.("project",project.project_id)}>Attach this project to Friday</button><button className="text-link" onClick={openLearn}>Return to learning path</button></li>;})}</ol></section>}
+    {(assignedProjects.length > 0 || activeMissionLinked) && <section className="canonical-review-response" aria-label="Owner authorization">
+      <span className="eyebrow">OWNER AUTHORIZATION</span><h3>Governed Project and publication actions</h3>
+      {!projectCsrf && localOwnerMode ? <button className="text-link" disabled={busy} onClick={() => void resumeLocalSession()}>Resume local owner session</button> : !projectCsrf ? <div><label>Owner session credential<input type="password" autoComplete="current-password" value={ownerCredential} onChange={(event) => setOwnerCredential(event.target.value)} /></label><button className="text-link" disabled={busy || !ownerCredential} onClick={() => void unlockProjectSession()}>Unlock owner actions</button></div> : <button className="text-link" disabled={busy} onClick={() => void lockProjectSession()}>Lock owner session</button>}
+    </section>}
+    {assignedProjects.length > 0 && <section className="canonical-review-response" aria-label="Assigned learning projects"><span className="eyebrow">ACTIVE LEARNING PROJECTS</span><h3>Projects from your learning paths</h3><ol className="canonical-record-list">{assignedProjects.map((project) => { const taskRecovery = project.objective_id ? recoveryByObjective[project.objective_id] : undefined; const latestAttempt = taskRecovery?.execution_attempts.at(-1); const failedSetupCanReconcile = (taskRecovery?.task_status === "executing" || taskRecovery?.task_status === "reviewing") && taskRecovery.rollback.state === "succeeded" && (taskRecovery.worker_status === "failed" || taskRecovery.worker_status === "process_replaced") && latestAttempt?.attempt_kind === "retry" && latestAttempt.state === "failed" && !latestAttempt.artifact_id; return <li key={project.project_id} id={`friday-project-${project.project_id}`} tabIndex={-1}><strong>{project.title} · {project.state.replaceAll("_", " ")}</strong><span>{project.template.name} · {project.learning?.milestone_id ?? "learning milestone"}{project.objective ? ` · Objective ${project.objective.state}${project.objective.task_state ? ` · task ${project.objective.task_state}` : ""}` : ""}</span><span>Career Forge evidence: {project.career_forge_evidence.length} · validated artifacts: {project.artifacts.length}</span>{taskRecovery && <span>Canonical task: {taskRecovery.task_status} · recovery {taskRecovery.overall_status}</span>}{project.objective?.task_id && project.objective.plan_hash && <div>{project.objective.task_state === "awaiting_approval" || project.objective.task_state === "reapproval_required" ? <><button className="text-link" disabled={busy} onClick={() => void inspectProjectPlan(project.objective!.objective_id)}>Review exact plan</button><button className="text-link" disabled={busy || !projectCsrf || planReview?.objectiveId !== project.objective.objective_id || planReview.planHash !== project.objective.plan_hash} onClick={() => void approveProjectPlan(project)}>Approve this exact plan</button></> : project.objective.task_state === "approved" ? <button className="text-link" disabled={busy || !projectCsrf} onClick={() => void executeProjectTask(project)}>Execute approved task</button> : null}{taskRecovery?.recoverability === "candidate_requires_server_preflight" && (taskRecovery.task_status === "executing" || taskRecovery.task_status === "validating" || taskRecovery.task_status === "recovery_required") && <button className="text-link" disabled={busy || !projectCsrf} onClick={() => { if (projectCsrf) void recoverProjectTask(project, projectCsrf); }}>Recover interrupted execution</button>}{failedSetupCanReconcile && <button className="text-link" disabled={busy || !projectCsrf} onClick={() => { if (projectCsrf) void reconcileFailedRetry(project, projectCsrf); }}>Restore verified baseline after failed retry setup</button>}{taskRecovery?.task_status === "rolled_back" && <button className="text-link" disabled={busy || !projectCsrf} onClick={() => { if (projectCsrf) void retryProjectTask(project, projectCsrf); }}>Retry rolled-back task</button>}{planReview?.objectiveId === project.objective.objective_id && <p>{planReview.summary} · risk {planReview.risk} · plan {planReview.planHash}</p>}</div>}<button className="text-link" onClick={() => onAttach?.("project",project.project_id)}>Attach this project to Friday</button><button className="text-link" onClick={openLearn}>Return to learning path</button></li>;})}</ol></section>}
     {assignedProjects.filter((project) => project.objective?.task_state === "succeeded" && project.state !== "completed").map((project) => <section className="canonical-review-response" aria-label={`Project assessment ${project.title}`} key={`assessment-${project.project_id}`}>
       <span className="eyebrow">PROJECT ASSESSMENT</span><h3>{project.title}</h3>
       {project.artifacts.length === 0 ? <button className="text-link" disabled={busy} onClick={() => void submitTaskArtifacts(project)}>Submit reviewed task artifacts</button> : <>
@@ -302,9 +385,9 @@ const retryProjectTask = async (project: LearningProject, csrf: string) => {
       </>}
       {project.career_forge_reviews.map((review) => <p key={review.submission_id}>Assessment {review.evaluation}: {review.feedback}</p>)}
     </section>)}
-    {activeMissionLinked && activeMissionId && <section className="canonical-review-response"><span className="eyebrow">PUBLIC EVIDENCE REVIEW</span><h3>Qualify a real project artifact</h3><input value={artifactRef} onChange={(event) => setArtifactRef(event.target.value)} aria-label="Project artifact reference" placeholder="Repository-relative artifact or evidence reference" />{Object.entries(checks).map(([name, value]) => <label key={name}><input type="checkbox" checked={value} onChange={(event) => setChecks((old) => ({ ...old, [name]: event.target.checked }))} />{name.replaceAll("_", " ")}</label>)}<button className="text-link" disabled={busy || !artifactRef.trim()} onClick={() => void reviewEvidence()}>Run deterministic evidence gate</button>{candidate && <div><p>State: {candidate.state}</p>{candidate.reasons.length > 0 && <p>{candidate.reasons.join(" · ")}</p>}{candidate.state === "qualified" && <button className="text-link" disabled={busy} onClick={() => void approveEvidence()}>Approve candidate for publication</button>}{candidate.state === "approved" && <p>Owner approval recorded. Nothing has been pushed or published.</p>}</div>}</section>}
-    {activeMissionLinked && candidates.length > 0 && <section className="canonical-review-response"><span className="eyebrow">DURABLE EVIDENCE HISTORY</span><h3>Recorded artifact outcomes</h3><ol className="canonical-record-list">{candidates.map((item) => <li key={item.candidate_id}><strong>{item.artifact_ref} · {item.state}</strong><span>{item.publication_state ? `Publication ${item.publication_state}` : item.reasons.length ? item.reasons.join(" · ") : "Evidence checks passed"}</span>{item.publication_url && <a className="text-link" href={item.publication_url} target="_blank" rel="noreferrer">Open published evidence</a>}{item.publication_error && <small>Last publication attempt failed: {item.publication_error}</small>}</li>)}</ol><small>Publication is performed only by Friday’s authenticated promotion gateway. This workspace stores no gateway credential.</small></section>}
-    {activeMissionLinked && activeMissionId && <section className="canonical-review-response"><span className="eyebrow">BOUNDED MISSION AUTONOMY</span><h3>Prepare governed implementation work</h3>{currentMissionObjective ? <div><p>Objective: {currentMissionObjective.objective.text}</p><p>State: {currentMissionObjective.objective.state}{currentMissionObjective.objective.task_state ? ` · task ${currentMissionObjective.objective.task_state}` : " · no task dispatched"}</p><small>Resume planning, exact-plan review, approval, execution, cancellation, and recovery in Friday Objectives. Completion never becomes learning evidence automatically.</small></div> : <><input value={objectiveText} onChange={(event) => setObjectiveText(event.target.value)} aria-label="Mission implementation objective" placeholder="Concrete repository work for this mission" /><button className="text-link" disabled={busy || !objectiveText.trim()} onClick={() => void createMissionObjective()}>Prepare governed objective</button></>}</section>}
+    {activeMissionLinked && activeMissionId && <section className="canonical-review-response"><span className="eyebrow">PUBLIC EVIDENCE REVIEW</span><h3>Qualify a real project artifact</h3><input value={artifactRef} onChange={(event) => setArtifactRef(event.target.value)} aria-label="Project artifact reference" placeholder="Repository-relative artifact or evidence reference" />{currentMissionObjective?.objective.task_state === "succeeded" && currentMissionObjective.objective.task_id && currentMissionObjective.objective.repository_id && <div><p>This records the exact Friday-assisted task and commit as assisted mission evidence. It is not an independent learner assessment and does not advance mastery.</p><button className="text-link" disabled={busy || !projectCsrf || !artifactRef.trim() || taskEvidenceRecorded} onClick={() => void recordAssistedTaskEvidence()}>{taskEvidenceRecorded ? "Assisted task evidence recorded" : "Record Friday-assisted artifact as evidence"}</button></div>}{Object.entries(checks).map(([name, value]) => <label key={name}><input type="checkbox" checked={value} onChange={(event) => setChecks((old) => ({ ...old, [name]: event.target.checked }))} />{name.replaceAll("_", " ")}</label>)}<button className="text-link" disabled={busy || !artifactRef.trim()} onClick={() => void reviewEvidence()}>Run deterministic evidence gate</button>{candidate && <div><p>State: {candidate.state}</p>{candidate.reasons.length > 0 && <p>{candidate.reasons.join(" · ")}</p>}{["qualified", "approved"].includes(candidate.state) && <button className="text-link" disabled={busy || !projectCsrf} onClick={() => void reviewPublication(candidate)}>Review exact publication plan</button>}{publicationPlan?.candidate_id === candidate.candidate_id && <div><h4>Exact owner approval plan</h4><p>Project: {publicationPlan.project_name} · task {publicationPlan.task_id} · objective {publicationPlan.objective_id}</p><p>Artifact: {publicationPlan.artifact_ref} · blob SHA-1 {publicationPlan.artifact_blob_sha}</p><p>Destination: {publicationPlan.github_owner}/{publicationPlan.github_repository} · target branch {publicationPlan.target_branch}</p><p>Promoted source commit: {publicationPlan.commit_sha} · operation: {publicationPlan.operation}</p>{candidate.state === "qualified" ? <button className="text-link" disabled={busy || !projectCsrf} onClick={() => void approveEvidence()}>Approve this exact publication</button> : <p>Owner approval is already bound to this exact plan.</p>}</div>}{candidate.state === "approved" && <p>Owner approval recorded for the bound publication. Friday will verify the remote artifact and pull request.</p>}</div>}</section>}
+    {activeMissionLinked && candidates.length > 0 && <section className="canonical-review-response"><span className="eyebrow">DURABLE EVIDENCE HISTORY</span><h3>Recorded artifact outcomes</h3><ol className="canonical-record-list">{candidates.map((item) => <li key={item.candidate_id}><strong>{item.artifact_ref} · {item.state}</strong><span>{item.publication_state ? `Publication ${item.publication_state}` : item.reasons.length ? item.reasons.join(" · ") : "Evidence checks passed"}</span>{item.state === "approved" && <><p>Approved task: {item.task_id} · repository mapping: {item.repository_id} · target branch: {item.base_branch} · commit: {item.publication_commit_sha} · artifact blob: {item.artifact_blob_sha}</p><button className="text-link" disabled={busy || !projectCsrf || currentMissionObjective?.objective.task_state !== "succeeded" || !currentMissionObjective.objective.task_id || !currentMissionObjective.objective.repository_id} onClick={() => void reviewPublication(item)}>Review bound publication plan</button><button className="text-link" disabled={busy || !projectCsrf || currentMissionObjective?.objective.task_state !== "succeeded" || !currentMissionObjective.objective.task_id || !currentMissionObjective.objective.repository_id} onClick={() => void publishEvidence(item)}>Publish approved artifact</button></>}{item.publication_url && <a className="text-link" href={item.publication_url} target="_blank" rel="noreferrer">Open published evidence</a>}{item.publication_error && <small>Last publication attempt failed: {item.publication_error}</small>}</li>)}</ol><small>Publication uses Friday’s authenticated promotion gateway. Gateway credentials stay on the server.</small></section>}
+    {activeMissionLinked && activeMissionId && <section className="canonical-review-response"><span className="eyebrow">BOUNDED MISSION AUTONOMY</span><h3>{currentMissionObjective?.objective.state === "cancelled" ? "Prepare a replacement governed objective" : "Prepare governed implementation work"}</h3>{currentMissionObjective && currentMissionObjective.objective.state !== "cancelled" ? <div><p>Objective: {currentMissionObjective.objective.text}</p><p>State: {currentMissionObjective.objective.state}{currentMissionObjective.objective.task_state ? ` · task ${currentMissionObjective.objective.task_state}` : " · no task dispatched"}</p>{currentMissionObjective.objective.task_id && (currentMissionObjective.objective.task_state === "awaiting_approval" || currentMissionObjective.objective.task_state === "reapproval_required") && <><button className="text-link" disabled={busy} onClick={() => void inspectProjectPlan(currentMissionObjective.objective.objective_id)}>Review exact plan</button><button className="text-link" disabled={busy || !projectCsrf || planReview?.objectiveId !== currentMissionObjective.objective.objective_id || planReview.planHash !== currentMissionObjective.objective.plan_hash} onClick={() => void approveCareerMissionTask()}>Approve this exact plan</button>{planReview?.objectiveId === currentMissionObjective.objective.objective_id && <p>{planReview.summary} · risk {planReview.risk} · plan {planReview.planHash}</p>}</>}{currentMissionObjective.objective.task_state === "approved" && <button className="text-link" disabled={busy || !projectCsrf} onClick={() => void executeCareerMissionTask()}>Execute approved task</button>}<small>Task completion does not become learning evidence or mastery automatically.</small></div> : <><input value={objectiveText} onChange={(event) => setObjectiveText(event.target.value)} aria-label="Mission implementation objective" placeholder="Concrete repository work for this mission" /><button className="text-link" disabled={busy || !objectiveText.trim()} onClick={() => void createMissionObjective()}>{currentMissionObjective ? "Replace cancelled objective" : "Prepare governed objective"}</button></>}</section>}
     <div className="canonical-project-boundary"><p>Connecting a mission grants no repository, execution, GitHub, publication, or mastery authority. Public evidence still requires validation, privacy and secret review, documentation, quality review, and explicit owner approval.</p></div>
     <button className="text-link" onClick={openLearn}>Return to the current mission <ArrowRight size={14} /></button>
   </section>;

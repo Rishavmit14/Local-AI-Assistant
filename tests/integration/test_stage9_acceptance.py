@@ -1,10 +1,8 @@
 """Deterministic Stage 9 acceptance seams (no live model or GitHub)."""
 from __future__ import annotations
 
-import hashlib
 import json
 import subprocess
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -41,8 +39,14 @@ def test_full_deterministic_intake_plan_approval_execution_publication(tmp_path,
         def generate(self, request):
             # The production request/planner seam is exercised; the fixture model is deterministic.
             from local_ai_assistant.planning.models import (
-                ApprovalDecision, ApprovalStatus, ConfidenceAssessment, ImplementationPlan,
-                RiskAssessment, RiskLevel, TaskCategory, TaskClassification,
+                ApprovalDecision,
+                ApprovalStatus,
+                ConfidenceAssessment,
+                ImplementationPlan,
+                RiskAssessment,
+                RiskLevel,
+                TaskCategory,
+                TaskClassification,
             )
             classification = TaskClassification(TaskCategory.BUG_FIX, 1.0, ("fixture",), request)
             plan = ImplementationPlan(
@@ -66,7 +70,7 @@ def test_full_deterministic_intake_plan_approval_execution_publication(tmp_path,
     provenance = ExternalProvenance.from_payload("github", "delivery-acceptance", "acme/demo", "Fix add")
     task = gateway.create_task("fixture", "Fix add so the test passes", provenance=provenance, branch="friday/task/acceptance")
     assert history.get(task.task_id).metadata["external_provenance"]["event_id"] == "delivery-acceptance"
-    artifact = gateway.request_plan(task.task_id)
+    gateway.request_plan(task.task_id)
     assert history.get(task.task_id).plan_hash
     approval = history.attach_approval(task.task_id, history.get(task.task_id).plan_hash, "explicitly_approved", actor="acceptance")
     assert approval
@@ -94,6 +98,7 @@ def test_full_deterministic_intake_plan_approval_execution_publication(tmp_path,
     assert history.get(task.task_id).status is TaskStatus.SUCCEEDED
     transport = FakeGitHubTransport()
     transport.branches[("acme", "demo", task.branch)] = _head(path)
+    transport.branches[("acme", "demo", "main")] = task.starting_commit
     publication = GitHubPublicationService(history, (mapping,), transport, push=lambda *_: None)
     result = publication.publish(task.task_id, repository_id="fixture")
     assert result["state"] == "published"

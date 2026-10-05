@@ -24,11 +24,16 @@ Keep the listener on loopback unless a deliberate deployment adds TLS, firewalli
 
 For review-gated GitHub publication, register the managed repository with
 `local-ai-repo scan REPOSITORY_ID PATH --publication-mapping OWNER/REPOSITORY`.
-Set `LOCAL_AI_GITHUB_ENABLED=true`, keep `LOCAL_AI_GITHUB_TOKEN` only in the
-protected local environment, and include `github_write` in
-`LOCAL_AI_GATEWAY_SCOPES`. The presentation publication route still requires the
-configured bearer token; neither Astra nor the Learner Twin stores it. Candidate
-approval and publication remain separate requests, and only a succeeded
+Set `LOCAL_AI_GITHUB_ENABLED=true`, register one explicit publication mapping,
+and include `github_write` in `LOCAL_AI_GATEWAY_SCOPES`. Prefer the
+server-side `gh-keyring:github.com:ACCOUNT` credential reference with an exact
+`LOCAL_AI_GITHUB_ALLOWED_REPOSITORY` and purpose
+`learner_project_public_proof`. Friday resolves the GitHub CLI credential from
+the owner OS keyring and checks account identity during startup. The legacy
+`LOCAL_AI_GITHUB_TOKEN` remains available for protected service environments;
+never put it in browser-visible configuration or logs. Neither Astra nor the
+Learner Twin stores it. Candidate approval and publication remain separate
+requests, and only a succeeded
 `friday/task/` task with a final commit and matching local/remote repository
 identity can reach the existing publisher.
 

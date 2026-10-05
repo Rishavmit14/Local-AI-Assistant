@@ -1,5 +1,5 @@
 import { FridayRuntimeClient } from "../runtime";
-import type { CareerForgeJourney } from "../runtime";
+import type { CareerForgeJourney, CareerForgePublicEvidenceCandidate, CareerForgePublicationPlan } from "../runtime";
 import type { CareerForgeSummaryView, FridayPresentationActions } from "./types";
 import { presentCareerForgeJourney } from "./careerForge";
 
@@ -51,7 +51,13 @@ export class FridayPresentation implements FridayPresentationActions {
   approveDesktopAction(actionId: string) { return this.runtime.approveDesktopAction(actionId); }
   executeDesktopAction(actionId: string) { return this.runtime.executeDesktopAction(actionId); }
   createCareerPublicEvidence(missionId: string, artifactRef: string, checks: Parameters<FridayRuntimeClient["createCareerPublicEvidence"]>[2]) { return this.runtime.createCareerPublicEvidence(missionId, artifactRef, checks); }
-  approveCareerPublicEvidence(candidateId: string) { return this.runtime.approveCareerPublicEvidence(candidateId); }
+  getCareerPublicEvidencePlan(candidateId: string, taskId: string, repositoryId: string, base: string) {
+    return this.runtime.getCareerPublicEvidencePlan(candidateId, taskId, repositoryId, base);
+  }
+  approveCareerPublicEvidence(plan: CareerForgePublicationPlan, csrf: string): Promise<CareerForgePublicEvidenceCandidate> {
+    return this.runtime.approveCareerPublicEvidence(plan, csrf);
+  }
+  publishCareerPublicEvidence(candidateId: string, taskId: string, repositoryId: string, csrf: string) { return this.runtime.publishCareerPublicEvidence(candidateId, taskId, repositoryId, csrf); }
   getCareerPublicEvidence(missionId: string) { return this.runtime.getCareerPublicEvidence(missionId); }
   getCareerMissionObjective(missionId: string) { return this.runtime.getCareerMissionObjective(missionId); }
   createCareerMissionObjective(missionId: string, text: string) { return this.runtime.createCareerMissionObjective(missionId, text); }

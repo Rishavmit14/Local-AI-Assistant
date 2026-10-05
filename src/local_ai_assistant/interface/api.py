@@ -2415,7 +2415,9 @@ def create_presentation_app(
             forge = owner_career_forge()
             existing = forge.mission_objective(mission_id)
             if existing is not None:
-                return {"link": asdict(existing), "objective": asdict(owner_autonomy().get(existing.objective_id))}
+                prior = owner_autonomy().get(existing.objective_id)
+                if prior.state != "cancelled":
+                    return {"link": asdict(existing), "objective": asdict(prior)}
             body = await request.json()
             text = body.get("text")
             if not isinstance(text, str):
@@ -2423,7 +2425,12 @@ def create_presentation_app(
             created = owner_autonomy().create(text)
             objective = owner_autonomy().resume(created.objective_id)
             try:
-                link = forge.link_mission_objective(mission_id, objective.objective_id)
+                link = (
+                    forge.replace_cancelled_mission_objective(
+                        mission_id, existing.objective_id, objective.objective_id,
+                    ) if existing is not None else
+                    forge.link_mission_objective(mission_id, objective.objective_id)
+                )
             except (KeyError, ValueError):
                 owner_autonomy().cancel(objective.objective_id)
                 raise
@@ -2457,13 +2464,156 @@ def create_presentation_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         return {"candidate": asdict(candidate)}
 
-    @app.post("/api/v1/career-forge/public-evidence/{candidate_id}/approve")
-    def career_approve_public_evidence(candidate_id: str):
+    @app.post("/api/v1/career-forge/missions/{mission_id}/task-artifact-evidence")
+    async def career_record_task_artifact_evidence(mission_id: str, request: Request):
+        """Link exact Friday-assisted task output as evidence without mastery changes."""
+        context_owner(request, mutation=True)
+        if autonomy is None or task_history is None or career_publication is None:
+            raise HTTPException(status_code=503, detail="task-artifact provenance is unavailable")
         try:
-            candidate = owner_career_forge().approve_public_evidence(candidate_id)
-        except (KeyError, ValueError) as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        return {"candidate": asdict(candidate)}
+            body = await request.json()
+            task_id, repository_id, artifact_ref = (
+                body["task_id"], body["repository_id"], body["artifact_ref"],
+            )
+            if not all(isinstance(value, str) and value for value in (task_id, repository_id, artifact_ref)):
+                raise ValueError("task artifact identity is required")
+            link = owner_career_forge().mission_objective(mission_id)
+            if link is None:
+                raise ValueError("mission has no linked governed objective")
+            objective = autonomy.get(link.objective_id)
+            task = task_history.get(task_id)
+            if (objective.task_id != task_id or objective.repository_id != repository_id
+                    or objective.task_state != "succeeded" or task is None
+                    or task.status is not TaskStatus.SUCCEEDED or not task.final_commit
+                    or task.repository != str(next(
+                        (Path(item.local_path).resolve() for item in career_publication.mappings
+                         if item.repository_id == repository_id), Path("/nonexistent")
+                    ))):
+                raise ValueError("task is not the exact successful mission artifact")
+            commit_sha, blob_sha = career_publication.validate_artifact_identity(
+                task_id, repository_id=repository_id, artifact_ref=artifact_ref,
+            )
+            if commit_sha != task.final_commit:
+                raise ValueError("promoted task commit changed")
+            evidence_id = owner_career_forge().record_evidence(
+                mission_id,
+                "friday_assisted_task_artifact",
+                ("Friday-assisted artifact; not an independent learner assessment and does not advance mastery. "
+                 f"Task {task_id}; commit {commit_sha}; Git blob {blob_sha}."),
+                assistance_level="full_demonstration", artifact_ref=artifact_ref,
+                source_task_id=task_id, source_commit_sha=commit_sha,
+            )
+        except (KeyError, TypeError, ValueError, HistoryDatabaseError) as exc:
+            raise HTTPException(status_code=409, detail="exact task artifact evidence was rejected") from exc
+        return {
+            "evidence_id": evidence_id, "mission_id": mission_id,
+            "task_id": task_id, "repository_id": repository_id,
+            "artifact_ref": artifact_ref, "commit_sha": commit_sha,
+            "artifact_blob_sha": blob_sha, "assistance_level": "full_demonstration",
+            "mastery_advanced": False,
+        }
+
+    def public_evidence_publication_plan(
+        candidate_id: str, task_id: str, repository_id: str, base: str,
+    ) -> dict[str, str]:
+        if career_publication is None or autonomy is None:
+            raise ValueError("authenticated publication is unavailable")
+        forge = owner_career_forge()
+        candidate = forge.public_evidence_candidate(candidate_id)
+        if candidate.state not in {"qualified", "approved"}:
+            raise ValueError("only qualified evidence can be reviewed for publication")
+        objective_link = forge.mission_objective(candidate.mission_id)
+        if objective_link is None:
+            raise ValueError("public evidence must link to a successful project objective")
+        objective = autonomy.get(objective_link.objective_id)
+        if (objective.task_id != task_id or objective.repository_id != repository_id
+                or objective.task_state != "succeeded"):
+            raise ValueError("publication must use the linked successful project task")
+        forge.project_link(candidate.mission_id)
+        mapping = next((item for item in career_publication.mappings
+                        if item.repository_id == repository_id), None)
+        if mapping is None or not mapping.github_owner or not mapping.github_name:
+            raise ValueError("publication destination is not explicitly mapped")
+        if candidate.task_id and (candidate.task_id, candidate.repository_id, candidate.base_branch) != (
+            task_id, repository_id, base,
+        ):
+            raise ValueError("candidate is already bound to a different publication plan")
+        commit_sha, blob_sha = career_publication.validate_artifact_identity(
+            task_id, repository_id=repository_id, artifact_ref=candidate.artifact_ref,
+        )
+        if candidate.publication_commit_sha and (
+            candidate.publication_commit_sha, candidate.artifact_blob_sha
+        ) != (commit_sha, blob_sha):
+            raise ValueError("approved artifact or task commit changed")
+        return {
+            "candidate_id": candidate_id,
+            "mission_id": candidate.mission_id,
+            "project_name": forge.project_link(candidate.mission_id).project_name,
+            "objective_id": objective_link.objective_id,
+            "task_id": task_id,
+            "repository_id": repository_id,
+            "github_owner": mapping.github_owner,
+            "github_repository": mapping.github_name,
+            "artifact_ref": candidate.artifact_ref,
+            "target_branch": base,
+            "operation": "create_pull_request",
+            "commit_sha": commit_sha,
+            "artifact_blob_sha": blob_sha,
+        }
+
+    @app.get("/api/v1/career-forge/public-evidence/{candidate_id}/publication-plan")
+    def career_public_evidence_plan(candidate_id: str, request: Request):
+        context_owner(request)
+        try:
+            plan = public_evidence_publication_plan(
+                candidate_id, request.query_params.get("task_id", ""),
+                request.query_params.get("repository_id", ""),
+                request.query_params.get("base", "main"),
+            )
+        except (KeyError, ValueError, HistoryDatabaseError) as exc:
+            raise HTTPException(status_code=409, detail="publication plan is unavailable") from exc
+        return {"plan": plan}
+
+    @app.post("/api/v1/career-forge/public-evidence/{candidate_id}/approve")
+    async def career_approve_public_evidence(candidate_id: str, request: Request):
+        context_owner(request, mutation=True)
+        try:
+            # Local evidence review without an external publication capability
+            # remains a distinct state. Once a publication service is present,
+            # Owner approval must carry its exact server-verified plan.
+            if career_publication is None:
+                candidate = owner_career_forge().approve_public_evidence(candidate_id)
+                return {"candidate": asdict(candidate)}
+            body = await request.json()
+            required = (
+                "task_id", "repository_id", "github_owner", "github_repository",
+                "artifact_ref", "target_branch", "operation", "commit_sha", "artifact_blob_sha",
+            )
+            if any(not isinstance(body.get(key), str) or not body[key] for key in required):
+                raise ValueError("exact publication plan is required for Owner approval")
+            plan = public_evidence_publication_plan(
+                candidate_id, body["task_id"], body["repository_id"], body["target_branch"],
+            )
+            if any(body[key] != plan[key] for key in required):
+                raise ValueError("publication plan changed; review and approve the current plan")
+            forge = owner_career_forge()
+            candidate = forge.public_evidence_candidate(candidate_id)
+            if candidate.state == "approved":
+                if (candidate.task_id, candidate.repository_id, candidate.base_branch,
+                    candidate.publication_commit_sha, candidate.artifact_blob_sha) != (
+                    plan["task_id"], plan["repository_id"], plan["target_branch"],
+                    plan["commit_sha"], plan["artifact_blob_sha"],
+                ):
+                    raise ValueError("approved evidence has no exact matching publication binding")
+                return {"candidate": asdict(candidate), "plan": plan}
+            forge.bind_public_evidence_publication(
+                candidate_id, plan["task_id"], plan["repository_id"], plan["target_branch"],
+                publication_commit_sha=plan["commit_sha"], artifact_blob_sha=plan["artifact_blob_sha"],
+            )
+            candidate = forge.approve_public_evidence(candidate_id)
+        except (KeyError, TypeError, ValueError, HistoryDatabaseError) as exc:
+            raise HTTPException(status_code=409, detail="exact publication approval was rejected") from exc
+        return {"candidate": asdict(candidate), "plan": plan}
 
     @app.post("/api/v1/career-forge/public-evidence/{candidate_id}/publish")
     async def career_publish_public_evidence(candidate_id: str, request: Request):
@@ -2473,13 +2623,20 @@ def create_presentation_app(
             raise HTTPException(status_code=503, detail="GitHub publication is not configured")
         authorization = request.headers.get("authorization", "")
         token = authorization[7:].strip() if authorization.lower().startswith("bearer ") else None
-        try:
-            principal = objective_execution_auth.require(token, GatewayScope.GITHUB_WRITE)
-        except GatewayAuthenticationError as exc:
-            raise HTTPException(status_code=401, detail="authentication required") from exc
-        except GatewayAuthorizationError as exc:
-            raise HTTPException(status_code=403, detail="insufficient gateway scope") from exc
-        if not objective_execution_limiter.allow(principal.name):
+        if token:
+            try:
+                principal = objective_execution_auth.require(token, GatewayScope.GITHUB_WRITE)
+            except GatewayAuthenticationError as exc:
+                raise HTTPException(status_code=401, detail="authentication required") from exc
+            except GatewayAuthorizationError as exc:
+                raise HTTPException(status_code=403, detail="insufficient gateway scope") from exc
+            rate_key = principal.name
+        else:
+            # Browser publication is a same-origin local Owner action. The
+            # configured Gateway scope remains an independent server-side gate;
+            # its bearer credential never crosses into browser state.
+            rate_key = project_execution_principal(request, GatewayScope.GITHUB_WRITE)
+        if not objective_execution_limiter.allow(rate_key):
             raise HTTPException(status_code=429, detail="publication request rate limit exceeded")
         try:
             body = await request.json()
@@ -2508,16 +2665,19 @@ def create_presentation_app(
                     or objective.task_state != "succeeded"
                 ):
                     raise ValueError("publication must use the linked successful project task")
+            if candidate.state != "approved" or (
+                candidate.task_id, candidate.repository_id, candidate.base_branch
+            ) != (task_id, repository_id, base):
+                raise ValueError("Owner approval is not bound to this exact publication")
             commit_sha, blob_sha = await run_in_threadpool(
                 career_publication.validate_artifact_identity, task_id,
                 repository_id=repository_id, artifact_ref=candidate.artifact_ref,
             )
-            forge.bind_public_evidence_publication(
-                candidate_id, task_id, repository_id, base,
-                publication_commit_sha=commit_sha, artifact_blob_sha=blob_sha,
-            )
+            if (candidate.publication_commit_sha, candidate.artifact_blob_sha) != (commit_sha, blob_sha):
+                raise ValueError("approved artifact or promoted commit changed")
             result = await run_in_threadpool(
                 career_publication.publish, task_id, repository_id=repository_id, base=base,
+                artifact_ref=candidate.artifact_ref, expected_blob_sha=blob_sha,
             )
             candidate = forge.record_public_evidence_publication(candidate_id, result)
             return {"candidate": asdict(candidate), "publication": result}

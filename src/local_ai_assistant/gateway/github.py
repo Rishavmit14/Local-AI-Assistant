@@ -4,6 +4,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
+import shutil
+import subprocess
 from typing import Any, Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
@@ -26,6 +29,8 @@ from .models import CIStatus, RepositoryMapping
 
 class GitHubTransport(Protocol):
     def get_issue(self, owner: str, repo: str, number: int) -> dict[str, Any]: ...
+    def get_repository(self, owner: str, repo: str) -> dict[str, Any]: ...
+    def get_file_blob_sha(self, owner: str, repo: str, path: str, *, ref: str) -> str | None: ...
     def create_pull_request(self, owner: str, repo: str, *, head: str, base: str, title: str, body: str) -> dict[str, Any]: ...
     def find_pull_requests(self, owner: str, repo: str, *, head: str, marker: str) -> list[dict[str, Any]]: ...
     def get_branch_sha(self, owner: str, repo: str, branch: str) -> str | None: ...
@@ -87,25 +92,92 @@ class GitHubHttpTransport:
             raise ValueError("invalid issue number")
         return self._request("GET", f"/repos/{quote(owner)}/{quote(repo)}/issues/{number}")
 
+    def get_repository(self, owner: str, repo: str) -> dict[str, Any]:
+        """Read canonical repository identity and empty/default-branch metadata."""
+        value = self._request("GET", f"/repos/{quote(owner)}/{quote(repo)}")
+        if not isinstance(value, dict):
+            raise GitHubMalformedResponseError("GitHub repository response is malformed")
+        return value
+
+    def get_authenticated_user(self) -> dict[str, Any]:
+        """Resolve credential identity through GitHub without returning its token."""
+        value = self._request("GET", "/user")
+        if not isinstance(value, dict) or not isinstance(value.get("login"), str):
+            raise GitHubMalformedResponseError("GitHub user response is malformed")
+        return value
+
+    def get_file_blob_sha(self, owner: str, repo: str, path: str, *, ref: str) -> str | None:
+        encoded = "/".join(quote(part, safe="") for part in path.split("/"))
+        try:
+            value = self._request(
+                "GET", f"/repos/{quote(owner)}/{quote(repo)}/contents/{encoded}?ref={quote(ref, safe='')}"
+            )
+        except GitHubNotFoundError:
+            return None
+        if not isinstance(value, dict) or value.get("type") != "file":
+            return None
+        sha = value.get("sha")
+        return str(sha) if isinstance(sha, str) and len(sha) == 40 else None
+
     def create_pull_request(self, owner: str, repo: str, *, head: str, base: str, title: str, body: str) -> dict[str, Any]:
         if len(title) > 500 or len(body) > 100_000:
             raise ValueError("pull request content exceeds bounds")
         return self._request("POST", f"/repos/{quote(owner)}/{quote(repo)}/pulls", {"head": head, "base": base, "title": title, "body": body})
 
     def find_pull_requests(self, owner: str, repo: str, *, head: str, marker: str) -> list[dict[str, Any]]:
-        values = self._request("GET", f"/repos/{quote(owner)}/{quote(repo)}/pulls?state=all&head={quote(owner + ':' + head)}")
+        values = self._request(
+            "GET",
+            f"/repos/{quote(owner)}/{quote(repo)}/pulls?state=all&per_page=100&head={quote(owner + ':' + head)}",
+        )
         return [item for item in values if marker in str(item.get("body", ""))]
 
     def get_branch_sha(self, owner: str, repo: str, branch: str) -> str | None:
-        value = self._request("GET", f"/repos/{quote(owner)}/{quote(repo)}/branches/{quote(branch, safe='')}")
+        try:
+            value = self._request("GET", f"/repos/{quote(owner)}/{quote(repo)}/branches/{quote(branch, safe='')}")
+        except GitHubNotFoundError:
+            return None
         return str(value.get("commit", {}).get("sha")) if value.get("commit", {}).get("sha") else None
 
+
+class GitHubCliKeyringCredential:
+    """Server-side reference to GitHub CLI's OS-keyring-backed credential."""
+
+    def __init__(self, *, hostname: str = "github.com") -> None:
+        if hostname != "github.com":
+            raise ValueError("only github.com keyring credentials are supported")
+        self.hostname = hostname
+
+    def resolve(self) -> str:
+        executable = shutil.which("gh")
+        if not executable:
+            raise RuntimeError("GitHub CLI credential provider is unavailable")
+        safe_env = {
+            name: os.environ[name] for name in (
+                "HOME", "XDG_CONFIG_HOME", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS",
+                "GNOME_KEYRING_CONTROL", "SSH_AUTH_SOCK",
+            ) if os.environ.get(name)
+        }
+        safe_env["PATH"] = "/usr/bin:/bin"
+        try:
+            result = subprocess.run(
+                (executable, "auth", "token", "--hostname", self.hostname),
+                stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                check=True, timeout=10, env=safe_env,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise RuntimeError("GitHub CLI keyring credential could not be resolved") from exc
+        token = result.stdout.strip()
+        if not token or any(ord(char) < 33 or ord(char) > 126 for char in token):
+            raise RuntimeError("GitHub CLI keyring credential is invalid")
+        return token
 
 class FakeGitHubTransport:
     def __init__(self):
         self.issues: dict[tuple[str, str, int], dict[str, Any]] = {}
         self.pull_requests: list[dict[str, Any]] = []
         self.branches: dict[tuple[str, str, str], str] = {}
+        self.repositories: dict[tuple[str, str], dict[str, Any]] = {}
+        self.files: dict[tuple[str, str, str, str], str] = {}
 
     def get_issue(self, owner, repo, number):
         return dict(self.issues[(owner, repo, number)])
@@ -124,6 +196,7 @@ class FakeGitHubTransport:
             "title": title,
             "body": body,
             "repo": (owner, repo),
+            "head_sha": self.branches.get((owner, repo, head)),
         }
         self.pull_requests.append(value)
         return dict(value)
@@ -133,6 +206,15 @@ class FakeGitHubTransport:
 
     def get_branch_sha(self, owner, repo, branch):
         return self.branches.get((owner, repo, branch))
+
+    def get_repository(self, owner, repo):
+        return dict(self.repositories.get((owner, repo), {
+            "full_name": f"{owner}/{repo}", "default_branch": "main",
+            "size": 0 if not self.branches else 1,
+        }))
+
+    def get_file_blob_sha(self, owner, repo, path, *, ref):
+        return self.files.get((owner, repo, ref, path))
 
 
 def verify_webhook_signature(raw_body: bytes, signature: str | None, secret: str) -> bool:

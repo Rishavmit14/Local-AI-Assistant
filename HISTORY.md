@@ -2404,3 +2404,64 @@ Friday/Qwen remained healthy, Pocket/Anna and `NeuralPresence.tsx` were not
 modified, and no Stage 26 capability or screenshot is tracked. Stage 26 is
 qualified for its bounded workflows. Real reboot/login and physical microphone
 evidence remain open; Row 61 remains PARTIAL.
+### 2026-10-05 — Stage 27 authenticated learner-artifact publication candidate
+
+On a fresh `stage-27/authenticated-learner-publication` worktree based on the
+published Stage 26 commit `a754c3f40a2fea47ce6ccc183b350fd34ecfdcc0`, added an
+Owner-session/CSRF browser path from Projects to the existing `GITHUB_WRITE`
+gateway without exposing a bearer token. Publication verifies the resulting
+remote branch commit and pull-request identity before persisting success. Unit
+and integration tests plus a disposable live-Friday browser journey qualified
+the owner approval, locked-session refusal, local fake-transport publication,
+and result reconstruction after reload and candidate API restart.
+
+At this checkpoint the live Friday service had neither `GITHUB_WRITE` scope,
+server-side publication credential, nor a Career Forge publication mapping;
+the external destination had not yet been selected. No real external write was
+attempted. The capability was not accepted or committed, and Row 61 remains
+PARTIAL. See the following entry for the verified destination and current
+authorization boundary.
+### 2026-10-05 — Stage 27 destination verified; Friday write authorization boundary remains
+
+The owner-selected destination `Rishavmit14/ML-AI-Engineering` resolves for the
+authenticated `Rishavmit14` account and is an intentionally empty public
+repository with default branch `main`. The host's keyring-backed GitHub CLI
+identity has `repo` scope and push permission. Friday's live Gateway remains
+fail-closed: it has no `GITHUB_WRITE` scope, server-side GitHub publication
+credential, or destination mapping. No external write or Friday credential
+configuration was performed. Stage 27 implementation remains uncommitted and
+the owner must authorize Friday's local Gateway and securely connect its
+server-side GitHub credential before real publication qualification can resume.
+The Stage 27 focused suite and full repository verifier pass; frontend tests,
+typecheck, and build pass. The deterministic fake-transport browser path remains
+the only qualified publication path at this checkpoint.
+
+### 2026-10-05 — Stage 27 real learner-artifact publication qualified
+
+The exact destination `Rishavmit14/ML-AI-Engineering` was verified as public,
+empty, and writable by the authenticated `Rishavmit14` account. The candidate
+Gateway used a server-side `gh-keyring:github.com:Rishavmit14` reference with
+`GITHUB_WRITE`, an exact repository allowlist, and the learner-public-proof
+purpose; no credential entered the browser or repository. Friday executed and
+validated one exact-path model-card task in an isolated branch, then committed
+the reviewed artifact as `c6adfc795279eddc2011518e547b40f0e0835da7`. Owner
+approval bound `artifacts/model_card.md`, its Git blob
+`e1887f93bbf647554fe7958a1a49dbe46b80129f`, destination, base `main`, task
+commit, and `create_pull_request` operation.
+
+The canonical publisher initialized the intentionally empty repository base,
+pushed the one approved task branch, and created PR #1. GitHub REST reads
+verified repository identity, PR head/base/repository, remote task SHA, and
+remote artifact blob. The publication record persisted the same identities;
+candidate API restart and Friday browser reload reconstructed it. One
+Friday-assisted Career Forge evidence record stores the task and commit with
+`full_demonstration` assistance; `ml.classical` remains UNVERIFIED and no
+mastery advanced. Fake-transport tests remain the idempotency and uncertain
+side-effect recovery gate so the real repository receives no retry writes.
+Final Stage 27 and Stage 22–26 Python/repository regressions now pass:
+**1,467 passed, 6 skipped**, including the pip/uv dependency consistency gate
+for all **98 packages**. Frontend verification passes **133 tests across 20
+files**, 2 Owner bridge checks, ESLint, TypeScript, and production build (the
+existing large-chunk advisory remains). Changed-file Ruff, diff checks, and the
+final secret-pattern audit pass. Stage 27 code commit/push and fetched remote
+recovery verification remain pending.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import io
@@ -37,6 +38,7 @@ from local_ai_assistant.gateway.models import (
 )
 from local_ai_assistant.gateway.publication import GitHubPublicationService
 from local_ai_assistant.gateway.service import IntegrationGatewayService
+from local_ai_assistant.history.errors import HistoryDatabaseError
 from local_ai_assistant.history.models import TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
@@ -329,12 +331,127 @@ def test_publication_claim_converges_concurrent_callers_and_rejects_wrong_remote
     transport = FakeGitHubTransport()
     def push(_repo, branch, commit):
         transport.branches[("acme", "demo", branch)] = commit
+        if branch == task.branch:
+            transport.branches[("acme", "demo", "main")] = task.starting_commit
     publication = GitHubPublicationService(gateway.history, gateway.mappings, transport, push=push)
     with ThreadPoolExecutor(max_workers=4) as pool:
         results = list(pool.map(lambda _: _publish_safely(publication, task.task_id), range(4)))
     assert len(transport.pull_requests) == 1
     assert sum(item is not None for item in results) >= 1
     assert publication.status(task.task_id)["state"] == "published"
+
+
+def test_publication_requires_external_branch_and_pull_request_to_match_approved_commit():
+    from local_ai_assistant.gateway.publication import _matches_pull_request
+
+    matching = {
+        "id": 7, "number": 7, "html_url": "https://github.com/acme/demo/pull/7",
+        "head": {"ref": "friday/task/a", "sha": "a" * 40,
+                 "repo": {"full_name": "acme/demo"}},
+        "base": {"ref": "main", "repo": {"full_name": "acme/demo"}},
+    }
+    assert _matches_pull_request(matching, "acme", "demo", "friday/task/a", "main", "a" * 40)
+    assert not _matches_pull_request(matching, "acme", "other", "friday/task/a", "main", "a" * 40)
+    assert not _matches_pull_request(matching, "acme", "demo", "friday/task/a", "release", "a" * 40)
+    assert not _matches_pull_request(matching, "acme", "demo", "friday/task/a", "main", "b" * 40)
+    assert not _matches_pull_request(
+        {**matching, "html_url": "https://evil.invalid/acme/demo/pull/7"},
+        "acme", "demo", "friday/task/a", "main", "a" * 40,
+    )
+
+
+def test_publication_bootstraps_only_empty_default_branch_and_verifies_blob(tmp_path):
+    gateway, path = service(tmp_path)
+    subprocess.run(["git", "-C", str(path), "remote", "add", "origin", "https://github.com/acme/demo.git"], check=True)
+    task = gateway.create_task("r1", "publish a synthetic model card", branch="friday/task/empty-repo")
+    subprocess.run(["git", "-C", str(path), "checkout", "-qb", task.branch], check=True)
+    (path / "artifacts").mkdir()
+    artifact = path / "artifacts" / "model_card.md"
+    artifact.write_text("# Synthetic learner artifact\n\nDeterministic qualification sample.\n")
+    subprocess.run(["git", "-C", str(path), "add", "artifacts/model_card.md"], check=True)
+    subprocess.run(["git", "-C", str(path), "-c", "user.name=Friday", "-c", "user.email=friday@example.invalid", "commit", "-qm", "synthetic learner artifact"], check=True)
+    gateway.history.store.update_task(task.task_id, task.repository, plan_hash="p", approval_state="explicitly_approved")
+    for status in (TaskStatus.PLANNING, TaskStatus.AWAITING_APPROVAL):
+        gateway.history.store.transition(task.task_id, status, "qualification")
+    gateway.history.attach_approval(task.task_id, "p", "explicitly_approved")
+    for status in (TaskStatus.APPROVED, TaskStatus.EXECUTING, TaskStatus.VALIDATING, TaskStatus.REVIEWING):
+        gateway.history.store.transition(task.task_id, status, "qualification")
+    head = subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
+    task = gateway.history.finalize(task.task_id, path, TaskStatus.SUCCEEDED, final_commit=head, outcome="validated")
+    transport = FakeGitHubTransport()
+    pushed = []
+    def push(_repo, branch, commit):
+        pushed.append((branch, commit))
+        transport.branches[("acme", "demo", branch)] = commit
+        if branch == task.branch:
+            transport.branches[("acme", "demo", "main")] = task.starting_commit
+        if branch == task.branch:
+            transport.files[("acme", "demo", branch, "artifacts/model_card.md")] = subprocess.check_output(
+                ["git", "-C", str(path), "rev-parse", f"{commit}:artifacts/model_card.md"], text=True,
+            ).strip()
+    publication = GitHubPublicationService(gateway.history, gateway.mappings, transport, push=push)
+    commit_sha, blob_sha = publication.validate_artifact_identity(
+        task.task_id, repository_id="r1", artifact_ref="artifacts/model_card.md",
+    )
+    result = publication.publish(
+        task.task_id, repository_id="r1", artifact_ref="artifacts/model_card.md",
+        expected_blob_sha=blob_sha,
+    )
+    assert result["state"] == "published"
+    assert pushed == [("main", task.starting_commit), (task.branch, commit_sha)]
+    assert transport.get_file_blob_sha("acme", "demo", "artifacts/model_card.md", ref=task.branch) == blob_sha
+
+
+def test_publication_push_uses_only_server_side_https_header(monkeypatch, tmp_path):
+    from local_ai_assistant.gateway.github import GitHubHttpTransport
+
+    gateway, _path = service(tmp_path)
+    secret = "gho-stage27-never-print-this"
+    publication = GitHubPublicationService(
+        gateway.history, gateway.mappings, GitHubHttpTransport(secret),
+    )
+    calls = []
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return subprocess.CompletedProcess(argv, 0, "", "")
+    monkeypatch.setattr("local_ai_assistant.gateway.publication.subprocess.run", fake_run)
+    publication._push_with_retry(tmp_path, "friday/task/safe", "a" * 40)
+    argv, kwargs = calls[0]
+    assert secret not in repr(argv)
+    assert kwargs["env"]["HOME"] == "/nonexistent"
+    assert kwargs["env"]["GIT_CONFIG_KEY_0"] == "http.https://github.com/.extraheader"
+    header = kwargs["env"]["GIT_CONFIG_VALUE_0"].split("basic ", 1)[1]
+    assert base64.b64decode(header).decode() == f"x-access-token:{secret}"
+    assert kwargs["capture_output"] is True
+    assert kwargs["text"] is True
+
+
+def test_publication_fails_closed_without_server_side_git_credential(tmp_path):
+    gateway, _path = service(tmp_path)
+    publication = GitHubPublicationService(gateway.history, gateway.mappings, FakeGitHubTransport())
+    with pytest.raises(HistoryDatabaseError, match="credential is unavailable"):
+        publication._push_with_retry(tmp_path, "friday/task/safe", "a" * 40)
+
+
+def test_github_cli_keyring_credential_provider_never_puts_token_in_arguments(monkeypatch):
+    from local_ai_assistant.gateway.github import GitHubCliKeyringCredential
+
+    monkeypatch.setattr("local_ai_assistant.gateway.github.shutil.which", lambda _name: "/usr/bin/gh")
+    calls = []
+    monkeypatch.setattr(
+        "local_ai_assistant.gateway.github.subprocess.run",
+        lambda *args, **kwargs: calls.append((args, kwargs)) or subprocess.CompletedProcess(
+            args[0], 0, "server-only-token", "",
+        ),
+    )
+    token = GitHubCliKeyringCredential().resolve()
+    assert token == "server-only-token"
+    args, kwargs = calls[0]
+    assert args[0] == ("/usr/bin/gh", "auth", "token", "--hostname", "github.com")
+    assert kwargs["stdin"] is subprocess.DEVNULL
+    assert kwargs["capture_output"] is True
+    assert "server-only-token" not in repr(args)
+    assert "server-only-token" not in repr(kwargs["env"])
 
 
 def test_publication_reconciles_after_local_pr_identity_write_failure(tmp_path):
@@ -352,6 +469,7 @@ def test_publication_reconciles_after_local_pr_identity_write_failure(tmp_path):
     task = gateway.history.finalize(task.task_id, path, TaskStatus.SUCCEEDED, final_commit=head, outcome="passed")
     transport = FakeGitHubTransport()
     transport.branches[("acme", "demo", task.branch)] = head
+    transport.branches[("acme", "demo", "main")] = task.starting_commit
     publication = GitHubPublicationService(gateway.history, gateway.mappings, transport, push=lambda *_: pytest.fail("must reconcile existing push"))
     original = gateway.history.store.upsert_publication
     failed = {"value": True}

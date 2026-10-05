@@ -93,6 +93,8 @@ class EvidenceRecord:
     assistance_level: AssistanceLevel | None
     artifact_ref: str | None
     created_at: str
+    source_task_id: str | None = None
+    source_commit_sha: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -303,7 +305,8 @@ class CareerForgeService:
                 CREATE TABLE IF NOT EXISTS mission_evidence (
                     evidence_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
                     evidence_type TEXT NOT NULL, content TEXT NOT NULL,
-                    assistance_level TEXT, artifact_ref TEXT, created_at TEXT NOT NULL
+                    assistance_level TEXT, artifact_ref TEXT, created_at TEXT NOT NULL,
+                    source_task_id TEXT, source_commit_sha TEXT
                 );
                 CREATE TABLE IF NOT EXISTS mission_assistance (
                     assistance_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
@@ -355,6 +358,11 @@ class CareerForgeService:
                     mission_id TEXT PRIMARY KEY, objective_id TEXT NOT NULL UNIQUE,
                     created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS mission_objective_history (
+                    mission_id TEXT NOT NULL, objective_id TEXT NOT NULL UNIQUE,
+                    linked_at TEXT NOT NULL, superseded_at TEXT NOT NULL,
+                    PRIMARY KEY(mission_id, objective_id)
+                );
                 CREATE TABLE IF NOT EXISTS public_evidence_candidates (
                     candidate_id TEXT PRIMARY KEY, mission_id TEXT NOT NULL,
                     artifact_ref TEXT NOT NULL, state TEXT NOT NULL,
@@ -390,6 +398,15 @@ class CareerForgeService:
             if "question_fingerprint" not in interview_columns:
                 db.execute("ALTER TABLE career_interview_attempts ADD COLUMN question_fingerprint TEXT")
             evidence_columns = {row[1] for row in db.execute("PRAGMA table_info(mission_evidence)")}
+            if "source_task_id" not in evidence_columns:
+                db.execute("ALTER TABLE mission_evidence ADD COLUMN source_task_id TEXT")
+            if "source_commit_sha" not in evidence_columns:
+                db.execute("ALTER TABLE mission_evidence ADD COLUMN source_commit_sha TEXT")
+            db.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS mission_evidence_task_artifact_identity "
+                "ON mission_evidence(mission_id, source_task_id, artifact_ref) "
+                "WHERE source_task_id IS NOT NULL"
+            )
             if "source_attempt_id" not in evidence_columns:
                 db.execute("ALTER TABLE mission_evidence ADD COLUMN source_attempt_id TEXT")
             if "competency_id" not in evidence_columns:
@@ -682,7 +699,7 @@ class CareerForgeService:
             raise ValueError("mission is not active")
         return self.mission(mission_id)
 
-    def record_evidence(self, mission_id: str, evidence_type: str, content: str, *, assistance_level: str | None = None, artifact_ref: str | None = None, source_attempt_id: str | None = None, competency_id: str | None = None) -> str:
+    def record_evidence(self, mission_id: str, evidence_type: str, content: str, *, assistance_level: str | None = None, artifact_ref: str | None = None, source_attempt_id: str | None = None, competency_id: str | None = None, source_task_id: str | None = None, source_commit_sha: str | None = None) -> str:
         if not all(isinstance(value, str) and value.strip() for value in (evidence_type, content)):
             raise ValueError("evidence type and content must not be empty")
         mission = self.mission(mission_id)
@@ -699,13 +716,32 @@ class CareerForgeService:
             attempt = self.attempt(source_attempt_id)
             if attempt.mission_id != mission_id or attempt.evaluation is not AttemptEvaluation.CORRECT:
                 raise ValueError("evidence source must be a correct attempt from the same mission")
+        if (source_task_id is None) != (source_commit_sha is None):
+            raise ValueError("task evidence requires both task and commit identity")
+        if source_task_id is not None and (
+            not re.fullmatch(r"task_[a-f0-9]{20,40}", source_task_id)
+            or not re.fullmatch(r"[a-f0-9]{40}", source_commit_sha or "")
+            or not artifact_ref
+        ):
+            raise ValueError("task evidence identity is invalid")
+        if source_task_id is not None:
+            with self._db() as db:
+                existing = db.execute(
+                    "SELECT evidence_id,source_commit_sha FROM mission_evidence "
+                    "WHERE mission_id=? AND source_task_id=? AND artifact_ref=?",
+                    (mission_id, source_task_id, artifact_ref),
+                ).fetchone()
+            if existing is not None:
+                if existing[1] != source_commit_sha:
+                    raise ValueError("task artifact evidence is already linked to another commit")
+                return str(existing[0])
         evidence_id = "evidence_" + uuid.uuid4().hex
         with self._db() as db:
             db.execute(
                 "INSERT INTO mission_evidence "
-                "(evidence_id, mission_id, evidence_type, content, assistance_level, artifact_ref, created_at, source_attempt_id, competency_id, contract_fingerprint) "
-                "VALUES(?,?,?,?,?,?,?,?,?,?)",
-                (evidence_id, mission_id, evidence_type.strip(), content.strip(), assistance_level, artifact_ref, _now(), source_attempt_id, competency_id, contract_fingerprint),
+                "(evidence_id, mission_id, evidence_type, content, assistance_level, artifact_ref, created_at, source_attempt_id, competency_id, contract_fingerprint, source_task_id, source_commit_sha) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (evidence_id, mission_id, evidence_type.strip(), content.strip(), assistance_level, artifact_ref, _now(), source_attempt_id, competency_id, contract_fingerprint, source_task_id, source_commit_sha),
             )
         return evidence_id
 
@@ -798,12 +834,12 @@ class CareerForgeService:
             raise ValueError("evidence limit must be between 1 and 100")
         with self._db() as db:
             rows = db.execute(
-                "SELECT e.evidence_id, e.mission_id, COALESCE(e.competency_id,m.competency_id), e.evidence_type, e.assistance_level, e.artifact_ref, e.created_at "
+                "SELECT e.evidence_id, e.mission_id, COALESCE(e.competency_id,m.competency_id), e.evidence_type, e.assistance_level, e.artifact_ref, e.created_at, e.source_task_id, e.source_commit_sha "
                 "FROM mission_evidence e JOIN missions m ON m.mission_id=e.mission_id "
                 "ORDER BY e.created_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
-        return tuple(EvidenceRecord(row[0], row[1], row[2], row[3], AssistanceLevel(row[4]) if row[4] else None, row[5], row[6]) for row in rows)
+        return tuple(EvidenceRecord(row[0], row[1], row[2], row[3], AssistanceLevel(row[4]) if row[4] else None, row[5], row[6], row[7], row[8]) for row in rows)
 
     def project_evidence(self, project_id: str, *, limit: int = 100) -> tuple[EvidenceRecord, ...]:
         if not project_id or len(project_id) > 80 or not 1 <= limit <= 500:
@@ -812,12 +848,12 @@ class CareerForgeService:
         with self._db() as db:
             rows = db.execute(
                 "SELECT e.evidence_id,e.mission_id,COALESCE(e.competency_id,m.competency_id),"
-                "e.evidence_type,e.assistance_level,e.artifact_ref,e.created_at "
+                "e.evidence_type,e.assistance_level,e.artifact_ref,e.created_at,e.source_task_id,e.source_commit_sha "
                 "FROM mission_evidence e JOIN missions m USING(mission_id) "
                 "WHERE e.artifact_ref LIKE ? ORDER BY e.created_at DESC LIMIT ?",
                 (prefix + "%", limit),
             ).fetchall()
-        return tuple(EvidenceRecord(row[0], row[1], row[2], row[3], AssistanceLevel(row[4]) if row[4] else None, row[5], row[6]) for row in rows)
+        return tuple(EvidenceRecord(row[0], row[1], row[2], row[3], AssistanceLevel(row[4]) if row[4] else None, row[5], row[6], row[7], row[8]) for row in rows)
 
     def evidence_for_attempt(self, attempt_id: str) -> str | None:
         with self._db() as db:
@@ -1725,6 +1761,41 @@ class CareerForgeService:
             raise ValueError("objective is already linked to another mission") from exc
         return MissionObjectiveLink(mission_id, objective_id, now)
 
+    def replace_cancelled_mission_objective(
+        self, mission_id: str, previous_objective_id: str, objective_id: str,
+    ) -> MissionObjectiveLink:
+        """Replace the active link after the prior canonical objective was cancelled.
+
+        The caller must verify cancellation against Friday Autonomy first. The
+        superseded relationship is retained for provenance and recovery.
+        """
+        mission = self.mission(mission_id)
+        if mission.state != "active":
+            raise ValueError("mission autonomy requires an active mission")
+        if not all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{32}", value)
+                   for value in (previous_objective_id, objective_id)):
+            raise ValueError("canonical objective IDs are required")
+        now = _now()
+        with self._db() as db:
+            current = db.execute(
+                "SELECT objective_id,created_at FROM mission_objectives WHERE mission_id=?",
+                (mission_id,),
+            ).fetchone()
+            if current is None or current[0] != previous_objective_id:
+                raise ValueError("mission objective changed before replacement")
+            try:
+                db.execute(
+                    "INSERT INTO mission_objective_history VALUES(?,?,?,?)",
+                    (mission_id, previous_objective_id, current[1], now),
+                )
+                db.execute(
+                    "UPDATE mission_objectives SET objective_id=?,created_at=? WHERE mission_id=? AND objective_id=?",
+                    (objective_id, now, mission_id, previous_objective_id),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("replacement objective is already linked") from exc
+        return MissionObjectiveLink(mission_id, objective_id, now)
+
     def mission_objective(self, mission_id: str) -> MissionObjectiveLink | None:
         self.mission(mission_id)
         with self._db() as db:
@@ -1831,8 +1902,8 @@ class CareerForgeService:
             if existing != binding:
                 raise ValueError("published evidence cannot be rebound")
             return candidate
-        if candidate.state != "approved":
-            raise ValueError("only approved public evidence can be bound for publication")
+        if candidate.state not in {"qualified", "approved"}:
+            raise ValueError("only qualified public evidence can be bound for publication")
         if any(existing) and existing != binding:
             raise ValueError("public evidence is already bound to another publication")
         with self._db() as db:
