@@ -2033,7 +2033,7 @@ branch and fast-forwarded to `origin/main`; fetched refs match and GitHub
 attributes author and committer to `Rishavmit14`. Row 61 remains PARTIAL because
 whole-product visual acceptance is NOT STARTED.
 
-## Session 1 Milestone A — Voice to Action Spine (**LIVE PROVEN; publication pending**)
+## Session 1 Milestone A — Voice to Action Spine (**QUALIFIED; published 2026-10-07**)
 
 The direct low-risk open route is wired from the normal Friday voice path into
 the accepted Stage 26 computer agency. `FridayVoiceConversationService` marks
@@ -2151,8 +2151,9 @@ and dependency validation for 101 packages. Frontend passed 133 tests across
 (with the existing large-chunk advisory); changed-file Ruff, diff check, and
 secret-pattern scan with zero findings passed. SQLite integrity is ok with 26
 tasks, 22 actions, and 57 observations. A private recovery snapshot is saved
-outside Git. Regression and local secret/recovery/diff gates passed; branch/main
-publication and remote verification remain pending.
+outside Git. Regression, local secret/recovery/diff, and publication gates
+passed; at capability publication, fetched branch and main matched the accepted
+capability commit.
 | Milestone item | Status | Remaining evidence |
 |---|---|---|
 | Voice intent to existing computer agency | INTEGRATED | Candidate is running through the normal voice service; focused routing and action tests pass. |
@@ -2162,11 +2163,12 @@ publication and remote verification remain pending.
 | Owner trust, Stop, recovery, and latency path | PARTIAL | The physical Stop command was transcribed and caused voice_explicit_stop; capture remained listening and the owner reported silence. No desktop action was in flight, so live task cancellation was not exercised. The Calculator speech-end row is correlated to the durable action timestamps; latency remains in-memory without embedded task/time IDs. |
 | Candidate service on the normal Friday microphone path | INTEGRATED | Isolated candidate serves :8765 with reversible private systemd override; Daybreak is served loopback at :5193; voice health is listening. The protected production source checkout remains outside this worktree; its observed dirty voice/TTS paths were preserved. |
 | Physical spoken results | PARTIAL | Files, Friday UI, and Calculator have verified durable task/action outcomes with owner-reported spoken results. Friday UI verifies the root page title, not its exact URL/hash. The YouTube owner report remains physically successful but its older task is in_doubt. Stop was silent and returned capture to listening. |
-| Milestone A product acceptance and publication | NOT STARTED | Requires updated physical probes, truthful durable verification/spoken results, a durable latency-correlation plan or explicit bounded evidence, full required regressions, documentation, and remote recovery verification. |
+| Milestone A product acceptance and publication | QUALIFIED | Physical Calculator, Daybreak UI, Files, and silent Stop/listening evidence; speech-end-relative latency; 1,525 Python tests (6 skipped); 133 frontend tests plus 2 bridge checks; lint/build, secret/recovery/diff checks; at capability publication, fetched refs matched accepted commit b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff on stabilization/voice-action-spine and main. Preserve the YouTube owner success report with its old task in_doubt and the missing exact AT-SPI root label. |
 
-This is a candidate integration, not a newly accepted Stage 28 or a Stage 26
-rewrite. The physical microphone gate now has Calculator and silent Stop/listening
-evidence. Keep the candidate unqualified until branch/main publication and
-remote recovery verification succeed. General screen-question context and consequential
-actions remain outside this milestone. See ADR 0046 and the Session 1 section
-of `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`.
+This is a bounded voice integration through the accepted Stage 26 computer
+agency; it does not redefine Stage 28 or rewrite Stage 26. The physical
+microphone gate has Calculator and silent Stop/listening evidence. The accepted
+capability is published and remotely recoverable. Keep Milestone B out of this
+continuation. General screen-question context and consequential actions remain
+outside this milestone. See ADR 0046 and the Session 1 section of
+`docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`.

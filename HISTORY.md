@@ -2738,3 +2738,17 @@ build (existing large-chunk advisory). Changed-file Ruff, diff check, and a
 candidate secret-pattern scan with zero findings passed. SQLite integrity is
 ok with 26 tasks, 22 actions, and 57 observations. Remote publication/recovery
 checks remain pending; the candidate is not yet accepted or published.
+
+### 2026-10-07 — Session 1 Milestone A published
+
+Milestone A passed the physical Calculator and Stop/listening probes, full
+repository and frontend regression, local secret/recovery/diff checks, and Git
+publication gates. Accepted capability commit
+b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff is on
+stabilization/voice-action-spine and main. Fetch confirmed both remote refs
+matched that commit at publication. Git author and committer are Rishavmit14
+<rishavmit14@gmail.com>; the owning worktree was clean. The owner-reported
+YouTube opening remains preserved with its old durable task in_doubt; it was
+not replayed. The exact Calculator AT-SPI root label is not in the ledger, and
+the Stop probe ran with no desktop action in flight. These evidence limits are
+recorded and no success was fabricated for the older uncertain actions.

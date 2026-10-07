@@ -589,7 +589,7 @@ after a never-started actor or a freshly confirmed result without replay.
 Durable stop intent precedes the process-shared task guard. See candidate
 ADR 0044. Broader general planning, complete consequence
 integration, occlusion-safe arbitrary pointer targeting, reboot evidence and
-full Stage 26 acceptance are still open.
+voice-driven computer agency beyond this bounded Milestone A are still open.
 
 The planner exposes a typed legal-action catalog bound to the active task,
 fresh observation, semantic target identity, exact app/window and geometry,
@@ -602,7 +602,7 @@ qualification of the voice-action candidate, arbitrary browser pointer
 occlusion, and canonical consequential-action authorization remain separate
 evidence or product gaps.
 
-## Session 1 Milestone A — direct voice open actions (candidate)
+## Session 1 Milestone A — direct voice open actions (qualified and published)
 
 The candidate voice route marks turns from the normal microphone path and
 recognizes a bounded direct open/focus command before memory retrieval and Qwen
@@ -691,9 +691,11 @@ voice_explicit_stop at sequence 27. The owner reported silence; voice health
 afterward showed the capture thread listening with no active turn or error.
 There was no in-flight computer action, so desktop task cancellation is covered
 by deterministic tests but was not physically exercised. Full repository/frontend regressions, changed-file Ruff, secret-pattern scan,
-SQLite integrity, and diff gates passed. Remote publication and recovery
-verification remain pending; the candidate is not yet qualified. ADR 0046
-records the candidate decision.
+SQLite integrity, and diff gates passed. At capability publication, fetched
+refs confirmed accepted commit b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff equal
+on stabilization/voice-action-spine and main. The candidate is product-qualified
+for this bounded Milestone A; known evidence limits remain recorded. ADR 0046
+records the accepted decision.
 
 Stage 17 begins with a durable local objective lifecycle. It records bounded
 create/resume/cancel state and may bind exactly one canonical task-history record

@@ -222,7 +222,7 @@ recorded the expected label as present, and browser/API reloads reconstructed
 the paused task and exact result with the action count still one. The candidate
 API restored the saved desktop permission without another GNOME dialog.
 
-## Session 1 Milestone A — direct voice open actions (candidate)
+## Session 1 Milestone A — direct voice open actions (qualified and published)
 
 Ordinary microphone turns now carry an explicit voice-origin marker into
 Conversation. A deterministic direct-open intent routes before memory or Qwen
@@ -323,5 +323,6 @@ capture remained listening with no active turn or error. There was no desktop
 action in flight; live launcher cancellation was therefore not exercised, while
 the deterministic cancellation tests remain applicable. Stop creates no
 computer task/action or latency row. Full repository/frontend regressions, changed-file Ruff, secret-pattern scan,
-SQLite integrity, and diff gates passed. Remote publication and recovery
-verification remain pending.
+SQLite integrity, and diff gates passed. At capability publication, accepted
+commit b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff was fetched equal on the
+stabilization branch and main.

@@ -1,6 +1,6 @@
 # ADR 0046 — Direct voice open actions through computer agency
 
-- Status: Candidate; Friday UI and Calculator postconditions plus silent Stop/listening passed physically; full regressions and local audits passed; publication pending
+- Status: Accepted; bounded Milestone A physically qualified and published at b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff
 - Date: 2026-10-07
 - Extends: ADR 0039 (local single-user Owner trust), ADR 0044 (goal-bound computer agency)
 
@@ -136,5 +136,7 @@ No desktop action was active during Stop, so live in-flight cancellation was
 not exercised; deterministic tests cover that hook. Focused runner/ledger/AT-SPI/
 Stop/wake coverage (99 tests), targeted Ruff, and frontend TypeScript checks
 pass. Full repository/frontend regressions, changed-file Ruff, secret-pattern scan,
-SQLite integrity, and diff gates passed. Remote publication and recovery
-verification remain pending; this candidate is not yet product-qualified.
+SQLite integrity, and diff gates passed. At capability publication, accepted
+commit b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff was fetched equal on
+stabilization/voice-action-spine and main. The exact root label and live
+in-flight task-cancellation limits remain explicit.
