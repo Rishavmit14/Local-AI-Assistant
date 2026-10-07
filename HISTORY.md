@@ -2753,7 +2753,7 @@ not replayed. The exact Calculator AT-SPI root label is not in the ledger, and
 the Stop probe ran with no desktop action in flight. These evidence limits are
 recorded and no success was fabricated for the older uncertain actions.
 
-### 2026-10-07 — Session 2 Milestone B live vision (publication pending)
+### 2026-10-07 — Session 2 Milestone B live vision published
 
 The isolated `stabilization/live-vision` candidate reuses Stage 26
 `ScreenCaptureService` (GNOME Shell Screenshot D-Bus with desktop Screenshot
@@ -2785,5 +2785,9 @@ conversational and is recorded as a known limitation. The repository verifier pa
 changed-file Ruff, the candidate secret scan, both perception SQLite integrity
 checks, recovery-mode audit, and systemd unit validation passed. Private screen,
 OCR, and voice evidence remains under the owner-only
-`/home/kumar-rishav/.local/state/friday-live-vision/` directory. Branch/main
-publication and fetched-ref verification remain before product acceptance.
+`/home/kumar-rishav/.local/state/friday-live-vision/` directory. Capability
+commit `cc1c10ee47cdd2899161e7c2ba8d67ee03d39b05` was pushed to
+`stabilization/live-vision` and fast-forwarded to `main`; fetch and `git
+ls-remote` confirmed both refs matched. GitHub attributed author and committer
+to `Rishavmit14`. The candidate worktree was clean at publication. Milestone B
+is PRODUCT QUALIFIED with the stated latency limitation.

@@ -2173,7 +2173,7 @@ context and consequential actions remained outside Session 1 Milestone A. See
 ADR 0046 and the Session 1 section of
 `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`.
 
-## Session 2 Milestone B — Live Vision (**LIVE PROVEN; publication pending**)
+## Session 2 Milestone B — Live Vision (**PRODUCT QUALIFIED; published 2026-10-07**)
 
 The candidate routes normal physical voice screen questions through the reused
 Stage 26 `ScreenCaptureService` (GNOME Shell Screenshot D-Bus with desktop
@@ -2206,5 +2206,8 @@ OCR, or voice log is tracked. The full repository verifier passed 1,562 tests
 (6 skipped), changed-file Ruff passed, both perception SQLite databases passed
 `integrity_check`, the candidate secret scan found no credentials, and the
 recovery snapshot permissions and installed visual-cortex unit were verified.
-Only branch/main publication and fetched-ref recovery verification remain
-before PRODUCT QUALIFIED status.
+Capability commit `cc1c10ee47cdd2899161e7c2ba8d67ee03d39b05` is published on
+`stabilization/live-vision` and `main`; fetch and `git ls-remote` confirmed both
+refs matched. GitHub attributed the author and committer to `Rishavmit14`.
+Milestone B is PRODUCT QUALIFIED, with the measured latency limitation retained
+as a product follow-up.
