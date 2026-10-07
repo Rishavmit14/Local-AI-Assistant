@@ -34,9 +34,18 @@ _SEMANTIC_KINDS = frozenset({
     "scroll", "drag", "type_text", "press_key", "hotkey",
     "switch_window",
 })
+# These actions are bound to a resolved URI or installed desktop entry rather
+# than a screen element. The runner revalidates that target before dispatch;
+# unrelated accessibility-tree changes must not invalidate the claim.
+_RESOLVED_TARGET_KINDS = frozenset({"launch_app", "open_uri"})
 _OUTCOMES = frozenset({
     "postcondition_verified", "postcondition_failed", "observation_failed",
     "actor_failed", "interrupted",
+})
+_VERIFICATION_RESULTS = frozenset({
+    "active", "focused", "new_visible", "uri_visible", "browser_title_visible",
+    "not_found", "not_checked",
+    "observation_failed",
 })
 
 
@@ -86,6 +95,10 @@ class ComputerActionStatus:
     recovery_status: str | None
     target_window: tuple[str, str, str] | None
     recovery_observation_id: str | None
+    actor_return_code: int | None
+    verification_result: str | None
+    verification_match_count: int | None
+    result_observation_id: str | None
 
 
 class ComputerAgencyLedger:
@@ -124,7 +137,8 @@ class ComputerAgencyLedger:
                     outcome TEXT, claim_observation_id TEXT,
                     expected_result TEXT, target_summary TEXT, target_window TEXT,
                     recovery_observation_id TEXT, recovery_status TEXT,
-                    execution_started_at TEXT,
+                    execution_started_at TEXT, actor_return_code INTEGER,
+                    verification_result TEXT, verification_match_count INTEGER,
                     FOREIGN KEY(task_id) REFERENCES computer_tasks(task_id),
                     FOREIGN KEY(observation_id) REFERENCES computer_observations(observation_id)
                 );
@@ -152,6 +166,12 @@ class ComputerAgencyLedger:
                 # conservatively as possibly started, never as safely absent.
                 db.execute("UPDATE computer_actions SET execution_started_at=claimed_at "
                            "WHERE claimed_at IS NOT NULL")
+            if "actor_return_code" not in columns:
+                db.execute("ALTER TABLE computer_actions ADD COLUMN actor_return_code INTEGER")
+            if "verification_result" not in columns:
+                db.execute("ALTER TABLE computer_actions ADD COLUMN verification_result TEXT")
+            if "verification_match_count" not in columns:
+                db.execute("ALTER TABLE computer_actions ADD COLUMN verification_match_count INTEGER")
         self.recover_in_flight()
 
     @contextmanager
@@ -346,7 +366,8 @@ class ComputerAgencyLedger:
         with self._db() as db:
             rows = db.execute(
                 "SELECT action_id,kind,state,outcome,created_at,target_summary,expected_result,"
-                "execution_started_at,recovery_status,target_window,recovery_observation_id "
+                "execution_started_at,recovery_status,target_window,recovery_observation_id,"
+                "actor_return_code,verification_result,verification_match_count,result_observation_id "
                 "FROM computer_actions "
                 "WHERE task_id=? ORDER BY created_at DESC LIMIT ?", (task_id, limit),
             ).fetchall()
@@ -356,7 +377,7 @@ class ComputerAgencyLedger:
             json.loads(row[5])[1] if row[5] else None,
             json.loads(row[6])[2] if row[6] else None,
             row[7] is not None, row[8], tuple(json.loads(row[9])) if row[9] else None,
-            row[10],
+            row[10], row[11], row[12], row[13], row[14],
         ) for row in rows)
 
     def claim(self, action_id: str, *, fresh_observation: DesktopObservation) -> ComputerActionClaim:
@@ -390,7 +411,11 @@ class ComputerAgencyLedger:
             ))
             scoped = row[10] in _SEMANTIC_KINDS and row[8] is not None
             target_changed = scoped and row[9] not in json.loads(fresh_targets)
-            if target_changed or (not scoped and fresh_observation.digest != row[7]):
+            whole_desktop_changed = (
+                not scoped and row[10] not in _RESOLVED_TARGET_KINDS
+                and fresh_observation.digest != row[7]
+            )
+            if target_changed or whole_desktop_changed:
                 db.execute("UPDATE computer_actions SET state='stale',claim_observation_id=? "
                            "WHERE action_id=?", (fresh_observation.observation_id, action_id))
                 stale = True
@@ -418,9 +443,19 @@ class ComputerAgencyLedger:
                        (datetime.now(UTC).isoformat(), action_id))
 
     def finish(self, action_id: str, *, result_observation: DesktopObservation | None,
-               verified: bool, outcome: str) -> ComputerActionClaim:
+               verified: bool, outcome: str, actor_return_code: int | None = None,
+               verification_result: str | None = None,
+               verification_match_count: int | None = None) -> ComputerActionClaim:
         if (outcome not in _OUTCOMES or verified != (outcome == "postcondition_verified")
-                or (verified and result_observation is None)):
+                or (verified and result_observation is None)
+                or (actor_return_code is not None and (
+                    type(actor_return_code) is not int or not -255 <= actor_return_code <= 255
+                ))
+                or (verification_result is not None and verification_result not in _VERIFICATION_RESULTS)
+                or (verification_match_count is not None and (
+                    type(verification_match_count) is not int or not 0 <= verification_match_count <= 200
+                ))
+                or ((verification_result is None) != (verification_match_count is None))):
             raise ValueError("computer action outcome is invalid")
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
@@ -437,24 +472,55 @@ class ComputerAgencyLedger:
                     self._target_digests(result_observation),
                 ))
             state = "verified" if verified and result_observation is not None else "failed"
-            db.execute("UPDATE computer_actions SET state=?,completed_at=?,result_observation_id=?,outcome=? "
+            db.execute("UPDATE computer_actions SET state=?,completed_at=?,result_observation_id=?,outcome=?,"
+                       "actor_return_code=?,verification_result=?,verification_match_count=? "
                        "WHERE action_id=?", (
                            state, datetime.now(UTC).isoformat(),
                            result_observation.observation_id if result_observation else None,
-                           outcome, action_id,
+                           outcome, actor_return_code, verification_result,
+                           verification_match_count, action_id,
                        ))
         return self.action(action_id)
 
-    def mark_in_doubt(self, action_id: str) -> ComputerActionClaim:
+    def mark_in_doubt(self, action_id: str, *,
+                      result_observation: DesktopObservation | None = None,
+                      actor_return_code: int | None = None,
+                      verification_result: str | None = None,
+                      verification_match_count: int | None = None) -> ComputerActionClaim:
         """Transport may have acted before its result was lost; never replay it."""
+        if (actor_return_code is not None and (
+                type(actor_return_code) is not int or not -255 <= actor_return_code <= 255
+            )):
+            raise ValueError("computer action outcome is invalid")
+        if verification_result is not None and verification_result not in _VERIFICATION_RESULTS:
+            raise ValueError("computer action outcome is invalid")
+        if (verification_match_count is not None and (
+                type(verification_match_count) is not int or not 0 <= verification_match_count <= 200
+            )):
+            raise ValueError("computer action outcome is invalid")
+        if (verification_result is None) != (verification_match_count is None):
+            raise ValueError("computer action outcome is invalid")
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT task_id,state FROM computer_actions WHERE action_id=?",
                              (action_id,)).fetchone()
             if row is None or row[1] != "in_flight":
                 raise ValueError("computer action is not in flight")
-            db.execute("UPDATE computer_actions SET state='in_doubt',completed_at=?,outcome='interrupted' "
-                       "WHERE action_id=?", (datetime.now(UTC).isoformat(), action_id))
+            if result_observation is not None:
+                db.execute("INSERT INTO computer_observations "
+                           "(observation_id,task_id,observed_at,digest,element_count,monitor_count,target_digests) "
+                           "VALUES(?,?,?,?,?,?,?)", (
+                    result_observation.observation_id, row[0], result_observation.observed_at,
+                    result_observation.digest, len(result_observation.elements), len(result_observation.monitors),
+                    self._target_digests(result_observation),
+                ))
+            db.execute("UPDATE computer_actions SET state='in_doubt',completed_at=?,outcome='interrupted',"
+                       "result_observation_id=?,actor_return_code=?,verification_result=?,"
+                       "verification_match_count=? WHERE action_id=?", (
+                           datetime.now(UTC).isoformat(),
+                           result_observation.observation_id if result_observation else None,
+                           actor_return_code, verification_result, verification_match_count, action_id,
+                       ))
             db.execute("UPDATE computer_tasks SET state='recovery_required' "
                        "WHERE task_id=? AND state='active'", (row[0],))
         return self.action(action_id)
@@ -581,6 +647,19 @@ class ComputerAgencyLedger:
             db.execute("UPDATE computer_actions SET state='cancelled' "
                        "WHERE task_id=? AND state='prepared'", (task_id,))
         return self.task(task_id)
+
+    def cancellation_requested(self, task_id: str) -> bool:
+        """Read the durable stop intent without waiting for the action guard."""
+        if not _ID.fullmatch(task_id):
+            raise ValueError("computer task is unavailable")
+        with self._db() as db:
+            row = db.execute(
+                "SELECT state,cancel_requested FROM computer_tasks WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+        if row is None:
+            raise ValueError("computer task is unavailable")
+        return row[0] != "active" or bool(row[1])
 
     def cancel_active_tasks(self) -> tuple[str, ...]:
         """Emergency stop all local computer tasks, including recovery review."""

@@ -111,6 +111,7 @@ class FridayVoiceConversationService:
         speech_player: VoiceSpeechPlayer | None = None,
         barge_in_monitor: VoiceBargeInMonitor | None = None,
         latency_stage: Callable[[str], None] | None = None,
+        latency_stage_at: Callable[[str, float], None] | None = None,
         on_explicit_stop: Callable[[], None] | None = None,
     ) -> None:
         if (
@@ -149,8 +150,14 @@ class FridayVoiceConversationService:
             barge_in_monitor
         )
         self.latency_stage = latency_stage
+        self.latency_stage_at = latency_stage_at
         self.on_explicit_stop = on_explicit_stop
         self._explicit_session_close = False
+
+    def mark_owner_speech_ended_at(self, timestamp: float) -> None:
+        """Use the wake capture boundary as the latency origin for inline commands."""
+        if self.latency_stage_at is not None:
+            self.latency_stage_at("OWNER_SPEECH_ENDED", timestamp)
 
     def begin_session(self) -> None:
         """Begin one wake-authorized session without changing microphone ownership."""
@@ -551,6 +558,7 @@ class FridayVoiceConversationService:
             system_prompt=system_prompt,
             temperature=temperature,
             max_tokens=max_tokens,
+            voice_origin=True,
         )
 
         if synthesizer is None or player is None:
@@ -561,10 +569,14 @@ class FridayVoiceConversationService:
         queue = SpeechQueue()
         speech_results: list[VoiceUtterance | None] = []
         speech_errors: list[BaseException] = []
+        speech_cancelled = threading.Event()
         speech_thread: threading.Thread | None = None
 
         def synthesize_queued_sentences() -> Iterator[PiperAudioChunk]:
             for sentence in queue:
+                if speech_cancelled.is_set():
+                    return
+
                 normalized = normalize_speech_text(sentence)
                 if normalized:
                     yield from synthesizer.stream(normalized)
@@ -577,19 +589,34 @@ class FridayVoiceConversationService:
                         first_sentence,
                         chunks=synthesize_queued_sentences(),
                         streaming=True,
+                        cancel_event=speech_cancelled,
                     )
                 )
+
+                if speech_cancelled.is_set():
+                    queue.close()
+
             except BaseException as exc:
+                speech_cancelled.set()
                 speech_errors.append(exc)
                 queue.close()
 
-        def enqueue(sentence: str) -> None:
+        def enqueue(sentence: str) -> bool:
             nonlocal speech_thread
+
+            if speech_cancelled.is_set():
+                return False
+
             if speech_thread is None:
                 self._mark_latency("FIRST_SPEAKABLE_CHUNK")
+
             while True:
                 if speech_errors:
                     raise speech_errors[0]
+
+                if speech_cancelled.is_set():
+                    return False
+
                 try:
                     queue.put(sentence, timeout=0.1)
                     self._mark_latency("SPEECH_CHUNK_ACCEPTED")
@@ -597,7 +624,15 @@ class FridayVoiceConversationService:
                 except SpeechQueueClosed:
                     if speech_errors:
                         raise speech_errors[0]
+
+                    if speech_cancelled.is_set():
+                        return False
+
                     continue
+
+            if speech_cancelled.is_set():
+                return False
+
             if speech_thread is None:
                 speech_thread = threading.Thread(
                     target=play_sentences,
@@ -607,20 +642,49 @@ class FridayVoiceConversationService:
                 )
                 speech_thread.start()
 
+            return True
+
         completed = False
+        cancelled = False
+
         try:
             for chunk in response:
                 if speech_errors:
                     raise speech_errors[0]
+
+                if speech_cancelled.is_set():
+                    cancelled = True
+                    break
+
                 for sentence in chunker.push(chunk):
-                    enqueue(sentence)
+                    if not enqueue(sentence):
+                        cancelled = True
+                        break
+
+                if cancelled:
+                    break
+
+                # Preserve text that Qwen has already produced even if
+                # speech is interrupted concurrently. Cancellation must
+                # prevent requesting the next model chunk, not discard
+                # the current one.
                 yield chunk
 
-            for sentence in chunker.finish():
-                enqueue(sentence)
-            completed = True
+                if speech_cancelled.is_set():
+                    cancelled = True
+                    break
+
+            if not cancelled:
+                for sentence in chunker.finish():
+                    if not enqueue(sentence):
+                        cancelled = True
+                        break
+
+            completed = not cancelled
+
         finally:
             queue.close()
+
             if not completed:
                 response.close()
 
@@ -630,6 +694,8 @@ class FridayVoiceConversationService:
         speech_thread.join()
         if speech_errors:
             raise speech_errors[0]
+        if getattr(self.conversation, "last_voice_action_selected", False):
+            self._mark_latency("VOICE_TURN_COMPLETE")
         return speech_results[0]
 
     def _mark_latency(self, stage: str) -> None:
@@ -642,6 +708,7 @@ class FridayVoiceConversationService:
         *,
         chunks: Iterator[PiperAudioChunk] | None = None,
         streaming: bool = False,
+        cancel_event: threading.Event | None = None,
     ) -> VoiceUtterance | None:
         synthesizer = (
             self.speech_synthesizer
@@ -831,6 +898,9 @@ class FridayVoiceConversationService:
                 }
             )
 
+            if cancel_event is not None:
+                cancel_event.set()
+
             self.runtime.emit(
                 FridayEventType
                 .VOICE_SPEECH_INTERRUPTED,
@@ -880,6 +950,9 @@ class FridayVoiceConversationService:
             return interruption
 
         if result.interrupted:
+            if cancel_event is not None:
+                cancel_event.set()
+
             self.runtime.emit(
                 FridayEventType
                 .VOICE_SPEECH_INTERRUPTED,

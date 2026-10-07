@@ -85,3 +85,13 @@ class LocalOwnerTrust:
                 return self._restored_session
             self._restored_session = self.sessions.unlock(supplied, peer)
             return self._restored_session
+
+    def local_voice_principal(self) -> str:
+        """Return the same local Owner principal only while its private grant is valid."""
+        try:
+            current = self._read()
+        except (OSError, ValueError, TypeError) as exc:
+            raise RuntimeError("local Owner trust is unavailable") from exc
+        if not hmac.compare_digest(hashlib.sha256(current.encode()).hexdigest(), self._digest):
+            raise RuntimeError("local Owner trust has been revoked")
+        return "local-owner"

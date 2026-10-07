@@ -25,6 +25,9 @@ export type FridayEventType =
   | "retrieval.completed"
   | "task.created"
   | "task.updated"
+  | "computer.task.started"
+  | "computer.task.completed"
+  | "computer.task.failed"
   | "planning.started"
   | "planning.completed"
   | "approval.required"
@@ -551,6 +554,10 @@ export interface FridayComputerActionStatus {
   recovery_status: string | null;
   target_window: [string, string, string] | null;
   recovery_observation_id: string | null;
+  actor_return_code?: number | null;
+  verification_result?: "active" | "focused" | "new_visible" | "uri_visible" | "not_found" | "not_checked" | "observation_failed" | null;
+  verification_match_count?: number | null;
+  result_observation_id?: string | null;
 }
 
 export interface FridayScreenAccount {

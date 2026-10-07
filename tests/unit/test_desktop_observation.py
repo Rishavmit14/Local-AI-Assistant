@@ -32,6 +32,33 @@ def test_semantic_observation_has_stable_content_digest_and_unique_provenance():
     assert commands[0][:2] == ["/usr/bin/python3", "-c"]
 
 
+def test_application_scope_accepts_multiple_registration_identities():
+    commands = []
+    timeouts = []
+
+    def runner(command, **kwargs):
+        commands.append(command)
+        timeouts.append(kwargs["timeout"])
+        if "Gdk" in command[2]:
+            return SimpleNamespace(returncode=0, stdout="[]")
+        return SimpleNamespace(returncode=0, stdout="[]")
+
+    service = AccessibilityObservationService(
+        application={"org.example.app", "example-app"}, timeout_seconds=2.0,
+        include_monitors=False, runner=runner,
+    )
+    service.observe()
+
+    assert json.loads(commands[0][-1]) == ["example-app", "org.example.app"]
+    assert len(commands) == 1
+    assert timeouts == [2.0]
+
+
+def test_application_scope_rejects_invalid_identity_collections():
+    with pytest.raises(ValueError, match="application filter"):
+        AccessibilityObservationService(application=42)
+
+
 @pytest.mark.parametrize("rows", [
     [{"path": [-1], "application": "Example", "role": "button", "name": "Open",
       "bounds": [0, 0, 2, 2], "actions": ["click"], "active": False}],

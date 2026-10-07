@@ -221,3 +221,107 @@ observation after a real disposable GTK semantic click. The ledger entered
 recorded the expected label as present, and browser/API reloads reconstructed
 the paused task and exact result with the action count still one. The candidate
 API restored the saved desktop permission without another GNOME dialog.
+
+## Session 1 Milestone A — direct voice open actions (candidate)
+
+Ordinary microphone turns now carry an explicit voice-origin marker into
+Conversation. A deterministic direct-open intent routes before memory or Qwen
+to the existing Stage 26 `ComputerAgencyRunner`; text/API conversation does not
+execute desktop actions. The router rejects chained instructions and preserves
+the existing explicit-URL, text-editor, and native bounded-workflow paths.
+
+The resolver matches installed applications by exact display name in the live
+XDG desktop catalog and stores separate display, canonical launch, executable,
+D-Bus, and `StartupWMClass` identities. Application launch uses the fixed
+`/usr/bin/gtk-launch` executable with the resolved desktop ID as a nonblocking
+child while the app-scoped observer polls concurrently; URI launch uses fixed
+`gio open` arguments. Friday UI/internal routes use the configured
+`LOCAL_AI_OWNER_UI_ORIGIN`, the single canonical loopback UI origin. The
+Daybreak Vite Owner bridge uses the same origin and proxies to the candidate
+presentation API; `LOCAL_AI_PROJECT_EXECUTION_ALLOWED_ORIGINS` is aligned to
+it. Each action has a durable task/action claim and a fresh re-observation.
+Website success prefers a unique visible browser address field that locally
+matches the requested host/path, scoped to the installed default HTTP handler.
+For a root loopback HTML URL only, when that browser exposes no address or
+document nodes, the runner may compare one visible frame title in that same
+registered browser with the title fetched from the local page. This
+`browser_title_visible` fallback confirms the local page title appeared in the
+browser; it does not prove the exact URL and is disabled for external URLs,
+non-root paths, query strings, and fragments. Application success requires a matching
+active/focused window or a newly visible matching window compared with the
+fresh pre-launch observation. Verification returns only a boolean and never
+returns page content. Invalid, ambiguous, chained, stale, or unverified
+requests fail without replay.
+
+`open_uri` and `launch_app` claims bind the digest of the already-resolved URI
+or installed desktop entry and still require a distinct fresh observation
+within the normal validity window. Since these actions do not act on a screen
+element, unrelated accessibility-tree changes do not invalidate their claim.
+Semantic and other observation-dependent actions retain their exact target or
+whole-desktop stale checks. This keeps focus churn during speech from blocking a
+fixed-target open while preserving stale-target refusal for GUI actions.
+
+Latency telemetry is content-free but currently does not attach a task ID or
+timestamp to a turn. Physical task-to-turn association therefore uses the
+saved event/journal cursor and one-command-at-a-time probes. The trace itself
+is in-memory and resets when the candidate service restarts.
+
+The route creates tasks only for the same `local-owner` principal whose private
+grant is checked by ADR 0039, and the runner still requires the restored GNOME
+RemoteDesktop permission. It does not request new consent, execute a shell,
+select targets from Qwen output, read general screen content, open arbitrary
+folders/files, fill/submit forms, download content, or authorize consequential
+actions. The isolated candidate is on the normal microphone path through a
+private reversible systemd override. The owner reports YouTube opened in
+Chrome, but its earlier task is `in_doubt`; Files opened and its latest task
+verified; the prior Friday UI action returned success from `gio open` but failed
+the address-field postcondition after the 12-second verification window. The
+durable result stores 200 elements and a digest, not matched identities. A live
+Chrome-scoped diagnostic exposes the visible `Friday - Google Chrome` frame but
+no address/document nodes, which explains why the address-only predicate cannot
+verify this browser. The latest physical Friday UI retest passed the restricted
+fallback: task `b8e62dfc42924ebaa9efff7368ff27e9` and action
+`dc181f9c822b43cfb8e05eda42b51dde` ended `postcondition_verified` with
+`browser_title_visible` and one match. The owner saw Daybreak at
+`http://127.0.0.1:5193/#home`; the durable predicate verifies the unique root
+page title in the registered browser, not the exact URL or hash.
+The first recent Calculator verifier action physically opened the window but
+ended `postcondition_failed` because the old root filter produced no scoped
+elements. A focused change now lets the registered XDG display name select an
+AT-SPI application root for traversal, while only registered desktop-ID,
+executable, D-Bus, or `StartupWMClass` identities can verify the result. The
+next physical retest opened Calculator visibly, but its synchronous launcher
+wait hit the ten-second subprocess timeout before the post-launch observer ran.
+Task `fa304617c65c4bdba82a576bde2ec349` / action
+`dc55de7154b8448281707584bfb2a4ab` is therefore `recovery_required` /
+`in_doubt` with outcome `interrupted`; actor return code, result observation,
+verification category, and match count are null. The target scope passed the
+registered identities plus `Calculator` as a root-selection alias, but the
+selected root and post-launch scoped observation were not persisted. The
+candidate now starts the fixed launcher as a child and polls the same strict
+app predicate concurrently, so a visible matching app can be verified before
+the dispatcher exits. A still-running dispatcher without a result is stopped
+at the bounded deadline and remains `in_doubt`; it is never replayed. The
+action ledger stores actor return code when available plus a bounded
+verification category/count/result-observation ID without screen text. URI
+dispatch uses a fixed nonblocking `gio open` child so the browser address or
+restricted local title postcondition can be checked before the handler exits; a still-running unverified child remains
+`in_doubt` with its last observation. While the handler runs, the runner checks
+the durable Stop flag and terminates only that owned `gio` child on cancellation;
+it does not close a browser window that may already be open. Daybreak's new retest remains verified. The fresh Calculator task
+10be3127fc0346ba9c71e1e50399dd2a / action
+ea85eb47d73242deb6aca3eb07cc2aa8 is postcondition_verified with actor code 0,
+verification result active, and 106 accessible elements in the scoped result
+observation. The count is scoped matching elements, not windows or desktop-wide
+matches. The exact AT-SPI root label is not persisted; the root selector uses
+registered identities plus the display name, while success requires registered
+identity. The earlier in-doubt Calculator action remains unchanged.
+
+A final physical exact Stop was transcribed at event sequence 26 and caused
+voice_explicit_stop at sequence 27. The owner reported silence, and voice
+capture remained listening with no active turn or error. There was no desktop
+action in flight; live launcher cancellation was therefore not exercised, while
+the deterministic cancellation tests remain applicable. Stop creates no
+computer task/action or latency row. Full repository/frontend regressions, changed-file Ruff, secret-pattern scan,
+SQLite integrity, and diff gates passed. Remote publication and recovery
+verification remain pending.

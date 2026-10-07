@@ -171,6 +171,8 @@ def make_voice_service(
     chunks: list[str] | None = None,
     player: FakeSpeechPlayer | None = None,
     latency_stages: list[str] | None = None,
+    conversation_latency_stages: list[str] | None = None,
+    voice_computer_actions=None,
 ):
     runtime = FridayRuntime(
         "stage-11f3-test"
@@ -190,6 +192,12 @@ def make_voice_service(
     conversation = FridayConversationService(
         llm,
         runtime,
+        latency_stage=(
+            conversation_latency_stages.append
+            if conversation_latency_stages is not None
+            else None
+        ),
+        voice_computer_actions=voice_computer_actions,
     )
 
     synthesizer = (
@@ -241,6 +249,33 @@ def test_voice_turn_marks_endpoint_and_first_stable_sentence_without_text():
         "SPEECH_WORKER_STARTED",
         "PLAYBACK_QUEUE_ADMITTED",
     ]
+
+
+def test_voice_action_latency_turn_completes_after_spoken_result():
+    stages: list[str] = []
+
+    class Actions:
+        def stream_response(self, _prompt, _command, *, mark):
+            mark("VOICE_ACTION_DISPATCHED")
+            yield "Opening YouTube."
+            mark("VOICE_ACTION_VERIFIED")
+            yield "YouTube is open."
+
+    voice, _runtime, transcriber, llm, _synthesizer, _player = make_voice_service(
+        latency_stages=stages,
+        conversation_latency_stages=stages,
+        voice_computer_actions=Actions(),
+    )
+    transcriber.text = "Friday, open YouTube"
+    voice.start_listening()
+
+    assert list(voice.stream_utterance(make_utterance())) == [
+        "Opening YouTube.", "YouTube is open."
+    ]
+    assert llm.calls == []
+    assert "VOICE_ACTION_ROUTE_SELECTED" in stages
+    assert "VOICE_ACTION_VERIFIED" in stages
+    assert stages[-1] == "VOICE_TURN_COMPLETE"
 
 
 def state_path(
@@ -637,4 +672,136 @@ def test_speech_disabled_preserves_existing_completed_behavior() -> None:
     assert (
         FridayEventType.VOICE_SPEECH_STARTED
         not in event_types
+    )
+
+
+def test_streaming_speech_interruption_stops_model_and_future_tts_sentences() -> None:
+    first_audio_requested = threading.Event()
+    allow_second_model_chunk = threading.Event()
+    model_closed = threading.Event()
+
+    class InterruptibleStreamingLLM:
+        def stream_chat(
+            self,
+            prompt: str,
+            *,
+            system_prompt: str,
+            temperature: float,
+            max_tokens: int,
+        ) -> Iterator[str]:
+            del prompt, system_prompt, temperature, max_tokens
+
+            try:
+                yield "First sentence."
+
+                assert first_audio_requested.wait(
+                    timeout=1.0
+                )
+
+                allow_second_model_chunk.wait(
+                    timeout=1.0
+                )
+
+                yield " Second sentence."
+            finally:
+                model_closed.set()
+
+    class InterruptingSynthesizer(
+        FakeSpeechSynthesizer
+    ):
+        def stream(
+            self,
+            text: str,
+        ) -> Iterator[PiperAudioChunk]:
+            self.calls.append(text)
+            first_audio_requested.set()
+
+            yield PiperAudioChunk(
+                pcm=b"\x01\x00" * 100,
+                sample_rate=22_050,
+                sample_width_bytes=2,
+                channels=1,
+            )
+
+    class EarlyInterruptPlayer:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def play(
+            self,
+            chunks: Iterator[PiperAudioChunk],
+        ) -> SpeechPlaybackResult:
+            self.calls += 1
+
+            # Consume only enough to begin playback, then model the
+            # result of a successful external interruption.
+            next(chunks)
+
+            close = getattr(
+                chunks,
+                "close",
+                None,
+            )
+            if close is not None:
+                close()
+
+            # Let play() return first so the speech thread can publish
+            # the cancellation signal before the model produces another
+            # chunk. This removes a race from the regression test.
+            release = threading.Timer(
+                0.05,
+                allow_second_model_chunk.set,
+            )
+            release.daemon = True
+            release.start()
+
+            return SpeechPlaybackResult(
+                interrupted=True,
+                elapsed_seconds=0.01,
+                pcm_bytes_written=200,
+                sample_rate=22_050,
+            )
+
+    runtime = FridayRuntime(
+        "streaming-speech-cancellation"
+    )
+
+    synthesizer = InterruptingSynthesizer()
+    player = EarlyInterruptPlayer()
+
+    voice = FridayVoiceConversationService(
+        FakeTranscriber(),
+        FridayConversationService(
+            InterruptibleStreamingLLM(),
+            runtime,
+        ),
+        runtime,
+        speech_synthesizer=synthesizer,
+        speech_player=player,
+    )
+
+    voice.start_listening()
+
+    output = "".join(
+        voice.stream_utterance(
+            make_utterance()
+        )
+    )
+
+    assert output == "First sentence."
+    assert synthesizer.calls == [
+        "First sentence.",
+    ]
+    assert player.calls == 1
+    assert model_closed.wait(timeout=1.0)
+
+    assert (
+        runtime.state
+        is FridayRuntimeState.IDLE
+    )
+
+    assert any(
+        event.event_type
+        is FridayEventType.VOICE_SPEECH_INTERRUPTED
+        for event in runtime.events_since()
     )

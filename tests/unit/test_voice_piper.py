@@ -743,3 +743,89 @@ def test_player_rejects_bad_pcm(
                 ]
             )
         )
+
+
+def test_player_stop_closes_audio_iterator_without_consuming_remaining_chunks(
+    tmp_path: Path,
+) -> None:
+    player = PipeWireSpeechPlayer(
+        PipeWirePlayerConfig(
+            player_path=fake_player(
+                tmp_path,
+                slow=True,
+            ),
+            stop_timeout_seconds=0.5,
+        )
+    )
+
+    first_yielded = threading.Event()
+    generator_closed = threading.Event()
+    chunks_consumed = 0
+
+    huge = PiperAudioChunk(
+        pcm=b"\x00\x00" * 500_000,
+        sample_rate=22_050,
+        sample_width_bytes=2,
+        channels=1,
+    )
+
+    def audio_stream():
+        nonlocal chunks_consumed
+
+        try:
+            chunks_consumed += 1
+            first_yielded.set()
+            yield huge
+
+            # These chunks must never be pulled after stop().
+            for _ in range(5):
+                chunks_consumed += 1
+                yield huge
+        finally:
+            generator_closed.set()
+
+    results = []
+    errors = []
+
+    def play() -> None:
+        try:
+            results.append(
+                player.play(
+                    audio_stream()
+                )
+            )
+        except BaseException as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(
+        target=play
+    )
+    thread.start()
+
+    assert first_yielded.wait(timeout=2.0)
+
+    deadline = time.monotonic() + 2.0
+    while (
+        not player.is_playing
+        and time.monotonic() < deadline
+    ):
+        time.sleep(0.005)
+
+    assert player.is_playing
+
+    stop = player.stop()
+
+    thread.join(timeout=3.0)
+
+    assert not thread.is_alive()
+    assert errors == []
+    assert stop.stopped
+    assert len(results) == 1
+    assert results[0].interrupted
+
+    # A stopped player must not drain the synthesis iterator by
+    # repeatedly requesting and discarding additional audio.
+    assert chunks_consumed == 1
+    assert generator_closed.is_set()
+
+    finalize()

@@ -596,7 +596,104 @@ fresh observation, semantic target identity, exact app/window and geometry,
 owner-object match, risk, preconditions, and trusted postcondition class. Qwen
 can rank only catalog entries; unresolved ambiguity blocks. The recovery panel
 also projects the original action window and latest recovery-observation ID so
-the Owner can inspect precisely what was reconciled.
+the Owner can inspect precisely what was reconciled. Stage 26 is qualified for
+its bounded workflows; reboot/login restoration, physical microphone
+qualification of the voice-action candidate, arbitrary browser pointer
+occlusion, and canonical consequential-action authorization remain separate
+evidence or product gaps.
+
+## Session 1 Milestone A — direct voice open actions (candidate)
+
+The candidate voice route marks turns from the normal microphone path and
+recognizes a bounded direct open/focus command before memory retrieval and Qwen
+generation. Typed conversation does not execute it. An exact installed-app
+name is resolved from installed XDG desktop metadata. Its canonical desktop
+launch ID is separate from its display name and verification identities, which
+come from the desktop ID, executable, D-Bus application ID, or
+`StartupWMClass`. The XDG display name may select the AT-SPI root for traversal,
+but cannot satisfy verification; results must still match one of those
+registration-derived identities. The trusted launcher uses the fixed `gtk-launch` executable;
+it does not execute the desktop file's command as a shell. An owner-named
+website uses generic host resolution. Friday UI and internal routes use the
+single configured loopback origin, `LOCAL_AI_OWNER_UI_ORIGIN`, which is also
+the Origin checked by the Daybreak server-only Owner bridge and aligns with
+`LOCAL_AI_PROJECT_EXECUTION_ALLOWED_ORIGINS`. The route creates a durable owner
+task and dispatches through the Stage 26 ledger, fresh observation, and
+postcondition verifier. URI dispatch uses the fixed `gio open` argument vector
+through a nonblocking child. The verifier scopes AT-SPI reads to the registered
+default HTTP handler and prefers a visible address field whose value matches
+the requested URI. If that browser exposes no address/document nodes, a root
+loopback HTML page may instead verify through one visible browser frame whose
+title matches the page title fetched from that same local origin. This fallback
+records `browser_title_visible`; it proves the local page title appeared in the
+registered browser, not the exact URL. It is disabled for external URLs,
+non-root paths, query strings, and fragments. A still-running unverified
+dispatcher remains `in_doubt` with its last bounded observation. During that
+wait the runner checks the durable Stop flag and terminates only its
+still-running `gio` dispatcher; uncertain effects stay `in_doubt`. App launch
+uses the fixed `/usr/bin/gtk-launch` vector as a nonblocking child while
+app-scoped AT-SPI observation polls for the result. Traversal is scoped to
+registered desktop-ID, executable, D-Bus, and `StartupWMClass` identities; the
+registered display name may select the root but cannot satisfy verification.
+An active/focused matching accessible element or a new visible matching
+element verifies success, even if the launcher has not exited yet. Scoped reads
+are capped at two seconds, and app verification is bounded to twelve seconds.
+Stop terminates only Friday's owned launcher process; it does not close a
+launched app window. A still-running dispatcher without a verified result is
+recorded `in_doubt` and is never replayed. The action ledger stores actor return code when available,
+verification category/count, and result observation ID, without screen text or
+launcher stderr.
+The route requires the existing private local Owner grant and restored GNOME
+permission. The exact Stop hook persists cancellation; uncertain effects are
+not replayed. It grants no arbitrary shell, model-selected target, general
+screen-question context, consequential action, form, or download authority.
+
+Action status events join the existing session runtime stream. Bounded latency
+stages distinguish intent selection, dispatch, verification/failure, final
+response readiness, and completed speech without retaining transcript or audio.
+The candidate also carries forward the active owner-machine TTS selector:
+`FRIDAY_TTS_BACKEND=pocket` retains the Pocket/Anna worker, offline model cache,
+framed-PCM boundary, and interrupt propagation; Piper remains the code default.
+Focused tests cover installed-app resolution, scoped identity matching, new
+visible app elements, reused active/focused windows, URI dispatch lifecycle,
+unknown app or ordinary noun failure, task lifecycle, stale GUI checks, Stop,
+and latency telemetry, plus the existing Pocket/Piper and interruption
+contracts. On the latest Friday UI probe, the owner saw Daybreak at
+`http://127.0.0.1:5193/#home` and heard the opening and final response. Durable
+task `b8e62dfc42924ebaa9efff7368ff27e9` succeeded; action
+`dc181f9c822b43cfb8e05eda42b51dde` recorded `postcondition_verified` through
+one unique `browser_title_visible` match in the registered HTTP handler. This
+proves the root loopback page title appeared in that browser; it does not prove
+the URL or hash fragment. The latest correlated latency row reaches final
+playback at 12.9208s from the VAD speech-end origin. The trace remains in-memory
+without a task ID or timestamp; the per-probe event cursor and durable
+task/action timestamps supplied this correlation. Calculator's older action
+ended `postcondition_failed`; its observations had 187 elements without
+app/window identities or raw launcher return code, so that historical verifier
+miss is unrecoverable. An earlier owner report said Stop did not stop Friday. A fresh physical exact
+Stop was transcribed and caused voice_explicit_stop; the owner reported silence,
+and capture remained listening. The fresh Calculator task 10be3127fc0346ba9c71e1e50399dd2a / action
+ea85eb47d73242deb6aca3eb07cc2aa8 reached postcondition_verified with actor
+return code 0 and verification result active. Its result observation contains
+106 app-scoped elements and zero monitor entries. Match count 106 means
+matching accessible elements within Calculator scope, not windows or the whole
+desktop. Root selection includes registered identities and display name
+Calculator; the ledger does not preserve the exact selected AT-SPI root label.
+The speech-end row is correlated through event sequence and durable action
+timestamps: transcript 383.5ms, route 427.1ms, first speakable 629.9ms, first
+audio 1,648.2ms / first PCM 1,649.5ms, actor start 6,234.9ms, observation
+8,178.7ms, action complete 8,182.6ms, response ready 8,485.9ms, and playback
+complete 10,694.4ms. The earlier in-doubt Calculator task remains preserved
+and unreplayed.
+
+A final physical exact Stop was transcribed at event sequence 26 and caused
+voice_explicit_stop at sequence 27. The owner reported silence; voice health
+afterward showed the capture thread listening with no active turn or error.
+There was no in-flight computer action, so desktop task cancellation is covered
+by deterministic tests but was not physically exercised. Full repository/frontend regressions, changed-file Ruff, secret-pattern scan,
+SQLite integrity, and diff gates passed. Remote publication and recovery
+verification remain pending; the candidate is not yet qualified. ADR 0046
+records the candidate decision.
 
 Stage 17 begins with a durable local objective lifecycle. It records bounded
 create/resume/cancel state and may bind exactly one canonical task-history record

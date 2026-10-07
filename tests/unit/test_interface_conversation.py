@@ -285,6 +285,55 @@ def test_empty_model_stream_still_completes_deterministically():
     assert completed[0].text == ""
 
 
+def test_direct_voice_open_uses_computer_fast_path_before_model_or_memory():
+    runtime = FridayRuntime("voice-open-fast-path")
+    llm = FakeStreamingLLM(["must not run"])
+    marks = []
+
+    class Actions:
+        def stream_response(self, prompt, command, *, mark):
+            assert prompt == "Friday, open YouTube"
+            assert command.target == "YouTube"
+            mark("VOICE_ACTION_DISPATCHED")
+            yield "Opening YouTube."
+            mark("VOICE_ACTION_VERIFIED")
+            yield "YouTube is open."
+
+    service = FridayConversationService(
+        llm,
+        runtime,
+        memory_context=lambda _prompt: pytest.fail("direct actions must bypass memory retrieval"),
+        voice_computer_actions=Actions(),
+        latency_stage=marks.append,
+    )
+
+    assert "".join(service.stream_response("Friday, open YouTube", voice_origin=True)) == (
+        "Opening YouTube.YouTube is open."
+    )
+    assert llm.calls == []
+    assert "VOICE_INTENT_RESOLVED" in marks
+    assert "VOICE_ACTION_ROUTE_SELECTED" in marks
+    assert "VOICE_FAST_PATH_COMPLETE" in marks
+    assert runtime.state is FridayRuntimeState.COMPLETED
+    assert [event.text for event in runtime.events_since()
+            if event.event_type is FridayEventType.CONVERSATION_ASSISTANT_COMPLETED] == [
+                "Opening YouTube.YouTube is open."
+            ]
+
+
+def test_direct_text_open_stays_conversational_without_voice_origin():
+    runtime = FridayRuntime("typed-open-remains-chat")
+    llm = FakeStreamingLLM(["I can explain how to open YouTube."])
+
+    class UnexpectedActions:
+        def stream_response(self, *_args, **_kwargs):
+            pytest.fail("computer actions must be selected only on the voice path")
+
+    service = FridayConversationService(llm, runtime, voice_computer_actions=UnexpectedActions())
+    assert "".join(service.stream_response("open YouTube")) == "I can explain how to open YouTube."
+    assert len(llm.calls) == 1
+
+
 def test_stream_completion_preserves_speaking_started_by_incremental_voice():
     runtime = FridayRuntime("session-incremental-voice")
     service = FridayConversationService(FakeStreamingLLM(["First.", " Second."]), runtime)

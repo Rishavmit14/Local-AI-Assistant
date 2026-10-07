@@ -81,6 +81,7 @@ class FakeVoice:
         self.capture = None
         self.stop_reasons = []
         self.acknowledgements = 0
+        self.latency_origins = []
 
 
     def start_listening(
@@ -109,6 +110,9 @@ class FakeVoice:
 
     def speak_ready_acknowledgement(self) -> None:
         self.acknowledgements += 1
+
+    def mark_owner_speech_ended_at(self, timestamp: float) -> None:
+        self.latency_origins.append(timestamp)
 
 
     def stream_utterance(
@@ -163,6 +167,7 @@ def wake_event(
     wake=True,
     source="parakeet-full",
     remainder="",
+    owner_speech_ended_monotonic=None,
 ) -> WakeCaptureEvent:
 
     return WakeCaptureEvent(
@@ -183,6 +188,7 @@ def wake_event(
             primary=None,
             fallback=None,
         ),
+        owner_speech_ended_monotonic=owner_speech_ended_monotonic,
     )
 
 
@@ -261,7 +267,8 @@ def test_inline_wake_remainder_bypasses_original_utterance(
     event = wake_event(
         remainder=(
             "what time is it"
-        )
+        ),
+        owner_speech_ended_monotonic=123.45,
     )
 
 
@@ -286,6 +293,7 @@ def test_inline_wake_remainder_bypasses_original_utterance(
 
     assert voice.received is None
     assert voice.stream_calls == 0
+    assert voice.latency_origins == [123.45]
 
     assert voice.text_calls == [
         (

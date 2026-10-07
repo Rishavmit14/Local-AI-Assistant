@@ -474,6 +474,9 @@ def test_instrumented_conversation_proxies_active_session() -> None:
     wrapped = InstrumentedConversation(inner, VoiceTurnTelemetry())
 
     assert wrapped.session is inner.session
+    assert wrapped.last_voice_action_selected is False
+    inner.last_voice_action_selected = True
+    assert wrapped.last_voice_action_selected is True
 
 def test_shutdown_cleans_workers_even_when_voice_thread_is_stuck(
 ):
@@ -759,6 +762,23 @@ def test_voice_turn_telemetry_requires_positive_capacity():
         VoiceTurnTelemetry(max_events=0)
 
 
+def test_voice_action_latency_uses_captured_inline_wake_origin():
+    import time
+
+    telemetry = VoiceTurnTelemetry()
+    owner_speech_ended = time.monotonic() - 1.0
+    telemetry.mark_at("OWNER_SPEECH_ENDED", owner_speech_ended)
+    telemetry.mark("VOICE_ACTION_ROUTE_SELECTED")
+    telemetry.mark("VOICE_ACTION_VERIFIED")
+    telemetry.mark("VOICE_TURN_COMPLETE")
+
+    turns = telemetry.latency_snapshot()
+    assert len(turns) == 1
+    assert turns[0]["durations_ms"]["owner_speech_ended"] == 0.0
+    assert turns[0]["durations_ms"]["voice_action_route_selected"] >= 900.0
+    assert turns[0]["durations_ms"]["voice_action_verified"] >= 900.0
+
+
 def test_voice_turn_telemetry_projects_content_free_latency_record():
     telemetry = VoiceTurnTelemetry()
     for stage in (
@@ -956,3 +976,129 @@ def test_unclassified_error_is_visible_and_not_retried():
     assert service.health()["status"] == "failed"
     assert service.health()["last_error_type"] == "RuntimeError"
     assert service.health()["recovery_count"] == 0
+
+
+
+def test_cancellation_telemetry_conversation_generator_close() -> None:
+    from local_ai_assistant.interface.wake_bootstrap import (
+        InstrumentedConversation,
+        VoiceTurnTelemetry,
+    )
+
+    class Inner:
+        session = object()
+
+        def stream_response(self, *_args, **_kwargs):
+            yield "first"
+            yield "second"
+
+    telemetry = VoiceTurnTelemetry()
+
+    stream = InstrumentedConversation(
+        Inner(),
+        telemetry,
+    ).stream_response("hello")
+
+    assert next(stream) == "first"
+
+    stream.close()
+
+    assert "LLM_CANCELLED" in telemetry.stages()
+    assert "LLM_ERROR" not in telemetry.stages()
+    assert "LLM_COMPLETE" not in telemetry.stages()
+
+
+def test_cancellation_telemetry_conversation_real_error() -> None:
+    from local_ai_assistant.interface.wake_bootstrap import (
+        InstrumentedConversation,
+        VoiceTurnTelemetry,
+    )
+
+    class Inner:
+        session = object()
+
+        def stream_response(self, *_args, **_kwargs):
+            if False:
+                yield ""
+            raise RuntimeError("llm boom")
+
+    telemetry = VoiceTurnTelemetry()
+
+    stream = InstrumentedConversation(
+        Inner(),
+        telemetry,
+    ).stream_response("hello")
+
+    with pytest.raises(RuntimeError, match="llm boom"):
+        list(stream)
+
+    assert "LLM_ERROR" in telemetry.stages()
+    assert "LLM_CANCELLED" not in telemetry.stages()
+
+
+def test_cancellation_telemetry_synthesizer_generator_close() -> None:
+    from local_ai_assistant.interface.wake_bootstrap import (
+        InstrumentedSynthesizer,
+        VoiceTurnTelemetry,
+    )
+
+    first_chunk = object()
+    second_chunk = object()
+
+    class Inner:
+        def stream(self, _text):
+            yield first_chunk
+            yield second_chunk
+
+        def close(self):
+            pass
+
+        def set_latency_observer(self, _observer):
+            pass
+
+    telemetry = VoiceTurnTelemetry()
+
+    stream = InstrumentedSynthesizer(
+        Inner(),
+        telemetry,
+    ).stream("hello")
+
+    assert next(stream) is first_chunk
+
+    stream.close()
+
+    assert "TTS_CANCELLED" in telemetry.stages()
+    assert "PIPER_ERROR" not in telemetry.stages()
+    assert "PIPER_COMPLETE" not in telemetry.stages()
+
+
+def test_cancellation_telemetry_synthesizer_real_error() -> None:
+    from local_ai_assistant.interface.wake_bootstrap import (
+        InstrumentedSynthesizer,
+        VoiceTurnTelemetry,
+    )
+
+    class Inner:
+        def stream(self, _text):
+            if False:
+                yield None
+            raise RuntimeError("tts boom")
+
+        def close(self):
+            pass
+
+        def set_latency_observer(self, _observer):
+            pass
+
+    telemetry = VoiceTurnTelemetry()
+
+    stream = InstrumentedSynthesizer(
+        Inner(),
+        telemetry,
+    ).stream("hello")
+
+    with pytest.raises(RuntimeError, match="tts boom"):
+        list(stream)
+
+    assert "PIPER_ERROR" in telemetry.stages()
+    assert "TTS_CANCELLED" not in telemetry.stages()

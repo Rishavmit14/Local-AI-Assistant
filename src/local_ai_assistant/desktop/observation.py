@@ -9,8 +9,10 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from math import isfinite
 from uuid import uuid4
 
 
@@ -56,12 +58,12 @@ from gi.repository import Atspi, GLib
 Atspi.init()
 Atspi.set_timeout(500, 0)
 desktop = Atspi.get_desktop(0)
-application = sys.argv[1] if len(sys.argv) > 1 else ''
+application_names = {name.casefold() for name in json.loads(sys.argv[1])}
 queue = []
 for i in range(min(desktop.get_child_count(), 32)):
     try:
         child = desktop.get_child_at_index(i)
-        if not application or child.get_name() == application:
+        if not application_names or (child.get_name() or '').casefold() in application_names:
             queue.append((child, (i,)))
     except GLib.Error:
         continue
@@ -125,17 +127,40 @@ for index in range(min(display.get_n_monitors(), 16)):
 print(json.dumps(items))
 """
 
-    def __init__(self, *, application: str | None = None, runner=subprocess.run) -> None:
-        if application is not None and (not application or len(application) > 128):
+    def __init__(self, *, application: str | Iterable[str] | None = None,
+                 timeout_seconds: float = 10.0, include_monitors: bool = True,
+                 runner=subprocess.run) -> None:
+        if application is None:
+            applications: tuple[str, ...] = ()
+        elif isinstance(application, str):
+            applications = (application,)
+        elif isinstance(application, Iterable):
+            raw_applications = tuple(application)
+            if (len(raw_applications) > 32 or any(
+                not isinstance(name, str) or not name or len(name) > 128
+                for name in raw_applications
+            )):
+                raise ValueError("accessibility application filter is invalid")
+            applications = tuple(sorted(set(raw_applications)))
+        else:
             raise ValueError("accessibility application filter is invalid")
-        self.application = application
+        if len(applications) > 32 or any(not name or len(name) > 128 for name in applications):
+            raise ValueError("accessibility application filter is invalid")
+        if (isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float))
+                or not isfinite(timeout_seconds) or not 0.1 <= timeout_seconds <= 10.0):
+            raise ValueError("accessibility observation timeout is invalid")
+        if type(include_monitors) is not bool:
+            raise ValueError("accessibility monitor option is invalid")
+        self.application = applications
+        self.timeout_seconds = float(timeout_seconds)
+        self.include_monitors = include_monitors
         self._runner = runner
 
     def observe(self) -> DesktopObservation:
         try:
             result = self._runner(
-                ["/usr/bin/python3", "-c", self._SCRIPT, self.application or ""], capture_output=True,
-                text=True, check=False, timeout=10,
+                ["/usr/bin/python3", "-c", self._SCRIPT, json.dumps(self.application)], capture_output=True,
+                text=True, check=False, timeout=self.timeout_seconds,
             )
         except subprocess.TimeoutExpired as exc:
             raise RuntimeError("local accessibility observation timed out") from exc
@@ -148,7 +173,7 @@ print(json.dumps(items))
             elements = tuple(self._element(row) for row in rows)
         except (TypeError, ValueError, KeyError) as exc:
             raise RuntimeError("local accessibility observation is invalid") from exc
-        monitors = self.monitors()
+        monitors = self.monitors() if self.include_monitors else ()
         canonical = json.dumps(
             {"elements": rows, "monitors": [
                 {"index": monitor.index, "identity": monitor.identity,

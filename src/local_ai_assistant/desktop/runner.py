@@ -8,10 +8,12 @@ as a new instruction source.
 from __future__ import annotations
 
 import hashlib
+import http.client
 import re
 import subprocess
 import threading
 import time
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -20,7 +22,73 @@ from .agency_ledger import ComputerAgencyLedger, ComputerTask
 from .goal_planner import GroundedGoalPlanner
 from .observation import AccessibilityObservationService, AccessibleElement, DesktopObservation
 from .portal_client import PortalDesktopClient
+from .targets import (
+    DesktopApplication,
+    DesktopApplicationCatalog,
+    parse_open_command,
+    resolve_open_target,
+)
 from .text_verify import ExactTextVerifier
+
+_ADDRESS_BAR_NAME = re.compile(r"address|location|url|search.*enter|enter.*address", re.I)
+_APPLICATION_VERIFY_TIMEOUT_SECONDS = 12.0
+_APPLICATION_VERIFY_POLL_SECONDS = 0.25
+_URI_VERIFY_TIMEOUT_SECONDS = 12.0
+_URI_VERIFY_POLL_SECONDS = 0.25
+
+
+class _PageTitleParser(HTMLParser):
+    """Read only a bounded HTML title for local browser-window verification."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._inside_title = False
+        self._finished = False
+        self._parts: list[str] = []
+
+    def handle_starttag(self, tag: str, _attrs: list[tuple[str, str | None]]) -> None:
+        if tag.casefold() == "title" and not self._finished:
+            self._inside_title = True
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() == "title" and self._inside_title:
+            self._inside_title = False
+            self._finished = True
+
+    def handle_data(self, data: str) -> None:
+        if self._inside_title and sum(map(len, self._parts)) < 256:
+            self._parts.append(data[:256])
+
+    def title(self) -> str | None:
+        title = " ".join("".join(self._parts).split())
+        return title[:256] or None
+
+
+def _local_page_title(uri: str) -> str | None:
+    """Fetch an HTML title only from a root loopback URL, without proxy/redirects."""
+    try:
+        parsed = urlsplit(uri)
+        port = parsed.port
+    except ValueError:
+        return None
+    if (parsed.scheme != "http" or parsed.hostname is None
+            or parsed.hostname.casefold() not in {"localhost", "127.0.0.1", "::1"}
+            or parsed.path not in {"", "/"} or parsed.query or parsed.fragment):
+        return None
+    connection = http.client.HTTPConnection(parsed.hostname, port or 80, timeout=1.0)
+    try:
+        connection.request("GET", "/", headers={"Accept": "text/html", "Connection": "close"})
+        response = connection.getresponse()
+        if response.status != 200 or "text/html" not in response.getheader("Content-Type", "").casefold():
+            return None
+        parser = _PageTitleParser()
+        parser.feed(response.read(65536).decode("utf-8", errors="replace"))
+        parser.close()
+        return parser.title()
+    except (OSError, http.client.HTTPException, ValueError):
+        return None
+    finally:
+        connection.close()
 
 
 class ComputerAgencyRunner:
@@ -28,16 +96,24 @@ class ComputerAgencyRunner:
 
     def __init__(self, ledger: ComputerAgencyLedger, portal: PortalDesktopClient,
                  *, allowed_file_roots: tuple[Path, ...] = (),
+                 presentation_url: str | None = None,
+                 applications: DesktopApplicationCatalog | None = None,
                  goal_planner: GroundedGoalPlanner | None = None,
                  observer_factory=AccessibilityObservationService,
-                 run=subprocess.run, popen=subprocess.Popen) -> None:
+                 application_observer_factory=AccessibilityObservationService,
+                 run=subprocess.run, popen=subprocess.Popen,
+                 text_verifier: ExactTextVerifier | None = None) -> None:
         self.ledger = ledger
         self.portal = portal
         self.allowed_file_roots = tuple(root.resolve() for root in allowed_file_roots)
+        self.presentation_url = presentation_url
+        self.applications = applications or DesktopApplicationCatalog()
         self.goal_planner = goal_planner
         self._observer_factory = observer_factory
+        self._application_observer_factory = application_observer_factory
         self._run = run
         self._popen = popen
+        self.text_verifier = text_verifier or ExactTextVerifier()
         self._lock = threading.Lock()
 
     @staticmethod
@@ -181,11 +257,23 @@ class ComputerAgencyRunner:
             url = self._url(task.request)
             if url is not None:
                 self._navigate_browser(task_id, url)
-            elif fields := self._form_fields(task.request):
-                self._fill_form(task_id, fields)
             elif match := re.fullmatch(r"\s*open\s+(/[^\s\"']+\.txt)\s+in\s+(?:gnome\s+)?text\s+editor\.?\s*",
                                        task.request, flags=re.IGNORECASE):
                 self._open_text_file(task_id, match.group(1))
+            elif command := parse_open_command(task.request):
+                target = resolve_open_target(
+                    command.target,
+                    presentation_url=self.presentation_url,
+                    applications=self.applications,
+                )
+                if target.kind == "uri":
+                    self._open_uri(task_id, target.uri)
+                elif target.kind == "application" and target.application is not None:
+                    self._launch_application(task_id, target.application)
+                else:
+                    raise ValueError("computer target could not be resolved")
+            elif fields := self._form_fields(task.request):
+                self._fill_form(task_id, fields)
             elif match := re.fullmatch(r"\s*click\s+([\w][\w -]*?)\s+and\s+verify\s+([\w][\w -]*?)\s+appears\.?\s*",
                                        task.request, flags=re.IGNORECASE):
                 self._click_and_verify_native(task_id, match.group(1), match.group(2))
@@ -198,6 +286,360 @@ class ComputerAgencyRunner:
                 self.ledger.complete(task_id, succeeded=False)
             raise
         return self.ledger.complete(task_id, succeeded=True)
+
+    def _open_uri(self, task_id: str, uri: str) -> None:
+        """Dispatch through the OS URI handler and verify the live browser destination."""
+        parsed = urlsplit(uri)
+        if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+                or parsed.username or parsed.password
+                or (parsed.scheme == "http" and parsed.hostname.casefold() not in {"localhost", "127.0.0.1", "::1"})):
+            raise ValueError("computer destination is not allowed")
+        observer = self._observer_factory()
+        before = observer.observe()
+        self.ledger.record_observation(task_id, before)
+        browser = self.applications.default_uri_handler()
+        uri_observer = observer
+        expected_page_title = None
+        if browser is not None:
+            uri_observer = self._application_observer_factory(
+                application=browser.name, timeout_seconds=2.0, include_monitors=False,
+            )
+            expected_page_title = _local_page_title(uri)
+        digest = hashlib.sha256(uri.encode("utf-8")).hexdigest()
+        claim = self.ledger.prepare(
+            task_id, kind="open_uri", observation_id=before.observation_id,
+            target_digest=digest, risk="low",
+            target_summary=("browser", parsed.hostname.casefold()),
+        )
+        self.ledger.claim(claim.action_id, fresh_observation=observer.observe())
+        self.ledger.mark_execution_started(claim.action_id)
+        try:
+            process = self._popen(
+                ["gio", "open", uri], stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True,
+            )
+        except Exception as exc:
+            self.ledger.finish(
+                claim.action_id, result_observation=None, verified=False,
+                outcome="actor_failed", verification_result="not_checked",
+                verification_match_count=0,
+            )
+            raise RuntimeError("the desktop could not start the requested destination") from exc
+
+        after = before
+        saw_observation = False
+        last_observation_failed = False
+        match_count = 0
+        deadline = time.monotonic() + _URI_VERIFY_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            if self.ledger.cancellation_requested(task_id):
+                if process.poll() is None:
+                    try:
+                        process.terminate()
+                    except ProcessLookupError:
+                        pass
+                self.ledger.mark_in_doubt(
+                    claim.action_id, result_observation=after if saw_observation else None,
+                    actor_return_code=process.poll(),
+                    verification_result=("not_found" if saw_observation else "not_checked"),
+                    verification_match_count=match_count if saw_observation else 0,
+                )
+                raise RuntimeError("the requested destination was cancelled; outcome is uncertain")
+            return_code = process.poll()
+            if return_code is not None and return_code != 0:
+                self.ledger.finish(
+                    claim.action_id, result_observation=after if saw_observation else None,
+                    verified=False, outcome="actor_failed", actor_return_code=return_code,
+                    verification_result="not_checked", verification_match_count=0,
+                )
+                raise RuntimeError("the desktop could not open the requested destination")
+            try:
+                after = uri_observer.observe()
+                saw_observation = True
+                last_observation_failed = False
+            except Exception:
+                last_observation_failed = True
+                time.sleep(min(_URI_VERIFY_POLL_SECONDS,
+                               max(0.0, deadline - time.monotonic())))
+                continue
+            verified, match_count = self._uri_verification_result(
+                after, uri, browser_application=browser.name if browser else None,
+            )
+            if verified:
+                return_code = process.poll()
+                if return_code is None:
+                    threading.Thread(target=process.wait, daemon=True).start()
+                self.ledger.finish(
+                    claim.action_id, result_observation=after,
+                    verified=True, outcome="postcondition_verified",
+                    actor_return_code=return_code, verification_result="uri_visible",
+                    verification_match_count=match_count,
+                )
+                return
+            if browser is not None and expected_page_title is not None:
+                verified, match_count = self._browser_title_verification_result(
+                    after, browser_application=browser.name,
+                    expected_title=expected_page_title,
+                )
+                if verified:
+                    return_code = process.poll()
+                    if return_code is None:
+                        threading.Thread(target=process.wait, daemon=True).start()
+                    self.ledger.finish(
+                        claim.action_id, result_observation=after,
+                        verified=True, outcome="postcondition_verified",
+                        actor_return_code=return_code,
+                        verification_result="browser_title_visible",
+                        verification_match_count=match_count,
+                    )
+                    return
+            time.sleep(min(_URI_VERIFY_POLL_SECONDS,
+                           max(0.0, deadline - time.monotonic())))
+
+        return_code = process.poll()
+        verification_result = "not_found" if saw_observation else "observation_failed"
+        if return_code is None or (not saw_observation and last_observation_failed):
+            self.ledger.mark_in_doubt(
+                claim.action_id, result_observation=after if saw_observation else None,
+                actor_return_code=return_code, verification_result=verification_result,
+                verification_match_count=match_count,
+            )
+            raise RuntimeError("the requested destination may still be opening; verification is uncertain")
+        if return_code != 0:
+            self.ledger.finish(
+                claim.action_id, result_observation=after if saw_observation else None,
+                verified=False, outcome="actor_failed", actor_return_code=return_code,
+                verification_result="not_checked", verification_match_count=0,
+            )
+            raise RuntimeError("the desktop could not open the requested destination")
+        self.ledger.finish(
+            claim.action_id, result_observation=after if saw_observation else None,
+            verified=False, outcome=("postcondition_failed" if saw_observation else "observation_failed"),
+            actor_return_code=return_code, verification_result=verification_result,
+            verification_match_count=match_count,
+        )
+        raise RuntimeError("the requested destination could not be verified in the browser")
+
+    def _uri_is_visible(self, observation: DesktopObservation, expected_uri: str) -> bool:
+        return self._uri_verification_result(observation, expected_uri)[0]
+
+    def _uri_verification_result(
+        self, observation: DesktopObservation, expected_uri: str,
+        *, browser_application: str | None = None,
+    ) -> tuple[bool, int]:
+        documents = [element for element in observation.elements
+                     if element.role == "document web"
+                     and (browser_application is None or element.application == browser_application)]
+        if not documents:
+            return False, 0
+        document_apps = ({browser_application} if browser_application is not None
+                         else {element.application for element in documents})
+        address_bars = [
+            element for element in observation.elements
+            if element.application in document_apps and element.role in {"entry", "text entry"}
+            and _ADDRESS_BAR_NAME.search(element.name)
+        ]
+        if len(address_bars) != 1:
+            return False, 0
+        verified = self.text_verifier.matches_url(
+            ElementIdentity.from_element(address_bars[0]), expected_uri,
+        )
+        return verified, int(verified)
+
+    @staticmethod
+    def _browser_title_verification_result(
+        observation: DesktopObservation,
+        *,
+        browser_application: str,
+        expected_title: str,
+    ) -> tuple[bool, int]:
+        """Match one visible frame title inside the registered HTTP handler only."""
+        matches = []
+        for element in observation.elements:
+            if (element.application != browser_application
+                    or element.role not in {"frame", "window"}):
+                continue
+            title = element.name.strip()
+            if title != expected_title:
+                suffix = re.search(r"\s+[-–—|]\s+([^|–—-]+)$", title)
+                if suffix is None or suffix.group(1).strip() != browser_application:
+                    continue
+                title = title[:suffix.start()].strip()
+            if title == expected_title:
+                matches.append(element)
+        return len(matches) == 1, int(len(matches) == 1)
+
+    def _launch_application(self, task_id: str, app: DesktopApplication) -> None:
+        observer = self._observer_factory()
+        before = observer.observe()
+        self.ledger.record_observation(task_id, before)
+        digest = hashlib.sha256(app.desktop_id.encode("utf-8")).hexdigest()
+        claim = self.ledger.prepare(
+            task_id, kind="launch_app", observation_id=before.observation_id,
+            target_digest=digest, risk="low",
+            target_summary=(app.desktop_id, app.name),
+        )
+        claim_observation = observer.observe()
+        self.ledger.claim(claim.action_id, fresh_observation=claim_observation)
+        try:
+            target_observer = self._application_observer_factory(
+                # Some AT-SPI desktop roots expose the XDG display name even
+                # when descendant elements expose a registered app identity.
+                # Include it only to locate that tree; verification below
+                # still accepts registered identities exclusively.
+                application=frozenset((*app.verification_identities, app.name)),
+                timeout_seconds=2.0,
+                include_monitors=False,
+            )
+            target_before = target_observer.observe()
+        except Exception as exc:
+            self.ledger.finish(
+                claim.action_id, result_observation=None, verified=False,
+                outcome="observation_failed", verification_result="observation_failed",
+                verification_match_count=0,
+            )
+            raise RuntimeError("the installed application could not be observed") from exc
+        try:
+            self.ledger.mark_execution_started(claim.action_id)
+            # Do not block window observation on a launcher that can outlive startup.
+            process = self._popen(
+                ["/usr/bin/gtk-launch", app.launch_id], stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True,
+            )
+        except Exception:
+            status = next((item for item in self.ledger.recent_actions(task_id)
+                           if item.action_id == claim.action_id), None)
+            if status is not None and status.state in {"in_flight", "claimed"}:
+                self.ledger.finish(
+                    claim.action_id, result_observation=None, verified=False,
+                    outcome="actor_failed", verification_result="not_checked",
+                    verification_match_count=0,
+                )
+            raise RuntimeError("the installed application could not be started") from None
+
+        after = target_before
+        saw_observation = False
+        last_error = False
+        verification_result = "not_found"
+        match_count = 0
+        deadline = time.monotonic() + _APPLICATION_VERIFY_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            if self.ledger.cancellation_requested(task_id):
+                self._stop_application_dispatcher(process)
+                self.ledger.mark_in_doubt(
+                    claim.action_id, result_observation=after if saw_observation else None,
+                    actor_return_code=process.poll(),
+                    verification_result=(verification_result if saw_observation else None),
+                    verification_match_count=match_count if saw_observation else None,
+                )
+                self._reap_application_dispatcher(process)
+                raise RuntimeError("the installed application launch was cancelled; outcome is uncertain")
+            try:
+                after = target_observer.observe()
+                saw_observation = True
+                last_error = False
+            except Exception:
+                last_error = True
+                time.sleep(min(_APPLICATION_VERIFY_POLL_SECONDS,
+                               max(0.0, deadline - time.monotonic())))
+                continue
+            verification_result, match_count = self._application_verification_result(
+                after, app, target_before,
+            )
+            if verification_result in {"active", "focused", "new_visible"}:
+                self.ledger.finish(claim.action_id, result_observation=after,
+                                   verified=True, outcome="postcondition_verified",
+                                   actor_return_code=process.poll(),
+                                   verification_result=verification_result,
+                                   verification_match_count=match_count)
+                self._reap_application_dispatcher(process)
+                return
+            actor_return_code = process.poll()
+            if actor_return_code is not None and actor_return_code != 0:
+                self.ledger.finish(
+                    claim.action_id, result_observation=after if saw_observation else None,
+                    verified=False, outcome="actor_failed", actor_return_code=actor_return_code,
+                    verification_result="not_checked", verification_match_count=0,
+                )
+                raise RuntimeError("the installed application could not be opened")
+            time.sleep(min(_APPLICATION_VERIFY_POLL_SECONDS,
+                           max(0.0, deadline - time.monotonic())))
+        actor_return_code = process.poll()
+        if actor_return_code is None:
+            self._stop_application_dispatcher(process)
+            self.ledger.mark_in_doubt(
+                claim.action_id, result_observation=after if saw_observation else None,
+                actor_return_code=process.poll(),
+                verification_result=(verification_result if saw_observation else None),
+                verification_match_count=match_count if saw_observation else None,
+            )
+            self._reap_application_dispatcher(process)
+            raise RuntimeError("the application launch is still running; its result is uncertain")
+        outcome = "postcondition_failed" if saw_observation else "observation_failed"
+        if not saw_observation and last_error:
+            verification_result = "observation_failed"
+        self.ledger.finish(
+            claim.action_id, result_observation=after if saw_observation else None,
+            verified=False, outcome=outcome, actor_return_code=actor_return_code,
+            verification_result=verification_result, verification_match_count=match_count,
+        )
+        raise RuntimeError("the installed application could not be verified")
+
+    @staticmethod
+    def _stop_application_dispatcher(process) -> None:
+        """Stop a still-running launcher without closing a verified app window."""
+        if process.poll() is None:
+            try:
+                process.terminate()
+            except OSError:
+                pass
+
+    @staticmethod
+    def _reap_application_dispatcher(process) -> None:
+        """Reap a launcher that outlived the bounded observation window."""
+        if process.poll() is None:
+            threading.Thread(
+                target=process.wait, name="friday-application-launch-reaper", daemon=True,
+            ).start()
+
+    @staticmethod
+    def _application_verification_result(
+        observation: DesktopObservation,
+        app: DesktopApplication,
+        before: DesktopObservation,
+    ) -> tuple[str, int]:
+        """Verify app visibility or activation using the app-scoped AT-SPI tree."""
+        identities = {identity.casefold() for identity in app.verification_identities}
+
+        def matches(element) -> bool:
+            app_identity = element.application.casefold().strip()
+            return app_identity in identities
+
+        current = [element for element in observation.elements if matches(element)]
+        if any(element.active for element in current):
+            return "active", len(current)
+        if any(element.focused for element in current):
+            return "focused", len(current)
+
+        def signature(element):
+            return (
+                element.application.casefold().strip(), element.role, element.name.casefold().strip(),
+                element.bounds,
+            )
+
+        previous_counts: dict[tuple[object, ...], int] = {}
+        for element in before.elements:
+            if matches(element):
+                key = signature(element)
+                previous_counts[key] = previous_counts.get(key, 0) + 1
+        for element in current:
+            key = signature(element)
+            count = previous_counts.get(key, 0)
+            if count:
+                previous_counts[key] = count - 1
+            else:
+                return "new_visible", len(current)
+        return "not_found", len(current)
 
     def _run_planned_native_step(self, task_id: str, goal: str) -> None:
         """Run up to three owner-ordered, independently verified native steps."""

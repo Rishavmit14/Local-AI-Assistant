@@ -1446,8 +1446,19 @@ class PipeWireSpeechPlayer:
             produced = False
             first_pcm_written = False
 
+            iterator = iter(chunks)
+
             try:
-                for chunk in chunks:
+                while True:
+                    if self._stop_requested.is_set():
+                        interrupted = True
+                        break
+
+                    try:
+                        chunk = next(iterator)
+                    except StopIteration:
+                        break
+
                     produced = True
 
                     if process is None:
@@ -1511,7 +1522,7 @@ class PipeWireSpeechPlayer:
                         .is_set()
                     ):
                         interrupted = True
-                        continue
+                        break
 
                     if (
                         process.stdin
@@ -1562,7 +1573,7 @@ class PipeWireSpeechPlayer:
                             .is_set()
                         ):
                             interrupted = True
-                            continue
+                            break
 
                         raise (
                             SpeechPlaybackError(
@@ -1570,6 +1581,15 @@ class PipeWireSpeechPlayer:
                                 "pipe failed"
                             )
                         ) from exc
+
+                if interrupted:
+                    close_iterator = getattr(
+                        iterator,
+                        "close",
+                        None,
+                    )
+                    if callable(close_iterator):
+                        close_iterator()
 
                 if not produced:
                     raise SpeechPlaybackError(

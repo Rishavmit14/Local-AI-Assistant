@@ -161,6 +161,18 @@ class FridayWakeVoiceOrchestrator:
             self.voice.start_listening()
 
             if event.result.remainder:
+                owner_speech_ended = getattr(
+                    self.voice,
+                    "mark_owner_speech_ended_at",
+                    None,
+                )
+                if (
+                    event.owner_speech_ended_monotonic is not None
+                    and callable(owner_speech_ended)
+                ):
+                    owner_speech_ended(
+                        event.owner_speech_ended_monotonic
+                    )
                 chunks = (
                     self.voice
                     .stream_text(

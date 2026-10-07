@@ -6,11 +6,74 @@ Voice is an input/output surface and has no privileged path around Friday's nati
 
 ## Accepted conversational path
 
-`microphone -> Whisper STT -> local LLM streaming -> Piper TTS -> PipeWire playback`
+`microphone -> Whisper STT -> local Qwen streaming -> selected local TTS -> PipeWire playback`
+
+## Owner-machine TTS selection
+
+Piper remains the fail-safe default. An explicit
+`FRIDAY_TTS_BACKEND=pocket` selects Friday's persistent Pocket worker and its
+Anna voice while retaining the same bounded framed-PCM interface and PipeWire
+playback path. The Pocket worker runs from the owner-managed local virtual
+environment, uses the existing local Hugging Face cache in offline mode, and
+does not download models during service startup. The protected machine
+configuration selects Pocket; the isolated voice-action candidate carries
+that selector forward. The selected backend is reported by local voice health.
+
+Interrupts propagate through the streaming text queue, TTS iterator, and
+playback worker. When Stop or barge-in wins, Friday closes the active iterators
+and prevents another model chunk from being requested, while retaining text
+already produced. The exact stop classifier and wake ownership boundaries stay
+unchanged.
+
+## Session 1 Milestone A — direct voice open actions (candidate)
+
+The normal microphone path now marks voice-origin conversation turns. A
+deterministic intent router can intercept a direct open/focus request before
+memory retrieval, context assembly, or Qwen and send it through the existing
+Stage 26 computer-agency runner. Non-voice conversation remains model-only.
+The action returns an immediate spoken acknowledgement, then a spoken result
+based on the durable task's verified terminal state.
+
+This route requires the configured private local Owner grant and restored GNOME
+permission. It handles exact installed-app names from XDG metadata, generic
+website names or explicit safe URLs, and Friday's loopback UI/internal routes
+from `LOCAL_AI_OWNER_UI_ORIGIN`. That setting is the canonical UI origin and
+is aligned with the Daybreak server-only bridge and
+`LOCAL_AI_PROJECT_EXECUTION_ALLOWED_ORIGINS`. Application launch uses the
+canonical XDG desktop ID through fixed `/usr/bin/gtk-launch` arguments. The
+verifier scopes AT-SPI traversal to registered desktop-ID, executable, D-Bus,
+and `StartupWMClass` identities, then recognizes active/focused or newly
+visible matching app elements. URI dispatch uses a fixed asynchronous `gio
+open` child so the browser address can be checked during handoff. The route
+does not ask Qwen to choose a URL or target. Stop still reaches the Stage 26
+durable cancellation hook. Action latency stages distinguish intent selection,
+dispatch, verification/failure, final response readiness, fast-path completion,
+and completed voice playback. Inline wake commands use the completed captured
+utterance boundary as their monotonic latency origin. These telemetry records
+retain stage timings only, not transcripts or audio; they remain in-memory and
+have no task ID or wall-clock timestamp for durable turn-to-action correlation.
+
+Owner reports YouTube opened in Chrome, though its earlier task remains
+`in_doubt`; the latest Files probe opened and its task verified. The first
+Files retest lacked a structured latency row; a subsequent retest now records
+one from the captured inline-wake utterance boundary. That trace remains
+in-memory and does not carry a durable task ID. Friday UI
+showed Daybreak at `:5193` and spoke “I'm opening Friday's User interface,” but
+its old URI task is `in_doubt` because `gio open` timed out. Calculator opened
+physically but its old task ended `postcondition_failed`; its three stored
+observations each had 187 elements and did not retain identities or actor exit
+status. The updated candidate stores actor return code and a content-free
+verification category/count/result observation, but not stderr or accessible
+screen text. The latest Stop was recognized silently at 16:06:08 IST; capture
+health showed wake listening. There is no computer task/action or latency row
+for explicit Stop. The app-scoped verifier, nonblocking URI dispatch, and
+evidence fields pass focused tests; fresh Files, Daybreak, and Calculator
+probes are required. The candidate remains unqualified.
 
 ## Stage 22 Slices 5–7 — measured latency attribution and handoff repair
 
-Piper remains the accepted production TTS. Kokoro CPU was evaluated locally with
+At the Stage 22 decision, Piper was the accepted production TTS. The current
+owner-machine selection is documented above. Kokoro CPU was evaluated locally with
 the current Qwen configuration and three female candidates; the owner selected
 Bella for a bounded comparison, then rejected Kokoro for production after a real
 Friday trial because response start was materially slower and speech had
@@ -138,6 +201,11 @@ and clears when the next user turn begins.
 production stages. This preserves in-process ordering diagnostics without an
 unbounded always-on memory cost; structured service-journal records remain the
 external operational evidence.
+
+The telemetry conversation wrapper forwards the inner conversation's
+`last_voice_action_selected` flag. Voice action turns therefore retain their
+content-free timing record through completed speech instead of losing the
+completion stage at the instrumentation boundary.
 
 Piper's persistent worker reader uses a bounded 128-event protocol queue. It
 applies backpressure during an abnormal event flood, while reader retirement

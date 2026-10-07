@@ -54,6 +54,41 @@ def test_stale_observation_is_recorded_and_never_claimed(tmp_path):
     assert ledger.task(task.task_id).action_count == 0
 
 
+@pytest.mark.parametrize("kind", ("open_uri", "launch_app"))
+def test_resolved_target_claim_survives_unrelated_desktop_change(tmp_path, kind):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "agency.sqlite3")
+    task = ledger.create("owner", "Open a resolved target", action_budget=1)
+    before = observation("a")
+    ledger.record_observation(task.task_id, before)
+    action = ledger.prepare(
+        task.task_id, kind=kind, observation_id=before.observation_id,
+        target_digest="c" * 64, risk="low", target_summary=(kind, "resolved target"),
+    )
+
+    # A fresh observation is required, but focus/name/bounds churn is unrelated
+    # to the runner's separately resolved URI or installed desktop entry.
+    changed = DesktopObservation(
+        "observation_" + "d" * 32, datetime.now(UTC).isoformat(), "e" * 64,
+        (AccessibleElement((0, 0), "Other app", "window", "Changed", (20, 30, 50, 40), (), True),),
+    )
+    assert ledger.claim(action.action_id, fresh_observation=changed).state == "in_flight"
+    assert ledger.action(action.action_id).claim_observation_id == changed.observation_id
+    assert ledger.task(task.task_id).action_count == 1
+
+
+def test_unresolved_window_action_still_requires_unchanged_desktop(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "agency.sqlite3")
+    task = ledger.create("owner", "Focus a window")
+    before = observation("a")
+    ledger.record_observation(task.task_id, before)
+    action = ledger.prepare(task.task_id, kind="focus_app", observation_id=before.observation_id,
+                            target_digest="c" * 64, risk="low")
+    with pytest.raises(ValueError, match="stale"):
+        ledger.claim(action.action_id, fresh_observation=observation("e", "f"))
+    assert ledger.action(action.action_id).state == "stale"
+    assert ledger.task(task.task_id).action_count == 0
+
+
 def test_consequential_claim_needs_separate_approval_and_cancel_stops_new_actions(tmp_path):
     ledger = ComputerAgencyLedger(tmp_path / "private" / "agency.sqlite3")
     task = ledger.create("owner", "Fill but do not submit")
@@ -65,6 +100,7 @@ def test_consequential_claim_needs_separate_approval_and_cancel_stops_new_action
         ledger.claim(action.action_id, fresh_observation=observation("c", "a"))
     assert ledger.action(action.action_id).state == "prepared"
     assert ledger.cancel(task.task_id).state == "cancelled"
+    assert ledger.cancellation_requested(task.task_id)
     assert ledger.action(action.action_id).state == "cancelled"
     with pytest.raises(ValueError, match="cannot be claimed"):
         ledger.claim(action.action_id, fresh_observation=observation("d", "a"))

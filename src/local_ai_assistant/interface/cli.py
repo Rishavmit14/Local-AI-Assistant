@@ -69,6 +69,7 @@ from .events import FridayEventType
 from .interaction import FridayInteractionCoordinator
 from .local_owner import LocalOwnerTrust
 from .runtime import FridayRuntime
+from .voice_actions import VoiceComputerActionService
 from .wake_bootstrap import build_managed_wake_voice
 
 
@@ -137,6 +138,7 @@ def build_presentation_components(
     config: AppConfig | None = None,
     *,
     session_id: str | None = None,
+    presentation_port: int = 8765,
 ):
     resolved_config = config or get_config()
 
@@ -209,9 +211,10 @@ def build_presentation_components(
         str(Path.home() / ".local/state/friday/desktop-restore-token"),
     ))
     computer_portal = PortalDesktopClient(restore_file)
+    computer_permission_active = False
     if restore_file.is_file():
         try:
-            computer_portal.start()
+            computer_permission_active = computer_portal.start() == "active"
         except RuntimeError:
             pass  # Explicit Owner status reports unavailable; startup remains safe.
     computer_agency = ComputerAgencyController(
@@ -221,6 +224,7 @@ def build_presentation_components(
     computer_runner = ComputerAgencyRunner(
         computer_agency.ledger, computer_portal,
         allowed_file_roots=resolved_config.desktop_control.allowed_file_roots,
+        presentation_url=os.environ.get("LOCAL_AI_OWNER_UI_ORIGIN"),
         goal_planner=GroundedGoalPlanner(roles.client(Role.COMPUTER)),
     )
     history = TaskHistoryService(
@@ -271,6 +275,12 @@ def build_presentation_components(
             raise ValueError("local single-user trust requires a capability path and installation")
         local_owner_trust = LocalOwnerTrust(Path(capability_path), Path(installation))
         project_sessions = local_owner_trust.sessions
+    voice_computer_actions = VoiceComputerActionService(
+        computer_runner,
+        runtime,
+        owner_principal=(local_owner_trust.local_voice_principal
+                         if local_owner_trust is not None else lambda: None),
+    )
     rollback_gateway_auth = (
         GatewayAuth(rollback_gateway_hash, frozenset({GatewayScope.REQUEST_ROLLBACK}))
         if rollback_gateway_hash and rollback_gateway_token else None
@@ -468,16 +478,31 @@ def build_presentation_components(
         health = wake_voice.health()
         return bool(health.get("capture_thread_alive")) and health.get("status") == "running"
 
+    def computer_agency_health() -> bool | None:
+        if local_owner_trust is None:
+            return False
+        try:
+            local_owner_trust.local_voice_principal()
+            return computer_portal.start() == "active"
+        except (OSError, RuntimeError, ValueError):
+            return False
+
+    voice_computer_available = local_owner_trust is not None and computer_permission_active
+
     capabilities = FridayCapabilityRegistry((
         FridayCapability("conversation", "Conversation", CapabilityStatus.INTEGRATED, True, True, True, "voice and text presentation", "active session is bounded and non-persistent"),
         FridayCapability("voice", "Voice", CapabilityStatus.INTEGRATED, resolved_config.wake.enabled, True, resolved_config.wake.enabled, "Hey Friday when wake is configured", "requires the local microphone and wake workers"),
+        FridayCapability("computer_agency", "Computer agency", CapabilityStatus.INTEGRATED,
+                         local_owner_trust is not None, voice_computer_available, voice_computer_available,
+                         "normal voice for installed apps, websites, and Friday workspaces",
+                         "low-risk owner requests are audited and re-observed; general conversational vision and consequential actions remain outside this route"),
         FridayCapability("persistent_memory", "Persistent memory", CapabilityStatus.INTEGRATED, True, True, True, "conversation retrieval and explicit memory controls", "Friday cannot silently write durable memory"),
         FridayCapability("career_forge", "Career Forge", CapabilityStatus.INTEGRATED, True, True, True, "LEARN, MAP, PROJECTS, INTERVIEW, PROGRESS, and bounded local API", "real GitHub publication still requires configured local credentials and an onboarded repository"),
         FridayCapability("learning_paths", "Learning Paths", CapabilityStatus.INTEGRATED, True, True, True, "explicit local curriculum creation and canonical Learn path projection", "generation requires the local Curriculum Designer; mapped learner evidence remains Career Forge authority"),
         FridayCapability("practice_lab", "Practice Lab", CapabilityStatus.INTEGRATED, True, True, practice_lab.availability()[0], "syntax-highlighted Python Lab with bounded execution and explicit code/screen context", "Python execution only; retained-screen tutoring requires an explicit private capture"),
-        FridayCapability("perception", "Screen perception", CapabilityStatus.IMPLEMENTED, True, True, True, "explicit capture API and perception panel", "not attached to normal conversation context"),
+        FridayCapability("perception", "Screen perception", CapabilityStatus.IMPLEMENTED, True, voice_computer_available, voice_computer_available, "fresh local observation for computer-action grounding and verification; explicit capture API", "live screen content is not yet attached to ordinary conversational questions"),
         FridayCapability("ocr", "OCR", CapabilityStatus.IMPLEMENTED, resolved_config.ocr.enabled, True, resolved_config.ocr.enabled, "explicit captured-screen API", "OCR results are not attached to normal conversation context"),
-        FridayCapability("desktop_control", "Desktop control", CapabilityStatus.IMPLEMENTED, True, True, True, "allowlisted proposal/approval API", "only configured allowlisted actions; no general keyboard or mouse control"),
+        FridayCapability("desktop_control", "Scoped desktop proposals", CapabilityStatus.IMPLEMENTED, True, True, True, "separate configured proposal/approval API", "legacy exact-target boundary; ordinary voice actions use computer_agency"),
         FridayCapability("objectives", "Guarded objectives", CapabilityStatus.INTEGRATED, True, execution_auth is not None, True, "objective console and bounded API", "execution retains authenticated exact-plan approval and isolation gates"),
         FridayCapability("task_explanation", "Grounded task explanations", CapabilityStatus.INTEGRATED, True, True, True, "exact task/objective ID; read-only canonical projection", "deterministic facts only; no approval, execution, mutation, or unsupported causality"),
         FridayCapability("proactive", "Proactive notifications", CapabilityStatus.IMPLEMENTED, resolved_config.proactive.enabled, True, resolved_config.proactive.enabled, "configured local watches", "notifications only; no action authority"),
@@ -485,7 +510,8 @@ def build_presentation_components(
         FridayCapability("private_document_knowledge", "Private document knowledge", CapabilityStatus.INTEGRATED, True, True, True, "explicitly selected indexed local documents in Research / Knowledge", "indexing remains explicit CLI; no directory scanning, automatic retrieval, or durable writes"),
         FridayCapability("code_intelligence", "Repository and code intelligence", CapabilityStatus.IMPLEMENTED, True, True, True, "CLI and guarded engineering paths", "not yet a normal conversation capability"),
         FridayCapability("github", "GitHub integration", CapabilityStatus.INTEGRATED, resolved_config.gateway.enabled, execution_auth is not None, career_publication is not None, "authenticated gateway", "requires an explicit onboarded publication mapping, GITHUB_WRITE scope, and local credential"),
-    ), health={"voice": voice_capability_health})
+    ), health={"voice": voice_capability_health, "computer_agency": computer_agency_health,
+               "perception": computer_agency_health})
 
     task_explanation = TaskExplanationService(
         history,
@@ -518,6 +544,7 @@ def build_presentation_components(
         capability_context=capabilities.conversation_context,
         cognition=cognition,
         capability_router=capability_router,
+        voice_computer_actions=voice_computer_actions,
         research_llm=roles.client(Role.REASONING),
     )
 
@@ -624,7 +651,7 @@ def main() -> int:
     (
         app,
         wake_voice,
-    ) = build_presentation_components(config)
+    ) = build_presentation_components(config, presentation_port=args.port)
 
     try:
         if wake_voice is not None:

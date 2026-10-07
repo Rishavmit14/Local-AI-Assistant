@@ -2032,3 +2032,141 @@ commit `672c9e9b8d562f868437e4518349c1ca3735ac43` is published to the Stage 27
 branch and fast-forwarded to `origin/main`; fetched refs match and GitHub
 attributes author and committer to `Rishavmit14`. Row 61 remains PARTIAL because
 whole-product visual acceptance is NOT STARTED.
+
+## Session 1 Milestone A — Voice to Action Spine (**LIVE PROVEN; publication pending**)
+
+The direct low-risk open route is wired from the normal Friday voice path into
+the accepted Stage 26 computer agency. `FridayVoiceConversationService` marks
+voice-origin turns; a deterministic intent router sends direct open/focus
+requests through a pre-Qwen path before memory retrieval or prompt assembly.
+Typed chat does not execute actions. The route requires the private local Owner
+grant and restored GNOME permission, creates a durable owner-bound task, and
+speaks success only after a fresh desktop observation verifies the browser
+destination or installed application. Apps resolve through XDG desktop
+metadata to a canonical launch ID; `/usr/bin/gtk-launch` performs the fixed
+launch, while executable, D-Bus, desktop-ID, and `StartupWMClass` identities
+ground app-scoped AT-SPI verification. A registered app's active/focused
+visible element or a newly visible matching element can verify an open; each
+scoped observation is bounded at two seconds and the verification window at
+twelve seconds. The action ledger records actor return code, a bounded
+verification category/count, and result-observation ID without screen text or
+stderr. URI dispatch uses fixed `gio open` arguments asynchronously so the
+browser postcondition can be observed while the OS handler runs; unresolved
+dispatch is `in_doubt` and is never replayed. Durable Stop is checked during
+the wait and terminates only Friday's still-running `gio` dispatcher; any
+uncertain effect remains `in_doubt`. Sites use generic host resolution rather
+than per-site command allowlists. Friday UI and internal routes use the
+single configured `LOCAL_AI_OWNER_UI_ORIGIN`, aligned with the Owner bridge
+and `LOCAL_AI_PROJECT_EXECUTION_ALLOWED_ORIGINS`. Existing exact Stop, task
+cancellation/recovery, and content-free latency telemetry remain in the path.
+
+Resolved URI and installed-app claims bind the selected URI or exact desktop
+entry and require a distinct fresh observation, without comparing the whole
+accessibility tree; screen-element actions retain strict stale-target checks.
+Physical evidence on 2026-10-07: the owner reports YouTube opened in Chrome,
+but its older durable task remains `in_doubt`; do not claim verified completion
+or repeat YouTube unless browser dispatch changes. The latest Files probe
+opened and focused the file manager, Friday said “Files is open,” and its
+action recorded `postcondition_verified`. The fresh Friday UI retest showed
+Daybreak at `http://127.0.0.1:5193/#home`; task
+`b8e62dfc42924ebaa9efff7368ff27e9` / action
+`dc181f9c822b43cfb8e05eda42b51dde` succeeded with `browser_title_visible`,
+match count 1. This is a unique page-title match scoped to the registered
+default HTTP handler, not proof of the exact URL or `#home` fragment. The
+earlier failed action `1fb5de11c9584a1287b7056eae463916` remains historical.
+Calculator also opened visibly in the latest physical probe, but Friday later
+said it could not verify it. Task `161059a9d06e4fc499bad4de54d3a91b` / action
+`975369b9a54a4f7e859c0fc6e098a81c` resolved to
+`org.gnome.Calculator.desktop` / `Calculator`; `gtk-launch` returned 0, while
+the app-scoped result observation had zero elements and verification ended
+`postcondition_failed` / `not_found`, count 0. The ledger does not retain
+accessible identities, so the exact missing root label is unknown. The
+candidate now adds the registered XDG display name only as an AT-SPI root
+selection alias; the success predicate still requires a registered desktop ID,
+executable, D-Bus ID, or `StartupWMClass` identity. A subsequent physical
+retake showed Calculator visibly, but task
+`fa304617c65c4bdba82a576bde2ec349` / action
+`dc55de7154b8448281707584bfb2a4ab` is `recovery_required` / `in_doubt` with
+outcome `interrupted`. Its `gtk-launch` process exceeded the synchronous
+10-second subprocess timeout before the post-launch scan ran. Actor return
+code, result observation, verification category, and match count are null; the
+selected AT-SPI root was not persisted. The candidate now dispatches the
+launcher as a child while polling the strict app-scoped predicate concurrently.
+The repaired asynchronous dispatch was physically retested once. Task
+10be3127fc0346ba9c71e1e50399dd2a succeeded; action
+ea85eb47d73242deb6aca3eb07cc2aa8 is verified as postcondition_verified with
+actor return code 0, verification result active, and match count 106. The
+result observation contains 106 elements in the Calculator-scoped tree and no
+monitor records. The count is matching accessible elements, not windows or
+desktop-wide matches. The root selector includes registered Calculator
+identities and the display name; the ledger does not retain the exact selected
+AT-SPI root label. The success predicate still requires registered identities.
+The previous in-doubt action fa304617c65c4bdba82a576bde2ec349 /
+dc55de7154b8448281707584bfb2a4ab remains unchanged and unreplayed.
+The candidate now observes registered app-specific AT-SPI roots, accepts an
+active/focused or newly visible matching app element, bounds verification, and
+stores a content-free actor/verification summary. URI dispatch is nonblocking
+and observes the requested browser address while the OS handler runs; an
+unresolved handler is recorded with its last observation as `in_doubt`. The
+latest Friday UI latency row has one turn and starts at the VAD owner speech-end
+boundary: transcript event ~374ms, route selection 436.5ms, first speakable
+chunk 696.1ms, first PCM 1,704.6ms, durable actor start ~5,849ms, action
+completion ~9,533ms, final response ready 10,193ms, and playback complete
+12,920.8ms. The in-memory row has no task ID or timestamp, so the saved event
+cursor and task/action timestamps supplied correlation. The owner then issued one physical “Hey Friday, stop” while capture was
+listening and reported silence. Runtime sequence 26 transcribed “stop” and
+sequence 27 recorded voice_explicit_stop to idle; post-probe health showed the
+capture thread still listening, with no active turn or error. No task/action
+or latency row is created for Stop. This qualifies the silent Stop/listening
+path; the probe had no in-flight desktop action, so active launcher cancellation
+remains covered by deterministic tests rather than this live attempt.
+The Calculator row from the failed attempt was: transcript ~411.7ms, route
+selection 451.3ms, first speakable chunk 621.3ms, first PCM 1,852.1ms, actor
+start ~5,922.9ms, result observation/action completion ~24,364/24,365ms,
+failure/final response ready ~24,785ms, and playback complete 28,684.3ms from
+the VAD speech-end origin. The first visible Calculator time is owner-estimated;
+the durable verifier did not find a scoped element. The final delay is thus
+corroborated by runtime telemetry, though the owner's 8s + 10–15s estimates are
+approximate.
+
+The previous Calculator retry used the repaired root selector but never ran
+post-launch verification because the launcher blocked. Its VAD speech-end row
+was transcript event ~376.7ms, route selection 437.6ms, first speakable chunk
+684.5ms, first TTS audio 2,138.2ms / first PCM 2,139.6ms, actor start
+~6,186.7ms, action interruption ~16,352ms, failure response ready 16,525.7ms,
+and playback completion 22,522.6ms. It has no result observation or verification
+count and remains in_doubt.
+
+The fresh verified Calculator row is correlated to VAD speech end: transcript
+event 383.5ms, route complete 427.1ms, intent 427.7ms, route selected 427.8ms,
+first speakable chunk 629.9ms, first TTS audio 1,648.2ms / first PCM 1,649.5ms,
+actor start 6,234.9ms, result observation 8,178.7ms, action completion
+8,182.6ms, final response ready 8,485.9ms, and playback complete 10,694.4ms.
+The user-estimated six-second window appearance has no machine timestamp.
+
+Focused deterministic runner/ledger/AT-SPI/Stop/wake tests pass (99). Final
+repository verification passed 1,525 tests with 6 skips, compile/CLI checks,
+and dependency validation for 101 packages. Frontend passed 133 tests across
+20 files plus 2 Owner-bridge checks, ESLint, TypeScript, and production build
+(with the existing large-chunk advisory); changed-file Ruff, diff check, and
+secret-pattern scan with zero findings passed. SQLite integrity is ok with 26
+tasks, 22 actions, and 57 observations. A private recovery snapshot is saved
+outside Git. Regression and local secret/recovery/diff gates passed; branch/main
+publication and remote verification remain pending.
+| Milestone item | Status | Remaining evidence |
+|---|---|---|
+| Voice intent to existing computer agency | INTEGRATED | Candidate is running through the normal voice service; focused routing and action tests pass. |
+| YouTube browser action | PARTIAL | Owner reports Chrome opened YouTube; the durable task is `in_doubt` and has no verified-completion marker. The candidate changed URI dispatch earlier in this slice, but the latest instruction authorizes no more application probes; preserve the owner report and its in-doubt task without replay. |
+| Friday UI destination | PARTIAL | Fresh physical retest succeeded: task `b8e62dfc42924ebaa9efff7368ff27e9` / action `dc181f9c822b43cfb8e05eda42b51dde` verified `browser_title_visible` with one unique title match in the registered browser; owner saw `http://127.0.0.1:5193/#home`. The predicate does not verify the exact URL/hash. |
+| Generic native application | LIVE PROVEN | Files and the fresh Calculator task both reached postcondition_verified. The Calculator result was app-scoped (106 matching accessible elements, result active); its exact selected root label is not persisted. Earlier Calculator failures remain historical; the prior in-doubt action is preserved. |
+| Owner trust, Stop, recovery, and latency path | PARTIAL | The physical Stop command was transcribed and caused voice_explicit_stop; capture remained listening and the owner reported silence. No desktop action was in flight, so live task cancellation was not exercised. The Calculator speech-end row is correlated to the durable action timestamps; latency remains in-memory without embedded task/time IDs. |
+| Candidate service on the normal Friday microphone path | INTEGRATED | Isolated candidate serves :8765 with reversible private systemd override; Daybreak is served loopback at :5193; voice health is listening. The protected production source checkout remains outside this worktree; its observed dirty voice/TTS paths were preserved. |
+| Physical spoken results | PARTIAL | Files, Friday UI, and Calculator have verified durable task/action outcomes with owner-reported spoken results. Friday UI verifies the root page title, not its exact URL/hash. The YouTube owner report remains physically successful but its older task is in_doubt. Stop was silent and returned capture to listening. |
+| Milestone A product acceptance and publication | NOT STARTED | Requires updated physical probes, truthful durable verification/spoken results, a durable latency-correlation plan or explicit bounded evidence, full required regressions, documentation, and remote recovery verification. |
+
+This is a candidate integration, not a newly accepted Stage 28 or a Stage 26
+rewrite. The physical microphone gate now has Calculator and silent Stop/listening
+evidence. Keep the candidate unqualified until branch/main publication and
+remote recovery verification succeed. General screen-question context and consequential
+actions remain outside this milestone. See ADR 0046 and the Session 1 section
+of `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`.

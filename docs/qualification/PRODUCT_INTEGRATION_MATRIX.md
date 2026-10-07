@@ -1,7 +1,8 @@
 # Friday Product Integration Matrix
 
-**Audit date:** 2026-09-28; Career Forge rows reconciled 2026-09-21; Astra
-frontend audit and Phases 1–2 source trace/owner qualification reconciled 2026-09-27
+**Audit date:** 2026-10-07; Career Forge rows reconciled 2026-09-21; Astra
+frontend audit and Phases 1–2 source trace/owner qualification reconciled 2026-09-27;
+voice-action candidate source trace reconciled 2026-10-07
 **Repository baseline:** Stage 21 accepted at `3770151bbf146ff580b8cafa0b4f73a0865c55c5`
 **Scope:** owner-facing product reality, not a historical-stage scorecard.
 **Authority:** `FRIDAY_PRODUCT_BASELINE.md` §§1, 21–26; architecture and ADRs
@@ -20,16 +21,29 @@ itself usability evidence.
 Current deterministic evidence inspected: `interface/conversation.py`,
 `interface/voice_conversation.py`, `voice/wake_orchestrator.py`,
 `interface/wake_bootstrap.py`, `interface/api.py`, `interface/cli.py`, the
-frontend components/runtime client, subsystem services, their focused tests, and
-the relevant architecture/ADRs. Live evidence at audit time: the user service was
-`active/running` on localhost `:8765`; `/health` was OK; runtime state was
-`completed`; wake capture/workers were alive. Voice health retained a historical
-`WakeRuntimeError` timeout with recovery count 86, so liveness is not a clean
-voice-product qualification.
+frontend runtime client, subsystem services, focused tests, and the relevant
+architecture/ADRs. The voice-action candidate adds a typed command router,
+owner-bound task creation, generic installed-app/site resolution, audited
+dispatch through the Stage 26 runner, and content-free result events. Focused
+candidate tests and full repository verification pass. The isolated candidate
+now runs `friday-local-ai.service` at `:8765` under a reversible private
+systemd override; the protected Stage 22 source checkout remains outside this worktree; its observed dirty voice/TTS paths were preserved.
+Fresh owner microphone attempts verified Calculator and Friday UI through durable task/action postconditions. A physical exact Stop was transcribed, closed the active voice session silently, and left capture listening. Full regression and local secret/recovery/diff gates passed; remote publication remains pending. The YouTube attempt remains durably in_doubt.
 
 **Abbreviations:** `API` = loopback presentation endpoint; `CF` = Career Forge;
 `TS` = task history; `E2E` = real owner-facing qualification required; `N/A` =
 not applicable because the capability is absent/deferred.
+
+## Session 1 Milestone A — Voice to Action Spine
+
+| Acceptance item | Status | Evidence / boundary |
+|---|---|---|
+| Normal voice transcript reaches the typed action intent route | WIRED | `FridayVoiceConversationService` marks normal voice-origin turns; `FridayConversationService` routes direct open intents before memory, capability projection, or Qwen. |
+| Generic website, Friday UI, and installed-app open requests use the existing Stage 26 agency | WIRED | XDG desktop IDs resolve to canonical launch and verification identities; fixed `gtk-launch`/GIO vectors; app-scoped AT-SPI checks and durable actor/verification fields. No per-app/site command list or shell route. |
+| Owner trust, GNOME permission, Stop, and action latency remain observable | LIVE PROVEN | Voice actions require the private local Owner grant and restored GNOME permission. The owner physically said exact Stop; the runtime transcribed it, recorded voice_explicit_stop, returned capture to listening, and stayed silent. No computer action was active, so in-flight launcher cancellation remains covered by deterministic tests. The Calculator latency row is correlated through its event cursor and durable timestamps. |
+| Candidate service live on the production voice path | INTEGRATED | Isolated candidate is active on the normal voice service at :8765 under a reversible private systemd override; protected production source files are unchanged. |
+| Physical microphone probes for YouTube, Friday UI, Files, and Calculator | PARTIAL | YouTube opened by owner report but its task remains in_doubt. Files, Friday UI, and Calculator have postcondition_verified task/action records. The Calculator action ea85eb47d73242deb6aca3eb07cc2aa8 returned actor code 0 and verification active with 106 matches in the app-scoped observation; that count is accessible elements, not windows or global desktop matches. The exact selected AT-SPI root label is not stored. Stop was physically recognized silently and capture remained listening. |
+| Milestone A product acceptance | NOT STARTED | Final full regressions and secret/recovery/diff review passed; remote branch/main publication and recovery verification remain pending. Preserve YouTube in-doubt history and do not overstate the exact browser or AT-SPI root evidence. |
 
 ## Capability matrix
 
@@ -45,9 +59,9 @@ not applicable because the capability is absent/deferred.
 | 8. Memory recall through normal conversation | `memory.search(prompt, limit=5)` plus separate active context | retrieval is connected and labelled untrusted | composer uses same endpoint | SQLite | retrieved text cannot grant instructions or mutate memory | ask related prompt | live explicit record was recalled through local conversation | USABLE | query-match recall; no natural remembering/capture proof | explicit memory UX with provenance | 3, 7 | E2E-002/003 |
 | 9. Capability self-awareness | typed registry grounded into conversation | Yes: authoritative product-state answer | read-only capability endpoint/session state | composition state only | descriptive only; grants zero execution authority | ask Friday | live Career Forge answer reported integrated route and Practice Lab limitation | USABLE | capability invocation/routing is not yet general | capability-aware router, preserving policy | 10, 26 | E2E-004/011 |
 | 10. Runtime capability discovery/registry | `FridayCapabilityRegistry` at composition boundary | same registry grounds Conversation | `GET /api/v1/capabilities`; Astra Local intelligence | in-process live projection | descriptive only; grants zero execution authority | ask Friday or inspect Local intelligence | canonical API/Conversation consistency test and physical Astra registry/runtime/reload qualification | QUALIFIED (Astra Phase 7) | general capability invocation/routing is not implemented | keep projection descriptive and route future actions through owning policies | 9 | registry consistency/reconstruction |
-| 11. Application launch | `DesktopControlService.LAUNCH_APP` | No | pending-action console only | desktop SQLite audit | exact allowlist + proposal/approval/one-time execution | API-created proposal, then UI review | Stage 16 controlled evidence | IMPLEMENTED | no natural conversation request; friction | capability routing + risk policy | 9, 10 | launch allowed app flow |
-| 12. Browser launch | generic app launch only | No | No proposal creator | audit SQLite | exact allowlist | manual API if configured | no owner flow | PARTIAL | browser not modeled/naturally reachable | explicit browser action capability | 11 | E2E-005 |
-| 13. Website navigation | `OPEN_URI` allowlisted origins | No | No | audit SQLite | HTTPS origin allowlist + approval | manual API if configured | backend tests only | IMPLEMENTED | no natural `Open YouTube` path | semantic low-risk URI route | 11, 12 | E2E-006 |
+| 11. Application launch | Stage 16 DesktopControlService plus Stage 26 ComputerAgencyRunner XDG catalog, fixed gtk-launch identity and AT-SPI window verification | Candidate direct-voice route is connected before Qwen; typed chat does not execute | transient runtime events plus existing private Perception task projection | private computer-agency task/action SQLite ledger | local Owner grant + restored GNOME permission; canonical desktop ID resolved from installed metadata; no shell or caller command | voice: “Hey Friday, open Files” | Files and fresh Calculator task 10be3127fc0346ba9c71e1e50399dd2a / action ea85eb47d73242deb6aca3eb07cc2aa8 reached postcondition_verified; Calculator actor code 0, result active, count 106 app-scoped accessible elements. Exact AT-SPI root label is not persisted; previous in-doubt action remains preserved. | INTEGRATED (candidate) | regression/local audit gates passed; preserve the prior uncertain Calculator action and complete remote publication/verification | no further app probes; complete final gates | 9, 10, 26 | Session 1 Milestone A: Files + stop/recovery |
+| 12. Browser launch | installed-app discovery and OS default URI handler through fixed GIO vectors | Candidate direct-voice route is connected before Qwen; typed chat does not execute | transient runtime events plus existing private task projection | private computer-agency task/action SQLite ledger | local Owner grant + restored GNOME permission; no browser-specific shell or command list | voice: “Hey Friday, open Chrome” or “open YouTube” | owner reports that YouTube opened in Chrome; prior YouTube task remains `in_doubt` | INTEGRATED (candidate) | preserve the owner-reported success and in_doubt task; no further application probe is requested in this continuation | keep the action unreplayed and report its durable uncertainty | 11 | E2E-005 |
+| 13. Website navigation | generic owner-named host/site resolver plus GIO open; exact address-field verification with a restricted root-loopback title fallback | Candidate direct-voice route is connected before Qwen | transient runtime events; canonical task/action history | private computer-agency task/action SQLite ledger; only a bounded destination summary is added to action audit | HTTPS by default; HTTP limited to loopback; credentials in URLs are rejected; Owner grant and GNOME permission required | voice: “Hey Friday, open Friday UI” or “open YouTube” | fresh Friday UI task/action `b8e62dfc42924ebaa9efff7368ff27e9` / `dc181f9c822b43cfb8e05eda42b51dde` passed `browser_title_visible` with one unique match in the registered browser; owner observed `http://127.0.0.1:5193/#home` | INTEGRATED (candidate) | title fallback verifies the root local page title, not the exact URL/hash; YouTube task remains `in_doubt` | preserve YouTube report; Friday UI root-title verification is physically demonstrated; retain exact-address preference | 11, 12, 26 | E2E-006 / Session 1 Milestone A |
 | 14. Folder opening | no folder action (`OPEN_FILE` requires file) | No | No | — | — | none | none | ABSENT | folders unsupported | safe allowlisted folder open lifecycle | 11 | E2E-007 |
 | 15. File opening | `OPEN_FILE` allowed roots | No | No proposal creator | audit SQLite | existing file + root allowlist + approval | manual API | backend tests only | IMPLEMENTED | disconnected and approval-heavy | conversation/UI route with truthful policy | 11 | E2E-007 |
 | 16. File creation/editing | coding executor can mutate isolated repos | No direct owner route | objective plans only; no execution control | TS/checkpoints/audit | exact approval/isolation/validation/Git | guarded engineering objective, not files | Stage 17 controlled task | IMPLEMENTED | no desktop/file authoring product flow | separate reversible file workflow; preserve executor gates | 48, 55 | E2E-008 |

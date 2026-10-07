@@ -16,6 +16,7 @@ microphone before normal conversation or barge-in capture begins.
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -76,6 +77,7 @@ class WakeCaptureEvent:
 
     utterance: VoiceUtterance
     result: WakeSupervisorResult
+    owner_speech_ended_monotonic: float | None = None
 
 
 WakeCallback = Callable[
@@ -363,6 +365,7 @@ class FridayAlwaysOnWakeCapture:
 
 
                 self._utterance_count += 1
+                owner_speech_ended_monotonic = time.monotonic()
                 with self._state_lock:
                     self._phase = "detecting"
 
@@ -384,6 +387,9 @@ class FridayAlwaysOnWakeCapture:
                         WakeCaptureEvent(
                             utterance=utterance,
                             result=result,
+                            owner_speech_ended_monotonic=(
+                                owner_speech_ended_monotonic
+                            ),
                         )
                     )
 
@@ -395,6 +401,9 @@ class FridayAlwaysOnWakeCapture:
                     event = WakeCaptureEvent(
                         utterance=utterance,
                         result=result,
+                        owner_speech_ended_monotonic=(
+                            owner_speech_ended_monotonic
+                        ),
                     )
 
                     callback = (

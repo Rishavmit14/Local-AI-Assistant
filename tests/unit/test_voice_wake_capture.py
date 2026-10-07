@@ -234,6 +234,7 @@ def test_completed_utterance_reaches_wake_supervisor(
     assert fallback.calls == 0
 
     assert len(events) == 1
+    assert isinstance(events[0].owner_speech_ended_monotonic, float)
 
     assert (
         events[0]

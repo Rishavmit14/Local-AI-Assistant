@@ -21,8 +21,9 @@ class RecordingConversation:
         system_prompt: str,
         temperature: float,
         max_tokens: int,
+        voice_origin: bool = False,
     ):
-        del system_prompt, temperature, max_tokens
+        del system_prompt, temperature, max_tokens, voice_origin
         self.prompts.append(prompt)
         if False:
             yield ""

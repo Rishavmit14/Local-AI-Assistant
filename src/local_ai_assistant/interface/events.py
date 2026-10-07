@@ -29,6 +29,10 @@ class FridayEventType(StrEnum):
     TASK_CREATED = "task.created"
     TASK_UPDATED = "task.updated"
 
+    COMPUTER_TASK_STARTED = "computer.task.started"
+    COMPUTER_TASK_COMPLETED = "computer.task.completed"
+    COMPUTER_TASK_FAILED = "computer.task.failed"
+
     PLANNING_STARTED = "planning.started"
     PLANNING_COMPLETED = "planning.completed"
     APPROVAL_REQUIRED = "approval.required"
@@ -104,7 +108,7 @@ class FridayRuntimeEvent:
         transient: bool = False,
         metadata: dict[str, Any] | None = None,
         timestamp: str | None = None,
-    ) -> "FridayRuntimeEvent":
+    ) -> FridayRuntimeEvent:
         return cls(
             event_type=event_type,
             session_id=session_id,

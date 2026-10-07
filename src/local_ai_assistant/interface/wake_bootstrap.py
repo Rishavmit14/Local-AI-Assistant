@@ -13,6 +13,7 @@ Wake remains completely dormant unless AppConfig.wake.enabled is true.
 from __future__ import annotations
 
 import math
+import os
 import threading
 import time
 from collections import deque
@@ -48,6 +49,7 @@ from local_ai_assistant.voice import (
     WhisperCppTranscriber,
     WhisperTranscript,
 )
+from local_ai_assistant.voice.pocket_runtime import PocketSpeechSynthesizer
 from local_ai_assistant.voice.wake_capture import WakeCaptureError
 from local_ai_assistant.voice.wake_runtime import WakeRuntimeError
 
@@ -158,6 +160,14 @@ class VoiceTurnTelemetry:
             "OWNER_SPEECH_ENDED",
             "ENDPOINT_FINALIZED",
             "ASR_FINAL",
+            "VOICE_INTENT_RESOLVED",
+            "VOICE_ACTION_ROUTE_SELECTED",
+            "VOICE_ACTION_DISPATCHED",
+            "VOICE_ACTION_VERIFIED",
+            "VOICE_ACTION_FAILED",
+            "VOICE_ACTION_FINAL_RESPONSE_READY",
+            "VOICE_FAST_PATH_COMPLETE",
+            "VOICE_TURN_COMPLETE",
             "PROMPT_ASSEMBLY_BEGIN",
             "CONVERSATION_ROUTING_BEGIN",
             "CONVERSATION_ROUTING_COMPLETE",
@@ -257,6 +267,16 @@ class VoiceTurnTelemetry:
             flush=True,
         )
 
+    def mark_at(self, stage: str, timestamp: float) -> None:
+        """Record a stage relative to a captured monotonic boundary."""
+        observed_at = time.monotonic()
+        if not math.isfinite(timestamp) or timestamp < 0 or timestamp > observed_at:
+            raise ValueError("latency stage timestamp must be a finite past monotonic time")
+        with self._lock:
+            self._events.append((observed_at, stage))
+            self._record_latency_stage(timestamp, stage)
+        print("FRIDAY_VOICE_STAGE " + stage, flush=True)
+
     def mark_with_details(
         self,
         stage: str,
@@ -319,12 +339,21 @@ class VoiceTurnTelemetry:
         stages = self._active_turn["stages"]
         assert isinstance(stages, dict)
         stages.setdefault(stage, timestamp)
+        if stage == "VOICE_ACTION_ROUTE_SELECTED":
+            self._active_turn["voice_action"] = True
         if details:
             stage_details = self._active_turn.setdefault("details", {})
             assert isinstance(stage_details, dict)
             stage_details.update(details)
-        if stage != "PLAYBACK_FIRST_PCM_WRITTEN":
+        action_turn = self._active_turn.get("voice_action") is True
+        if stage == "PLAYBACK_FIRST_PCM_WRITTEN" and not action_turn:
+            self._finish_latency_turn(stages)
             return
+        if stage != "VOICE_TURN_COMPLETE" or not action_turn:
+            return
+        self._finish_latency_turn(stages)
+
+    def _finish_latency_turn(self, stages: dict[str, object]) -> None:
         origin = stages["OWNER_SPEECH_ENDED"]
         assert isinstance(origin, float)
         durations_ms = {
@@ -397,6 +426,11 @@ class InstrumentedConversation:
         """Preserve the authoritative active-session boundary through telemetry."""
         return self.inner.session
 
+    @property
+    def last_voice_action_selected(self) -> bool:
+        """Expose action-route selection so voice latency telemetry can close."""
+        return bool(getattr(self.inner, "last_voice_action_selected", False))
+
 
     def stream_response(
         self,
@@ -411,6 +445,14 @@ class InstrumentedConversation:
                 **kwargs,
             )
 
+
+        except GeneratorExit:
+
+            self.telemetry.mark(
+                "LLM_CANCELLED"
+            )
+
+            raise
 
         except BaseException:
 
@@ -488,6 +530,14 @@ class InstrumentedSynthesizer:
 
                 yield chunk
 
+
+        except GeneratorExit:
+
+            self.telemetry.mark(
+                "TTS_CANCELLED"
+            )
+
+            raise
 
         except BaseException:
 
@@ -1169,6 +1219,31 @@ class FridayManagedWakeVoice:
 
 
 
+def _build_speech_synthesizer() -> PiperSpeechSynthesizer:
+    """
+    Select Friday's local TTS backend.
+
+    Piper remains the fail-safe production default. Pocket is enabled
+    only by an explicit FRIDAY_TTS_BACKEND=pocket selection.
+    """
+
+    backend = os.environ.get(
+        "FRIDAY_TTS_BACKEND",
+        "piper",
+    ).strip().lower()
+
+    if backend == "piper":
+        return PiperSpeechSynthesizer()
+
+    if backend == "pocket":
+        return PocketSpeechSynthesizer()
+
+    raise RuntimeError(
+        "unsupported FRIDAY_TTS_BACKEND: "
+        f"{backend!r}; expected 'piper' or 'pocket'"
+    )
+
+
 def build_managed_wake_voice(
     config: AppConfig,
     *,
@@ -1203,7 +1278,7 @@ def build_managed_wake_voice(
 
     speech_synthesizer = (
         InstrumentedSynthesizer(
-            PiperSpeechSynthesizer(),
+            _build_speech_synthesizer(),
             telemetry,
         )
     )
@@ -1283,6 +1358,7 @@ def build_managed_wake_voice(
                 barge_in_monitor
             ),
             latency_stage=telemetry.mark,
+            latency_stage_at=telemetry.mark_at,
             on_explicit_stop=on_explicit_stop,
         )
     )

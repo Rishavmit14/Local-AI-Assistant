@@ -96,6 +96,16 @@ def test_revoke_and_wrong_installation_fail_closed(tmp_path):
     assert trust.restore(supplied, '127.0.0.1', 'localhost') is None
 
 
+def test_local_voice_principal_requires_private_owner_grant(tmp_path):
+    path = tmp_path / 'private' / 'owner.json'
+    trust = LocalOwnerTrust(path, tmp_path)
+
+    assert trust.local_voice_principal() == 'local-owner'
+    path.unlink()
+    with pytest.raises(RuntimeError, match='unavailable'):
+        trust.local_voice_principal()
+
+
 @pytest.mark.parametrize('mode', [0o644, 0o660, 0o400])
 def test_insecure_file_rejected(tmp_path, mode):
     path = tmp_path / 'private' / 'owner.json'
