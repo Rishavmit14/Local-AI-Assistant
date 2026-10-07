@@ -45,6 +45,17 @@ not applicable because the capability is absent/deferred.
 | Physical microphone probes for YouTube, Friday UI, Files, and Calculator | PARTIAL | YouTube opened by owner report but its task remains in_doubt. Files, Friday UI, and Calculator have postcondition_verified task/action records. The Calculator action ea85eb47d73242deb6aca3eb07cc2aa8 returned actor code 0 and verification active with 106 matches in the app-scoped observation; that count is accessible elements, not windows or global desktop matches. The exact selected AT-SPI root label is not stored. Stop was physically recognized silently and capture remained listening. |
 | Milestone A product acceptance | QUALIFIED | Physical Calculator, Daybreak UI, Files, and silent Stop/listening evidence; speech-end-relative latency; full repository/frontend regressions; local secret/recovery/diff review; at capability publication, fetched refs matched accepted commit b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff on stabilization/voice-action-spine and main. Preserve the YouTube owner success with its old in_doubt task and the omitted exact Calculator AT-SPI root label. |
 
+## Master convergence matrix
+
+| Milestone | Status | Evidence / boundary |
+|---|---|---|
+| A — Voice → Action Spine | PRODUCT QUALIFIED | Bounded direct voice open flow was physically exercised for YouTube, Daybreak UI, Files, and Calculator; fresh native-app task/action records verified Files and Calculator, Friday UI verified the registered browser's unique root-page title (not the exact URL/hash), and exact Stop was silent while capture returned to listening. The older YouTube task remains `in_doubt`; do not replay it. |
+| B — Live Vision | WIRED | Existing vision components remain available, but no live screen-question route was qualified in this continuation; reserve that work for Session 2. |
+| C — General Computer Agency | LIVE PROVEN | Voice reached the existing agency for browser/site and generic native-app launch; Files and Calculator have fresh scoped postcondition verification. This does not qualify broader pointer, keyboard, multi-step, or consequential agency. |
+| D — State/UI Synchronization | WIRED | Durable task/action state and runtime action events are connected. This continuation did not qualify a broader owner-facing task/UI synchronization flow. |
+| E — Voice-First Friday Workflows | LIVE PROVEN | Single-step voice-open requests and exact Stop worked on the normal microphone path. Multi-step and ongoing conversational workflows remain outside this qualification. |
+| F — Product Qualification + Latency | PRODUCT QUALIFIED | Full repository/frontend and local recovery/secret/diff gates passed. Calculator latency was correlated from speech end through completed playback; the trace remains in-memory without its own task ID or wall timestamp. |
+
 ## Capability matrix
 
 | Capability | Backend Evidence | Conversation Route | UI Route | Persistence | Permission / Authority Boundary | Owner Invocation Path | Existing Real E2E Evidence | Current Product Status | Exact Gap | Recommended Integration / Remediation | Dependencies | Qualification Required |
