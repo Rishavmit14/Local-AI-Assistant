@@ -121,6 +121,81 @@ class LlamaConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class VisionCortexConfig:
+    """Optional local-only OpenAI-compatible visual model boundary."""
+
+    base_url: str = ""
+    model: str = "friday-vision-qwen2.5-vl-3b"
+    api_key: str = field(default="", repr=False)
+    timeout_seconds: int = 150
+    max_image_edge: int = 1024
+    max_output_characters: int = 2000
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.base_url, str):
+            raise ConfigurationError("LOCAL_AI_VISION_BASE_URL must be a local URL")
+        if self.base_url:
+            try:
+                parsed = urlsplit(self.base_url)
+                hostname = parsed.hostname
+                port = parsed.port
+            except ValueError as exc:
+                raise ConfigurationError("LOCAL_AI_VISION_BASE_URL must be a valid local URL") from exc
+            local_host = False
+            if hostname:
+                normalized_host = hostname.rstrip(".").lower()
+                if normalized_host == "localhost":
+                    local_host = True
+                else:
+                    try:
+                        local_host = ipaddress.ip_address(normalized_host).is_loopback
+                    except ValueError:
+                        local_host = False
+            if (
+                parsed.scheme != "http"
+                or not hostname
+                or not local_host
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.query
+                or parsed.fragment
+                or port == 0
+                or parsed.path.rstrip("/") != "/v1"
+            ):
+                raise ConfigurationError(
+                    "LOCAL_AI_VISION_BASE_URL must use HTTP on loopback at a /v1 path "
+                    "without URL credentials, query, or fragment"
+                )
+            if (
+                not isinstance(self.api_key, str)
+                or len(self.api_key) > 256
+                or any(ord(character) < 33 or ord(character) > 126 for character in self.api_key)
+                or (len(self.api_key) < 32)
+            ):
+                raise ConfigurationError("LOCAL_AI_VISION_API_KEY must be a private printable token")
+        elif not isinstance(self.api_key, str) or len(self.api_key) > 256:
+            raise ConfigurationError("LOCAL_AI_VISION_API_KEY is invalid")
+        if (
+            not isinstance(self.model, str)
+            or not self.model.strip()
+            or self.model != self.model.strip()
+            or len(self.model) > 256
+            or any(ord(character) < 32 for character in self.model)
+        ):
+            raise ConfigurationError("LOCAL_AI_VISION_MODEL must be a bounded non-empty identifier")
+        if type(self.timeout_seconds) is not int or not 1 <= self.timeout_seconds <= 180:
+            raise ConfigurationError("LOCAL_AI_VISION_TIMEOUT must be between 1 and 180 seconds")
+        if type(self.max_image_edge) is not int or not 320 <= self.max_image_edge <= 2048:
+            raise ConfigurationError("LOCAL_AI_VISION_MAX_IMAGE_EDGE must be between 320 and 2048")
+        if type(self.max_output_characters) is not int or not 256 <= self.max_output_characters <= 4000:
+            raise ConfigurationError("LOCAL_AI_VISION_MAX_OUTPUT must be between 256 and 4000")
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.base_url)
+
+
+@dataclass(frozen=True, slots=True)
 class PathConfig:
     var_dir: Path = PROJECT_ROOT / "var"
     document_dir: Path = PROJECT_ROOT / "var/documents"
@@ -267,6 +342,7 @@ class ProactiveConfig:
 @dataclass(frozen=True, slots=True)
 class AppConfig:
     llama: LlamaConfig = field(default_factory=LlamaConfig)
+    vision_cortex: VisionCortexConfig = field(default_factory=VisionCortexConfig)
     paths: PathConfig = field(default_factory=PathConfig)
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     document_retrieval: DocumentRetrievalConfig = field(
@@ -399,6 +475,14 @@ class AppConfig:
                 context_size=_integer(values, "LOCAL_AI_CONTEXT_SIZE", 262_144),
                 api_key=values.get("LOCAL_AI_API_KEY", "local"),
                 timeout_seconds=_integer(values, "LOCAL_AI_LLM_TIMEOUT", 120),
+            ),
+            vision_cortex=VisionCortexConfig(
+                base_url=values.get("LOCAL_AI_VISION_BASE_URL", "").strip(),
+                model=values.get("LOCAL_AI_VISION_MODEL", "friday-vision-qwen2.5-vl-3b"),
+                api_key=values.get("LOCAL_AI_VISION_API_KEY", ""),
+                timeout_seconds=_integer(values, "LOCAL_AI_VISION_TIMEOUT", 150, maximum=180),
+                max_image_edge=_integer(values, "LOCAL_AI_VISION_MAX_IMAGE_EDGE", 1024, maximum=2048),
+                max_output_characters=_integer(values, "LOCAL_AI_VISION_MAX_OUTPUT", 2000, maximum=4000),
             ),
             paths=paths,
             embedding=EmbeddingConfig(

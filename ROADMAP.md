@@ -2168,7 +2168,43 @@ capability commit.
 This is a bounded voice integration through the accepted Stage 26 computer
 agency; it does not redefine Stage 28 or rewrite Stage 26. The physical
 microphone gate has Calculator and silent Stop/listening evidence. The accepted
-capability is published and remotely recoverable. Keep Milestone B out of this
-continuation. General screen-question context and consequential actions remain
-outside this milestone. See ADR 0046 and the Session 1 section of
+capability is published and remotely recoverable. General screen-question
+context and consequential actions remained outside Session 1 Milestone A. See
+ADR 0046 and the Session 1 section of
 `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`.
+
+## Session 2 Milestone B — Live Vision (**LIVE PROVEN; publication pending**)
+
+The candidate routes normal physical voice screen questions through the reused
+Stage 26 `ScreenCaptureService` (GNOME Shell Screenshot D-Bus with desktop
+Screenshot portal fallback) and fresh AT-SPI/window observer. A separate authenticated
+loopback llama.cpp service runs Qwen2.5-VL-3B on CPU; primary Qwen remains
+text-only and receives bounded untrusted visual/OCR/semantic text, never image
+bytes. Visual turns require a new capture after the request, reject stale
+semantic evidence, suppress OCR/VLM on detectable sign-in or verification
+screens, and request no Owner screenshot or desktop action. Semantic
+app/window/focus questions use the fast metadata path.
+
+Physical voice evidence: Friday described a canvas-only revenue chart and,
+after the screen changed, a distinct warehouse-inventory chart with new capture
+and context identities. A third physical question correctly explained the
+visible terminal `ZeroDivisionError`. The candidate voice service had been
+restarted before these probes; persistent portal permission remained usable.
+No upload or special vision page was used. On the final physical terminal turn,
+visual inference took 39.9s, Qwen's first token arrived at 55.2s, and completed
+playback took 102.3s from speech end. A tuned 1024px/512-token same-frame
+benchmark took 29.2s and retained all chart cues; the earlier 768px/1024-token
+minimum run took 73.7s and missed labels. Both image edge and token budget
+changed, so the results compare configurations rather than isolating the
+token-cap effect. Full-turn latency remains too slow to feel conversational.
+The first successful chart turn took 103.96s end to end (63.44s VLM); the
+changed-chart turn took 123.09s (72.17s VLM), both before final service tuning.
+The initial timed-out probe failed safe and did not reuse old screen content.
+The authoritative private evidence is in the owner-only
+`/home/kumar-rishav/.local/state/friday-live-vision/` directory; no image, raw
+OCR, or voice log is tracked. The full repository verifier passed 1,562 tests
+(6 skipped), changed-file Ruff passed, both perception SQLite databases passed
+`integrity_check`, the candidate secret scan found no credentials, and the
+recovery snapshot permissions and installed visual-cortex unit were verified.
+Only branch/main publication and fetched-ref recovery verification remain
+before PRODUCT QUALIFIED status.

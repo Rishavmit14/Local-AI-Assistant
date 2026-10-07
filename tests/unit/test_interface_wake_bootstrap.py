@@ -829,6 +829,40 @@ def test_voice_latency_accepts_model_neutral_generation_stages():
     )}
 
 
+def test_screen_voice_latency_waits_for_grounded_answer_and_final_playback():
+    telemetry = VoiceTurnTelemetry()
+    for stage in (
+        "OWNER_SPEECH_ENDED",
+        "SCREEN_VOICE_TURN_BEGIN",
+        "PLAYBACK_FIRST_PCM_WRITTEN",  # the short acknowledgement
+        "PLAYBACK_COMPLETE",
+        "SCREEN_OBSERVATION_BEGIN",
+        "SCREEN_CAPTURE_BEGIN",
+        "SCREEN_CAPTURE_COMPLETE",
+        "SCREEN_SEMANTIC_OBSERVATION_BEGIN",
+        "SCREEN_SEMANTIC_OBSERVATION_COMPLETE",
+        "SCREEN_VISUAL_INFERENCE_BEGIN",
+        "SCREEN_VISUAL_INFERENCE_COMPLETE",
+        "SCREEN_CONTEXT_READY",
+        "SCREEN_OBSERVATION_COMPLETE",
+        "SCREEN_ANSWER_FIRST_CHUNK",
+        "TTS_FIRST_AUDIO_AVAILABLE",
+        "VOICE_SCREEN_RESPONSE_READY",
+    ):
+        telemetry.mark(stage)
+
+    assert telemetry.latency_snapshot() == ()
+
+    telemetry.mark("PLAYBACK_COMPLETE")
+    record = telemetry.latency_snapshot()[0]
+    durations = record["durations_ms"]
+    assert durations["screen_capture_begin"] <= durations["screen_capture_complete"]
+    assert durations["screen_visual_inference_begin"] <= durations["screen_visual_inference_complete"]
+    assert "screen_answer_first_audio_available" in durations
+    assert "voice_screen_response_ready" in durations
+    assert "playback_complete" in durations
+
+
 def test_voice_turn_telemetry_includes_only_numeric_qwen_and_prompt_metrics():
     telemetry = VoiceTurnTelemetry()
     telemetry.mark("OWNER_SPEECH_ENDED")

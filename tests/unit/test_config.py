@@ -12,6 +12,8 @@ def test_default_configuration_preserves_local_ports_and_model():
     assert config.llama.base_url == "http://127.0.0.1:8080/v1"
     assert config.llama.context_size == 262_144
     assert config.llama.model.endswith("Qwen3.6-35B-A3B-UD-Q4_K_M.gguf")
+    assert config.vision_cortex.enabled is False
+    assert config.vision_cortex.model == "friday-vision-qwen2.5-vl-3b"
     assert config.document_retrieval.vector_top_k == 10
     assert config.code_retrieval.vector_top_k == 12
     assert config.ocr.language == "eng"
@@ -119,6 +121,39 @@ def test_model_and_context_are_configuration_driven():
 
     assert (first.llama.model, first.llama.context_size) == ("fixture-A", 16)
     assert (second.llama.model, second.llama.context_size) == ("fixture-B", 64)
+
+
+def test_visual_cortex_configuration_is_local_and_bounded():
+    config = AppConfig.from_env({
+        "LOCAL_AI_VISION_BASE_URL": "http://127.0.0.1:8781/v1",
+        "LOCAL_AI_VISION_MODEL": "friday-vision-qwen2.5-vl-3b",
+        "LOCAL_AI_VISION_API_KEY": "unit-test-vision-key-with-at-least-32-chars",
+        "LOCAL_AI_VISION_TIMEOUT": "45",
+        "LOCAL_AI_VISION_MAX_IMAGE_EDGE": "1280",
+    })
+    assert config.vision_cortex.enabled is True
+    assert config.vision_cortex.base_url == "http://127.0.0.1:8781/v1"
+    assert config.vision_cortex.api_key == "unit-test-vision-key-with-at-least-32-chars"
+    assert "unit-test-vision-key" not in repr(config.vision_cortex)
+    assert config.vision_cortex.timeout_seconds == 45
+    assert config.vision_cortex.max_image_edge == 1280
+
+
+@pytest.mark.parametrize(
+    ("environment", "message"),
+    [
+        ({"LOCAL_AI_VISION_BASE_URL": "https://api.example.com/v1"}, "loopback"),
+        ({"LOCAL_AI_VISION_BASE_URL": "http://user:secret@127.0.0.1:8781/v1"}, "loopback"),
+        ({"LOCAL_AI_VISION_BASE_URL": "http://127.0.0.1:8781"}, "/v1"),
+        ({"LOCAL_AI_VISION_BASE_URL": "http://127.0.0.1:8781/custom/v1"}, "/v1"),
+        ({"LOCAL_AI_VISION_BASE_URL": "http://127.0.0.1:8781/v1"}, "API_KEY"),
+        ({"LOCAL_AI_VISION_TIMEOUT": "181"}, "LOCAL_AI_VISION_TIMEOUT"),
+        ({"LOCAL_AI_VISION_MAX_IMAGE_EDGE": "200"}, "LOCAL_AI_VISION_MAX_IMAGE_EDGE"),
+    ],
+)
+def test_visual_cortex_configuration_rejects_remote_or_unbounded_values(environment, message):
+    with pytest.raises(ConfigurationError, match=message):
+        AppConfig.from_env(environment)
 
 
 def test_github_keyring_publication_requires_exact_repository_and_write_scope():

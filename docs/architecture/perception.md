@@ -2,12 +2,15 @@
 
 ## Stage 15 foundation
 
-Screen awareness begins as an explicitly owner-initiated, read-only local
-capture. `ScreenCaptureService` invokes the GNOME Shell session screenshot
-interface only when the local presentation endpoint is called. It writes a PNG
-only under the configured `var/perception` directory and returns provenance-safe
-metadata (capture id, time, hash, byte size, and source), never the image path or
-raw pixels through the API.
+Screen awareness is explicitly owner-initiated and read-only. The existing
+`ScreenCaptureService` invokes the GNOME Shell `org.gnome.Shell.Screenshot`
+session-bus method; `capture_with_consent()` falls back to the desktop
+Screenshot portal when session-bus capture is denied. Both paths are on demand,
+including when the Owner asks a live voice screen question; Friday does not
+continuously capture the screen. It writes a PNG only under the configured
+`var/perception` directory and returns provenance-safe metadata (capture id,
+time, hash, byte size, and source), never the image path or raw pixels through
+the API.
 
 The capture service has no keyboard, mouse, window-management, shell, upload,
 or desktop-control authority. Capture failure removes incomplete
@@ -63,3 +66,46 @@ title and the visible `Details ready` label; a private desktop Screenshot
 portal capture and local OCR were available. The account states that visible
 metadata cannot establish unseen work or intent. No image-native Qwen vision
 claim is made from this structured AT-SPI/OCR path.
+
+## Session 2 — fresh screen context in normal voice
+
+The live-vision voice route reuses this capture and observation machinery; it
+does not add a second screenshot subsystem. A routed visual screen question
+captures after the request begins, rejects a capture whose timestamp predates
+that request, collects one fresh AT-SPI observation, queries the active window,
+and combines up to 60 relevant visible semantic elements, 16 monitor records,
+bounded local OCR, and an optional local visual-model description. An AT-SPI
+result with an older timestamp is discarded. The packet records capture and
+observation identity/digests, timestamps, app/window/focus, and a change
+fingerprint. Prior packet content is used only to report whether the screen
+changed; it is never reused as current answer evidence. Screen packet/audit
+content lives in a private 0700 directory with a 0600 SQLite file and a
+15-minute retention window; image paths are not recorded in that audit.
+
+The current primary Qwen endpoint is text-only. When enabled, a separate
+`LocalVisionCortex` sends a resized JPEG only to an authenticated llama.cpp
+server on `127.0.0.1`; the host loads Qwen2.5-VL-3B and its separate GGUF
+`mmproj` projector on CPU, leaving the 8 GB GPU available to the primary Qwen.
+The cortex returns a short description, which Friday includes as untrusted
+evidence text in the main Qwen prompt. Main Qwen never receives image bytes.
+The cortex cannot call desktop tools or authorize actions, and the normal Friday
+runtime remains useful without the optional service. Its request is preceded by
+a fresh capture; semantic-only app/window/focus questions skip capture, OCR and
+vision inference. Detectable sign-in/verification text suppresses OCR text and
+visual inference for that turn. The visual-model client rejects non-loopback
+URLs and verifies the server's multimodal capability/model alias before sending
+pixels.
+
+Owner qualification used real microphone turns after a candidate voice-service
+restart. Friday described a revenue canvas and then a distinct warehouse
+inventory canvas from new captures, and explained a visible Python
+`ZeroDivisionError`; the canvas values were not available from AT-SPI alone.
+The visual service runs Qwen2.5-VL-3B locally on CPU with a 512-token image cap.
+On one retained chart frame, the tuned 1024px/512-token configuration took
+29.2s and retained all chart labels and values. An earlier 768px run with a
+1024-token minimum took 73.7s and missed labels; both edge size and token budget
+changed, so this is a combined-configuration comparison. The physical terminal
+turn measured 39.9s for visual inference and 102.3s through completed playback.
+That turn was accurate but too slow to call conversational; VLM and primary
+Qwen latency remain a known limitation. Private screen and event evidence is
+kept outside Git under the owner-only Friday state directory.

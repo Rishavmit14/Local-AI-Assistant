@@ -338,3 +338,26 @@ completion emits its complete text without overwriting SPEAKING. The queue close
 without blocking shutdown and applies backpressure rather than dropping text.
 Piper, playback, barge-in, explicit stop and wake-resume ownership remain at their
 existing boundaries.
+
+## Session 2 — live screen questions
+
+The normal microphone turn router classifies direct visual/deictic questions
+(`what do you see`, `what is this`, `why is this failing`, `read this`) before
+memory or generic capability context can answer them. A routed turn requests a
+fresh local `ScreenContext` before primary Qwen generation; old chat, durable
+memory and capability projections are excluded from that answer. App/window and
+focused-control questions use fresh semantic evidence only. Pixel questions
+capture a new frame and obtain local OCR plus the separate authenticated visual
+cortex description, then pass bounded untrusted text evidence to primary Qwen.
+If capture or the visual cortex is unavailable, Friday states the evidence gap
+and does not fall back to an older screen or ask for an uploaded screenshot. The
+existing incremental-speech path speaks a short acknowledgement before a slow
+visual inference, then speaks Qwen's grounded answer. Screen observations do
+not route into computer actions and do not alter the action/approval boundary.
+Physical qualification confirmed fresh capture and changed-screen grounding on
+two canvas-only charts and explanation of a visible terminal error. With the
+512-token local visual service, the terminal turn took 102.3s from speech end
+through playback completion (39.9s visual inference, 55.2s to Qwen's first
+token). The latency is correct but not conversational; the live-vision route
+must keep its honest acknowledgement/failure behavior while latency work
+continues.

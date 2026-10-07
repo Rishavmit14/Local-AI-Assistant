@@ -24,15 +24,44 @@ class FridayVoiceIntentType(StrEnum):
     LONG_RUNNING_TASK = "long_running_task"
 
 
+class ScreenQuestionMode(StrEnum):
+    SEMANTIC = "semantic"
+    VISUAL = "visual"
+
+
 @dataclass(frozen=True, slots=True)
 class FridayVoiceIntent:
     kind: FridayVoiceIntentType
     open_command: OpenCommand | None = None
     capability_key: str | None = None
+    screen_mode: ScreenQuestionMode | None = None
 
 
 _SCREEN_QUESTION = re.compile(
-    r"\b(?:screen|display|desktop|window)\b|\bwhat (?:do|can) you see\b|\bwhat's on (?:my|the) screen\b",
+    r"\b(?:screen|display|desktop|window)\b|\bwhat (?:do|can) you see\b"
+    r"|\b(?:what|which)\s+(?:app(?:lication)?|program)\b"
+    r"|\bwhat\s+(?:button|control|element)\s+is\s+(?:currently\s+)?focused\b"
+    r"|\bwhat(?:'s| is)\s+(?:currently\s+)?focused\b"
+    r"|\b(?:what|why|how|read|explain|describe|inspect|analy[sz]e|identify|interpret|help|think|look)\b"
+    r".{0,64}\b(?:this|that|here)\b"
+    r"|\b(?:what|which)\b.{0,32}\b(?:error|terminal|chart|diagram|image)\b",
+    re.I,
+)
+_SEMANTIC_SCREEN_QUESTION = re.compile(
+    r"\b(?:what|which)\s+(?:app(?:lication)?|program|window)\b.{0,48}"
+    r"\b(?:open|active|current|showing|visible|am i in)\b"
+    r"|\bwhat\s+(?:button|control|element)\s+is\s+(?:currently\s+)?focused\b"
+    r"|\bwhat(?:'s| is)\s+(?:currently\s+)?focused\b",
+    re.I,
+)
+_VISUAL_SCREEN_QUESTION = re.compile(
+    r"\bwhat\s+(?:do|can)\s+you\s+see\b"
+    r"|\bwhat(?:'s| is)\s+(?:on|in|visible on|showing on)\s+(?:my\s+|the\s+)?"
+    r"(?:screen|display|desktop|window)\b"
+    r"|\b(?:read|describe|inspect|analy[sz]e|interpret)\b.{0,64}"
+    r"\b(?:screen|display|desktop|window|image|diagram|chart|error|terminal)\b"
+    r"|\b(?:error|wrong|failing|broken)\b.{0,48}\b(?:see|screen|visible|this|that|here)\b"
+    r"|\bwhat\s+error\b.{0,48}\b(?:see|visible|screen)\b",
     re.I,
 )
 _LONG_RUNNING_TASK = re.compile(
@@ -54,7 +83,11 @@ class FridayVoiceIntentRouter:
             return FridayVoiceIntent(FridayVoiceIntentType.COMPUTER_ACTION, command)
 
         if _SCREEN_QUESTION.search(prompt):
-            return FridayVoiceIntent(FridayVoiceIntentType.SCREEN_CONTEXT_QUESTION)
+            semantic_only = _SEMANTIC_SCREEN_QUESTION.search(prompt) and not _VISUAL_SCREEN_QUESTION.search(prompt)
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.SCREEN_CONTEXT_QUESTION,
+                screen_mode=(ScreenQuestionMode.SEMANTIC if semantic_only else ScreenQuestionMode.VISUAL),
+            )
 
         capability_key = getattr(capability_route, "capability_key", None)
         if capability_key in {"career_forge", "learning_paths", "practice_lab"}:
@@ -76,4 +109,7 @@ class FridayVoiceIntentRouter:
                                  capability_key=capability_key)
 
 
-__all__ = ["FridayVoiceIntent", "FridayVoiceIntentRouter", "FridayVoiceIntentType"]
+__all__ = [
+    "FridayVoiceIntent", "FridayVoiceIntentRouter", "FridayVoiceIntentType",
+    "ScreenQuestionMode",
+]

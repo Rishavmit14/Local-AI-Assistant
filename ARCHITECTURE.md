@@ -591,6 +591,21 @@ ADR 0044. Broader general planning, complete consequence
 integration, occlusion-safe arbitrary pointer targeting, reboot evidence and
 voice-driven computer agency beyond this bounded Milestone A are still open.
 
+Session 2 Live Vision adds a read-only screen-context route to normal voice. A
+visual question first captures a new private frame, then gathers the existing
+bounded AT-SPI/window/focus/monitor observation, local OCR and a structured
+description from a separate loopback-only image model. Friday's primary Qwen
+remains text-only and receives only bounded untrusted evidence text; screenshot
+pixels never leave the machine or enter that Qwen endpoint. Obvious local
+semantic queries use fresh AT-SPI/window evidence without image inference. The
+path grants no desktop action authority. Its exact freshness, retention,
+runtime-authentication and qualification limits are in
+`docs/architecture/perception.md` and ADR 0047.
+Physical canvas-chart and terminal-error voice probes now qualify this bounded
+read-only screen route. CPU inference remains slow: the physical terminal turn
+took 102.3 seconds through final playback. The qualified limitation and the
+measured image-token optimization are recorded in ADR 0047.
+
 The planner exposes a typed legal-action catalog bound to the active task,
 fresh observation, semantic target identity, exact app/window and geometry,
 owner-object match, risk, preconditions, and trusted postcondition class. Qwen

@@ -52,6 +52,7 @@ class FridayEventType(StrEnum):
     VOICE_SPEECH_STARTED = "voice.speech.started"
     VOICE_SPEECH_COMPLETED = "voice.speech.completed"
     VOICE_SPEECH_INTERRUPTED = "voice.speech.interrupted"
+    VOICE_SCREEN_CONTEXT = "voice.screen_context.observed"
 
     SYSTEM_HEALTH = "system.health"
     PROACTIVE_NOTIFICATION = "proactive.notification"

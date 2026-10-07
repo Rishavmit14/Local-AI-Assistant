@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-10-07; Career Forge rows reconciled 2026-09-21; Astra
 frontend audit and Phases 1–2 source trace/owner qualification reconciled 2026-09-27;
-voice-action candidate source trace reconciled 2026-10-07
+voice-action and live-vision candidate qualification reconciled 2026-10-07
 **Repository baseline:** Stage 21 accepted at `3770151bbf146ff580b8cafa0b4f73a0865c55c5`
 **Scope:** owner-facing product reality, not a historical-stage scorecard.
 **Authority:** `FRIDAY_PRODUCT_BASELINE.md` §§1, 21–26; architecture and ADRs
@@ -14,9 +14,10 @@ Each row traces the actual available path: owner -> voice/text/UI ->
 presentation/conversation -> policy -> capability -> persistence -> visible
 outcome. `B` below names code/API evidence; `Conv` and `UI` state whether that
 route is actually connected today. `—` means no owner route, not merely an
-uninspected route. Status uses only the baseline vocabulary. A backend primitive,
-endpoint, database, CLI, unit test, stage label, or rendered card is never by
-itself usability evidence.
+uninspected route. Capability rows use only the baseline vocabulary; the A–F
+convergence rows use the stage terms defined in their sections. A backend
+primitive, endpoint, database, CLI, unit test, stage label, or rendered card is
+never by itself usability evidence.
 
 Current deterministic evidence inspected: `interface/conversation.py`,
 `interface/voice_conversation.py`, `voice/wake_orchestrator.py`,
@@ -28,7 +29,7 @@ dispatch through the Stage 26 runner, and content-free result events. Focused
 candidate tests and full repository verification pass. The isolated candidate
 now runs `friday-local-ai.service` at `:8765` under a reversible private
 systemd override; the protected Stage 22 source checkout remains outside this worktree; its observed dirty voice/TTS paths were preserved.
-Fresh owner microphone attempts verified Calculator and Friday UI through durable task/action postconditions. A physical exact Stop was transcribed, closed the active voice session silently, and left capture listening. Full regression and local secret/recovery/diff gates passed. At capability publication, fetched refs matched accepted commit b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff on stabilization/voice-action-spine and main. The YouTube attempt remains durably in_doubt.
+Fresh owner microphone attempts verified Calculator and Friday UI through durable task/action postconditions. A physical exact Stop was transcribed, closed the active voice session silently, and left capture listening. The Session 2 candidate adds a fresh screen-context voice route using Stage 26 capture/semantics and a separate local visual cortex. Physical canvas-chart and terminal-error answers, the 1,562-test repository verifier, changed-file Ruff, local secret scan, private SQLite integrity, and service-template validation now pass. The full screen turn remains slow at 102.3s through playback; publication is the remaining B acceptance gate. At capability publication, fetched refs matched accepted commit b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff on stabilization/voice-action-spine and main. The YouTube attempt remains durably in_doubt.
 
 **Abbreviations:** `API` = loopback presentation endpoint; `CF` = Career Forge;
 `TS` = task history; `E2E` = real owner-facing qualification required; `N/A` =
@@ -45,12 +46,36 @@ not applicable because the capability is absent/deferred.
 | Physical microphone probes for YouTube, Friday UI, Files, and Calculator | PARTIAL | YouTube opened by owner report but its task remains in_doubt. Files, Friday UI, and Calculator have postcondition_verified task/action records. The Calculator action ea85eb47d73242deb6aca3eb07cc2aa8 returned actor code 0 and verification active with 106 matches in the app-scoped observation; that count is accessible elements, not windows or global desktop matches. The exact selected AT-SPI root label is not stored. Stop was physically recognized silently and capture remained listening. |
 | Milestone A product acceptance | QUALIFIED | Physical Calculator, Daybreak UI, Files, and silent Stop/listening evidence; speech-end-relative latency; full repository/frontend regressions; local secret/recovery/diff review; at capability publication, fetched refs matched accepted commit b647c4fb622dd5ee9568bebc7a732c0ebb0b17ff on stabilization/voice-action-spine and main. Preserve the YouTube owner success with its old in_doubt task and the omitted exact Calculator AT-SPI root label. |
 
+## Session 2 Milestone B — Live Vision
+
+The Milestone B candidate reuses the Stage 26 `ScreenCaptureService` (GNOME
+Shell Screenshot D-Bus with the desktop Screenshot portal fallback) and fresh
+AT-SPI/window observer, and adds a local CPU Qwen2.5-VL-3B visual cortex for normal voice
+screen questions. The primary Qwen remains text-only and receives bounded
+untrusted text evidence. Real microphone turns after a candidate Friday-service
+restart described two distinct canvas-only charts from fresh observations and
+explained a visible Python `ZeroDivisionError`; the changed chart had a new
+capture/context identity. No screenshot upload or special vision mode was used.
+Persistent portal permission remained usable after restart. The final physical
+terminal turn measured 39.9s visual inference and 102.3s through completed
+playback. This proves the visual behavior, but the full response is too slow to
+feel conversational. The earlier chart turns took 103.96s and 123.09s end to
+end before service tuning. The tuned 1024px/512-token same-frame run took 29.2s and
+retained all chart cues; the prior 768px/1024-minimum run took 73.7s and missed
+labels. Both edge size and token budget changed, so the pair does not isolate
+the token-cap effect.
+Private screenshots, OCR, and raw voice logs remain outside Git. The repository
+verifier passed 1,562 tests (6 skipped); changed-file Ruff, the candidate secret
+scan, both perception SQLite integrity checks, the recovery-mode audit, and
+user-unit validation also passed. Only publication remains before B is marked
+PRODUCT QUALIFIED.
+
 ## Master convergence matrix
 
 | Milestone | Status | Evidence / boundary |
 |---|---|---|
 | A — Voice → Action Spine | PRODUCT QUALIFIED | Bounded direct voice open flow was physically exercised for YouTube, Daybreak UI, Files, and Calculator; fresh native-app task/action records verified Files and Calculator, Friday UI verified the registered browser's unique root-page title (not the exact URL/hash), and exact Stop was silent while capture returned to listening. The older YouTube task remains `in_doubt`; do not replay it. |
-| B — Live Vision | WIRED | Existing vision components remain available, but no live screen-question route was qualified in this continuation; reserve that work for Session 2. |
+| B — Live Vision | LIVE PROVEN | Fresh physical voice turns described a canvas-only revenue chart, then a different warehouse-inventory chart with a new observation identity, and explained the visible terminal `ZeroDivisionError`. The route reuses `ScreenCaptureService` (GNOME Shell Screenshot D-Bus with desktop Screenshot portal fallback), fresh AT-SPI/window observation, and local Qwen2.5-VL-3B; no screenshot upload. Persistent permission survived candidate voice-service restart. The full verifier passed 1,562 tests (6 skipped); secret, SQLite, recovery, Ruff, and service checks passed. End-to-end terminal playback was 102.3s, so interactive latency remains a known limitation. Publication remains before PRODUCT QUALIFIED. |
 | C — General Computer Agency | LIVE PROVEN | Voice reached the existing agency for browser/site and generic native-app launch; Files and Calculator have fresh scoped postcondition verification. This does not qualify broader pointer, keyboard, multi-step, or consequential agency. |
 | D — State/UI Synchronization | WIRED | Durable task/action state and runtime action events are connected. This continuation did not qualify a broader owner-facing task/UI synchronization flow. |
 | E — Voice-First Friday Workflows | LIVE PROVEN | Single-step voice-open requests and exact Stop worked on the normal microphone path. Multi-step and ongoing conversational workflows remain outside this qualification. |

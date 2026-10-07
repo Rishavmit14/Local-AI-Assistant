@@ -24,6 +24,7 @@ from local_ai_assistant.desktop.agency_ledger import ComputerAgencyLedger
 from local_ai_assistant.desktop.goal_planner import GroundedGoalPlanner
 from local_ai_assistant.desktop.portal_client import PortalDesktopClient
 from local_ai_assistant.desktop.runner import ComputerAgencyRunner
+from local_ai_assistant.desktop.screen_context import ScreenContextAuditStore, ScreenContextService
 from local_ai_assistant.desktop.screen_understanding import ScreenUnderstandingService
 from local_ai_assistant.gateway.auth import GatewayAuth
 from local_ai_assistant.gateway.execution_service import CodeAgentExecutionService
@@ -53,6 +54,7 @@ from local_ai_assistant.perception import (
     LocalVisionClassifier,
     ScreenCaptureService,
 )
+from local_ai_assistant.perception.vision_cortex import LocalVisionCortex
 from local_ai_assistant.planning.models import plan_approval_token
 from local_ai_assistant.planning.service import PlannerService
 from local_ai_assistant.proactive import EventSource, ProactiveEventEngine, ProactiveRuntime, Watch
@@ -198,6 +200,19 @@ def build_presentation_components(
     context_attachments.cross_path = cross_path
     perception = ScreenCaptureService(resolved_config.paths.perception_dir)
     perception.set_vision_classifier(LocalVisionClassifier(resolved_config.paths.vision_cache_dir))
+    accessibility_observation = AccessibilityObservationService()
+    active_window = ActiveWindowService()
+    visual_cortex = (
+        LocalVisionCortex(resolved_config.vision_cortex)
+        if resolved_config.vision_cortex.enabled else None
+    )
+    screen_context = ScreenContextService(
+        accessibility_observation,
+        perception,
+        active_window,
+        visual_cortex,
+        ScreenContextAuditStore(perception.capture_dir, retention_seconds=perception.retention_seconds),
+    )
     desktop_control = DesktopControlService(
         resolved_config.paths.desktop_control_db,
         allowed_apps=resolved_config.desktop_control.allowed_apps,
@@ -545,6 +560,7 @@ def build_presentation_components(
         cognition=cognition,
         capability_router=capability_router,
         voice_computer_actions=voice_computer_actions,
+        screen_context_provider=screen_context,
         research_llm=roles.client(Role.REASONING),
     )
 
@@ -576,12 +592,12 @@ def build_presentation_components(
         cross_path=cross_path,
         practice_lab=practice_lab,
         perception=perception,
-        active_window=ActiveWindowService(),
-        accessibility_observation=AccessibilityObservationService(),
+        active_window=active_window,
+        accessibility_observation=accessibility_observation,
         computer_agency=computer_agency,
         computer_portal=computer_portal,
         computer_runner=computer_runner,
-        screen_understanding=ScreenUnderstandingService(AccessibilityObservationService(), perception),
+        screen_understanding=ScreenUnderstandingService(accessibility_observation, perception),
         desktop_control=desktop_control,
         autonomy=autonomy,
         objective_execution_auth=execution_auth,
@@ -610,7 +626,10 @@ def build_presentation_components(
         rollback_gateway_token=rollback_gateway_token or None,
         rollback_allowed_origins=rollback_origins,
         on_startup=(proactive_runtime.start if resolved_config.proactive.enabled else None),
-        on_shutdown=lambda: (computer_portal.close(), proactive_runtime.close(), gateway.close(), execution.close()),
+        on_shutdown=lambda: (
+            computer_portal.close(), proactive_runtime.close(), gateway.close(),
+            execution.close(), visual_cortex.close() if visual_cortex is not None else None,
+        ),
     )
 
     return (

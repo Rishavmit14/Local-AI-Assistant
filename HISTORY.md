@@ -2752,3 +2752,38 @@ YouTube opening remains preserved with its old durable task in_doubt; it was
 not replayed. The exact Calculator AT-SPI root label is not in the ledger, and
 the Stop probe ran with no desktop action in flight. These evidence limits are
 recorded and no success was fabricated for the older uncertain actions.
+
+### 2026-10-07 — Session 2 Milestone B live vision (publication pending)
+
+The isolated `stabilization/live-vision` candidate reuses Stage 26
+`ScreenCaptureService` (GNOME Shell Screenshot D-Bus with desktop Screenshot
+portal fallback) and AT-SPI/window observation, with a normal voice route that obtains
+a fresh screen context before primary Qwen. Because the primary Qwen endpoint
+is text-only, an authenticated loopback llama.cpp service runs Qwen2.5-VL-3B on
+CPU and returns bounded untrusted text; screen pixels never reach primary Qwen.
+Two real physical microphone probes described different canvas-only charts from
+fresh captures, and a third explained a visible Python `ZeroDivisionError`.
+Persistent portal permission worked after the candidate Friday service
+restart; no screenshot upload or special vision mode was used.
+
+The first successful chart turn took 103.96s end to end (63.44s VLM); the
+changed-chart turn took 123.09s (72.17s VLM). Both preceded final service
+tuning. The initial timed-out probe failed safe and reported that pixel
+interpretation was unavailable; it did not reuse old screen content.
+
+The post-optimization physical terminal turn measured 39.9s visual inference,
+55.2s to primary Qwen's first token, and 102.3s through final voice playback.
+The tuned 1024px/512-token same-frame chart run took 29.2s and retained all
+checked cues; an earlier 768px/1024-token-minimum run took 73.7s and missed
+labels. Both image edge and token budget changed, so this comparison does not
+isolate the cap effect. The terminal latency trace from speech end recorded
+intent 1.44s, capture start/complete 1.47/2.46s, semantic observation 5.32s,
+OCR/VLM start 6.77s, VLM complete 46.79s, Qwen first token 55.25s, first answer
+audio 59.23s, response ready 80.58s and playback complete 102.30s. Correctness
+is physically proven, but full-turn latency remains too slow to feel
+conversational and is recorded as a known limitation. The repository verifier passed 1,562 tests (6 skipped);
+changed-file Ruff, the candidate secret scan, both perception SQLite integrity
+checks, recovery-mode audit, and systemd unit validation passed. Private screen,
+OCR, and voice evidence remains under the owner-only
+`/home/kumar-rishav/.local/state/friday-live-vision/` directory. Branch/main
+publication and fetched-ref verification remain before product acceptance.

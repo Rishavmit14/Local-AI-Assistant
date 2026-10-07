@@ -205,6 +205,18 @@ print(json.dumps({'uri': state['response']}))
         shutil.copyfile(source_path, image_path)
         return self._record(capture_id, image_path, source="owner-selected-local-file")
 
+    def image_path_for_local_processing(self, capture_id: str) -> Path:
+        """Resolve one retained capture for an in-process local perception adapter."""
+        if not capture_id.startswith("screen_"):
+            raise ValueError("invalid capture id")
+        self.purge_expired()
+        with self._db() as db:
+            exists = db.execute("SELECT 1 FROM captures WHERE capture_id=?", (capture_id,)).fetchone()
+        image_path = self.capture_dir / f"{capture_id}.png"
+        if exists is None or not image_path.is_file():
+            raise ValueError("capture is unavailable")
+        return image_path
+
     def recent(self, limit: int = 20) -> tuple[ScreenCapture, ...]:
         if not 1 <= limit <= 100:
             raise ValueError("limit must be between 1 and 100")

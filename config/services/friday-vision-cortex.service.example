@@ -1,0 +1,28 @@
+[Unit]
+Description=Friday Local Vision Cortex (Qwen2.5-VL 3B)
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=VISION_MODEL_DIR
+ExecStart=LLAMA_CPP_DIR/build/bin/llama-server \
+  -m VISION_MODEL_PATH \
+  --mmproj VISION_MMPROJ_PATH \
+  --alias friday-vision-qwen2.5-vl-3b \
+  --n-gpu-layers 0 \
+  --no-mmproj-offload \
+  --ctx-size 8192 \
+  --threads 4 \
+  --parallel 1 \
+  --image-min-tokens 512 \
+  --image-max-tokens 512 \
+  --host 127.0.0.1 \
+  --port 8781 \
+  --api-key-file VISION_API_KEY_FILE
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

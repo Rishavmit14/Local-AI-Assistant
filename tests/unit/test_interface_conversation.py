@@ -55,6 +55,89 @@ def test_memory_context_is_read_only_prompt_context():
     assert "untrusted reference" in llm.calls[0]["system_prompt"]
 
 
+def test_voice_screen_question_observes_before_qwen_and_binds_answer_to_context():
+    class FreshContext:
+        context_id = "screen_context_fresh"
+        failure_answer = ""
+
+        def event_metadata(self):
+            return {"context_id": self.context_id, "capture_id": "screen_fresh",
+                    "captured_at": "2026-10-07T12:00:01+00:00", "visual_status": "ready",
+                    "visual_digest": "a" * 64}
+
+        def prompt_evidence(self):
+            return '{"context_id":"screen_context_fresh","fresh_observation":true,"visual_evidence":"blue chart"}'
+
+    class Provider:
+        def __init__(self):
+            self.calls = []
+
+        def observe(self, question, *, visual_required, mark):
+            self.calls.append((question, visual_required))
+            mark("SCREEN_CAPTURE_BEGIN")
+            mark("SCREEN_VISUAL_INFERENCE_COMPLETE")
+            return FreshContext()
+
+    runtime = FridayRuntime("voice-screen-context")
+    llm = FakeStreamingLLM(["The current screen shows a blue chart."])
+    provider = Provider()
+    service = FridayConversationService(
+        llm,
+        runtime,
+        memory_context=lambda _prompt: (_ for _ in ()).throw(AssertionError("stale memory was consulted")),
+        memory_context_with_timing=lambda _prompt, _mark: (_ for _ in ()).throw(AssertionError("stale memory was consulted")),
+        capability_context=lambda: (_ for _ in ()).throw(AssertionError("screen request was routed as generic chat")),
+        screen_context_provider=provider,
+    )
+    service.session.append("Owner", "An earlier screen showed a different app.")
+
+    answer = "".join(service.stream_response("What do you see on my screen?", voice_origin=True))
+
+    assert answer.startswith("Let me take a quick look")
+    assert answer.endswith("The current screen shows a blue chart.")
+    assert provider.calls == [("What do you see on my screen?", True)]
+    assert len(llm.calls) == 1
+    system_prompt = llm.calls[0]["system_prompt"]
+    assert "blue chart" in system_prompt
+    assert "earlier screen showed" not in system_prompt
+    assert "old conversation or memory" in system_prompt
+    events = runtime.events_since(0, limit=100)
+    screen_event = next(event for event in events if event.event_type is FridayEventType.VOICE_SCREEN_CONTEXT)
+    completed = next(event for event in events if event.event_type is FridayEventType.CONVERSATION_ASSISTANT_COMPLETED)
+    assert screen_event.metadata["context_id"] == "screen_context_fresh"
+    assert "visual_evidence" not in screen_event.metadata
+    assert completed.metadata["screen_context_id"] == "screen_context_fresh"
+    assert service.last_voice_screen_context_id == "screen_context_fresh"
+
+
+def test_voice_visual_fallback_does_not_call_qwen_or_request_uploaded_screenshot():
+    class LimitedContext:
+        context_id = "screen_context_limited"
+        failure_answer = "Pixel-level screen interpretation is unavailable right now."
+
+        def event_metadata(self):
+            return {"context_id": self.context_id, "visual_status": "model_unavailable"}
+
+        def prompt_evidence(self):
+            raise AssertionError("incomplete visual packet must not be sent to Qwen")
+
+    class Provider:
+        def observe(self, _question, *, visual_required, mark):
+            assert visual_required is True
+            return LimitedContext()
+
+    llm = FakeStreamingLLM(["must not run"])
+    service = FridayConversationService(
+        llm, FridayRuntime("voice-screen-limited"), screen_context_provider=Provider(),
+    )
+
+    answer = "".join(service.stream_response("What is this?", voice_origin=True))
+
+    assert "pixel-level screen interpretation is unavailable" in answer.casefold()
+    assert "screenshot" not in answer.casefold()
+    assert llm.calls == []
+
+
 def test_stable_capability_grounding_precedes_mutable_session_and_memory_context():
     runtime = FridayRuntime("stable-prefix")
     llm = FakeStreamingLLM(["ok"])

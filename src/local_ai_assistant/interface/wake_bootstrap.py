@@ -168,6 +168,22 @@ class VoiceTurnTelemetry:
             "VOICE_ACTION_FINAL_RESPONSE_READY",
             "VOICE_FAST_PATH_COMPLETE",
             "VOICE_TURN_COMPLETE",
+            "SCREEN_VOICE_TURN_BEGIN",
+            "SCREEN_OBSERVATION_BEGIN",
+            "SCREEN_OBSERVATION_COMPLETE",
+            "SCREEN_OBSERVATION_FAILED",
+            "SCREEN_CAPTURE_BEGIN",
+            "SCREEN_CAPTURE_COMPLETE",
+            "SCREEN_SEMANTIC_OBSERVATION_BEGIN",
+            "SCREEN_SEMANTIC_OBSERVATION_COMPLETE",
+            "SCREEN_OCR_BEGIN",
+            "SCREEN_OCR_COMPLETE",
+            "SCREEN_VISUAL_INFERENCE_BEGIN",
+            "SCREEN_VISUAL_INFERENCE_COMPLETE",
+            "SCREEN_CONTEXT_READY",
+            "SCREEN_ANSWER_FIRST_CHUNK",
+            "SCREEN_ANSWER_FIRST_AUDIO_AVAILABLE",
+            "VOICE_SCREEN_RESPONSE_READY",
             "PROMPT_ASSEMBLY_BEGIN",
             "CONVERSATION_ROUTING_BEGIN",
             "CONVERSATION_ROUTING_COMPLETE",
@@ -220,6 +236,7 @@ class VoiceTurnTelemetry:
             "PW_PLAY_FIRST_PCM_WRITE_BEGIN",
             "PW_PLAY_FIRST_PCM_WRITTEN",
             "PLAYBACK_FIRST_PCM_WRITTEN",
+            "PLAYBACK_COMPLETE",
         }
     )
 
@@ -339,6 +356,8 @@ class VoiceTurnTelemetry:
         stages = self._active_turn["stages"]
         assert isinstance(stages, dict)
         stages.setdefault(stage, timestamp)
+        if stage == "SCREEN_VOICE_TURN_BEGIN":
+            self._active_turn["screen_turn"] = True
         if stage == "VOICE_ACTION_ROUTE_SELECTED":
             self._active_turn["voice_action"] = True
         if details:
@@ -346,7 +365,29 @@ class VoiceTurnTelemetry:
             assert isinstance(stage_details, dict)
             stage_details.update(details)
         action_turn = self._active_turn.get("voice_action") is True
+        screen_turn = self._active_turn.get("screen_turn") is True
+        if stage == "SCREEN_ANSWER_FIRST_CHUNK" and screen_turn:
+            self._active_turn["screen_answer_started"] = True
+        if (
+            stage == "TTS_FIRST_AUDIO_AVAILABLE"
+            and screen_turn
+            and self._active_turn.get("screen_answer_started") is True
+        ):
+            stages.setdefault("SCREEN_ANSWER_FIRST_AUDIO_AVAILABLE", timestamp)
+        if stage in {"SCREEN_CONTEXT_READY", "SCREEN_OBSERVATION_COMPLETE", "SCREEN_OBSERVATION_FAILED"}:
+            self._active_turn["screen_observation_done"] = True
+        if stage == "VOICE_SCREEN_RESPONSE_READY" and screen_turn:
+            self._active_turn["screen_response_ready"] = True
         if stage == "PLAYBACK_FIRST_PCM_WRITTEN" and not action_turn:
+            if not screen_turn:
+                self._finish_latency_turn(stages)
+            return
+        if (
+            stage == "PLAYBACK_COMPLETE"
+            and screen_turn
+            and self._active_turn.get("screen_observation_done") is True
+            and self._active_turn.get("screen_response_ready") is True
+        ):
             self._finish_latency_turn(stages)
             return
         if stage != "VOICE_TURN_COMPLETE" or not action_turn:
