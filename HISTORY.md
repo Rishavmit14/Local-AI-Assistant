@@ -1,3 +1,35 @@
+## 2026-10-11 — Milestone C General Computer Agency accepted and published
+
+Owner authorization followed the closure audit. The isolated
+`stage-26/milestone-c-general-computer-agency` capability commit `cc386b2ff865d49a44a7ec939a05f5d74589129e` (parent `09842e7eefcdda6df34d5f4163078fb6cca29e06`) was published to its
+stage branch and fast-forwarded to `main`; remote stage/main heads were fetched
+and directly verified equal after a documentation-only recovery follow-up.
+The accepted tree contains 67 reviewed paths: 50 modified tracked files and 17
+new files. The pre-existing unreferenced `uv.lock` was excluded from the commit.
+
+The six physical journeys and previously recorded acceptance gates remain the
+qualification evidence: 1,839 Python tests passed (6 skipped), 133 frontend
+tests plus two bridge checks passed, and lint, TypeScript/build, changed-file
+Ruff, repository verification, service-template verification, and post-restart
+readiness passed on the content-identical implementation candidate. Only
+Roadmap/handoff reconciliation followed in the isolated branch; no product code
+changed, so the same-code qualification evidence was reused without rerunning
+the full suite.
+
+The recovery snapshot at `/AI/tools/friday-recovery/repository-reconciliation-2026-10-11`
+contains an identical copy of the canonical `.git`, the unreachable-object map,
+and SHA256-verified dirty-worktree archives. The original GCA candidate remains
+untouched with its excluded `uv.lock`; the protected Stage 22 production
+checkout, Daybreak experiment, local-main dirty Roadmap, and unique local-main
+commit `47ae92bba1c3b50d9dd6f2264d95b6cfaf275e75` were preserved. The separate
+adaptive-replanning Roadmap detail was reconciled into the accepted candidate.
+
+Milestone C is QUALIFIED for the six bounded owner journeys. Full cold-boot
+qualification remains pending. Probe 6's `Copper Grove` versus admitted
+`copper groove` variance remains unattributed without retained audio/ASR text;
+12 historical `in_doubt` actions remain unchanged and unreplayed. No Friday
+service restart occurred during reconciliation/publication.
+
 ## 2026-10-11 — Milestone C final closure audit (candidate; Outcome A recommended)
 
 The six physical General Computer Agency journeys remain accepted. The closure

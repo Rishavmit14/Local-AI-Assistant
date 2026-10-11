@@ -1997,21 +1997,20 @@ restart, and permission restoration without new consent. A live screen account
 identified the active disposable app and visible "Details ready" label after
 filtering GNOME's decorative active compositor frame; private screenshot
 portal capture and local OCR were exercised.
-Stage 26 is **QUALIFIED** for these bounded local workflows. The separate
-Milestone C owner-integration status remains **PARTIAL** in
-`docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`: controlled Probe 4
-contextual navigation and speech-lifecycle recovery are candidate evidence, and
-physical Probe 4 has now passed on the reloaded candidate. The current
-uncommitted Probe 5 candidate adds bounded stale-target rejection and safe
-re-grounding, with deterministic changed-collection, changed-ordinal,
-wrong-window, browser-target, uncertain-action, and barge-in regressions
-passing. One physical Probe 5 request window expired without a wake-accepted event, voice transcription, computer task, or target binding. The external gate made no fixture change and released no action; private evidence records a null task ID. This was not physical qualification. Subsequent diagnosis found that the initial preflight lacked capture-stream telemetry, The Owner later confirmed they did not speak both required commands during the 180-second window; classify it as an unused request window, not a microphone, VAD, or ASR failure. A later controlled real-desktop run added a real trailing folder after target binding, rejected the stale action before dispatch, re-grounded the same Birch object, and verified the exact Files location (20 semantic, 2 OCR, 0 VLM; private correlation under probe5-controlled-20261009T162020Z). Duplicate-title active-window selection and consumed-gate startup handling were repaired and tested. An explicit target-disappearance negative test now proves Cedar is not substituted when Birch vanishes. A later physical window accepted wake and completed the spoken acknowledgment, then failed in local Whisper before any transcript, computer task, target binding, or action; the fixture stayed unchanged. A bounded diagnostic identified CUDA VRAM exhaustion in whisper.cpp (42 MiB cache allocation); the candidate now retries only that explicit failure once on CPU, covered by focused Whisper and voice-integration tests. The prior watcher lacked a terminal record. A subsequent fresh one-shot physical window used a foreground watcher and ended `no_qualifying_voice_event` after 180.48 seconds: PCM frames advanced by 5,640, but VAD speech frames, utterances, wake checks/rejections/acceptances, runtime events, and computer tasks stayed zero. Birch was verified second by fresh scoped accessibility and active-window OCR geometry; the gate remained unused and the fixture unchanged. The Owner later confirmed that no qualifying command was spoken during this window, so Probe 5 remains physically unqualified without evidence of microphone, VAD, or ASR failure. The exact gate drop-in was removed and Friday returned healthy/listening; one coordinated, properly armed Probe 5 attempt is the next step. The patched CUDA-OOM-only CPU fallback was not exercised. Probe 6 active Stop is not started. The capability commit and final recovery
-audit are published on `stage-26/full-computer-agency`; remote `main` and the Stage 26 branch point to
-the same verified recovery commit. Real machine reboot/login and physical
-microphone evidence remain unproven; arbitrary browser pointer occlusion and
-canonical consequential-action authorization remain outside this bounded
-qualification. Row 61 remains PARTIAL, with external learner publication
-PARTIAL and final whole-product visual acceptance NOT STARTED.
+Stage 26 is **QUALIFIED** for its bounded local workflows. Milestone C —
+General Computer Agency owner-path integration is **QUALIFIED** as of
+2026-10-11: all six physical journeys and the required full repository,
+frontend, runtime-recovery, service-template, and remote-publication gates
+passed. Accepted capability commit `cc386b2ff865d49a44a7ec939a05f5d74589129e` is based on `09842e7eefcdda6df34d5f4163078fb6cca29e06` and is published
+on `stage-26/milestone-c-general-computer-agency` and `main`; the publication-recovery follow-up is recorded below
+and in `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`.
+
+Milestone C qualification covers the six bounded owner journeys. Full cold-boot
+qualification remains pending, spoken-name fidelity remains unresolved, and
+broader owner product qualification, latency work, and final visual acceptance
+remain open under row 61 and Milestone F. Earlier candidate failures and physical
+probe chronology remain in `HISTORY.md`, `docs/architecture/desktop-control.md`,
+and `docs/architecture/voice-and-wake.md`.
 
 The 2026-10-10 read-only Probe 5 follow-up found the built-in `Internal
 Microphone` route active and Friday receiving PipeWire-converted S16LE,
@@ -2266,6 +2265,23 @@ the folder. The gate module tests pass (17 tests); the earlier focused
 this added timeout case. Final full-repository acceptance, physical Probe 6,
 and Milestone C closure gates remain outstanding. Milestone C is **PARTIAL**.
 Keep the candidate uncommitted and unpublished for this request.
+
+### Milestone C publication recovery — QUALIFIED (2026-10-11)
+
+Capability commit `cc386b2ff865d49a44a7ec939a05f5d74589129e` (parent `09842e7eefcdda6df34d5f4163078fb6cca29e06`) was pushed to `stage-26/milestone-c-general-computer-agency` and
+fast-forwarded to `main`; fetched refs and direct remote heads were verified at
+the same recovery tip after the documentation-only publication follow-up. The
+accepted commit contains the reviewed 67-path implementation, tests, service
+configuration, ADRs, and canonical docs. The pre-existing unreferenced
+`uv.lock` was excluded from the commit and preserved in the local recovery
+snapshot; the original candidate worktree remains untouched. The canonical
+`.git` snapshot and all dirty-worktree archives remain at
+`/AI/tools/friday-recovery/repository-reconciliation-2026-10-11`.
+
+The six physical journeys remain the owner-path qualification evidence. The
+folder-name admission variance remains unattributed because no audio or ASR
+transcript was retained; full cold-boot qualification and wider latency/product
+qualification remain open. No historical `in_doubt` action was replayed.
 
 ## Stage 27 — Authenticated learner-artifact publication (**QUALIFIED**)
 
