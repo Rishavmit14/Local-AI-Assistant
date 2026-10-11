@@ -159,6 +159,100 @@ def test_authentication_and_browser_surfaces_do_not_reach_model():
     assert model.calls == []
 
 
+def test_general_plan_separates_server_trusted_owner_paths_from_screen_context():
+    class GeneralModel:
+        def __init__(self):
+            self.prompt = None
+
+        def chat(self, prompt, **_kwargs):
+            self.prompt = json.loads(prompt)
+            return json.dumps({
+                "steps": [{"kind": "open_location", "target": "/owner/project",
+                           "value": "VS Code"}],
+            })
+
+    model = GeneralModel()
+    context = {
+        "workspace_path": "/owner/project",
+        "workspace_name": "Local-AI-Assistant-terra-integration",
+        "workspace_aliases": ["Local AI Assistant"],
+        "temporary_test_directory": "/owner/test",
+        "installed_applications": ["Visual Studio Code"],
+        "active_window": "A screen supplied label",
+        "visible_semantic_targets": [{"name": "Continue"}],
+    }
+
+    plan = GroundedGoalPlanner(model).plan_goal(
+        "Open my Local AI Assistant project in VS Code", context=context,
+    )
+
+    assert len(plan.steps) == 1
+    assert model.prompt["TRUSTED_OWNER_CONTEXT"] == {
+        "workspace_path": "/owner/project",
+        "workspace_name": "Local-AI-Assistant-terra-integration",
+        "workspace_aliases": ["Local AI Assistant"],
+        "temporary_test_directory": "/owner/test",
+        "installed_applications": ["Visual Studio Code"],
+    }
+    assert model.prompt["CURRENT_INTERACTION_CONTEXT"] == {
+        "active_window": "A screen supplied label",
+        "visible_semantic_targets": [{"name": "Continue"}],
+    }
+
+
+def test_general_plan_allows_empty_search_operand_for_trusted_completion():
+    from local_ai_assistant.desktop.goal_planner import ComputerGoalStep
+
+    class GeneralModel:
+        def chat(self, _prompt, **_kwargs):
+            return json.dumps({"steps": [
+                {"kind": "search_current_page", "target": "", "value": ""},
+            ]})
+
+    plan = GroundedGoalPlanner(GeneralModel()).plan_goal("Search for machine learning")
+
+    assert plan.steps == (ComputerGoalStep("search_current_page", "", ""),)
+
+
+def test_general_plan_accepts_bounded_runtime_context_with_prior_interaction():
+    class GeneralModel:
+        def chat(self, prompt, **_kwargs):
+            assert len(json.loads(prompt)["TRUSTED_OWNER_CONTEXT"]) == 5
+            return json.dumps({"steps": [
+                {"kind": "open_location", "target": "/owner/project", "value": "VS Code"},
+                {"kind": "open_terminal", "target": "VS Code", "value": ""},
+                {"kind": "run_read_only_command", "target": "/owner/project", "value": "git status"},
+            ]})
+
+    context = {
+        "workspace_path": "/owner/project",
+        "workspace_name": "Local-AI-Assistant-terra-integration",
+        "workspace_aliases": ["Local AI Assistant"],
+        "temporary_test_directory": "/owner/test",
+        "installed_applications": ["Visual Studio Code"],
+        "observation_id": "observation_" + "a" * 32,
+        "active_application": "Visual Studio Code",
+        "active_window": "project window",
+        "visible_semantic_targets": [{"role": "frame", "name": "project window"}],
+        "previous_interaction": {"application": "Visual Studio Code", "location": "/owner/project"},
+    }
+
+    plan = GroundedGoalPlanner(GeneralModel()).plan_goal(
+        "Open my Local AI Assistant project in VS Code, open a terminal, and show me the git status",
+        context=context,
+    )
+
+    assert [step.kind for step in plan.steps] == [
+        "open_location", "open_terminal", "run_read_only_command",
+    ]
+
+    with pytest.raises(ValueError, match="interaction context is invalid"):
+        GroundedGoalPlanner(GeneralModel()).plan_goal(
+            "Open my Local AI Assistant project in VS Code",
+            context={**context, "unexpected": True},
+        )
+
+
 @pytest.mark.parametrize("goal", [
     "Open details; delete files", "Open details then send email",
     "Open details and verify Details ready then send email",

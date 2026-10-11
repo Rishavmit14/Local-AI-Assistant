@@ -33,6 +33,7 @@ class ScreenQuestionMode(StrEnum):
 class FridayVoiceIntent:
     kind: FridayVoiceIntentType
     open_command: OpenCommand | None = None
+    computer_goal: str | None = None
     capability_key: str | None = None
     screen_mode: ScreenQuestionMode | None = None
 
@@ -68,6 +69,13 @@ _LONG_RUNNING_TASK = re.compile(
     r"\b(?:start|run|continue|work on|complete|execute)\b.{0,80}\b(?:task|objective|project|workflow|research)\b",
     re.I,
 )
+_COMPUTER_GOAL = re.compile(
+    r"^\s*(?:(?:hey\s+)?friday[,\s]+)?(?:please\s+)?"
+    r"(?:open|launch|start|visit|focus|go\s+to|navigate\s+to|show\s+me|"
+    r"search|find|create|make|rename|move|copy|click|press|scroll|type|"
+    r"run|execute|close|switch|select|go\s+back|enter)\b",
+    re.I,
+)
 _RESEARCH_MEMORY_OBJECTIVE = re.compile(r"\b(?:research|memory|remember|objective|automate|automation)\b", re.I)
 _LEARNING = re.compile(r"\b(?:learn|learning|career forge|practice lab|competenc|mission|tutor|project)\b", re.I)
 
@@ -80,7 +88,8 @@ class FridayVoiceIntentRouter:
         if command is not None:
             if is_friday_ui_target(command.target) or is_friday_internal_route(command.target):
                 return FridayVoiceIntent(FridayVoiceIntentType.FRIDAY_INTERNAL_NAVIGATION, command)
-            return FridayVoiceIntent(FridayVoiceIntentType.COMPUTER_ACTION, command)
+            return FridayVoiceIntent(FridayVoiceIntentType.COMPUTER_ACTION,
+                                     open_command=command, computer_goal=prompt)
 
         if _SCREEN_QUESTION.search(prompt):
             semantic_only = _SEMANTIC_SCREEN_QUESTION.search(prompt) and not _VISUAL_SCREEN_QUESTION.search(prompt)
@@ -88,6 +97,10 @@ class FridayVoiceIntentRouter:
                 FridayVoiceIntentType.SCREEN_CONTEXT_QUESTION,
                 screen_mode=(ScreenQuestionMode.SEMANTIC if semantic_only else ScreenQuestionMode.VISUAL),
             )
+
+        if _COMPUTER_GOAL.search(prompt):
+            return FridayVoiceIntent(FridayVoiceIntentType.COMPUTER_ACTION,
+                                     computer_goal=prompt)
 
         capability_key = getattr(capability_route, "capability_key", None)
         if capability_key in {"career_forge", "learning_paths", "practice_lab"}:

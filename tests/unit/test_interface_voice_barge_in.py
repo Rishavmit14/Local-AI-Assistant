@@ -18,10 +18,13 @@ from local_ai_assistant.interface.voice_conversation import (
 )
 from local_ai_assistant.voice import (
     BargeInResult,
+    FridayWakeVoiceOrchestrator,
     PiperAudioChunk,
     SpeechPlaybackResult,
     SpeechStopResult,
     VoiceUtterance,
+    WakeCaptureEvent,
+    WakeSupervisorResult,
     WhisperTranscript,
 )
 
@@ -585,6 +588,7 @@ def test_trusted_barge_in_reenters_existing_voice_path(
         in llm.calls
     )
 
+
     assert all(
         call[
             "max_tokens"
@@ -802,6 +806,119 @@ def test_trusted_barge_in_reenters_existing_voice_path(
         "voice_barge_in"
         in transition_reasons
     )
+
+
+
+def test_completed_barge_in_survives_midstream_model_cancellation_and_session_rearm() -> None:
+    initial = make_utterance(1)
+    interruption = make_utterance(2)
+    runtime = FridayRuntime("session-midstream-barge-in")
+    stop_seen = threading.Event()
+
+    class MidstreamLLM:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def stream_chat(self, prompt, *, system_prompt, temperature, max_tokens):
+            self.calls.append(prompt)
+            if len(self.calls) == 1:
+                yield "The first response sentence."
+                assert stop_seen.wait(timeout=2.0)
+                yield " More response text that should be cancelled."
+            else:
+                yield "I heard you."
+
+    class Monitor(FakeBargeInMonitor):
+        def capture_interruption(self):
+            result = super().capture_interruption()
+            if result.triggered:
+                stop_seen.set()
+            return result
+
+    class StreamingPlayer:
+        def __init__(self):
+            self.active = False
+            self.interrupted = False
+            self.play_calls = 0
+            self.released = threading.Event()
+
+        @property
+        def is_playing(self):
+            return self.active
+
+        def play(self, chunks):
+            first = next(chunks)
+            assert first.pcm
+            self.play_calls += 1
+            self.interrupted = False
+            self.active = True
+            if self.play_calls == 1:
+                assert self.released.wait(timeout=2.0)
+                close = getattr(chunks, "close", None)
+                if close is not None:
+                    close()
+            else:
+                for _chunk in chunks:
+                    pass
+            self.active = False
+            return SpeechPlaybackResult(
+                interrupted=self.interrupted, elapsed_seconds=0.01,
+                pcm_bytes_written=len(first.pcm), sample_rate=first.sample_rate,
+            )
+
+        def stop(self):
+            if not self.active:
+                return SpeechStopResult(stopped=False, elapsed_seconds=0.0)
+            self.interrupted = True
+            self.active = False
+            self.released.set()
+            return SpeechStopResult(stopped=True, elapsed_seconds=0.001)
+
+    llm = MidstreamLLM()
+    conversation = FridayConversationService(llm, runtime)
+    player = StreamingPlayer()
+    monitor = Monitor(player, interruption, trigger_first=True)
+    transcriber = FakeTranscriber(["please stop"])
+    voice = FridayVoiceConversationService(
+        transcriber, conversation, runtime,
+        speech_synthesizer=FakeSpeechSynthesizer(), speech_player=player,
+        barge_in_monitor=monitor,
+    )
+
+    class Capture:
+        def __init__(self):
+            self.pause_calls = 0
+            self.resume_calls = 0
+
+        def pause(self):
+            self.pause_calls += 1
+
+        def resume(self):
+            self.resume_calls += 1
+
+    class SessionFollowUp:
+        def capture_utterance(self):
+            return None
+
+    capture = Capture()
+    orchestrator = FridayWakeVoiceOrchestrator(
+        capture, voice, session_follow_up_capture=SessionFollowUp(),
+    )
+    event = WakeCaptureEvent(
+        utterance=initial,
+        result=WakeSupervisorResult(
+            enabled=True, wake=True, source="test-wake", remainder="initial command",
+            primary=None, fallback=None,
+        ),
+    )
+
+    result = orchestrator.handle_wake_utterance(event)
+
+    assert result.response_text == "The first response sentence.I heard you."
+    assert transcriber.calls == [interruption]
+    assert llm.calls == ["initial command", "please stop"]
+    assert capture.pause_calls == 1 and capture.resume_calls == 1
+    assert runtime.state is FridayRuntimeState.IDLE
 
 
 def test_incomplete_trusted_barge_in_stops_safely_without_runtime_error(

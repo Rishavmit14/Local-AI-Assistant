@@ -1666,8 +1666,18 @@ reinforced independent-application evidence supports a mapped node; stale,
 weak, below-threshold, or unverified evidence yields review, reinforcement, or diagnostic
 recommendations. Direct prerequisite failures block dependent nodes without
 blocking unrelated branches. Sequence projections expose stable candidates,
-reasons, and evidence-backed counts. Adaptation writes a new immutable DLP
-version with historical decision provenance and never mutates Career Forge.
+reasons, and evidence-backed counts. Adaptive replanning now uses the current
+evidence projection and deterministic policy on an explicit Learn request.
+Exact owner-declared cross-path evidence can remove only unstarted redundant
+future nodes; active-session nodes, project milestones, and their direct
+prerequisite nodes remain. Weak evidence selects Career Forge reinforcement,
+insufficient mastery selects diagnosis, and due or stale retention keeps review
+first. Each meaningful decision records its trigger, source evidence, resulting
+graph and decisions, planner provenance, and learner-facing reason in an
+immutable DLP version. The canonical graph validator and SQLite expected-version
+write remain authoritative. Unchanged or indecisive state creates no version,
+and Career Forge attempts, evidence, reviews, or mastery are never written by
+replanning.
 Provider failure defers mapped nodes. DLP-3 added persistent owner path selection in the DLP SQLite boundary, draft-to-active lifecycle transitions, deterministic explicit Conversation creation/list/current/next intents, and Learn list/detail/sequence projection through typed APIs. DLP-4 added Career Forge-owned dynamic subjects and contract-bound evidence. Both DLP-4 and its publication recovery are accepted: capability commit `4a420217bcddca42aa2655c3379b196729a43432`; published recovery `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`. Learn now delivers/evaluates canonical Career Forge reviews and starts/resumes Career Forge reinforcement for supported fixed and dynamic subjects. Candidate browser qualification proved incorrect and correct review answers, dynamic reinforcement with assistance provenance, backend sequence refresh, and restart reconstruction. Review answer text remains within Career Forge's governed store; the browser holds only a transient draft. Project/capstone integration now adds exact direct-prerequisite gates, a versioned DLP-to-Projects relation, durable Projects instances and Objective/task artifact references, and explicit Career Forge explanation/evaluation evidence. Project work uses existing Objectives/Gateway approval, isolation, validation, review, and recovery. Task success and project completion do not grant mastery. Deterministic candidate backend/frontend coverage verifies assignment, idempotent retry, Objective resume, task-state gating, and durable projections; the successful browser/model Project assessment is qualified below. Row 61 remains PARTIAL for remaining product capabilities and broader owner qualification; final visual acceptance remains deferred. Row 60 remains PARTIAL. Learn is a FUNCTIONAL INTEGRATION SHELL; no final visual design acceptance is claimed. See `docs/architecture/dynamic-learning-paths.md`.
 
 ## Project / Capstone lifecycle integration — QUALIFIED bounded journey; row 61 remains PARTIAL
@@ -1987,14 +1997,275 @@ restart, and permission restoration without new consent. A live screen account
 identified the active disposable app and visible "Details ready" label after
 filtering GNOME's decorative active compositor frame; private screenshot
 portal capture and local OCR were exercised.
-Stage 26 is **QUALIFIED** for these bounded local workflows. The capability
-commit and final recovery audit are published on
-`stage-26/full-computer-agency`; remote `main` and the Stage 26 branch point to
+Stage 26 is **QUALIFIED** for these bounded local workflows. The separate
+Milestone C owner-integration status remains **PARTIAL** in
+`docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`: controlled Probe 4
+contextual navigation and speech-lifecycle recovery are candidate evidence, and
+physical Probe 4 has now passed on the reloaded candidate. The current
+uncommitted Probe 5 candidate adds bounded stale-target rejection and safe
+re-grounding, with deterministic changed-collection, changed-ordinal,
+wrong-window, browser-target, uncertain-action, and barge-in regressions
+passing. One physical Probe 5 request window expired without a wake-accepted event, voice transcription, computer task, or target binding. The external gate made no fixture change and released no action; private evidence records a null task ID. This was not physical qualification. Subsequent diagnosis found that the initial preflight lacked capture-stream telemetry, The Owner later confirmed they did not speak both required commands during the 180-second window; classify it as an unused request window, not a microphone, VAD, or ASR failure. A later controlled real-desktop run added a real trailing folder after target binding, rejected the stale action before dispatch, re-grounded the same Birch object, and verified the exact Files location (20 semantic, 2 OCR, 0 VLM; private correlation under probe5-controlled-20261009T162020Z). Duplicate-title active-window selection and consumed-gate startup handling were repaired and tested. An explicit target-disappearance negative test now proves Cedar is not substituted when Birch vanishes. A later physical window accepted wake and completed the spoken acknowledgment, then failed in local Whisper before any transcript, computer task, target binding, or action; the fixture stayed unchanged. A bounded diagnostic identified CUDA VRAM exhaustion in whisper.cpp (42 MiB cache allocation); the candidate now retries only that explicit failure once on CPU, covered by focused Whisper and voice-integration tests. The prior watcher lacked a terminal record. A subsequent fresh one-shot physical window used a foreground watcher and ended `no_qualifying_voice_event` after 180.48 seconds: PCM frames advanced by 5,640, but VAD speech frames, utterances, wake checks/rejections/acceptances, runtime events, and computer tasks stayed zero. Birch was verified second by fresh scoped accessibility and active-window OCR geometry; the gate remained unused and the fixture unchanged. The Owner later confirmed that no qualifying command was spoken during this window, so Probe 5 remains physically unqualified without evidence of microphone, VAD, or ASR failure. The exact gate drop-in was removed and Friday returned healthy/listening; one coordinated, properly armed Probe 5 attempt is the next step. The patched CUDA-OOM-only CPU fallback was not exercised. Probe 6 active Stop is not started. The capability commit and final recovery
+audit are published on `stage-26/full-computer-agency`; remote `main` and the Stage 26 branch point to
 the same verified recovery commit. Real machine reboot/login and physical
 microphone evidence remain unproven; arbitrary browser pointer occlusion and
 canonical consequential-action authorization remain outside this bounded
 qualification. Row 61 remains PARTIAL, with external learner publication
 PARTIAL and final whole-product visual acceptance NOT STARTED.
+
+The 2026-10-10 read-only Probe 5 follow-up found the built-in `Internal
+Microphone` route active and Friday receiving PipeWire-converted S16LE,
+16 kHz, mono frames from a S32LE, 48 kHz, stereo source. Silero is configured
+at probability threshold 0.50, but per-frame level/probability is not exposed;
+the earlier zero-speech event therefore remains unable to distinguish absent
+speech from weak or misrouted input. The Owner confirmed the earlier 180-second window contained no qualifying command. Preserve its zero-speech telemetry as an unused request window, not evidence of a microphone, VAD, or ASR failure. No audio setting, threshold, or code was changed in that read-only follow-up. A later coordinated physical Probe 5 result is recorded below.
+
+The subsequent coordinated window began after READY and GO at
+`2026-10-10T08:03:56Z`. A real wake and expected-command ASR classification
+were observed; Friday admitted task `3559b576c69145a1bdb296d2354573f6`, then
+failed `execution_failed` after two verified Files location-bar actions. The
+fixture stayed unchanged and no target bound. The actual `desktop.runner`
+source and gate state in that process were not captured, so the earlier
+attribution to `friday-live-vision` and conclusion that the candidate gate was
+unavailable were unsupported. This attempt proves the exercised voice input
+reached ASR but does not qualify stale-target recovery. The exact drop-in was
+removed and Friday returned healthy/listening at PID 43816. The later physical
+result below supersedes its next-step status.
+
+A later coordinated physical attempt on 2026-10-10 accepted wake, completed
+the spoken acknowledgment, and transcribed the expected folder command. Task
+`5475cf80148e45dfadea6fdf75acd2c1` failed before an action was prepared; no
+target was bound and the Amber/Birch/Cedar fixture did not change. The cause
+was reproduced: after service restart, the no-context Files fallback scanned
+the whole Nautilus tree without an active-window token and exceeded its
+10-second observer limit. The candidate now scopes that scan to the already
+verified active Files frame. The affected general-plan module passes, and a
+real scoped observation returns all three folders. Private sanitized evidence
+is under `probe-attempts/probe5-physical-20261010T072453Z/`. The gate was
+unloaded and Friday returned to healthy listening. Probe 5 remains physically
+unqualified; a later physical attempt was coordinated after the candidate-side
+fix, but its actual imported service source was not captured. Probe 6 remains
+unstarted.
+
+A second physical attempt, initially described as using the loaded active-window
+fix, accepted wake and transcribed the expected folder command. Friday safely completed two
+verified read-only Files-location shortcuts and gathered fresh scoped
+observations, but live OCR found Birch and Cedar without Amber; task
+`6b8679008aaa4bf0a7da5d9f336ae567` failed before target binding. Its gate did
+not release or change the fixture. The exact screenshot was removed after
+local OCR metadata extraction. Because it followed a critical GO notification
+and in-chat GO output, notification occlusion/focus remains a plausible but
+unconfirmed harness cause. The next attempt will use a normal notification
+with an 8-second expiry and suppress Codex output during the physical window.
+Friday returned to healthy listening, the gate is unloaded, and Probe 5
+remains physically unqualified. Probe 6 remains unstarted.
+
+A subsequent physical window used a normal 8-second desktop notification and
+no in-chat output. Its watcher ran 180.44 seconds while 5,640 PCM chunks
+advanced, but VAD frames, utterances, wake checks, runtime events, transcripts,
+and tasks remained zero. The gate stayed unbound and the fixture remained
+unchanged; this does not determine whether speech was attempted or diagnose
+the microphone/VAD/ASR path. Private evidence is under
+`probe-attempts/probe5-physical-20261010T074419Z/`. The exact gate was unloaded
+and Friday returned healthy/listening. No further physical window is armed;
+await fresh Owner readiness before retrying. Probe 5 is still unqualified and
+Probe 6 remains unstarted.
+
+### Probe 5 physical stale-target recovery — PASSED (2026-10-10)
+
+A corrected fail-closed preflight verified that Friday's actual service process
+(PID 70598) loaded the candidate runner and qualification gate with matching
+source identity. Fresh active-window OCR/geometry verified Amber, Birch, Cedar
+and Birch as ordinal two. In the coordinated physical request, wake and the
+expected command were observed (one utterance, 22 VAD speech frames). Task
+`e5fdd97a87e24381ab2d536efd3580ff` bound Birch; the one-shot gate added Zephyr
+after binding; the original action was rejected as `stale_collection_changed`
+before dispatch; and Friday re-observed, re-grounded, opened Birch, and
+verified its exact Files location. The durable task succeeded with four
+verified actions and `spoken_result=true`; the Owner confirmed it worked.
+The watcher reported `final_response_not_played` because final speech event 21
+preceded task terminal event 23, while its classifier expected the opposite
+order. The completed speech event and Owner confirmation establish playback;
+this is a watcher false negative, not a product failure.
+
+Private evidence is under
+`/home/kumar-rishav/.local/state/friday-general-computer-agency/probe-attempts/probe5-physical-final-20261010T090023Z-c9e2/preflight-rearm-1/`.
+Cleanup evidence confirms Zephyr and the temporary drop-in were removed, the
+original fixture inodes restored, the gate unloaded, and Friday healthy and
+listening at PID 72204 with Pocket/Anna, Qwen, and vision healthy. Probe 5 is
+physically passed. Milestone C remains PARTIAL; Probe 6 active Stop and final
+acceptance gates remain outstanding. No commit or push was made.
+
+### Session 13 — Probe 6 physical active-task Stop passed (2026-10-11; candidate)
+
+The Owner's confirmation that the previous 90-second Stop window was unused
+remains accurate: “No, I did not say ‘Friday, stop’ during the 90-second Probe
+6 hold.” That earlier task `3d81f020bb26444195414d7d73226d5` remains failed with
+one verified create action, no Files navigation release, and no success event;
+its directory and all earlier probe folders remain preserved.
+
+After explicit READY, the first arm attempt hit a transient API startup race
+after Friday restarted with the temporary gate drop-in. It sent no GO, created
+no task, and requested no speech. The exact drop-in was removed, ordinary
+service health was restored, and the private arm/cleanup watcher was corrected
+to wait through startup. A fresh live preflight passed before the physical
+retry.
+
+The one physical retry passed. Task `a623b966f5094866b124e794ddf4fea0` created
+and verified `/home/kumar-rishav/Downloads/copper groove`; the gate bound the
+task and paused before Files `open_location` with exactly one verified create
+action. Friday registered a real strict-wake Stop event for that task
+(`voice_explicit_stop_active_computer_task` from `strict_wake_remainder`), and
+live wake counters advanced. The task-bound gate recorded
+`cancelled_before_dispatch` 3.94 ms after the Stop event. The durable task ended
+`cancelled`, the pending Files action was never released, no task-success event
+was emitted, and no API/harness cancellation was injected. The critical
+STOP-NOW cue was closed after the window. Directory identity `[2050, 2514261,
+1000]` is preserved. The persisted request/action use lowercase `copper groove`,
+although GO specified `Copper Grove`; no audio or request text was copied into
+probe evidence, and the normal task-history record retains its request field, so
+the source is unknown. This is Stop-path evidence only, not folder-name fidelity.
+
+Cleanup restored ordinary service at PID 47411 with capture listening, wake
+armed, Pocket/Anna, healthy Qwen/vision, no active task or voice turn, and the
+qualification gate unloaded. The exact temporary drop-in was removed and all
+four previously preserved probe directories retained their identities.
+Private correlation and cleanup evidence are under
+`/home/kumar-rishav/.local/state/friday-general-computer-agency/probe-attempts/probe6-owner-confirmed-retry-20261011T075932Z/`;
+the setup-race recovery evidence is under
+`/home/kumar-rishav/.local/state/friday-general-computer-agency/probe-attempts/probe6-owner-confirmed-retry-20261011T074516Z/`.
+Probe 6 physical active-task Stop is **PASSED** for this candidate. Milestone C
+remains **PARTIAL** until the remaining full acceptance and recovery gates are
+completed. Candidate remains uncommitted and unpublished.
+
+### Final Milestone C closure audit — Outcome A recommended; Owner publication approval pending (2026-10-11)
+
+The six physical General Computer Agency journeys remain accepted. The final
+candidate passed the complete Python/repository verifier (1,839 passed, 6
+skipped), frontend tests (133 plus two bridge checks), lint, TypeScript/build,
+changed-file Ruff, diff whitespace, service-template verification, and
+authenticated post-restart readiness. The service restart loaded the candidate
+planner guard and returned Friday to normal voice/wake listening with healthy
+Pocket/Anna, Qwen and vision, active Owner permission, no active task, and the
+qualification gate disabled. Full cold-boot qualification remains PENDING.
+
+Probe 6 task `a623b966f5094866b124e794ddf4fea0` retains its physical Stop
+pass: one verified create, real strict-wake active-task Stop, 3.94 ms from
+recorded Stop event processing to cancellation, `cancelled_before_dispatch`,
+and no Files release or success event. That timing is not end-to-end speech
+latency. GO specified `Copper Grove`; admitted request/action and created path
+say `copper groove`. No raw audio or ASR transcript survives, so the
+admission variance cannot be attributed to speech, ASR, or transcription.
+Earlier GO `Friday Stop Canary` versus admitted `Friday Stop canry` has the
+same evidence boundary. The filesystem preserves the admitted literal and
+refuses existing destinations; the candidate planner now rejects any
+create-directory target not present verbatim in the owner goal. Deterministic
+tests cover exact planner/ledger target binding and name/collision cases.
+Speech-to-name fidelity remains an unresolved, non-destructive limitation, not
+a proven ASR defect.
+
+The read-only task database passes `quick_check`; there are no active,
+recovery-required, or awaiting-clarification tasks. Twelve historical
+`in_doubt` actions remain unchanged and unreplayed. The five Owner folders
+retain their original inode identities. No dedicated vulnerability/secret
+scanner is installed; repository dependency consistency and a high-confidence
+credential-pattern scan passed, but no vulnerability-database audit is claimed.
+Repository Ruff reports 11 findings only on unchanged files; changed-file Ruff
+is clean. The Vite large-chunk advisory remains Milestone F work.
+Available timings have distinct boundaries: Probe 1 completed in about 58.53
+s; Probe 3 spoken playback completed at about 29.34 s; Probe 6 measured 3.94
+ms from recorded Stop-event processing to cancellation. The latest memory
+snapshot showed 30 GiB total and 23 GiB available with no observed pressure;
+broader per-stage latency/resource qualification remains Milestone F work.
+
+**Outcome A is recommended:** Milestone C is ready for Owner publication
+approval. The project capability status stays **PARTIAL** until the Owner
+authorizes publication and the candidate passes its commit, push, fetch and
+remote-HEAD recovery gates. The candidate remains 50 modified tracked paths
+and 18 untracked paths on `stabilization/general-computer-agency` at
+`09842e7eefcdda6df34d5f4163078fb6cca29e06`; no commit, merge, or push
+occurred. See `CODEX_HANDOFF.md` for inventory, protected-checkout status,
+and the exact next action.
+
+At audit time, read-only `git ls-remote` showed `origin/main` at the
+candidate base SHA and no remote candidate branch. The separate local main
+checkout is owner-dirty at `47ae92bba1c3b50d9dd6f2264d95b6cfaf275e75`
+(ahead 1 / behind 21). Preserve it; publication must re-fetch and verify the
+remote base, push the accepted stage branch, and only advance remote main when
+the update remains a fast-forward. Do not reset or repurpose that dirty
+checkout.
+
+### Historical Session 8 — Probe 6 dynamic controlled cancellation passed; physical recovery inconclusive (2026-10-11)
+
+The candidate keeps strict wake capture available for the active voice computer
+task, checks durable cancellation between planned steps and at the actor
+boundary, and prevents delayed playback completion from reviving a cancelled
+task. Its optional one-shot gate is scoped to the local Owner and
+`downloads_create_open_files`; it binds a fresh task to its trusted plan rather
+than requiring a preset utterance or destination name. The admitted plan must
+create a fresh safe child in the resolved Downloads directory and open that
+same child in the default Files application. After the first action, the gate
+verifies the ledger result and filesystem identity, then waits for a task,
+nonce, and action-count-bound watcher acknowledgment. Missing or mismatched
+evidence and either timeout fail closed and preserve the new folder.
+
+The previous controlled Probe 6 task
+`9791e9a7e7894b95870a8b3d737f22d5` reached the verified one-action boundary;
+authenticated API cancellation suppressed `open_location` and preserved the
+verified directory. A second actual-service controlled task,
+`c75149414ab74a84b45de5eb1f200a22`, bound to its actual `Silver Birch` child
+under Downloads, passed all dynamic boundary checks, received the armed
+acknowledgment, and was cancelled through the authenticated local Owner API.
+Its action ledger retained exactly one verified create and no Files action;
+the folder identity was preserved. This is controlled API cancellation, not
+physical voice Stop evidence. An earlier controlled harness attempt reached the boundary with task
+`0fa32e1177854f25ac5a37b1d9c431fc` and created `Teal Lantern`, but its task
+response parsing failed before it could arm the watcher. Its cleanup issued
+authenticated API cancellation; it is not counted as a controlled pass, and the
+owner folder is preserved. A following capture-readiness preflight stopped
+before task creation. The corrected controlled evidence is under
+`/home/kumar-rishav/.local/state/friday-general-computer-agency/probe-attempts/probe6-dynamic-controlled-20261011T042821Z/`; the earlier harness records are under `probe6-dynamic-20261011T042209Z/` and `probe6-dynamic-controlled-20261011T043000Z/`.
+
+The earlier physical window remains **INCONCLUSIVE**. Task
+`0f5c880dc510487f921467058a4fb1f5` recorded `Friday Stop canry`; it completed
+three verified actions before reaching the old exact-name boundary. No Stop
+event or cancellation was observed. Preserve
+`/home/kumar-rishav/Downloads/Friday Stop canry`; private evidence is under
+`/home/kumar-rishav/.local/state/friday-general-computer-agency/probe-attempts/probe6-physical-20261010T142132Z/`.
+
+The one authorized dynamic physical recovery window reached the actual armed
+boundary for task `3d81f020bb26444195414d7d73226d5`. It verified the actual
+created `/home/kumar-rishav/Downloads/blue lantern` directory and held the
+pending Files navigation for the 90-second Stop window after STOP-NOW. No exact
+voice Stop event was recorded and strict-wake counters did not advance during
+that window. The gate timed out fail-closed; the task is `failed` with one
+verified create action, no navigation release, and no success event. No
+API/harness cancellation or raw audio/transcript was retained. The Owner later
+confirmed: “No, I did not say ‘Friday, stop’ during the 90-second Probe 6
+hold.” The Stop window was therefore unused; the missing event is consistent
+with the test conditions and is not evidence of a microphone, wake,
+recognition, barge-in, or cancellation defect. Physical qualification remains
+**INCONCLUSIVE**; preserve the task record unchanged. Preserve this
+folder and the earlier `Friday Stop canry`, `Teal Lantern`, and `Silver Birch`
+folders. Private evidence is under
+`/home/kumar-rishav/.local/state/friday-general-computer-agency/probe-attempts/probe6-dynamic-physical-20261011T043242Z/`.
+
+The temporary drop-in and gate were removed. Cleanup confirmed normal
+candidate service PID 34757, listening and wake armed, healthy Qwen/vision,
+active desktop permission, no gate or active task, and all four folders intact.
+The Owner confirmed that Stop was not spoken during this hold and requested one
+coordinated retry after explicit READY. This missing event is not a voice-path
+failure; do not arm the retry before readiness. Probe 6 remains unqualified,
+Milestone C remains **PARTIAL**, and final full-repository qualification and
+closure gates remain outstanding. Candidate is uncommitted and unpublished.
+
+The post-arm Stop-window timeout now has focused deterministic coverage; it
+fails closed after acknowledgment, creates no release marker, and preserves
+the folder. The gate module tests pass (17 tests); the earlier focused
+24-module Probe 6 regression selection, Ruff, and compilation passed before
+this added timeout case. Final full-repository acceptance, physical Probe 6,
+and Milestone C closure gates remain outstanding. Milestone C is **PARTIAL**.
+Keep the candidate uncommitted and unpublished for this request.
 
 ## Stage 27 — Authenticated learner-artifact publication (**QUALIFIED**)
 

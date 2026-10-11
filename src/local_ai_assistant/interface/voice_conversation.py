@@ -174,6 +174,39 @@ class FridayVoiceConversationService:
         """Whether exact stop explicitly closed the voice conversation session."""
         return self._explicit_session_close
 
+    def handle_active_task_stop(self, task_id: str, wake_remainder: str) -> bool:
+        """Apply only the exact stop remainder of a trusted wake during a task."""
+        if normalize_wake_text(wake_remainder) not in {"stop", "friday stop", "hey friday stop"}:
+            return False
+        cancel_active = getattr(self.conversation, "cancel_active_voice_action", None)
+        if callable(cancel_active):
+            cancelled = bool(cancel_active())
+        elif self.on_explicit_stop is not None:
+            self.on_explicit_stop()
+            cancelled = True
+        else:
+            cancelled = False
+        if not cancelled:
+            return False
+        self.runtime.emit(
+            FridayEventType.VOICE_LISTENING_STOPPED,
+            task_id=task_id,
+            state=self.runtime.state,
+            metadata={
+                "reason": "voice_explicit_stop_active_computer_task",
+                "source": "strict_wake_remainder",
+            },
+            transient=True,
+        )
+        self._explicit_session_close = True
+        try:
+            player = self.speech_player
+            if player is not None and getattr(player, "is_playing", False):
+                player.stop()
+        finally:
+            self.close_session()
+        return True
+
     def start_listening(
         self,
     ) -> None:
@@ -563,10 +596,13 @@ class FridayVoiceConversationService:
 
         if synthesizer is None or player is None:
             yield from response
+            if getattr(self.conversation, "last_voice_action_selected", False):
+                self._finish_voice_action_playback(succeeded=False)
             return None
 
         chunker = SpeechChunker()
         queue = SpeechQueue()
+        spoken_segments: list[str] = []
         speech_results: list[VoiceUtterance | None] = []
         speech_errors: list[BaseException] = []
         speech_cancelled = threading.Event()
@@ -590,6 +626,10 @@ class FridayVoiceConversationService:
                         chunks=synthesize_queued_sentences(),
                         streaming=True,
                         cancel_event=speech_cancelled,
+                        event_text=lambda: " ".join(spoken_segments),
+                        event_metadata=lambda: self._stream_speech_metadata(
+                            len(spoken_segments),
+                        ),
                     )
                 )
 
@@ -619,6 +659,7 @@ class FridayVoiceConversationService:
 
                 try:
                     queue.put(sentence, timeout=0.1)
+                    spoken_segments.append(normalize_speech_text(sentence))
                     self._mark_latency("SPEECH_CHUNK_ACCEPTED")
                     break
                 except SpeechQueueClosed:
@@ -682,21 +723,75 @@ class FridayVoiceConversationService:
 
             completed = not cancelled
 
+        except GeneratorExit:
+            if getattr(self.conversation, "last_voice_action_selected", False):
+                self._finish_voice_action_playback(succeeded=False, cancelled=True)
+            raise
+        except BaseException:
+            if getattr(self.conversation, "last_voice_action_selected", False):
+                self._finish_voice_action_playback(succeeded=False)
+            raise
+
         finally:
             queue.close()
 
             if not completed:
                 response.close()
 
+        if speech_thread is not None:
+            speech_thread.join()
+        if speech_errors:
+            if getattr(self.conversation, "last_voice_action_selected", False):
+                self._finish_voice_action_playback(succeeded=False)
+            raise speech_errors[0]
+        if not completed:
+            if getattr(self.conversation, "last_voice_action_selected", False):
+                self._finish_voice_action_playback(succeeded=False, cancelled=True)
+            # The model stream can be cancelled before it finishes generating
+            # the response sentence that was playing. Keep a completed owner
+            # utterance captured by the barge-in monitor even on that path;
+            # otherwise the orchestrator starts a second listener while the
+            # runtime is already LISTENING and drops commands such as Stop.
+            interruption = speech_results[0] if speech_results else None
+            return interruption if isinstance(interruption, VoiceUtterance) else None
+
         if speech_thread is None:
+            if getattr(self.conversation, "last_voice_action_selected", False):
+                self._finish_voice_action_playback(succeeded=False)
             return None
 
-        speech_thread.join()
-        if speech_errors:
-            raise speech_errors[0]
         if getattr(self.conversation, "last_voice_action_selected", False):
+            self._finish_voice_action_playback(succeeded=True)
             self._mark_latency("VOICE_TURN_COMPLETE")
         return speech_results[0]
+
+    def _stream_speech_metadata(self, segment_count: int) -> dict[str, object]:
+        conversation = getattr(self.conversation, "inner", self.conversation)
+        action_service = getattr(conversation, "voice_computer_actions", None)
+        response_kind = getattr(action_service, "last_response_kind", None)
+        first_kind = getattr(action_service, "last_initial_segment_kind", None)
+        roles: list[str] = []
+        if segment_count > 0 and isinstance(first_kind, str):
+            roles.append(first_kind)
+        while segment_count > len(roles) and isinstance(response_kind, str):
+            roles.append(response_kind)
+        result: dict[str, object] = {
+            "stream_segment_count": segment_count,
+            "stream_segment_roles": roles[:segment_count],
+        }
+        if isinstance(response_kind, str):
+            result["computer_response_kind"] = response_kind
+        return result
+
+    def _finish_voice_action_playback(self, *, succeeded: bool, cancelled: bool = False) -> bool:
+        method_name = ("complete_voice_action_after_playback" if succeeded
+                       else "fail_voice_action_after_playback")
+        callback = getattr(self.conversation, method_name, None)
+        if not callable(callback):
+            return False
+        if succeeded:
+            return bool(callback())
+        return bool(callback(cancelled=cancelled))
 
     def _mark_latency(self, stage: str) -> None:
         if self.latency_stage is not None:
@@ -709,6 +804,8 @@ class FridayVoiceConversationService:
         chunks: Iterator[PiperAudioChunk] | None = None,
         streaming: bool = False,
         cancel_event: threading.Event | None = None,
+        event_text: Callable[[], str] | None = None,
+        event_metadata: Callable[[], dict[str, object]] | None = None,
     ) -> VoiceUtterance | None:
         synthesizer = (
             self.speech_synthesizer
@@ -776,7 +873,8 @@ class FridayVoiceConversationService:
                 ._play_with_barge_in(
                     chunks
                     if chunks is not None
-                    else synthesizer.stream(spoken_text)
+                    else synthesizer.stream(spoken_text),
+                    cancel_event=cancel_event,
                 )
             )
 
@@ -974,6 +1072,10 @@ class FridayVoiceConversationService:
 
             return None
 
+        delivery_metadata = {
+            **metadata,
+            **(event_metadata() if event_metadata is not None else {}),
+        }
         self.runtime.emit(
             FridayEventType
             .VOICE_SPEECH_COMPLETED,
@@ -981,8 +1083,8 @@ class FridayVoiceConversationService:
                 FridayRuntimeState
                 .SPEAKING
             ),
-            text=spoken_text,
-            metadata=metadata,
+            text=(normalize_speech_text(event_text()) if event_text is not None else spoken_text),
+            metadata=delivery_metadata,
         )
 
         self.runtime.transition(
@@ -1000,6 +1102,8 @@ class FridayVoiceConversationService:
         chunks: Iterator[
             PiperAudioChunk
         ],
+        *,
+        cancel_event: threading.Event | None = None,
     ) -> tuple[
         SpeechPlaybackResult,
         BargeInResult | None,
@@ -1018,7 +1122,13 @@ class FridayVoiceConversationService:
             self.barge_in_monitor
         )
 
-        if monitor is None:
+        conversation = getattr(self.conversation, "inner", self.conversation)
+        action_service = getattr(conversation, "voice_computer_actions", None)
+        active_stop_listener = bool(
+            getattr(action_service, "active_task_stop_listener_running", False)
+        )
+
+        if monitor is None or active_stop_listener:
             return (
                 player.play(
                     chunks
@@ -1082,6 +1192,12 @@ class FridayVoiceConversationService:
                 while True:
                     result = monitor.capture_interruption()
                     passes += 1
+                    if result.triggered and cancel_event is not None:
+                        # Stop asking the model for more text as soon as the
+                        # trusted monitor confirms barge-in. Waiting for the
+                        # playback worker to unwind leaves a small window in
+                        # which another model chunk can be generated.
+                        cancel_event.set()
                     completed = not player.is_playing
                     if (
                         result.triggered

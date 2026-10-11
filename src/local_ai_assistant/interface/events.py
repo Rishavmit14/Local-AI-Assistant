@@ -32,6 +32,9 @@ class FridayEventType(StrEnum):
     COMPUTER_TASK_STARTED = "computer.task.started"
     COMPUTER_TASK_COMPLETED = "computer.task.completed"
     COMPUTER_TASK_FAILED = "computer.task.failed"
+    COMPUTER_TASK_AWAITING_CLARIFICATION = "computer.task.awaiting_clarification"
+    COMPUTER_TASK_CLARIFICATION_DELIVERED = "computer.task.clarification_delivered"
+    COMPUTER_TASK_CLARIFICATION_DELIVERY_FAILED = "computer.task.clarification_delivery_failed"
 
     PLANNING_STARTED = "planning.started"
     PLANNING_COMPLETED = "planning.completed"

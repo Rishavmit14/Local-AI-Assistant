@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable, Iterator, Mapping
 from typing import Protocol
 
@@ -166,6 +167,17 @@ class FridayConversationService:
         # attached record. Intent shortcuts must not answer without seeing it.
         route = self.capability_router.route(prompt) if self.capability_router and not attachments else None
         self._mark("CONVERSATION_ROUTING_COMPLETE")
+        pending_clarification = False
+        if voice_origin and self.voice_computer_actions is not None:
+            pending_check = getattr(self.voice_computer_actions, "has_pending_clarification", None)
+            pending_clarification = bool(pending_check()) if callable(pending_check) else False
+        if pending_clarification:
+            self.last_voice_action_selected = True
+            self._mark("VOICE_CLARIFICATION_RESPONSE_ROUTE_SELECTED")
+            yield from self._stream_voice_computer_action(
+                prompt, None, clarification_response=True,
+            )
+            return
         voice_intent = (
             self.voice_intent_router.classify(prompt, capability_route=route)
             if voice_origin else None
@@ -179,7 +191,7 @@ class FridayConversationService:
             if voice_intent is not None and voice_intent.kind in {
                 FridayVoiceIntentType.COMPUTER_ACTION,
                 FridayVoiceIntentType.FRIDAY_INTERNAL_NAVIGATION,
-            } and voice_intent.open_command is not None:
+            } and (voice_intent.open_command is not None or voice_intent.computer_goal is not None):
                 if self.voice_computer_actions is None:
                     yield "Local computer control is not available in this voice session."
                     return
@@ -473,7 +485,8 @@ class FridayConversationService:
                 reason="conversation_completed",
             )
 
-    def _stream_voice_computer_action(self, prompt: str, command: OpenCommand) -> Iterator[str]:
+    def _stream_voice_computer_action(self, prompt: str, command: OpenCommand | None, *,
+                                      clarification_response: bool = False) -> Iterator[str]:
         """Use conversation events/session with the pre-model computer fast path."""
         self.session.begin()
         self.session.append("Owner", prompt)
@@ -483,9 +496,17 @@ class FridayConversationService:
                           state=FridayRuntimeState.THINKING)
         parts: list[str] = []
         try:
-            for chunk in self.voice_computer_actions.stream_response(
-                prompt, command, mark=self._mark,
-            ):
+            if clarification_response:
+                stream = self.voice_computer_actions.stream_clarification_response(
+                    prompt, mark=self._mark,
+                    progress=lambda stage, **details: self._mark(stage, **details),
+                )
+            else:
+                stream = self.voice_computer_actions.stream_response(
+                    prompt, command, mark=self._mark,
+                    progress=lambda stage, **details: self._mark(stage, **details),
+                )
+            for chunk in stream:
                 if not chunk:
                     continue
                 parts.append(chunk)
@@ -508,14 +529,42 @@ class FridayConversationService:
                                     reason="voice_computer_action_completed")
         self._mark("VOICE_FAST_PATH_COMPLETE")
 
+    def cancel_active_voice_action(self) -> bool:
+        """Propagate a closed response stream to an in-flight computer task."""
+        if self.voice_computer_actions is None:
+            return False
+        return self.voice_computer_actions.cancel_active()
+
+    def complete_voice_action_after_playback(self) -> bool:
+        """Finalize task success only after the owner heard Friday's result."""
+        if self.voice_computer_actions is None:
+            return False
+        callback = getattr(self.voice_computer_actions, "complete_after_playback", None)
+        return bool(callback()) if callable(callback) else False
+
+    def fail_voice_action_after_playback(self, *, cancelled: bool = False) -> bool:
+        """Keep a task incomplete when its spoken result did not finish."""
+        if self.voice_computer_actions is None:
+            return False
+        callback = getattr(self.voice_computer_actions, "fail_after_playback", None)
+        return bool(callback(cancelled=cancelled)) if callable(callback) else False
+
     def _mark(self, stage: str, **details: object) -> None:
         if details and self.latency_detail is not None:
-            numeric_details: dict[str, int | float] = {}
+            numeric_details: dict[str, int | float] = {
+                name: value for name, value in details.items()
+                if isinstance(name, str) and type(value) in {int, float}
+                and math.isfinite(float(value))
+            }
             sections = details.get("sections")
             if isinstance(sections, dict):
-                numeric_details = {f"section_characters_{name}": int(value) for name, value in sections.items()}
-            self.latency_detail(stage, numeric_details)
-            return
+                numeric_details.update({f"section_characters_{name}": int(value)
+                                        for name, value in sections.items()
+                                        if isinstance(name, str) and type(value) in {int, float}
+                                        and math.isfinite(float(value))})
+            if numeric_details:
+                self.latency_detail(stage, numeric_details)
+                return
         if self.latency_stage is not None:
             self.latency_stage(stage)
 

@@ -50,6 +50,7 @@ from local_ai_assistant.voice import (
     WhisperTranscript,
 )
 from local_ai_assistant.voice.pocket_runtime import PocketSpeechSynthesizer
+from local_ai_assistant.voice.wake import normalize_wake_text
 from local_ai_assistant.voice.wake_capture import WakeCaptureError
 from local_ai_assistant.voice.wake_runtime import WakeRuntimeError
 
@@ -57,6 +58,8 @@ from .conversation import FridayConversationService
 from .interaction import FridayInteractionCoordinator, FridayInteractionLease
 from .runtime import FridayRuntime
 from .voice_conversation import FridayVoiceConversationService
+
+_ACTIVE_STOP_CAPTURE_READY_TIMEOUT_SECONDS = 3.0
 
 PROJECT_ROOT = (
     Path(__file__)
@@ -162,6 +165,7 @@ class VoiceTurnTelemetry:
             "ASR_FINAL",
             "VOICE_INTENT_RESOLVED",
             "VOICE_ACTION_ROUTE_SELECTED",
+            "VOICE_ACTION_ACKNOWLEDGMENT_READY",
             "VOICE_ACTION_DISPATCHED",
             "VOICE_ACTION_VERIFIED",
             "VOICE_ACTION_FAILED",
@@ -184,6 +188,18 @@ class VoiceTurnTelemetry:
             "SCREEN_ANSWER_FIRST_CHUNK",
             "SCREEN_ANSWER_FIRST_AUDIO_AVAILABLE",
             "VOICE_SCREEN_RESPONSE_READY",
+            "AGENCY_PLAN_BEGIN",
+            "AGENCY_PLAN_READY",
+            "AGENCY_ACTION_START",
+            "AGENCY_ACTION_COMPLETE",
+            "AGENCY_OBSERVATION_COMPLETE",
+            "AGENCY_FINAL_VERIFICATION",
+            "AGENCY_SEARCH_VERIFIED",
+            "AGENCY_SEARCH_RESULT_OPENED",
+            "AGENCY_SEMANTIC_TARGET_UNAVAILABLE",
+            "AGENCY_CONTEXT_ACTION_VERIFIED",
+            "AGENCY_VLM_FALLBACK_BEGIN",
+            "AGENCY_VLM_FALLBACK_COMPLETE",
             "PROMPT_ASSEMBLY_BEGIN",
             "CONVERSATION_ROUTING_BEGIN",
             "CONVERSATION_ROUTING_COMPLETE",
@@ -472,6 +488,21 @@ class InstrumentedConversation:
         """Expose action-route selection so voice latency telemetry can close."""
         return bool(getattr(self.inner, "last_voice_action_selected", False))
 
+    def complete_voice_action_after_playback(self) -> bool:
+        """Finalize a computer task after the wrapped voice result is played."""
+        callback = getattr(self.inner, "complete_voice_action_after_playback", None)
+        return bool(callback()) if callable(callback) else False
+
+    def fail_voice_action_after_playback(self, *, cancelled: bool = False) -> bool:
+        """Forward failed or cancelled playback so tasks do not remain active."""
+        callback = getattr(self.inner, "fail_voice_action_after_playback", None)
+        return bool(callback(cancelled=cancelled)) if callable(callback) else False
+
+    def cancel_active_voice_action(self) -> bool:
+        """Forward strict busy-task Stop to the currently streamed task only."""
+        callback = getattr(self.inner, "cancel_active_voice_action", None)
+        return bool(callback()) if callable(callback) else False
+
 
     def stream_response(
         self,
@@ -685,6 +716,7 @@ class FridayManagedWakeVoice:
         recovery_initial_seconds: float = 1.0,
         recovery_max_seconds: float = 30.0,
         interactions: FridayInteractionCoordinator | None = None,
+        active_task_stop_handler: Callable[[str, str], bool] | None = None,
     ) -> None:
 
         if not (
@@ -699,6 +731,8 @@ class FridayManagedWakeVoice:
         self._capture_status = "stopped"
         self._recovery_count = 0
         self.interactions = interactions or FridayInteractionCoordinator()
+        self._active_task_id: str | None = None
+        self._active_task_stop_handler = active_task_stop_handler
 
         self.wake_capture = (
             wake_capture
@@ -910,6 +944,24 @@ class FridayManagedWakeVoice:
         lease = self.interactions.try_acquire("voice")
         if lease is None:
             owner = self.interactions.snapshot().owner
+            with self._lock:
+                task_id = self._active_task_id
+                stop_handler = self._active_task_stop_handler
+            if (owner == "voice" and task_id is not None
+                    and callable(stop_handler)
+                    and normalize_wake_text(event.result.remainder) == "stop"):
+                self.wake_capture.pause()
+                self.telemetry.mark("ACTIVE_TASK_STOP_WAKE_ACCEPTED")
+                try:
+                    if stop_handler(task_id, event.result.remainder):
+                        self.telemetry.mark("ACTIVE_TASK_STOP_CANCELLED")
+                        return
+                except Exception as exc:
+                    self.telemetry.mark(
+                        f"ACTIVE_TASK_STOP_FAILED error_type={type(exc).__name__}"
+                    )
+                self.wake_capture.resume()
+                return
             self.telemetry.mark(f"WAKE_REJECTED_BUSY owner={owner}")
             return
 
@@ -989,6 +1041,46 @@ class FridayManagedWakeVoice:
                     lease.release()
 
                 raise
+
+    def start_active_task_stop_listener(self, task_id: str) -> None:
+        """Resume strict wake detection and wait until its microphone path is armed."""
+        if not task_id or len(task_id) > 128:
+            raise ValueError("active computer task identity is invalid")
+        with self._lock:
+            if self._closing.is_set():
+                raise RuntimeError("Friday managed wake voice is closing")
+            if self._active_task_id not in {None, task_id}:
+                raise RuntimeError("another computer task already owns Stop capture")
+            self._active_task_id = task_id
+        try:
+            self.wake_capture.resume()
+            health = getattr(self.wake_capture, "health", None)
+            if not callable(health):
+                raise RuntimeError("active task Stop capture readiness is unavailable")
+            deadline = time.monotonic() + _ACTIVE_STOP_CAPTURE_READY_TIMEOUT_SECONDS
+            while True:
+                status = health()
+                if isinstance(status, dict) and status.get("wake_path_armed") is True:
+                    break
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("active task Stop capture did not become ready")
+                time.sleep(0.025)
+        except BaseException:
+            with self._lock:
+                if self._active_task_id == task_id:
+                    self._active_task_id = None
+            self.wake_capture.pause()
+            raise
+        self.telemetry.mark("ACTIVE_TASK_STOP_LISTENER_ARMED")
+
+    def stop_active_task_stop_listener(self, task_id: str) -> None:
+        """Return capture ownership to the enclosing voice session."""
+        with self._lock:
+            if self._active_task_id != task_id:
+                return
+            self._active_task_id = None
+        self.wake_capture.pause()
+        self.telemetry.mark("ACTIVE_TASK_STOP_LISTENER_PAUSED")
 
     def pause_for_presentation(self) -> None:
         self.wake_capture.pause()
@@ -1534,6 +1626,7 @@ def build_managed_wake_voice(
             telemetry=telemetry,
             aec_session=aec_session,
             interactions=interactions,
+            active_task_stop_handler=voice.handle_active_task_stop,
         )
     )
 

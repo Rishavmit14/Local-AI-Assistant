@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
+import os
+import re
 import shutil
 import sqlite3
+import stat
 import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -41,6 +45,15 @@ class ScreenUiState:
     character_count: int
     evidence: tuple[str, ...]
     source: str = "deterministic-ocr-ui-state"
+
+
+@dataclass(frozen=True, slots=True)
+class ScreenLabelLocation:
+    """Local OCR geometry for one exact semantic label; never execution authority."""
+
+    label: str
+    bounds: tuple[int, int, int, int]
+    confidence: float
 
 
 class ScreenCaptureService:
@@ -216,6 +229,162 @@ print(json.dumps({'uri': state['response']}))
         if exists is None or not image_path.is_file():
             raise ValueError("capture is unavailable")
         return image_path
+
+    def locate_visible_labels(
+        self, capture_id: str, labels: tuple[str, ...], *, minimum_confidence: float = 45.0,
+        window_bounds: tuple[int, int, int, int] | None = None,
+        expected_screen_size: tuple[int, int] | None = None,
+    ) -> dict[str, ScreenLabelLocation]:
+        """Return only exact requested-label boxes from a retained local capture.
+
+        OCR text remains untrusted and is never returned wholesale. The caller
+        supplies semantic labels from a fresh AT-SPI observation; OCR contributes
+        geometry for ordering only.
+        """
+        if (not isinstance(labels, tuple) or not 1 <= len(labels) <= 200
+                or any(not isinstance(label, str) or not label.strip() or len(label) > 256
+                       for label in labels)
+                or not math.isfinite(minimum_confidence)
+                or not 0.0 <= minimum_confidence <= 100.0):
+            raise ValueError("screen label request is invalid")
+        if (window_bounds is None) != (expected_screen_size is None):
+            raise ValueError("window crop geometry is incomplete")
+        if window_bounds is not None and (
+            not isinstance(window_bounds, tuple) or len(window_bounds) != 4
+            or any(type(value) is not int for value in window_bounds)
+            or window_bounds[0] < 0 or window_bounds[1] < 0
+            or window_bounds[2] < 1 or window_bounds[3] < 1
+            or not isinstance(expected_screen_size, tuple) or len(expected_screen_size) != 2
+            or any(type(value) is not int or value < 1 for value in expected_screen_size)
+        ):
+            raise ValueError("window crop geometry is invalid")
+        requested = {self._normalize_label(label): label for label in labels}
+        if len(requested) != len(labels):
+            raise ValueError("screen label request is ambiguous")
+        image_path = self.image_path_for_local_processing(capture_id)
+        try:
+            import pytesseract
+            from PIL import Image, ImageOps
+            from pytesseract import Output
+        except ImportError as exc:
+            raise RuntimeError("local OCR dependencies are unavailable") from exc
+        with Image.open(image_path) as source:
+            width, height = source.size
+            if width <= 0 or height <= 0 or width * height > 40_000_000:
+                raise RuntimeError("local screen image dimensions are invalid")
+            origin_x = origin_y = 0
+            if window_bounds is not None:
+                left, top, crop_width, crop_height = window_bounds
+                if (source.size != expected_screen_size
+                        or left + crop_width > width or top + crop_height > height):
+                    raise RuntimeError("active window geometry does not match the fresh screen capture")
+                origin_x, origin_y = left, top
+                source = source.crop((left, top, left + crop_width, top + crop_height))
+            image = ImageOps.autocontrast(ImageOps.grayscale(source)).resize(
+                (source.width * 2, source.height * 2),
+            )
+        label_tokens = {key: tuple(key.split()) for key in requested}
+        best_locations: dict[str, ScreenLabelLocation] = {}
+        for page_segmentation_mode in (11, 6, 4, 3):
+            rows = pytesseract.image_to_data(
+                image, lang="eng", config=f"--psm {page_segmentation_mode}",
+                output_type=Output.DICT,
+            )
+            grouped: dict[
+                tuple[int, int, int, int],
+                list[tuple[str, int, int, int, int, float]],
+            ] = {}
+            for index, raw in enumerate(rows.get("text", ())):
+                word = " ".join(str(raw).split())
+                if not word:
+                    continue
+                try:
+                    confidence = float(rows["conf"][index])
+                    left = int(rows["left"][index])
+                    top = int(rows["top"][index])
+                    word_width = int(rows["width"][index])
+                    word_height = int(rows["height"][index])
+                    key = (int(rows["block_num"][index]), int(rows["par_num"][index]),
+                           int(rows["line_num"][index]), int(rows["page_num"][index]))
+                except (KeyError, TypeError, ValueError, IndexError):
+                    continue
+                if confidence < minimum_confidence or word_width <= 0 or word_height <= 0:
+                    continue
+                grouped.setdefault(key, []).append(
+                    (word, left, top, word_width, word_height, confidence),
+                )
+            matches: dict[str, list[ScreenLabelLocation]] = {
+                key: [] for key in requested
+            }
+            for words in grouped.values():
+                tokens = [
+                    (token, word_index)
+                    for word_index, word in enumerate(words)
+                    for token in self._normalize_label(word[0]).split()
+                ]
+                for key, expected_tokens in label_tokens.items():
+                    for start in range(len(tokens) - len(expected_tokens) + 1):
+                        span = tokens[start:start + len(expected_tokens)]
+                        if tuple(item[0] for item in span) != expected_tokens:
+                            continue
+                        matched_words = [
+                            words[index] for index in sorted({item[1] for item in span})
+                        ]
+                        left = origin_x + min(word[1] for word in matched_words) // 2
+                        top = origin_y + min(word[2] for word in matched_words) // 2
+                        right = origin_x + max(
+                            word[1] + word[3] for word in matched_words
+                        ) // 2
+                        bottom = origin_y + max(
+                            word[2] + word[4] for word in matched_words
+                        ) // 2
+                        confidence = sum(
+                            word[5] for word in matched_words
+                        ) / len(matched_words)
+                        matches[key].append(ScreenLabelLocation(
+                            requested[key], (left, top, max(1, right - left),
+                                             max(1, bottom - top)), confidence,
+                        ))
+            locations = {
+                requested[key]: values[0] for key, values in matches.items()
+                if len(values) == 1
+            }
+            if len(locations) == len(requested):
+                return locations
+            if len(locations) > len(best_locations):
+                best_locations = locations
+        return best_locations
+
+    def discard_temporary_capture(self, capture_id: str) -> bool:
+        """Delete one transient desktop screenshot after local geometry work."""
+        if not isinstance(capture_id, str) or not re.fullmatch(
+            r"screen_[a-f0-9]{32}", capture_id,
+        ):
+            raise ValueError("screen capture identity is invalid")
+        image_path = self.capture_dir / f"{capture_id}.png"
+        with self._db() as db:
+            row = db.execute(
+                "SELECT source FROM captures WHERE capture_id=?", (capture_id,),
+            ).fetchone()
+            if row is None:
+                return False
+            if row[0] not in {"gnome-shell-screenshot", "desktop-screenshot-portal"}:
+                raise ValueError("only transient desktop captures may be discarded")
+            try:
+                info = image_path.lstat()
+            except FileNotFoundError:
+                info = None
+            if info is not None:
+                if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                        or stat.S_IMODE(info.st_mode) != 0o600):
+                    raise RuntimeError("transient screen capture is not a private regular file")
+                image_path.unlink()
+            db.execute("DELETE FROM captures WHERE capture_id=?", (capture_id,))
+        return True
+
+    @staticmethod
+    def _normalize_label(value: str) -> str:
+        return " ".join(re.findall(r"[a-z0-9]+", value.casefold()))
 
     def recent(self, limit: int = 20) -> tuple[ScreenCapture, ...]:
         if not 1 <= limit <= 100:

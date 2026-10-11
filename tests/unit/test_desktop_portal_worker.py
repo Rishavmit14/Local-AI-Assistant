@@ -67,6 +67,47 @@ def test_worker_action_requires_exact_executed_acknowledgment(tmp_path, monkeypa
         client.command({"command": "key", "keysym": 65, "pressed": True})
 
 
+@pytest.mark.parametrize(
+    ("led_mask", "expected"),
+    (
+        ("00000000", [
+            (ord("a"), True), (ord("a"), False),
+            (0xffe1, True), (ord("a"), True), (ord("a"), False), (0xffe1, False),
+        ]),
+        ("00000001", [
+            (0xffe1, True), (ord("a"), True), (ord("a"), False), (0xffe1, False),
+            (ord("a"), True), (ord("a"), False),
+        ]),
+    ),
+)
+def test_type_text_preserves_requested_case_with_caps_lock_state(monkeypatch, led_mask, expected):
+    instance = object.__new__(PortalRemoteDesktop)
+    calls = []
+    instance.key = lambda keysym, pressed: calls.append((keysym, pressed))
+    monkeypatch.setattr(
+        portal_worker.subprocess, "run",
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stdout=f"LED mask: {led_mask}"),
+    )
+
+    instance.type_text("aA")
+
+    assert calls == expected
+
+
+def test_type_text_fails_closed_when_keyboard_lock_state_cannot_be_read(monkeypatch):
+    instance = object.__new__(PortalRemoteDesktop)
+    calls = []
+    instance.key = lambda keysym, pressed: calls.append((keysym, pressed))
+    monkeypatch.setattr(
+        portal_worker.subprocess, "run",
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout=""),
+    )
+
+    with pytest.raises(RuntimeError, match="keyboard lock state is unavailable"):
+        instance.type_text("a")
+    assert calls == []
+
+
 def portal(store, start_results):
     instance = object.__new__(PortalRemoteDesktop)
     instance.store = store

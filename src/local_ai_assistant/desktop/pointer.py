@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 
 from .observation import AccessibleElement
 from .portal_client import PortalDesktopClient
@@ -20,9 +21,19 @@ _screen, x, y = display.get_default_seat().get_pointer().get_position()
 print(json.dumps([x, y]))
 """
 
-    def __init__(self, portal: PortalDesktopClient, *, runner=subprocess.run) -> None:
+    def __init__(self, portal: PortalDesktopClient, *, runner=subprocess.run,
+                 movement_timeout_seconds: float = 0.25,
+                 poll_interval_seconds: float = 0.01,
+                 sleep=time.sleep, clock=time.monotonic) -> None:
+        if (not 0 < movement_timeout_seconds <= 2
+                or not 0 < poll_interval_seconds <= movement_timeout_seconds):
+            raise ValueError("pointer movement timing is invalid")
         self.portal = portal
         self._runner = runner
+        self._movement_timeout_seconds = movement_timeout_seconds
+        self._poll_interval_seconds = poll_interval_seconds
+        self._sleep = sleep
+        self._clock = clock
 
     def position(self) -> tuple[int, int]:
         result = self._runner(["/usr/bin/python3", "-I", "-c", self._POSITION_SCRIPT],
@@ -53,9 +64,14 @@ print(json.dumps([x, y]))
                 return
             self.portal.command({"command": "move_relative", "dx": max(-500, min(500, dx)),
                                  "dy": max(-500, min(500, dy))})
-            next_position = self.position()
-            if next_position == current:
-                raise RuntimeError("pointer did not move")
+            deadline = self._clock() + self._movement_timeout_seconds
+            while True:
+                self._sleep(self._poll_interval_seconds)
+                next_position = self.position()
+                if next_position != current:
+                    break
+                if self._clock() >= deadline:
+                    raise RuntimeError("pointer did not move")
             current = next_position
         raise RuntimeError("pointer target could not be reached")
 

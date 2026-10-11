@@ -8,6 +8,13 @@ Voice is an input/output surface and has no privileged path around Friday's nati
 
 `microphone -> Whisper STT -> local Qwen streaming -> selected local TTS -> PipeWire playback`
 
+
+When whisper.cpp is configured for CUDA and returns a nonzero result whose
+stderr explicitly identifies CUDA out-of-memory, Friday removes any partial
+transcript output and retries that same utterance once with `--no-gpu`. Other
+CLI errors, timeouts, and CPU fallback failures remain fail-closed. This keeps
+Whisper local while allowing it to yield VRAM to the general-purpose model.
+
 ## Owner-machine TTS selection
 
 Piper remains the fail-safe default. An explicit
@@ -136,6 +143,40 @@ Parakeet and Moonshine run as persistent fail-closed subprocess workers. Request
 
 Stage 12 accepted a one-turn wake lifecycle. Stage 22 Slice 1 extends it without replacing its components: on wake, capture pauses; a bounded active session runs the initial and sequential fresh follow-up turns; exact explicit stop, a deliberate close, failure, or the configured idle deadline clears that session and resumes wake capture.
 
+### Candidate Probe 5 capture/VAD boundary observation (2026-10-10)
+
+The production wake bootstrap requests ALSA `default` PCM as S16LE, 16 kHz,
+mono, in 32 ms (512-sample) chunks. On the current owner session, PipeWire's
+built-in HDA Intel PCH / Realtek ALC898 `Internal Microphone` source runs at
+S32LE, 48 kHz, stereo and converts to the negotiated Friday stream format. The
+source is unmuted at 0.50 volume; the selected physical source is the built-in
+mic, and whether it matches the Owner's intended mic is not yet confirmed.
+
+Wake uses the local Silero ONNX VAD with a default probability threshold of
+0.50. Each signed little-endian int16 frame is normalized to float32. The
+segmenter requires 3 consecutive VAD-positive frames (96 ms) to start, 6
+positive frames (192 ms) to retain an utterance, and 19 silent frames (608 ms)
+to finish it. The energy thresholds in `VoiceVadConfig` apply to the alternate
+`PcmEnergyVad`; they do not decide speech in the active Silero path. Capture
+health exposes frame and VAD counts but not per-frame RMS or Silero probability.
+The Owner later confirmed no required command was spoken during the 2026-10-09
+window; preserve its zero-VAD counters as an unused request window, not evidence
+of an audio defect. In a later coordinated 2026-10-10 attempt, a real wake was
+accepted, an utterance reached Whisper, and ASR was classified as the expected
+folder command. This demonstrates the live capture/VAD/wake/ASR path handled
+that physical utterance. The task failed before target binding. Because that
+process's runner source and gate state were not captured, the earlier claim
+that the candidate gate was absent from the imported runtime was unsupported.
+No audio or raw transcript is saved, and no audio settings or thresholds were
+changed.
+
+The later physical Probe 5 run accepted wake, recorded one utterance and 22
+VAD speech frames, and recognized the expected folder-command class. Friday
+completed the final speech segment (event sequence 21) before the durable
+computer-task completion event (sequence 23). The watcher misclassified this
+valid ordering as `final_response_not_played`; the Owner confirmed hearing the
+successful result. No audio or raw transcript was retained.
+
 ## Stage 22 Slice 1 — bounded active voice session
 
 `FridayWakeVoiceOrchestrator` remains the exclusive owner of wake/capture lifecycle. After a completed turn it opens one fresh raw-microphone follow-up capture at a time (default idle allowance: 60 seconds, configurable from 15 to 300 seconds). Wake remains paused throughout the active session, so the design does not introduce competing microphone readers. The session controller retains at most 16 turns / 12,000 characters for conversational grounding and clears them on close; it does not persist audio or a transcript.
@@ -144,7 +185,7 @@ Exact `stop`, `friday stop`, and `hey friday stop` retain their accepted meaning
 
 ## Deployment
 
-The accepted always-on runtime uses the user-session systemd unit `friday-local-ai.service` with `LOCAL_AI_WAKE_ENABLED=true` and `LOCAL_AI_WAKE_PHRASE=hey friday`. A sanitized example is tracked under `config/services/`.
+The accepted always-on runtime uses the user-session systemd unit `friday-local-ai.service` with `LOCAL_AI_WAKE_ENABLED=true` and `LOCAL_AI_WAKE_PHRASE=hey friday`. A sanitized example is tracked under `config/services/`. Both Friday user units are enabled for `default.target` login activation. The vision-cortex unit must not declare `After=default.target`, because it is itself wanted by that target and would create an ordering cycle through Friday. Friday declares `Wants=` and `After=friday-vision-cortex.service`; the cortex unit holds its start job until its loopback `/health` endpoint succeeds, bounded by `TimeoutStartSec=300s`. On 2026-10-08 both user services were stopped and only Friday was started. Systemd brought the cortex to HTTP-ready first; cortex and Friday health both returned `status: ok`, and voice capture reached `listening` with no active turn/error. Both units remained enabled for `default.target`, and `systemd-analyze --user verify` passed apart from an unrelated installed `spice-vdagent.service` warning. This exercises automatic dependency startup without manually starting the cortex. No fresh logout/login or reboot was performed, so activation after a new login remains unobserved.
 
 ## Barge-in
 
@@ -203,9 +244,11 @@ unbounded always-on memory cost; structured service-journal records remain the
 external operational evidence.
 
 The telemetry conversation wrapper forwards the inner conversation's
-`last_voice_action_selected` flag. Voice action turns therefore retain their
-content-free timing record through completed speech instead of losing the
-completion stage at the instrumentation boundary.
+`last_voice_action_selected` flag and the post-playback success/failure
+callbacks. A voice computer task becomes durably successful only after the
+final result finishes playback; interrupted or failed playback keeps the task
+incomplete. Each wrapper around the conversation must preserve these lifecycle
+callbacks as well as the route-selection flag.
 
 Piper's persistent worker reader uses a bounded 128-event protocol queue. It
 applies backpressure during an abnormal event flood, while reader retirement
@@ -339,6 +382,27 @@ without blocking shutdown and applies backpressure rather than dropping text.
 Piper, playback, barge-in, explicit stop and wake-resume ownership remain at their
 existing boundaries.
 
+## Probe 4 — clarification and final-response playback (candidate)
+
+The existing streaming speech path keeps the quick acknowledgment and every
+subsequent complete sentence in one ordered queue and one PipeWire playback
+call. `VOICE_SPEECH_COMPLETED` now reports the normalized text for all queued
+segments, with their response roles, rather than only the first sentence.
+Acknowledgment remains separate from a final result: a computer task is
+recorded as completed only after the playback callback, while a clarification
+is recorded as delivered only after that same callback returns. Failed playback
+does not mark a clarification delivered or a computer task successful.
+
+The physical Probe 4 trace showed the full clarification in the conversation
+completion event and three completed Pocket/Anna synthesis requests in one
+PipeWire call, while the speech-completion event text contained only the
+acknowledgment. The Owner reported hearing only that acknowledgment. The trace
+proves the event-text accounting defect, but not the acoustic content at the
+speaker. Controlled Pocket/Anna playback through PipeWire completed both a
+clarification and a terminal failure response after the acknowledgment; there
+was no microphone capture or acoustic loopback in that check. Physical voice
+qualification remains open.
+
 ## Session 2 — live screen questions
 
 The normal microphone turn router classifies direct visual/deictic questions
@@ -361,3 +425,99 @@ through playback completion (39.9s visual inference, 55.2s to Qwen's first
 token). The latency is correct but not conversational; the live-vision route
 must keep its honest acknowledgement/failure behavior while latency work
 continues.
+
+
+## Milestone C Probe 6 — Stop during an active computer task (candidate)
+
+**Current physical result — Session 13: PASSED.** The post-READY physical retry
+bound task `a623b966f5094866b124e794ddf4fea0` to its live voice request, verified
+one create action for `/home/kumar-rishav/Downloads/copper groove`, and held
+Files `open_location` at the dynamic boundary. Friday registered the real
+wake-prefixed active-task Stop event, live wake counters advanced, and durable
+cancellation was recorded 3.94 ms later as `cancelled_before_dispatch`. The task
+ended `cancelled` with no navigation release, success event, or API/harness
+cancellation. The STOP-NOW cue was closed after the window. The created directory and identity `[2050, 2514261,
+1000]` are preserved. The persisted request/action used lowercase `copper
+groove`, although GO specified `Copper Grove`; no audio or request text was copied
+into probe evidence, and the normal task-history record retains its request
+field, so the source is unknown. This proves Stop cancellation rather than
+name fidelity. Cleanup restored capture listening and wake, Pocket/Anna, healthy
+Qwen/vision, no active tasks, and an unloaded gate. Private correlation
+and cleanup evidence are under
+`/home/kumar-rishav/.local/state/friday-general-computer-agency/probe-attempts/probe6-owner-confirmed-retry-20261011T075932Z/`.
+Milestone C remains PARTIAL pending full acceptance and recovery gates.
+
+
+An owner-bound voice computer task arms the existing strict wake capture before
+its acknowledgment and keeps one capture reader through the final response.
+While the task owns the voice interaction, only the exact busy wake remainder
+`stop` routes to the active task's cancellation path. It does not wait for Qwen
+planning. Stop durably requests cancellation, interrupts current speech when
+needed, and prevents later task steps from reaching the actor. The separate
+playback barge-in reader is not run concurrently against the same microphone;
+normal barge-in remains covered when the active-task Stop reader does not own
+capture. The active-task test uses the actual configured `hey friday` prefix,
+so its spoken Stop phrase is “Hey Friday, stop.” Playback completion cannot
+turn a cancelled task into success.
+
+Focused regressions and controlled real-desktop cancellation passed. A later
+live controlled task bound dynamically to its actual `Silver Birch` Downloads
+child, verified the create action, reached the external arm acknowledgment,
+and was cancelled through the authenticated local Owner API. Files navigation
+was suppressed and the directory was preserved. This controlled cancellation
+did not observe physical voice Stop.
+
+The earlier 2026-10-11 physical window admitted a voice-origin task, but the
+stored folder name differed from the qualification gate's then-fixed request.
+The gate did not expose its Stop boundary; the task completed normally, and no
+active-task Stop event or cancellation was recorded. The cause is unknown
+because raw audio was not retained. The candidate now derives the target from
+the validated plan.
+
+The earlier authorized dynamic physical window reached the armed boundary
+for task `3d81f020bb26444195414d7d73226d5`, verified the created
+`/home/kumar-rishav/Downloads/blue lantern` directory, and held Files navigation
+after issuing STOP-NOW. During the 90-second Stop window no exact Stop event was
+recorded and strict-wake counters did not advance. The gate timed out closed;
+the task failed with one verified create action, no navigation release, and no
+success event. No audio or raw transcript was retained. The Owner later
+confirmed: “No, I did not say ‘Friday, stop’ during the 90-second Probe 6
+hold.” The Stop window was unused; the missing event is consistent with that
+confirmation and is not evidence of a microphone, wake, recognition, barge-in,
+or cancellation defect. That earlier Stop window remains **INCONCLUSIVE**; the subsequent Session 13 physical retry recorded above passed.
+The folder and all earlier probe folders remain preserved. The temporary gate
+was removed and cleanup restored normal candidate service at PID 34757, with
+capture listening, wake armed, healthy Qwen/vision, and no active task.
+The Owner confirmed Stop was not spoken and requested one coordinated retry
+after explicit READY; do not arm before readiness. At that earlier checkpoint Probe 6 remained unqualified; the later retry passed.
+Evidence is under
+`/home/kumar-rishav/.local/state/friday-general-computer-agency/probe-attempts/probe6-dynamic-physical-20261011T043242Z/`.
+
+## Milestone C closure: active Stop and admitted filename fidelity (candidate)
+
+All six physical General Computer Agency journeys remain accepted. Probe 6
+task `a623b966f5094866b124e794ddf4fea0` proved that the real strict-wake
+`voice_explicit_stop_active_computer_task` event cancels the active task
+before the pending Files navigation action. The task is durably cancelled
+with `cancelled_before_dispatch`, no Files release, and no success event.
+The measured 3.94 ms is from recorded Stop-event processing to cancellation;
+audio capture, ASR and end-to-end spoken Stop latency were not included.
+Friday returned to listening. See the current qualification-matrix entry for
+post-restart readiness and regression results.
+
+The task's admitted request is the boundary available to the downstream
+planner: the planner now must preserve a create-directory target literally
+from that request, and filesystem verification records the exact path. This
+does not guarantee that spoken spelling or case reaches admission unchanged.
+Probe 6 GO said `Copper Grove`; the task and path say `copper groove`.
+Earlier `Friday Stop Canary` / `Friday Stop canry` evidence has the same
+uncertain origin. Raw audio/transcripts are unavailable, so these are
+admission-name fidelity limitations, not established ASR defects. Stop
+qualification remains accepted independently. No blanket capitalization
+rule or routine confirmation turn was added; a precise name should be
+spelled/clarified in the voice request when it matters.
+
+The closure candidate is ready for Owner publication approval. The project
+status remains PARTIAL until the separately authorized commit and remote
+recovery gates are complete. No reboot occurred; full cold-boot qualification
+remains PENDING.

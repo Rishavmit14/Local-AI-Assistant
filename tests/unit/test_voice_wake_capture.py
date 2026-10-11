@@ -63,6 +63,10 @@ class FakeDetector:
     ) -> str:
         return self.detector_name
 
+    @property
+    def is_started(self) -> bool:
+        return True
+
     def detect(
         self,
         utterance: VoiceUtterance,
@@ -91,6 +95,10 @@ class FakeStream:
 
         self.closed = False
         self.reads = 0
+
+    @property
+    def running(self) -> bool:
+        return not self.closed
 
 
     def read_chunk(
@@ -212,6 +220,7 @@ def test_completed_utterance_reaches_wake_supervisor(
     events: list[
         WakeCaptureEvent
     ] = []
+    live_health: list[dict[str, object]] = []
 
 
     loop = FridayAlwaysOnWakeCapture(
@@ -219,6 +228,7 @@ def test_completed_utterance_reaches_wake_supervisor(
         capture=capture,
         segmenter=make_segmenter(),
         on_wake=events.append,
+        on_result=lambda _event: live_health.append(loop.health()),
     )
 
 
@@ -245,6 +255,22 @@ def test_completed_utterance_reaches_wake_supervisor(
 
     assert capture.open_calls == 1
     assert stream.closed
+    health = loop.health()
+    assert health["stream_open"] is False
+    assert health["pcm_chunks_processed"] == len(one_utterance_chunks())
+    assert health["last_pcm_chunk_monotonic_ns"] is not None
+    assert health["last_pcm_chunk_age_ms"] >= 0
+    assert health["vad_speech_frames"] > 0
+    assert health["last_vad_activity_monotonic_ns"] is not None
+    assert health["wake_checks"] == 1
+    assert health["wake_rejections"] == 0
+    assert health["last_wake_decision"] == "accepted"
+    assert "transcript" not in health
+    assert live_health[0]["stream_open"] is True
+    assert live_health[0]["stream_running"] is True
+    assert live_health[0]["wake_detector_readiness_known"] is True
+    assert live_health[0]["wake_detectors_armed"] is True
+    assert live_health[0]["wake_path_armed"] is True
 
 
 def test_strict_primary_miss_uses_fallback(

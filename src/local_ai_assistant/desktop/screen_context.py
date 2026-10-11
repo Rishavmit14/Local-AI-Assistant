@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
+import os
+import re
 import sqlite3
+import subprocess
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Protocol
@@ -17,7 +21,11 @@ from local_ai_assistant.desktop.observation import (
     AccessibleElement,
     DesktopObservation,
 )
-from local_ai_assistant.perception.screen import ScreenCapture, ScreenCaptureService
+from local_ai_assistant.perception.screen import (
+    ScreenCapture,
+    ScreenCaptureService,
+    ScreenLabelLocation,
+)
 from local_ai_assistant.perception.vision_cortex import LocalVisionCortex, VisionCortexUnavailable
 from local_ai_assistant.perception.window import ActiveWindowContext, ActiveWindowService
 
@@ -373,6 +381,23 @@ class ScreenContextService:
         stage("SCREEN_CONTEXT_READY")
         return context
 
+    def locate_visible_labels(
+        self, labels: tuple[str, ...], *,
+        window_bounds: tuple[int, int, int, int] | None = None,
+        expected_screen_size: tuple[int, int] | None = None,
+    ) -> tuple[ScreenCapture, dict[str, ScreenLabelLocation]]:
+        """Get local OCR geometry for exact, freshly observed semantic labels only."""
+        capture = self.perception.capture_with_consent()
+        try:
+            locations = self.perception.locate_visible_labels(
+                capture.capture_id, labels, window_bounds=window_bounds,
+                expected_screen_size=expected_screen_size,
+            )
+        finally:
+            self.perception.discard_temporary_capture(capture.capture_id)
+        return capture, locations
+
+
     def _active_window(self) -> ActiveWindowContext:
         try:
             return self.active_window.current()
@@ -442,4 +467,247 @@ class ScreenContextService:
         }
 
 
-__all__ = ["ScreenContext", "ScreenContextAuditStore", "ScreenContextService"]
+@dataclass(frozen=True, slots=True)
+class X11WindowGeometry:
+    """Pixel bounds corroborated against one active, named AT-SPI window."""
+
+    window_id: str
+    bounds: tuple[int, int, int, int]
+    screen_size: tuple[int, int]
+    title: str
+    application_class: str
+
+
+class X11ActiveWindowGeometryService:
+    """Read current X11 window geometry without sending input or changing state."""
+
+    _WINDOW_ID = re.compile(r"window id # (0x[0-9a-fA-F]+)\s*$")
+    _GEOMETRY_FIELDS = {
+        "Absolute upper-left X": "x",
+        "Absolute upper-left Y": "y",
+        "Width": "width",
+        "Height": "height",
+    }
+
+    def __init__(self, *, runner=subprocess.run) -> None:
+        self._runner = runner
+
+    def current(
+        self, frame: AccessibleElement, *, expected_screen_size: tuple[int, int],
+        expected_frame_size: tuple[int, int],
+    ) -> X11WindowGeometry | None:
+        # Headless/test deployments retain their existing monitor-relative path.
+        # When X11 is present, a failed or mismatched query is an error rather
+        # than permission to trust potentially offset AT-SPI pixel bounds.
+        if not os.environ.get("DISPLAY"):
+            return None
+        window_id = self._active_window_id()
+        properties = self._properties(window_id)
+        title = properties.get("_NET_WM_NAME") or properties.get("WM_NAME")
+        classes = properties.get("WM_CLASS")
+        if (not isinstance(title, str) or title != frame.name
+                or not isinstance(classes, tuple) or len(classes) != 2
+                or any(not isinstance(value, str) for value in classes)
+                or frame.application.casefold() not in {value.casefold() for value in classes}):
+            raise ValueError("active X11 window does not match the observed application frame")
+
+        outer = self._window_bounds(window_id)
+        extents = properties.get("_GTK_FRAME_EXTENTS") or properties.get("_NET_FRAME_EXTENTS")
+        if (not isinstance(extents, tuple) or len(extents) != 4
+                or any(type(value) is not int or value < 0 for value in extents)):
+            raise ValueError("active X11 client frame extents are unavailable")
+        x, y, width, height = outer
+        left, right, top, bottom = extents
+        client_width, client_height = width - left - right, height - top - bottom
+        if (client_width, client_height) != expected_frame_size:
+            raise ValueError("active X11 client geometry disagrees with the observed frame")
+        geometry = (x + left, y + top, client_width, client_height)
+        x, y, width, height = geometry
+        screen_width, screen_height = expected_screen_size
+        if (screen_width <= 0 or screen_height <= 0 or x < 0 or y < 0
+                or width <= 0 or height <= 0
+                or x + width > screen_width or y + height > screen_height):
+            raise ValueError("active X11 window lies outside the observed capture bounds")
+        return X11WindowGeometry(
+            window_id, geometry, expected_screen_size, title, classes[0],
+        )
+
+    def assert_current(
+        self, frame: AccessibleElement, geometry: X11WindowGeometry,
+    ) -> None:
+        current = self.current(
+            frame, expected_screen_size=geometry.screen_size,
+            expected_frame_size=geometry.bounds[2:],
+        )
+        if current != geometry:
+            raise ValueError("the active window changed during OCR geometry grounding")
+
+    def _run(self, args: list[str]) -> str:
+        try:
+            result = self._runner(
+                args, capture_output=True, text=True, check=False, timeout=2,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise ValueError("active X11 window geometry is unavailable") from exc
+        if result.returncode != 0:
+            raise ValueError("active X11 window geometry is unavailable")
+        return result.stdout
+
+    def _active_window_id(self) -> str:
+        output = self._run(["xprop", "-notype", "-root", "_NET_ACTIVE_WINDOW"])
+        match = self._WINDOW_ID.search(output.strip())
+        if match is None:
+            raise ValueError("active X11 window identity is unavailable")
+        return match.group(1).lower()
+
+    def _properties(self, window_id: str) -> dict[str, object]:
+        output = self._run([
+            "xprop", "-notype", "-id", window_id,
+            "WM_CLASS", "_NET_WM_NAME", "WM_NAME",
+            "_GTK_FRAME_EXTENTS", "_NET_FRAME_EXTENTS",
+        ])
+        values: dict[str, object] = {}
+        for line in output.splitlines():
+            key, separator, raw = line.partition(" = ")
+            if not separator:
+                continue
+            try:
+                value = ast.literal_eval(raw)
+            except (SyntaxError, ValueError):
+                continue
+            if key == "WM_CLASS" and isinstance(value, tuple):
+                values[key] = value
+            elif key in {"_GTK_FRAME_EXTENTS", "_NET_FRAME_EXTENTS"} and isinstance(value, tuple):
+                values[key] = value
+            elif key in {"_NET_WM_NAME", "WM_NAME"} and isinstance(value, str):
+                values[key] = value
+        return values
+
+    def _window_bounds(self, window_id: str) -> tuple[int, int, int, int]:
+        output = self._run(["xwininfo", "-id", window_id])
+        fields: dict[str, int] = {}
+        for line in output.splitlines():
+            key, separator, raw = line.partition(":")
+            field = self._GEOMETRY_FIELDS.get(key.strip())
+            if field is not None and separator:
+                try:
+                    fields[field] = int(raw.strip())
+                except ValueError:
+                    continue
+        if (len(fields) != len(self._GEOMETRY_FIELDS)
+                or "Map State: IsViewable" not in output):
+            raise ValueError("active X11 window geometry is incomplete")
+        return fields["x"], fields["y"], fields["width"], fields["height"]
+
+
+class OCRGeometryObservationService:
+    """Attach fresh exact-label OCR geometry to matching accessible folder labels."""
+
+    def __init__(self, observer: AccessibilityObservationService,
+                 screen_context: ScreenContextService, labels: tuple[str, ...], *,
+                 on_ocr: Callable[[], None] | None = None,
+                 window_geometry: X11ActiveWindowGeometryService | None = None) -> None:
+        if (not isinstance(labels, tuple) or not labels or len(labels) > 200
+                or any(not isinstance(label, str) or not label.strip() for label in labels)
+                or len(set(labels)) != len(labels)):
+            raise ValueError("OCR geometry labels are invalid")
+        self.observer = observer
+        self.screen_context = screen_context
+        self.labels = labels
+        self.on_ocr = on_ocr or (lambda: None)
+        self.window_geometry = window_geometry
+        self.locations: dict[str, ScreenLabelLocation] = {}
+        self.semantic_digest: str | None = None
+
+    def observe(self) -> DesktopObservation:
+        before = self.observer.observe()
+        if not before.complete:
+            raise ValueError("active window observation is incomplete for OCR geometry")
+        active_frames = [
+            item for item in before.elements
+            if item.role in {"frame", "window"} and item.active
+            and item.application.casefold() not in {"mutter-x11-frames", "gnome-shell"}
+        ]
+        if len(active_frames) != 1:
+            raise ValueError("OCR geometry requires one fresh active window")
+        frame = active_frames[0]
+        if len(before.monitors) == 0:
+            raise ValueError("active window geometry is unavailable for OCR")
+        if any(monitor.scale != before.monitors[0].scale for monitor in before.monitors):
+            raise ValueError("mixed-scale displays cannot safely ground OCR geometry")
+        if any(monitor.bounds[2] <= 0 or monitor.bounds[3] <= 0 for monitor in before.monitors):
+            raise ValueError("display geometry is invalid for OCR")
+        scale = before.monitors[0].scale
+        min_x = min(monitor.bounds[0] for monitor in before.monitors)
+        min_y = min(monitor.bounds[1] for monitor in before.monitors)
+        max_x = max(monitor.bounds[0] + monitor.bounds[2] for monitor in before.monitors)
+        max_y = max(monitor.bounds[1] + monitor.bounds[3] for monitor in before.monitors)
+        expected_screen_size = ((max_x - min_x) * scale, (max_y - min_y) * scale)
+        x11_geometry = None
+        if self.window_geometry is not None and frame.bounds is not None:
+            x11_geometry = self.window_geometry.current(
+                frame, expected_screen_size=expected_screen_size,
+                expected_frame_size=(frame.bounds[2] * scale, frame.bounds[3] * scale),
+            )
+        if x11_geometry is not None:
+            window_bounds = x11_geometry.bounds
+            expected_screen_size = x11_geometry.screen_size
+        else:
+            if frame.bounds is None:
+                raise ValueError("active window geometry is unavailable for OCR")
+            x, y, width, height = frame.bounds
+            if (width <= 0 or height <= 0 or x < min_x or y < min_y
+                    or x + width > max_x or y + height > max_y):
+                raise ValueError("active window lies outside the observed display geometry")
+            window_bounds = ((x - min_x) * scale, (y - min_y) * scale,
+                             width * scale, height * scale)
+        try:
+            _capture, locations = self.screen_context.locate_visible_labels(
+                self.labels, window_bounds=window_bounds,
+                expected_screen_size=expected_screen_size,
+            )
+            if x11_geometry is not None:
+                self.window_geometry.assert_current(frame, x11_geometry)
+        finally:
+            self.on_ocr()
+        after = self.observer.observe()
+        if not before.complete or not after.complete or before.digest != after.digest:
+            raise ValueError("the visible collection changed during OCR grounding")
+        elements = list(after.elements)
+        geometry = []
+        for label in self.labels:
+            location = locations.get(label)
+            matches = [index for index, element in enumerate(elements)
+                       if element.application == frame.application
+                       and element.path[:len(frame.path)] == frame.path
+                       and element.name == label and "link.open" in element.actions]
+            if location is None:
+                raise ValueError(
+                    "visible target unresolved: OCR found no unique box for an accessible label"
+                )
+            if len(matches) != 1:
+                raise ValueError(
+                    "visible target unresolved: an OCR label no longer maps to one actionable target"
+                )
+            index = matches[0]
+            element = elements[index]
+            elements[index] = replace(element, bounds=location.bounds)
+            geometry.append([
+                list(element.path), element.application, element.role, element.name,
+                list(location.bounds), round(location.confidence, 2),
+            ])
+        digest = hashlib.sha256(json.dumps(
+            [after.digest, geometry], ensure_ascii=False, separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
+        self.locations = locations
+        self.semantic_digest = after.digest
+        return DesktopObservation(
+            after.observation_id, after.observed_at, digest, tuple(elements),
+            after.monitors, complete=after.complete,
+        )
+
+
+__all__ = [
+    "OCRGeometryObservationService", "ScreenContext", "ScreenContextAuditStore",
+    "ScreenContextService",
+]

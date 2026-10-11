@@ -7,6 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from local_ai_assistant.desktop.agency_ledger import ComputerAgencyLedger
+from local_ai_assistant.desktop.visible_targets import VisibleTargetAmbiguous
 from local_ai_assistant.interface.conversation import (
     FridayConversationService,
 )
@@ -19,6 +21,7 @@ from local_ai_assistant.interface.runtime import (
 from local_ai_assistant.interface.states import (
     FridayRuntimeState,
 )
+from local_ai_assistant.interface.voice_actions import VoiceComputerActionService
 from local_ai_assistant.interface.voice_conversation import (
     FridayVoiceConversationService,
 )
@@ -255,7 +258,7 @@ def test_voice_action_latency_turn_completes_after_spoken_result():
     stages: list[str] = []
 
     class Actions:
-        def stream_response(self, _prompt, _command, *, mark):
+        def stream_response(self, _prompt, _command, *, mark, progress=None):
             mark("VOICE_ACTION_DISPATCHED")
             yield "Opening YouTube."
             mark("VOICE_ACTION_VERIFIED")
@@ -276,6 +279,93 @@ def test_voice_action_latency_turn_completes_after_spoken_result():
     assert "VOICE_ACTION_ROUTE_SELECTED" in stages
     assert "VOICE_ACTION_VERIFIED" in stages
     assert stages[-1] == "VOICE_TURN_COMPLETE"
+
+
+def test_instrumented_voice_action_finalizes_only_after_playback():
+    from local_ai_assistant.interface.wake_bootstrap import (
+        InstrumentedConversation,
+        VoiceTurnTelemetry,
+    )
+
+    class Actions:
+        def __init__(self):
+            self.completed = 0
+            self.failures = []
+
+        def stream_response(self, _prompt, _command, *, mark, progress=None):
+            mark("VOICE_ACTION_DISPATCHED")
+            yield "I'll take care of that."
+            mark("VOICE_ACTION_VERIFIED")
+            yield "The requested work is complete."
+
+        def complete_after_playback(self):
+            self.completed += 1
+            return True
+
+        def fail_after_playback(self, *, cancelled=False):
+            self.failures.append(cancelled)
+            return True
+
+    actions = Actions()
+    voice, _runtime, transcriber, _llm, _synthesizer, _player = make_voice_service(
+        voice_computer_actions=actions,
+    )
+    voice.conversation = InstrumentedConversation(
+        voice.conversation,
+        VoiceTurnTelemetry(),
+    )
+    transcriber.text = "Open Calculator"
+    voice.start_listening()
+
+    assert list(voice.stream_utterance(make_utterance())) == [
+        "I'll take care of that.",
+        "The requested work is complete.",
+    ]
+    assert actions.completed == 1
+    assert actions.failures == []
+
+
+def test_active_task_stop_listener_owns_capture_instead_of_barge_monitor():
+    class Monitor:
+        calls = 0
+
+        def capture_interruption(self):
+            self.calls += 1
+            raise AssertionError("active task Stop listener owns microphone capture")
+
+    voice, *_rest = make_voice_service()
+    monitor = Monitor()
+    voice.barge_in_monitor = monitor
+    voice.conversation.voice_computer_actions = SimpleNamespace(
+        active_task_stop_listener_running=True,
+    )
+
+    playback, interruption = voice._play_with_barge_in(iter((PiperAudioChunk(
+        pcm=b"\x01\x00" * 20, sample_rate=22_050, sample_width_bytes=2, channels=1,
+    ),)))
+
+    assert playback.interrupted is False
+    assert interruption is None
+    assert monitor.calls == 0
+
+
+def test_active_task_stop_handler_requires_exact_wake_remainder():
+    active_calls = []
+    player_stops = []
+    voice, runtime, *_rest = make_voice_service()
+    voice.conversation.cancel_active_voice_action = lambda: active_calls.append("cancel") or True
+    voice.speech_player.is_playing = True
+    voice.speech_player.stop = lambda: player_stops.append("stop")
+
+    assert voice.handle_active_task_stop("a" * 32, "please stop") is False
+    assert voice.handle_active_task_stop("a" * 32, "stop") is True
+    assert active_calls == ["cancel"]
+    assert player_stops == ["stop"]
+    assert voice.active_session_closed is True
+    event = runtime.events_since()[-1]
+    assert event.event_type is FridayEventType.VOICE_LISTENING_STOPPED
+    assert event.task_id == "a" * 32
+    assert event.metadata["reason"] == "voice_explicit_stop_active_computer_task"
 
 
 def state_path(
@@ -395,12 +485,13 @@ def test_first_complete_sentence_starts_speech_before_model_completion() -> None
 
     runtime = FridayRuntime("stage-12i-streaming-speech")
     synthesizer = SignallingSynthesizer()
+    player = FakeSpeechPlayer()
     voice = FridayVoiceConversationService(
         FakeTranscriber(),
         FridayConversationService(GatedStreamingLLM(), runtime),
         runtime,
         speech_synthesizer=synthesizer,
-        speech_player=FakeSpeechPlayer(),
+        speech_player=player,
     )
     voice.start_listening()
 
@@ -408,12 +499,83 @@ def test_first_complete_sentence_starts_speech_before_model_completion() -> None
         "First sentence. Second sentence."
     )
     assert synthesizer.calls == ["First sentence.", "Second sentence."]
+    completed = next(
+        event for event in runtime.events_since()
+        if event.event_type is FridayEventType.VOICE_SPEECH_COMPLETED
+    )
+    assert completed.text == "First sentence. Second sentence."
+    assert completed.metadata["stream_segment_count"] == 2
+    assert player.received_bytes == 400
 
     event_types = [event.event_type for event in runtime.events_since()]
     assert event_types.index(FridayEventType.VOICE_SPEECH_STARTED) < event_types.index(
         FridayEventType.CONVERSATION_ASSISTANT_COMPLETED
     )
     assert runtime.state is FridayRuntimeState.IDLE
+
+
+def test_clarification_text_is_submitted_to_tts_and_reported_as_clarification(tmp_path):
+    class AmbiguousRunner:
+        def __init__(self, ledger):
+            self.ledger = ledger
+
+        def run(self, task_id, *, on_progress=lambda *_args, **_kwargs: None,
+                defer_completion=False, clarification_answer=None):
+            raise VisibleTargetAmbiguous(
+                "I can't establish the visible folder order reliably. Which folder do you mean?"
+            )
+
+    runtime = FridayRuntime("probe-4-clarification-playback")
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "computer.sqlite3")
+    action_service = VoiceComputerActionService(
+        AmbiguousRunner(ledger), runtime, lambda: "local-owner",
+    )
+    conversation = FridayConversationService(
+        FakeStreamingLLM([]), runtime, voice_computer_actions=action_service,
+    )
+    transcriber = FakeTranscriber("Open the second folder in this files video.")
+    synthesizer = FakeSpeechSynthesizer()
+    player = FakeSpeechPlayer()
+    voice = FridayVoiceConversationService(
+        transcriber, conversation, runtime,
+        speech_synthesizer=synthesizer, speech_player=player,
+    )
+    voice.start_listening()
+
+    output = "".join(voice.stream_utterance(make_utterance()))
+
+    expected_question = (
+        "I can't establish the visible folder order reliably. Which folder do you mean?"
+    )
+    assert "I'll take care of that." in output
+    assert expected_question in output
+    assert synthesizer.calls == [
+        "I'll take care of that.",
+        "I can't establish the visible folder order reliably.",
+        "Which folder do you mean?",
+    ]
+    assert player.calls == 1
+    assert player.received_bytes == 600
+    task = ledger.recent_tasks("local-owner")[0]
+    assert (task.request, task.state, task.action_count) == (
+        "Open the second folder in this files video.", "awaiting_clarification", 0,
+    )
+    assert action_service.has_pending_clarification()
+    assert ledger.clarification(task.task_id).delivery_state == "played"
+    completed = next(
+        event for event in runtime.events_since()
+        if event.event_type is FridayEventType.VOICE_SPEECH_COMPLETED
+    )
+    assert completed.text == f"I'll take care of that. {expected_question}"
+    assert completed.metadata["stream_segment_count"] == 3
+    assert completed.metadata["stream_segment_roles"] == [
+        "acknowledgment", "clarification", "clarification",
+    ]
+    assert completed.metadata["computer_response_kind"] == "clarification"
+    assert not any(
+        event.event_type is FridayEventType.COMPUTER_TASK_COMPLETED
+        for event in runtime.events_since()
+    )
 
 
 def test_interrupted_playback_emits_interrupted_and_returns_idle() -> None:

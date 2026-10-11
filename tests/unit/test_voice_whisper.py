@@ -604,12 +604,14 @@ def test_nonzero_process_result_is_error(
             tmp_path
         )
     )
+    calls: list[list[str]] = []
 
     def runner(
         command: list[str],
         **kwargs: Any,
     ) -> subprocess.CompletedProcess[str]:
         del kwargs
+        calls.append(command)
 
         return subprocess.CompletedProcess(
             command,
@@ -630,6 +632,79 @@ def test_nonzero_process_result_is_error(
         transcriber.transcribe(
             make_utterance()
         )
+
+    assert len(calls) == 1
+
+
+def test_cuda_out_of_memory_retries_once_on_cpu(
+    tmp_path: Path,
+) -> None:
+    config, _, _ = make_runtime(tmp_path)
+    calls: list[list[str]] = []
+
+    def runner(
+        command: list[str],
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        del kwargs
+        calls.append(command)
+        prefix = Path(command[command.index("--output-file") + 1])
+        if len(calls) == 1:
+            Path(f"{prefix}.txt").write_text("partial GPU output", encoding="utf-8")
+            return subprocess.CompletedProcess(
+                command,
+                10,
+                stdout="",
+                stderr="ggml_backend_cuda_buffer_type_alloc_buffer: cudaMalloc failed: out of memory",
+            )
+
+        assert "--no-gpu" in command
+        assert not Path(f"{prefix}.txt").exists()
+        Path(f"{prefix}.txt").write_text("CPU result", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="CPU backend")
+
+    result = WhisperCppTranscriber(config, runner=runner).transcribe(make_utterance())
+
+    assert len(calls) == 2
+    assert "--no-gpu" not in calls[0]
+    assert result.text == "CPU result"
+    assert "retried on CPU" in result.diagnostics
+
+
+def test_cuda_out_of_memory_cpu_fallback_still_requires_output(
+    tmp_path: Path,
+) -> None:
+    config, _, _ = make_runtime(tmp_path)
+    calls = 0
+
+    def runner(
+        command: list[str],
+        **kwargs: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        del kwargs
+        calls += 1
+        prefix = Path(command[command.index("--output-file") + 1])
+        if calls == 1:
+            Path(f"{prefix}.txt").write_text("partial GPU output", encoding="utf-8")
+            return subprocess.CompletedProcess(
+                command,
+                10,
+                stdout="",
+                stderr="CUDA allocation failed: out of memory",
+            )
+        assert "--no-gpu" in command
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    transcriber = WhisperCppTranscriber(config, runner=runner)
+
+    with pytest.raises(
+        WhisperTranscriptionError,
+        match="without creating transcript output",
+    ):
+        transcriber.transcribe(make_utterance())
+
+    assert calls == 2
 
 
 def test_timeout_is_error(

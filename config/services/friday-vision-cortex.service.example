@@ -1,9 +1,10 @@
 [Unit]
 Description=Friday Local Vision Cortex (Qwen2.5-VL 3B)
-After=default.target
+# This unit is WantedBy=default.target; adding After=default.target creates a cycle.
 
 [Service]
 Type=simple
+TimeoutStartSec=300s
 WorkingDirectory=VISION_MODEL_DIR
 ExecStart=LLAMA_CPP_DIR/build/bin/llama-server \
   -m VISION_MODEL_PATH \
@@ -19,6 +20,7 @@ ExecStart=LLAMA_CPP_DIR/build/bin/llama-server \
   --host 127.0.0.1 \
   --port 8781 \
   --api-key-file VISION_API_KEY_FILE
+ExecStartPost=/usr/bin/bash -c 'until /usr/bin/curl --fail --silent --max-time 2 http://127.0.0.1:8781/health >/dev/null; do /usr/bin/sleep 2; done'
 Restart=on-failure
 RestartSec=5
 KillMode=control-group

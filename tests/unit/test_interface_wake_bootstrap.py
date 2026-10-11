@@ -7,6 +7,7 @@ from typing import cast
 
 import pytest
 
+import local_ai_assistant.interface.wake_bootstrap as wake_bootstrap
 from local_ai_assistant.interface.interaction import FridayInteractionCoordinator
 from local_ai_assistant.interface.wake_bootstrap import (
     FridayManagedWakeVoice,
@@ -98,6 +99,9 @@ class FakeCapture:
         self.log.append(
             "capture:resume"
         )
+
+    def health(self):
+        return {"wake_path_armed": self.started.is_set() and not self.paused}
 
     def stop(
         self,
@@ -265,6 +269,90 @@ def test_close_is_idempotent():
     service.close()
     assert capture.stop_calls == 1
     assert primary.closed == fallback.closed == piper.closed == 1
+
+
+def test_busy_voice_task_accepts_only_exact_stop_from_strict_wake_remainder():
+    calls = []
+    service, capture, *_rest = make_service(
+        active_task_stop_handler=lambda task_id, remainder: calls.append(
+            (task_id, remainder),
+        ) or True,
+    )
+    lease = service.interactions.try_acquire("voice")
+    assert lease is not None
+    with service._lock:
+        service._active_task_id = "a" * 32
+
+    service.handle_wake(SimpleNamespace(
+        result=SimpleNamespace(remainder="stop"),
+    ))
+
+    assert calls == [("a" * 32, "stop")]
+    assert capture.pause_calls == 1
+    assert capture.resume_calls == 0
+    assert service.voice_turn_running is False
+    assert "ACTIVE_TASK_STOP_WAKE_ACCEPTED" in service.telemetry.stages()
+    assert "ACTIVE_TASK_STOP_CANCELLED" in service.telemetry.stages()
+    lease.release()
+    service.close()
+
+
+def test_busy_voice_task_does_not_route_nonexact_wake_remainder_to_stop():
+    calls = []
+    service, capture, *_rest = make_service(
+        active_task_stop_handler=lambda task_id, remainder: calls.append(
+            (task_id, remainder),
+        ) or True,
+    )
+    lease = service.interactions.try_acquire("voice")
+    assert lease is not None
+    with service._lock:
+        service._active_task_id = "b" * 32
+
+    service.handle_wake(SimpleNamespace(
+        result=SimpleNamespace(remainder="please stop"),
+    ))
+
+    assert calls == []
+    assert capture.pause_calls == 0
+    assert "WAKE_REJECTED_BUSY owner=voice" in service.telemetry.stages()
+    lease.release()
+    service.close()
+
+
+def test_active_task_stop_listener_resumes_then_releases_wake_capture():
+    service, capture, *_rest = make_service()
+    service.start()
+    assert capture.started.wait(timeout=2)
+
+    try:
+        service.start_active_task_stop_listener("c" * 32)
+        assert service._active_task_id == "c" * 32
+        assert capture.resume_calls == 1
+
+        service.stop_active_task_stop_listener("c" * 32)
+        assert service._active_task_id is None
+        assert capture.pause_calls == 1
+        assert "ACTIVE_TASK_STOP_LISTENER_ARMED" in service.telemetry.stages()
+        assert "ACTIVE_TASK_STOP_LISTENER_PAUSED" in service.telemetry.stages()
+    finally:
+        service.close()
+
+
+def test_active_task_stop_listener_fails_closed_when_capture_never_arms(monkeypatch):
+    service, capture, *_rest = make_service()
+    capture.health = lambda: {"wake_path_armed": False}
+    monkeypatch.setattr(wake_bootstrap, "_ACTIVE_STOP_CAPTURE_READY_TIMEOUT_SECONDS", 0.02)
+    service.start()
+    assert capture.started.wait(timeout=2)
+
+    try:
+        with pytest.raises(RuntimeError, match="did not become ready"):
+            service.start_active_task_stop_listener("d" * 32)
+        assert service._active_task_id is None
+        assert capture.paused is True
+    finally:
+        service.close()
 
 
 def test_wake_callback_pauses_before_async_voice_turn(
@@ -477,6 +565,36 @@ def test_instrumented_conversation_proxies_active_session() -> None:
     assert wrapped.last_voice_action_selected is False
     inner.last_voice_action_selected = True
     assert wrapped.last_voice_action_selected is True
+
+
+def test_instrumented_conversation_forwards_voice_action_playback_callbacks() -> None:
+    from local_ai_assistant.interface.wake_bootstrap import (
+        InstrumentedConversation,
+        VoiceTurnTelemetry,
+    )
+
+    class Inner:
+        session = object()
+
+        def __init__(self):
+            self.completed = 0
+            self.failures = []
+
+        def complete_voice_action_after_playback(self):
+            self.completed += 1
+            return True
+
+        def fail_voice_action_after_playback(self, *, cancelled=False):
+            self.failures.append(cancelled)
+            return True
+
+    inner = Inner()
+    wrapped = InstrumentedConversation(inner, VoiceTurnTelemetry())
+
+    assert wrapped.complete_voice_action_after_playback() is True
+    assert wrapped.fail_voice_action_after_playback(cancelled=True) is True
+    assert inner.completed == 1
+    assert inner.failures == [True]
 
 def test_shutdown_cleans_workers_even_when_voice_thread_is_stuck(
 ):

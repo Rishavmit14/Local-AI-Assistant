@@ -17,7 +17,8 @@ def _catalog(tmp_path: Path) -> DesktopApplicationCatalog:
     root.mkdir()
     (root / "org.gnome.Nautilus.desktop").write_text(
         "[Desktop Entry]\nType=Application\nName=Files\nExec=nautilus --new-window\n"
-        "DBusActivatable=true\nStartupWMClass=org.gnome.Nautilus\n",
+        "DBusActivatable=true\nStartupWMClass=org.gnome.Nautilus\n"
+        "MimeType=inode/directory;\n",
         encoding="utf-8",
     )
     return DesktopApplicationCatalog((root,))
@@ -51,6 +52,7 @@ def test_generic_site_and_installed_application_resolution(tmp_path):
     assert "org.gnome.nautilus" in app.application.verification_identities
     assert "nautilus" in app.application.verification_identities
     assert "files" not in app.application.verification_identities
+    assert "inode/directory" in app.application.mime_types
 
 
 def test_xdg_resolver_separates_display_launch_and_window_verification_identities(tmp_path):
@@ -75,6 +77,29 @@ def test_xdg_resolver_separates_display_launch_and_window_verification_identitie
         "org.example.photodesk", "photo-app", "photodeskwindow",
     })
     assert app.name.casefold() not in app.verification_identities
+
+
+@pytest.mark.parametrize("alias", ("VS Code", "VS codes"))
+def test_installed_app_alias_uses_the_actual_desktop_entry(tmp_path, alias):
+    root = tmp_path / "applications"
+    root.mkdir()
+    (root / "com.visualstudio.code.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Visual Studio Code\n"
+        "Exec=code --new-window %F\n",
+        encoding="utf-8",
+    )
+
+    app = DesktopApplicationCatalog((root,)).resolve(alias)
+
+    assert app is not None
+    assert app.name == "Visual Studio Code"
+    assert app.launch_id == "com.visualstudio.code"
+
+
+def test_open_file_target_routes_to_general_owner_path_resolution():
+    assert parse_open_command("Open report.pdf") is None
+    assert parse_open_command("Open ~/Documents/report.pdf") is None
+    assert parse_open_command("Open https://example.org/report.pdf") is not None
 
 
 def test_default_http_handler_resolves_only_an_installed_desktop_id(tmp_path, monkeypatch):
@@ -105,6 +130,27 @@ def test_default_http_handler_fails_closed_for_an_uninstalled_desktop_id(tmp_pat
     )
 
     assert DesktopApplicationCatalog((root,)).default_uri_handler() is None
+
+
+def test_default_mime_handler_resolves_only_an_installed_desktop_id(tmp_path, monkeypatch):
+    root = tmp_path / "applications"
+    root.mkdir()
+    (root / "org.gnome.Nautilus.desktop").write_text(
+        "[Desktop Entry]\nType=Application\nName=Files\nExec=nautilus\n",
+        encoding="utf-8",
+    )
+    calls = []
+    monkeypatch.setattr(
+        desktop_targets.subprocess, "run",
+        lambda args, **_kwargs: (calls.append(args) or SimpleNamespace(
+            returncode=0, stdout="org.gnome.Nautilus.desktop\n",
+        )),
+    )
+
+    app = DesktopApplicationCatalog((root,)).default_for_mime("inode/directory")
+
+    assert app is not None and app.name == "Files"
+    assert calls == [["xdg-mime", "query", "default", "inode/directory"]]
 
 
 @pytest.mark.parametrize("target", ("Unknown application", "a folder"))

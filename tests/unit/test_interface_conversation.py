@@ -55,6 +55,34 @@ def test_memory_context_is_read_only_prompt_context():
     assert "untrusted reference" in llm.calls[0]["system_prompt"]
 
 
+def test_delivered_computer_clarification_routes_next_voice_turn_back_to_task():
+    class PendingClarification:
+        def __init__(self):
+            self.responses = []
+
+        def has_pending_clarification(self):
+            return True
+
+        def stream_clarification_response(self, prompt, *, mark, progress):
+            self.responses.append(prompt)
+            mark("VOICE_CLARIFICATION_RESPONSE_RECEIVED")
+            yield "I'll recheck the current window."
+
+    runtime = FridayRuntime("clarification-next-turn-routing")
+    llm = FakeStreamingLLM([])
+    action_service = PendingClarification()
+    service = FridayConversationService(
+        llm, runtime, voice_computer_actions=action_service,
+    )
+
+    output = "".join(service.stream_response("Yes, the second folder.", voice_origin=True))
+
+    assert output == "I'll recheck the current window."
+    assert action_service.responses == ["Yes, the second folder."]
+    assert llm.calls == []
+    assert service.last_voice_action_selected is True
+
+
 def test_voice_screen_question_observes_before_qwen_and_binds_answer_to_context():
     class FreshContext:
         context_id = "screen_context_fresh"
@@ -374,7 +402,7 @@ def test_direct_voice_open_uses_computer_fast_path_before_model_or_memory():
     marks = []
 
     class Actions:
-        def stream_response(self, prompt, command, *, mark):
+        def stream_response(self, prompt, command, *, mark, progress=None):
             assert prompt == "Friday, open YouTube"
             assert command.target == "YouTube"
             mark("VOICE_ACTION_DISPATCHED")

@@ -41,6 +41,26 @@ def test_action_claim_requires_matching_observation_and_post_action_evidence(tmp
     assert (private / "agency.sqlite3").stat().st_mode & 0o777 == 0o600
 
 
+def test_current_state_claim_records_one_fresh_snapshot_without_a_second_scan(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "agency.sqlite3")
+    task = ledger.create("owner", "Open a fresh VS Code terminal", action_budget=1)
+    previous = observation("a")
+    current = observation("b", "a")
+    ledger.record_observation(task.task_id, previous)
+    ledger.record_observation(task.task_id, current)
+    action = ledger.prepare(
+        task.task_id, kind="hotkey", observation_id=current.observation_id,
+        target_digest=ledger.fingerprint(current, current.elements[0]), risk="low",
+    )
+
+    claimed = ledger.claim_current(action.action_id, observation=current)
+
+    assert claimed.state == "in_flight"
+    assert claimed.observation_id == current.observation_id
+    assert claimed.claim_observation_id == current.observation_id
+    assert ledger.task(task.task_id).action_count == 1
+
+
 def test_stale_observation_is_recorded_and_never_claimed(tmp_path):
     ledger = ComputerAgencyLedger(tmp_path / "private" / "agency.sqlite3")
     task = ledger.create("owner", "Open page")
@@ -52,6 +72,30 @@ def test_stale_observation_is_recorded_and_never_claimed(tmp_path):
         ledger.claim(action.action_id, fresh_observation=observation("e", moved=True))
     assert ledger.action(action.action_id).state == "stale"
     assert ledger.task(task.task_id).action_count == 0
+
+
+def test_stale_attempt_persists_reason_and_both_observation_ids_without_claiming_action(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "agency.sqlite3")
+    task = ledger.create("owner", "Open the second item")
+    before = observation("a")
+    changed = observation("b", "c")
+    ledger.record_observation(task.task_id, before)
+
+    rejected = ledger.record_stale_attempt(
+        task.task_id, kind="click", observation_id=before.observation_id,
+        target_digest=ledger.fingerprint(before, before.elements[0]),
+        fresh_observation=changed, reason="stale_collection_changed",
+        target_summary=("Test", "Open"), target_window=None,
+    )
+
+    assert rejected.state == "stale"
+    assert rejected.observation_id == before.observation_id
+    assert rejected.claim_observation_id == changed.observation_id
+    status = ledger.recent_actions(task.task_id)[0]
+    assert (status.state, status.outcome) == ("stale", "stale_collection_changed")
+    assert ledger.task(task.task_id).action_count == 0
+    with pytest.raises(ValueError, match="cannot be claimed"):
+        ledger.claim(rejected.action_id, fresh_observation=observation("c"))
 
 
 @pytest.mark.parametrize("kind", ("open_uri", "launch_app"))
@@ -281,6 +325,71 @@ def test_exact_voice_stop_cancels_all_active_computer_tasks_without_replay(tmp_p
     assert ledger.cancel_active_tasks() == ()
 
 
+def test_task_failure_reason_is_a_bounded_durable_category(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("owner", "Inspect a local screen")
+
+    failed = ledger.complete(task.task_id, succeeded=False,
+                             failure_reason="planner_rejected")
+
+    assert failed.state == "failed"
+    assert failed.failure_reason == "planner_rejected"
+    with pytest.raises(ValueError, match="failure reason is invalid"):
+        ledger.complete(ledger.create("owner", "Another safe task").task_id,
+                        succeeded=False, failure_reason="raw transcript and screen content")
+
+
+def test_zero_action_task_can_wait_for_played_clarification_then_resume(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("owner", "Open the second folder")
+    evidence = observation("a")
+    ledger.record_observation(task.task_id, evidence)
+
+    clarification = ledger.await_clarification(
+        task.task_id, "Which visible folder should I use?",
+        unresolved_referent="second:folder", observation_id=evidence.observation_id,
+    )
+
+    assert ledger.task(task.task_id).state == "awaiting_clarification"
+    assert clarification.observation_id == evidence.observation_id
+    assert ledger.pending_clarification("owner") is None
+    assert ledger.record_clarification_delivery(task.task_id, played=True).delivery_state == "played"
+    assert ledger.pending_clarification("owner").question == "Which visible folder should I use?"
+
+    resumed = ledger.resume_clarification(task.task_id, "owner", "the third folder")
+
+    assert (resumed.state, resumed.action_count, resumed.failure_reason) == ("active", 0, None)
+    assert ledger.clarification(task.task_id).response == "the third folder"
+
+
+def test_clarification_cannot_resume_until_playback_and_can_be_cancelled(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("owner", "Open the second folder")
+    ledger.await_clarification(task.task_id, "Which folder?")
+
+    with pytest.raises(ValueError, match="cannot be resumed"):
+        ledger.resume_clarification(task.task_id, "owner", "the second folder")
+    cancelled = ledger.cancel_clarification(task.task_id, "owner")
+
+    assert cancelled.state == "cancelled"
+    assert ledger.clarification(task.task_id).status == "cancelled"
+
+
+def test_task_with_prepared_action_cannot_be_reclassified_as_clarification(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("owner", "Open a safe screen target")
+    evidence = observation("a")
+    ledger.record_observation(task.task_id, evidence)
+    ledger.prepare(
+        task.task_id, kind="click", observation_id=evidence.observation_id,
+        target_digest=ledger.fingerprint(evidence, evidence.elements[0]), risk="low",
+    )
+
+    assert ledger.can_await_clarification(task.task_id) is False
+    with pytest.raises(ValueError, match="cannot await clarification"):
+        ledger.await_clarification(task.task_id, "Which target?")
+
+
 def test_old_observation_and_expired_task_cannot_claim_desktop_action(tmp_path):
     ledger = ComputerAgencyLedger(tmp_path / "private" / "agency.sqlite3")
     task = ledger.create("owner", "Open safe settings")
@@ -298,3 +407,55 @@ def test_old_observation_and_expired_task_cannot_claim_desktop_action(tmp_path):
         ))
     with pytest.raises(ValueError, match="not active"):
         ledger.record_observation(task.task_id, observation("b"))
+
+
+def test_in_doubt_vscode_terminal_shortcut_reconciles_focused_input_without_replay(tmp_path):
+    database = tmp_path / "private" / "agency.sqlite3"
+    ledger = ComputerAgencyLedger(database)
+    task = ledger.create("owner", "Open a terminal in VS Code")
+    frame = AccessibleElement(
+        (0,), "code", "frame", "Local-AI-Assistant - Visual Studio Code",
+        (0, 0, 1000, 700), (), True,
+    )
+    before = DesktopObservation(
+        "observation_" + "a" * 32, datetime.now(UTC).isoformat(), "a" * 64, (frame,),
+    )
+    ledger.record_observation(task.task_id, before)
+    action = ledger.prepare(
+        task.task_id, kind="hotkey", observation_id=before.observation_id,
+        target_digest=ledger.fingerprint(before, frame), risk="low",
+        expected_result=("code", "__vscode_terminal_input__", "focused"),
+        target_summary=("code", "workspace"),
+        target_window=("code", "frame", frame.name),
+    )
+    claim_observation = DesktopObservation(
+        "observation_" + "c" * 32, datetime.now(UTC).isoformat(), "c" * 64, (frame,),
+    )
+    ledger.claim(action.action_id, fresh_observation=claim_observation)
+    ledger.mark_execution_started(action.action_id)
+    restarted = ComputerAgencyLedger(database)
+    assert restarted.action(action.action_id).state == "in_doubt"
+
+    terminal = AccessibleElement(
+        (0, 3, 0, 1), "code", "entry", "Terminal 3, bash",
+        (0, 400, 1000, 300), (), True, focused=True,
+    )
+    visible = DesktopObservation(
+        "observation_" + "b" * 32, datetime.now(UTC).isoformat(), "b" * 64,
+        (frame, terminal),
+    )
+
+    assert restarted.reconcile_visible_result(action.action_id, visible)
+    assert restarted.action(action.action_id).state == "result_present"
+    assert restarted.task(task.task_id).state == "recovery_required"
+    assert restarted.task(task.task_id).action_count == 1
+
+
+def test_active_task_query_returns_only_live_or_recovery_tasks(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "active-tasks.sqlite3")
+    first = ledger.create("local-owner", "Open Calculator")
+    second = ledger.create("local-owner", "Open Files")
+
+    assert ledger.active_task_ids() == tuple(sorted((first.task_id, second.task_id)))
+    ledger.complete(first.task_id, succeeded=True)
+    assert ledger.active_task_ids() == (second.task_id,)

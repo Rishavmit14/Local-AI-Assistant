@@ -1,7 +1,7 @@
 [Unit]
 Description=Friday Local AI Presentation and Wake Service
-After=pipewire.service pipewire-pulse.service
-Wants=pipewire.service
+After=pipewire.service pipewire-pulse.service friday-vision-cortex.service
+Wants=pipewire.service friday-vision-cortex.service
 
 [Service]
 Type=simple

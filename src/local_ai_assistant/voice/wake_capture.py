@@ -144,6 +144,14 @@ class FridayAlwaysOnWakeCapture:
 
         self._utterance_count = 0
         self._wake_count = 0
+        self._wake_check_count = 0
+        self._wake_rejection_count = 0
+        self._pcm_chunk_count = 0
+        self._vad_speech_frame_count = 0
+        self._last_pcm_chunk_monotonic_ns: int | None = None
+        self._last_vad_activity_monotonic_ns: int | None = None
+        self._last_wake_decision_monotonic_ns: int | None = None
+        self._last_wake_decision: str | None = None
 
 
     @property
@@ -162,9 +170,58 @@ class FridayAlwaysOnWakeCapture:
 
     def health(self) -> dict[str, object]:
         with self._state_lock:
+            now_ns = time.monotonic_ns()
+            primary = getattr(self.wake_supervisor, "primary", None)
+            fallback = getattr(self.wake_supervisor, "fallback", None)
+            detectors = [item for item in (primary, fallback) if item is not None]
+            detector_states = [getattr(item, "is_started", None) for item in detectors]
+            detector_readiness_known = bool(detectors) and all(
+                isinstance(value, bool) for value in detector_states
+            )
+            wake_detectors_armed = (
+                bool(getattr(self.wake_supervisor, "enabled", False))
+                and detector_readiness_known
+                and all(value is True for value in detector_states)
+            )
+            stream_running = (
+                getattr(self._stream, "running", None)
+                if self._stream is not None else False
+            )
+            wake_path_armed = (
+                self._running
+                and not self.paused
+                and self._phase == "listening"
+                and stream_running is True
+                and wake_detectors_armed
+            )
             return {
                 "phase": "paused" if self.paused and self._running else self._phase,
                 "running": self._running,
+                "stream_open": self._stream is not None,
+                "stream_running": stream_running,
+                "input_device": getattr(
+                    getattr(self.capture, "config", None), "device", None,
+                ),
+                "pcm_chunks_processed": self._pcm_chunk_count,
+                "last_pcm_chunk_monotonic_ns": self._last_pcm_chunk_monotonic_ns,
+                "last_pcm_chunk_age_ms": (
+                    max(0.0, (now_ns - self._last_pcm_chunk_monotonic_ns) / 1_000_000)
+                    if self._last_pcm_chunk_monotonic_ns is not None else None
+                ),
+                "vad_speech_frames": self._vad_speech_frame_count,
+                "last_vad_activity_monotonic_ns": self._last_vad_activity_monotonic_ns,
+                "last_vad_activity_age_ms": (
+                    max(0.0, (now_ns - self._last_vad_activity_monotonic_ns) / 1_000_000)
+                    if self._last_vad_activity_monotonic_ns is not None else None
+                ),
+                "wake_detector_enabled": bool(getattr(self.wake_supervisor, "enabled", False)),
+                "wake_detector_readiness_known": detector_readiness_known,
+                "wake_detectors_armed": wake_detectors_armed,
+                "wake_path_armed": wake_path_armed,
+                "wake_checks": self._wake_check_count,
+                "wake_rejections": self._wake_rejection_count,
+                "last_wake_decision": self._last_wake_decision,
+                "last_wake_decision_monotonic_ns": self._last_wake_decision_monotonic_ns,
                 "utterances": self._utterance_count,
                 "wakes": self._wake_count,
             }
@@ -342,6 +399,13 @@ class FridayAlwaysOnWakeCapture:
                         ):
                             continue
                         segmentation = self.segmenter.process(pcm)
+                        self._pcm_chunk_count += 1
+                        frame_at = time.monotonic_ns()
+                        self._last_pcm_chunk_monotonic_ns = frame_at
+                        vad_frame = getattr(segmentation, "frame", None)
+                        if vad_frame is not None and getattr(vad_frame, "speech", False):
+                            self._vad_speech_frame_count += 1
+                            self._last_vad_activity_monotonic_ns = frame_at
                         self._phase = "listening"
 
                 except (
@@ -376,6 +440,18 @@ class FridayAlwaysOnWakeCapture:
                         utterance
                     )
                 )
+
+                with self._state_lock:
+                    primary_result = getattr(result, "primary", None)
+                    fallback_result = getattr(result, "fallback", None)
+                    checks = int(primary_result is not None) + int(fallback_result is not None)
+                    if checks == 0 and getattr(self.wake_supervisor, "enabled", False):
+                        checks = 1
+                    self._wake_check_count += checks
+                    self._last_wake_decision = "accepted" if result.wake else "rejected"
+                    self._last_wake_decision_monotonic_ns = time.monotonic_ns()
+                    if not result.wake:
+                        self._wake_rejection_count += 1
 
                 with self._state_lock:
                     if self._stop_event.is_set() or self.paused or self._stream is not stream:

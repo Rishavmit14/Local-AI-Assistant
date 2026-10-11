@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -6,7 +7,7 @@ import pytest
 import local_ai_assistant.desktop.runner as desktop_runner
 from local_ai_assistant.desktop.agency import AgencyAction, ElementIdentity
 from local_ai_assistant.desktop.agency_ledger import ComputerAgencyLedger
-from local_ai_assistant.desktop.goal_planner import GroundedGoalPlanner
+from local_ai_assistant.desktop.goal_planner import ComputerGoalStep, GroundedGoalPlanner
 from local_ai_assistant.desktop.observation import AccessibleElement, DesktopObservation
 from local_ai_assistant.desktop.runner import ComputerAgencyRunner
 from local_ai_assistant.desktop.targets import DesktopApplicationCatalog
@@ -15,6 +16,28 @@ from local_ai_assistant.desktop.targets import DesktopApplicationCatalog
 class Portal:
     def start(self):
         return "active"
+
+
+def test_pre_dispatch_stop_cancels_without_starting_desktop_actor(tmp_path):
+    class CountingPortal:
+        starts = 0
+
+        def start(self):
+            self.starts += 1
+            return "active"
+
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("local-owner", "Create a folder and open it in Files")
+    portal = CountingPortal()
+    runner = ComputerAgencyRunner(ledger, portal, workspace=tmp_path)
+    ledger.request_cancel(task.task_id)
+
+    result = runner.run(task.task_id)
+
+    assert result.state == "cancelled"
+    assert result.action_count == 0
+    assert portal.starts == 0
+    assert ledger.recent_actions(task.task_id) == ()
 
 
 class _ApplicationProcess:
@@ -42,6 +65,110 @@ def _application_popen(launched=None, *, returncode=0):
 
 def test_goal_parser_accepts_exact_bounded_browser_and_no_submit_form_requests():
     assert ComputerAgencyRunner._url("Open Chrome and go to https://example.org/path.") == "https://example.org/path"
+
+
+@pytest.mark.parametrize("fails", (False, True))
+def test_qualification_gate_is_retired_after_one_attempt(fails):
+    class Gate:
+        def wait_for_fixture_transition(self, **_kwargs):
+            if fails:
+                raise RuntimeError("qualification gate failed closed")
+            return 12.5
+
+    runner = object.__new__(ComputerAgencyRunner)
+    runner._qualification_gate = Gate()
+    if fails:
+        with pytest.raises(RuntimeError, match="failed closed"):
+            runner._consume_qualification_gate(
+                task_id="task", parent=Path("/tmp/fixture"),
+                binding=object(), folder_names={"Birch"},
+            )
+    else:
+        assert runner._consume_qualification_gate(
+            task_id="task", parent=Path("/tmp/fixture"),
+            binding=object(), folder_names={"Birch"},
+        ) == 12.5
+    assert runner._qualification_gate is None
+
+
+def test_cancelled_pre_dispatch_barrier_prevents_the_next_runner_step():
+    class Ledger:
+        @staticmethod
+        def cancellation_requested(_task_id):
+            return False
+
+        @staticmethod
+        def task(_task_id):
+            return SimpleNamespace(
+                action_count=1,
+            )
+
+        @staticmethod
+        def recent_actions(_task_id, *, limit):
+            assert limit == 2
+            return (SimpleNamespace(kind="create_directory", state="verified"),)
+
+        @staticmethod
+        def active_task_ids():
+            return ("a" * 32,)
+
+    class Gate:
+        mode = "pre_dispatch"
+        after_action_count = 1
+
+        @staticmethod
+        def is_bound_task(task_id):
+            return task_id == "a" * 32
+
+        @staticmethod
+        def validate_first_step(**_kwargs):
+            raise AssertionError("the verified first action already exists")
+
+        @staticmethod
+        def wait_before_dispatch(**kwargs):
+            assert kwargs["task_id"] == "a" * 32
+            assert kwargs["action_count"] == 1
+            assert kwargs["pending_destination"] == Path("/tmp/Friday Stop Controlled")
+            return True
+
+    runner = object.__new__(ComputerAgencyRunner)
+    runner.ledger = Ledger()
+    runner._qualification_gate = Gate()
+
+    with pytest.raises(RuntimeError, match="cancelled before the next step"):
+        runner._before_plan_step(
+            "a" * 32,
+            step=ComputerGoalStep("open_location", "it", "Files"),
+            created_directory=Path("/tmp/Friday Stop Controlled"),
+        )
+
+    assert runner._qualification_gate is None
+
+
+def test_ordinary_runner_does_not_import_the_optional_qualification_gate(tmp_path, monkeypatch):
+    monkeypatch.delenv("FRIDAY_AGENCY_TEST_GATE_DIR", raising=False)
+
+    def unexpected_gate_import():
+        raise AssertionError("ordinary runner imported the qualification-only gate")
+
+    monkeypatch.setattr(desktop_runner, "import_gate_for_qualification", unexpected_gate_import)
+    runner = ComputerAgencyRunner(
+        ComputerAgencyLedger(tmp_path / "ordinary.sqlite3"), Portal(), workspace=tmp_path,
+    )
+    assert runner._qualification_gate is None
+
+
+def test_qualification_runner_fails_closed_when_gate_module_is_unavailable(tmp_path, monkeypatch):
+    monkeypatch.setenv("FRIDAY_AGENCY_TEST_GATE_DIR", str(tmp_path / "gate"))
+    monkeypatch.setattr(
+        desktop_runner, "import_gate_for_qualification",
+        lambda: (_ for _ in ()).throw(ModuleNotFoundError("gate module unavailable")),
+    )
+    with pytest.raises(ModuleNotFoundError, match="gate module unavailable"):
+        ComputerAgencyRunner(
+            ComputerAgencyLedger(tmp_path / "qualification.sqlite3"), Portal(),
+            workspace=tmp_path,
+        )
     assert ComputerAgencyRunner._url("Go to http://127.0.0.1:18765/destination") == "http://127.0.0.1:18765/destination"
     assert ComputerAgencyRunner._url("Visit https://example.org/path in Chrome") == "https://example.org/path"
     assert ComputerAgencyRunner._url("Open https://example.org/path") == "https://example.org/path"
@@ -103,6 +230,7 @@ def test_unsupported_goal_fails_without_physical_action_and_is_durable(tmp_path)
         runner.run(task.task_id)
     assert ledger.task(task.task_id).state == "failed"
     assert ledger.task(task.task_id).action_count == 0
+    assert ledger.task(task.task_id).failure_reason == "unsupported_goal"
     with pytest.raises(ValueError, match="not active"):
         runner.run(task.task_id)
 
@@ -815,6 +943,279 @@ def _observation(elements=(), *, digest="a" * 64):
     )
 
 
+def test_page_search_uses_document_field_instead_of_chrome_address_bar(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("local-owner", "Open example.org and search for machine learning")
+    frame = AccessibleElement((0,), "Google Chrome", "frame", "Example - Google Chrome",
+                              (0, 0, 900, 700), (), True)
+    address = AccessibleElement((0, 0), "Google Chrome", "entry", "Address and search bar",
+                                (0, 0, 500, 28), (), True, True, 0, None)
+    document = AccessibleElement((0, 1), "Google Chrome", "document web", "Example",
+                                 (0, 40, 900, 660), (), False)
+    search = AccessibleElement((0, 1, 0), "Google Chrome", "entry", "Search",
+                               (10, 50, 300, 30), (), False, True, 0, None)
+    old_result = AccessibleElement((0, 1, 1), "Google Chrome", "link", "Featured resource one",
+                                   (10, 100, 200, 30), ("jump",), False)
+    new_result = AccessibleElement((0, 1, 2), "Google Chrome", "link",
+                                   "Machine learning fundamentals", (10, 100, 300, 30),
+                                   ("jump",), False)
+    before = _observation((frame, address, document, search, old_result))
+    after = _observation((frame, address, document, search, old_result, new_result),
+                         digest="c" * 64)
+
+    class Controller:
+        states = iter((before, before, before, before, after))
+
+        def observe(self, _task_id):
+            return next(self.states)
+
+    actions = []
+    runner = ComputerAgencyRunner(ledger, Portal(), goal_planner=GroundedGoalPlanner(None))
+    runner._controller = lambda _application: Controller()
+    runner._act = lambda _controller, _task_id, action, **_kwargs: (
+        actions.append(action) or "postcondition_verified"
+    )
+
+    results = runner._search_current_page(
+        task.task_id, "machine learning", on_progress=lambda *_args, **_kwargs: None,
+        initial_observation=before,
+    )
+
+    assert len(results) == 1
+    assert results[0] == ElementIdentity.from_element(new_result)
+    assert [action.target.name for action in actions] == ["Search", "Search"]
+
+
+def test_page_search_waits_for_the_document_search_field_to_load(tmp_path, monkeypatch):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("local-owner", "Open YouTube and search for machine learning")
+    frame = AccessibleElement((0,), "Google Chrome", "frame", "YouTube - Google Chrome",
+                              (0, 0, 900, 700), (), True)
+    address = AccessibleElement((0, 0), "Google Chrome", "entry", "Address and search bar",
+                                (0, 0, 500, 28), (), True, True, 0, None)
+    document = AccessibleElement((0, 1), "Google Chrome", "document web", "YouTube",
+                                 (0, 40, 900, 660), (), False)
+    search = AccessibleElement((0, 1, 0), "Google Chrome", "entry", "Search",
+                               (10, 50, 300, 30), (), False, True, 0, None)
+    typed_search = AccessibleElement((0, 1, 0), "Google Chrome", "entry", "Search",
+                                     (10, 50, 300, 30), (), False, True, 16, None)
+    old_result = AccessibleElement((0, 1, 1), "Google Chrome", "link", "Featured resource",
+                                   (10, 100, 200, 30), ("jump",), False)
+    new_result = AccessibleElement((0, 1, 2), "Google Chrome", "link",
+                                   "Machine learning fundamentals", (10, 140, 300, 30),
+                                   ("jump",), False)
+    loading = _observation((frame, address, old_result))
+    ready = _observation((frame, address, document, search, old_result))
+    typed = _observation((frame, address, document, typed_search, old_result))
+    results = _observation((frame, address, document, typed_search, old_result, new_result))
+    states = iter((loading, ready, ready, ready, typed, results))
+    observed = []
+
+    class Controller:
+        def observe(self, _task_id):
+            state = next(states)
+            observed.append(state)
+            return state
+
+    runner = ComputerAgencyRunner(ledger, Portal(), goal_planner=GroundedGoalPlanner(None))
+    runner._controller = lambda _application: Controller()
+    monkeypatch.setattr("local_ai_assistant.desktop.runner.time.sleep", lambda _seconds: None)
+    actions = []
+    runner._act = lambda _controller, _task_id, action, **_kwargs: (
+        actions.append(action) or "postcondition_verified"
+    )
+
+    found = runner._search_current_page(
+        task.task_id, "machine learning", on_progress=lambda *_args, **_kwargs: None,
+        initial_observation=loading,
+    )
+
+    assert len(observed) == 6
+    assert observed[0] is loading and observed[1] is ready
+    assert found == (ElementIdentity.from_element(new_result),)
+    assert [action.kind for action in actions] == ["type_text", "press_key"]
+
+
+def test_page_search_focuses_the_unique_window_matching_the_verified_destination(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("local-owner", "Open YouTube and search for machine learning")
+    query = "machine learning"
+    uri = "https://www.youtube.com/"
+    youtube_frame = AccessibleElement((0,), "Google Chrome", "frame", "YouTube - Google Chrome",
+                                      (0, 0, 900, 700), (), False)
+    youtube_address = AccessibleElement(
+        (0, 0), "Google Chrome", "entry", "Address and search bar",
+        (0, 0, 500, 28), (), False, True, 23, None,
+    )
+    youtube_document = AccessibleElement((0, 1), "Google Chrome", "document web", "YouTube",
+                                         (0, 40, 900, 660), (), False)
+    youtube_search = AccessibleElement((0, 1, 0), "Google Chrome", "combo box", "Search",
+                                       (10, 50, 300, 30), (), False, True, 0, None)
+    other_frame = AccessibleElement((1,), "Google Chrome", "frame", "Other page - Google Chrome",
+                                    (0, 0, 900, 700), (), False)
+    other_address = AccessibleElement(
+        (1, 0), "Google Chrome", "entry", "Address and search bar",
+        (0, 0, 500, 28), (), False, False, 20, None,
+    )
+    other_document = AccessibleElement((1, 1), "Google Chrome", "document web", "Other page",
+                                       (0, 40, 900, 660), (), False)
+    other_search = AccessibleElement((1, 1, 0), "Google Chrome", "entry", "Search",
+                                     (10, 50, 300, 30), (), False, False, 0, None)
+    inactive = _observation((youtube_frame, youtube_address, youtube_document, youtube_search,
+                             other_frame, other_address, other_document, other_search))
+    active_frame = AccessibleElement((0,), "Google Chrome", "frame", "YouTube - Google Chrome",
+                                     (0, 0, 900, 700), (), True)
+    active_address = AccessibleElement(
+        (0, 0), "Google Chrome", "entry", "Address and search bar",
+        (0, 0, 500, 28), (), True, False, 23, None,
+    )
+    active_document = AccessibleElement((0, 1), "Google Chrome", "document web", "YouTube",
+                                        (0, 40, 900, 660), (), True)
+    active_search = AccessibleElement((0, 1, 0), "Google Chrome", "combo box", "Search",
+                                      (10, 50, 300, 30), (), True, True, 0, None)
+    active_other_frame = AccessibleElement((1,), "Google Chrome", "frame", "Other page - Google Chrome",
+                                           (0, 0, 900, 700), (), False)
+    active_other_address = AccessibleElement(
+        (1, 0), "Google Chrome", "entry", "Address and search bar",
+        (0, 0, 500, 28), (), False, False, 20, None,
+    )
+    active_other_document = AccessibleElement((1, 1), "Google Chrome", "document web", "Other page",
+                                              (0, 40, 900, 660), (), False)
+    active_other_search = AccessibleElement((1, 1, 0), "Google Chrome", "entry", "Search",
+                                            (10, 50, 300, 30), (), False, False, 0, None)
+    result = AccessibleElement((0, 1, 2), "Google Chrome", "link", "Machine learning results",
+                               (10, 100, 300, 30), ("jump",), True)
+    focused = _observation((active_frame, active_address, active_document, active_search,
+                             active_other_frame, active_other_address, active_other_document,
+                             active_other_search))
+    results = _observation((active_frame, active_address, active_document, active_search,
+                            active_other_frame, active_other_address, active_other_document,
+                            active_other_search, result), digest="c" * 64)
+
+    class BrowserCatalog(DesktopApplicationCatalog):
+        def default_uri_handler(self):
+            return SimpleNamespace(name="Google Chrome")
+
+    class Controller:
+        def __init__(self):
+            self.states = iter((inactive, inactive, focused, focused, focused, focused, results))
+
+        def observe(self, _task_id):
+            return next(self.states, results)
+
+    controller = Controller()
+    runner = ComputerAgencyRunner(
+        ledger, Portal(), applications=BrowserCatalog(()),
+        text_verifier=SimpleNamespace(
+            matches_url=lambda target, expected: target.path[0] == 0 and expected == uri,
+        ),
+    )
+    runner._controller = lambda application: controller
+    actions = []
+    runner._act = lambda _controller, _task_id, action, **_kwargs: (
+        actions.append(action) or "postcondition_verified"
+    )
+
+    found = runner._search_current_page(
+        task.task_id, query, on_progress=lambda *_args, **_kwargs: None,
+        initial_observation=inactive, expected_browser_uri=uri,
+    )
+
+    assert found == (ElementIdentity.from_element(result),)
+    assert [action.kind for action in actions] == ["switch_window", "type_text", "press_key"]
+    assert actions[0].target == ElementIdentity.from_element(youtube_frame)
+    assert actions[0].expected_active is True
+    assert actions[-1].expected_search_query == query
+
+
+def test_page_search_does_not_focus_a_window_when_destination_cannot_be_verified(tmp_path):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("local-owner", "Open YouTube and search for machine learning")
+    frame = AccessibleElement((0,), "Google Chrome", "frame", "Another page - Google Chrome",
+                              (0, 0, 900, 700), (), False)
+    address = AccessibleElement((0, 0), "Google Chrome", "entry", "Address and search bar",
+                                (0, 0, 500, 28), (), False, True, 20, None)
+    state = _observation((frame, address))
+
+    class BrowserCatalog(DesktopApplicationCatalog):
+        def default_uri_handler(self):
+            return SimpleNamespace(name="Google Chrome")
+
+    class Controller:
+        def observe(self, _task_id):
+            return state
+
+    runner = ComputerAgencyRunner(
+        ledger, Portal(), applications=BrowserCatalog(()),
+        text_verifier=SimpleNamespace(matches_url=lambda *_args: False),
+    )
+    runner._controller = lambda _application: Controller()
+    runner._act = lambda *_args, **_kwargs: pytest.fail("unverified browser window must not be focused")
+
+    with pytest.raises(ValueError, match="requested browser window is absent or ambiguous"):
+        runner._search_current_page(
+            task.task_id, "machine learning", on_progress=lambda *_args, **_kwargs: None,
+            initial_observation=state, expected_browser_uri="https://www.youtube.com/",
+        )
+
+    assert ledger.recent_actions(task.task_id) == ()
+
+
+def test_browser_window_uses_unique_registered_page_title_when_loopback_url_is_hidden(
+    tmp_path,
+):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    runner = ComputerAgencyRunner(
+        ledger, Portal(),
+        text_verifier=SimpleNamespace(matches_url=lambda *_args: False),
+    )
+    frame = AccessibleElement(
+        (0,), "Google Chrome", "frame", "Local Browser Search Fixture - Google Chrome",
+        (0, 0, 900, 700), (), False,
+    )
+    address = AccessibleElement(
+        (0, 0), "Google Chrome", "entry", "Address and search bar",
+        (0, 0, 500, 28), (), False, True, 0, None,
+    )
+    state = _observation((frame, address))
+
+    selected = runner._browser_frame(
+        state, "Google Chrome", "http://127.0.0.1:34545/",
+        expected_title="Local Browser Search Fixture",
+    )
+
+    assert selected == frame
+
+
+def test_page_search_times_out_without_mutating_when_field_never_loads(tmp_path, monkeypatch):
+    ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
+    task = ledger.create("local-owner", "Open YouTube and search for machine learning")
+    frame = AccessibleElement((0,), "Google Chrome", "frame", "YouTube - Google Chrome",
+                              (0, 0, 900, 700), (), True)
+    document = AccessibleElement((0, 1), "Google Chrome", "document web", "YouTube",
+                                 (0, 40, 900, 660), (), False)
+    loading = _observation((frame, document))
+
+    class Controller:
+        def observe(self, _task_id):
+            return loading
+
+    runner = ComputerAgencyRunner(ledger, Portal(), goal_planner=GroundedGoalPlanner(None))
+    runner._controller = lambda _application: Controller()
+    runner._act = lambda *_args, **_kwargs: pytest.fail("search must stop before an ungrounded action")
+    monkeypatch.setattr(
+        "local_ai_assistant.desktop.runner._BROWSER_SEARCH_FIELD_WAIT_SECONDS", 0.0,
+    )
+
+    with pytest.raises(ValueError, match="unique accessible search field"):
+        runner._search_current_page(
+            task.task_id, "machine learning", on_progress=lambda *_args, **_kwargs: None,
+            initial_observation=loading,
+        )
+
+    assert ledger.recent_actions(task.task_id) == ()
+
+
 def test_resume_skips_visible_recovered_step_without_replaying_it(tmp_path, monkeypatch):
     ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
     task = ledger.create("local-owner", "Open menu then Show details")
@@ -856,9 +1257,10 @@ def test_resume_skips_visible_recovered_step_without_replaying_it(tmp_path, monk
     assert ledger.task(task.task_id).action_count == 2
 
 
-def test_runner_regrounds_one_preaction_stale_target_and_never_replays_uncertain_action(tmp_path):
+def test_runner_never_blindly_retries_stale_target_or_uncertain_action(tmp_path):
     ledger = ComputerAgencyLedger(tmp_path / "private" / "tasks.sqlite3")
     runner = ComputerAgencyRunner(ledger, Portal())
+    task = ledger.create("owner", "Open the safe settings pane")
     old = ElementIdentity((0, 1), "Test", "button", "Open")
     moved = AccessibleElement((0, 2), "Test", "button", "Open", (20, 20, 40, 30), ("click",), True)
     fresh = DesktopObservation("observation_" + "a" * 32, datetime.now(UTC).isoformat(), "a" * 64, (moved,))
@@ -878,16 +1280,9 @@ def test_runner_regrounds_one_preaction_stale_target_and_never_replays_uncertain
 
     controller = Controller()
     action = AgencyAction("click", "observation_" + "b" * 32, old, old)
-    assert runner._act(controller, "task", action) == "postcondition_verified"
-    assert len(controller.calls) == 2
-    assert controller.calls[1].observation_id == fresh.observation_id
-    assert controller.calls[1].target.path == moved.path
-
-    wildcard = ElementIdentity((), "Test", "panel", "Opened")
-    another = Controller()
-    assert runner._act(another, "task", AgencyAction("click", action.observation_id,
-                                                     old, wildcard)) == "postcondition_verified"
-    assert another.calls[1].expected == wildcard
+    with pytest.raises(ValueError, match="computer observation is stale"):
+        runner._act(controller, task.task_id, action)
+    assert len(controller.calls) == 1
 
     class Uncertain(Controller):
         def act(self, _task_id, action):
@@ -896,7 +1291,7 @@ def test_runner_regrounds_one_preaction_stale_target_and_never_replays_uncertain
 
     uncertain = Uncertain()
     with pytest.raises(RuntimeError, match="uncertain"):
-        runner._act(uncertain, "task", action)
+        runner._act(uncertain, task.task_id, action)
     assert len(uncertain.calls) == 1
 
 

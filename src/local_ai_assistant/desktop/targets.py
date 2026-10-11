@@ -29,6 +29,7 @@ class DesktopApplication:
     dbus_activatable: bool
     dbus_application_id: str | None
     verification_identities: frozenset[str]
+    mime_types: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +50,10 @@ _OPEN_COMMAND = re.compile(
 _CHAINED_ACTION = re.compile(
     r";|\b(?:then|after|before|in|at|on|with|and)\b|"
     r"\b(?:verify|check|delete|send|submit|buy|purchase|install|run|execute|"
-    r"type|press|fill|change|close|click|scroll|drag|login|sign\s+in)\b",
+    r"type|press|fill|change|close|click|scroll|drag|login|sign\s+in|"
+    r"search|find|create|make|rename|move|copy|select|switch|enter|tab|"
+    r"folder|directory|file|terminal|workspace|project|repository|status|"
+    r"first|second|third|that|this|here)\b",
     flags=re.IGNORECASE,
 )
 _HOST = re.compile(r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?::\d{1,5})?(?:/[^\s]*)?$", re.I)
@@ -79,6 +83,20 @@ def parse_open_command(text: str) -> OpenCommand | None:
     target = match.group("target").strip().strip("'\"“”‘’ ")
     target = re.sub(r"\s+(?:please|thanks|thank you)$", "", target, flags=re.I).strip()
     if not target or len(target) > 512 or _CHAINED_ACTION.search(target):
+        return None
+    known_file_suffix = target.rsplit(".", 1)[-1].casefold() if "." in target else ""
+    file_suffixes = {
+        "txt", "md", "rst", "pdf", "csv", "tsv", "json", "yaml", "yml",
+        "toml", "ini", "log", "py", "js", "ts", "html", "css", "png", "jpg",
+        "jpeg", "gif", "webp", "docx", "xlsx", "pptx", "odt", "ods", "odp",
+    }
+    is_url_target = (target.startswith(("http://", "https://"))
+                     or (bool(_HOST.fullmatch(target)) and known_file_suffix not in file_suffixes))
+    if (target.startswith(("/", "~/", "./", "../"))
+            or (("/" in target or "\\" in target) and not is_url_target)
+            or (not is_url_target and known_file_suffix in file_suffixes)):
+        # Local files and folders need owner-path resolution, not app/site
+        # resolution. Keep URLs on the separately validated URL path.
         return None
     # Keep the existing explicit file-opening workflow on its stricter path.
     if re.fullmatch(r"/[^\s\"']+\.txt\s+in\s+(?:gnome\s+)?text\s+editor", target, re.I):
@@ -133,6 +151,10 @@ class DesktopApplicationCatalog:
                         verification_identities.add(executable.casefold())
                     dbus_activatable = entry.getboolean("DBusActivatable", fallback=False)
                     dbus_application_id = launch_id if dbus_activatable else None
+                    mime_types = frozenset(
+                        value.strip() for value in entry.get("MimeType", "").split(";")
+                        if value.strip()
+                    )
                     selected.setdefault(
                         desktop_id,
                         DesktopApplication(
@@ -145,6 +167,7 @@ class DesktopApplicationCatalog:
                             dbus_activatable=dbus_activatable,
                             dbus_application_id=dbus_application_id,
                             verification_identities=frozenset(verification_identities),
+                            mime_types=mime_types,
                         ),
                     )
                 except (OSError, KeyError, ValueError, configparser.Error):
@@ -154,17 +177,35 @@ class DesktopApplicationCatalog:
 
     def resolve(self, requested_name: str) -> DesktopApplication | None:
         key = _normalize_name(requested_name)
-        matches = [item for item in self.applications()
+        apps = self.applications()
+        matches = [item for item in apps
                    if key in {_normalize_name(item.name), _normalize_name(Path(item.desktop_id).stem)}]
+        if not matches:
+            # Permit ordinary spoken abbreviations only when they identify one
+            # installed entry. The returned entry still comes from XDG state.
+            requested_words = [_application_word_form(word)
+                               for word in re.findall(r"[a-z0-9]+", requested_name.casefold())]
+            ranked = []
+            for item in apps:
+                candidate_word_list = [_application_word_form(word)
+                                       for word in re.findall(r"[a-z0-9]+", item.name.casefold())]
+                if requested_words and _application_words_match(requested_words, candidate_word_list):
+                    ranked.append((len(set(candidate_word_list) - set(requested_words)), item))
+            if ranked:
+                best = min(score for score, _item in ranked)
+                matches = [item for score, item in ranked if score == best]
         if len(matches) > 1:
             raise ValueError("installed application name is ambiguous")
         return matches[0] if matches else None
 
-    def default_uri_handler(self) -> DesktopApplication | None:
-        """Resolve the installed app registered for HTTP URLs, without launching it."""
+    def default_for_mime(self, mime_type: str) -> DesktopApplication | None:
+        """Resolve the installed handler for one MIME type without launching it."""
+        if not isinstance(mime_type, str) or not re.fullmatch(
+                r"[A-Za-z0-9.+_-]{1,128}/[A-Za-z0-9.+_-]{1,128}", mime_type):
+            return None
         try:
             result = subprocess.run(
-                ["xdg-mime", "query", "default", "x-scheme-handler/http"],
+                ["xdg-mime", "query", "default", mime_type],
                 capture_output=True, text=True, check=False, timeout=3,
             )
         except (OSError, subprocess.TimeoutExpired):
@@ -175,6 +216,10 @@ class DesktopApplicationCatalog:
             return None
         return next((item for item in self.applications()
                      if item.desktop_id == desktop_id), None)
+
+    def default_uri_handler(self) -> DesktopApplication | None:
+        """Resolve the installed app registered for HTTP URLs, without launching it."""
+        return self.default_for_mime("x-scheme-handler/http")
 
 
 def resolve_open_target(
@@ -236,6 +281,49 @@ def is_friday_ui_target(target: str) -> bool:
 def is_friday_internal_route(target: str) -> bool:
     key = _normalize_name(target).removeprefix("friday ")
     return key in _FRIDAY_ROUTES
+
+
+def _application_words_match(requested: list[str], candidate: list[str]) -> bool:
+    """Match spoken app tokens, common plurals, or acronyms in order."""
+    requested = [_application_word_form(word) for word in requested]
+    candidate = [_application_word_form(word) for word in candidate]
+    memo: dict[tuple[int, int], bool] = {}
+
+    def match(request_index: int, candidate_index: int) -> bool:
+        key = (request_index, candidate_index)
+        if key in memo:
+            return memo[key]
+        if request_index == len(requested):
+            return True
+        if candidate_index == len(candidate):
+            return False
+        if match(request_index, candidate_index + 1):
+            memo[key] = True
+            return True
+        if requested[request_index] == candidate[candidate_index]:
+            if match(request_index + 1, candidate_index + 1):
+                memo[key] = True
+                return True
+        initials = ""
+        for end in range(candidate_index, len(candidate)):
+            initials += candidate[end][0]
+            if end > candidate_index and requested[request_index] == initials:
+                if match(request_index + 1, end + 1):
+                    memo[key] = True
+                    return True
+        memo[key] = False
+        return False
+
+    return match(0, 0)
+
+
+def _application_word_form(word: str) -> str:
+    """Normalize common spoken plurals while matching installed app names."""
+    if len(word) > 4 and word.endswith("ies"):
+        return word[:-3] + "y"
+    if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
+        return word[:-1]
+    return word
 
 
 def _validated_uri(value: str) -> str:

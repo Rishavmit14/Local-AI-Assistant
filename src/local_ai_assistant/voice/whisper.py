@@ -199,25 +199,19 @@ class WhisperCppTranscriber:
 
             started = time.monotonic()
 
-            try:
-                result = self._runner(
-                    command,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                    timeout=self.config.timeout_seconds,
+            result = self._run(command)
+
+            used_cpu_fallback = False
+            if (result.returncode != 0 and self.config.use_gpu
+                    and _is_cuda_out_of_memory(result.stderr or "")):
+                # A partial GPU transcript must not be mistaken for a complete
+                # CPU result if whisper.cpp left one before reporting OOM.
+                output_txt.unlink(missing_ok=True)
+                result = self._run(
+                    [*command, "--no-gpu"],
+                    cpu_fallback=True,
                 )
-
-            except subprocess.TimeoutExpired as exc:
-                raise WhisperTranscriptionError(
-                    "whisper.cpp transcription timed out "
-                    f"after {self.config.timeout_seconds:g} seconds"
-                ) from exc
-
-            except OSError as exc:
-                raise WhisperTranscriptionError(
-                    f"unable to start whisper.cpp: {exc}"
-                ) from exc
+                used_cpu_fallback = True
 
             elapsed = (
                 time.monotonic()
@@ -234,8 +228,13 @@ class WhisperCppTranscriber:
                     12,
                 )
 
+                prefix = (
+                    "CPU fallback after CUDA out of memory "
+                    if used_cpu_fallback
+                    else ""
+                )
                 message = (
-                    "whisper.cpp transcription failed "
+                    f"whisper.cpp {prefix}transcription failed "
                     f"with status {result.returncode}"
                 )
 
@@ -261,6 +260,14 @@ class WhisperCppTranscriber:
                 .strip()
             )
 
+            if used_cpu_fallback:
+                diagnostics = "\n".join(
+                    value for value in (
+                        "CUDA out of memory; whisper.cpp retried on CPU.",
+                        diagnostics,
+                    ) if value
+                )
+
             return WhisperTranscript(
                 text=text,
                 elapsed_seconds=elapsed,
@@ -269,6 +276,35 @@ class WhisperCppTranscriber:
                 model_path=self.config.model_path,
                 diagnostics=diagnostics,
             )
+
+    def _run(
+        self,
+        command: list[str],
+        *,
+        cpu_fallback: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        prefix = (
+            "CPU fallback after CUDA out of memory "
+            if cpu_fallback
+            else ""
+        )
+        try:
+            return self._runner(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=self.config.timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise WhisperTranscriptionError(
+                f"whisper.cpp {prefix}transcription timed out "
+                f"after {self.config.timeout_seconds:g} seconds"
+            ) from exc
+        except OSError as exc:
+            raise WhisperTranscriptionError(
+                f"unable to start whisper.cpp {prefix}transcription: {exc}"
+            ) from exc
 
     def _validate_runtime(
         self,
@@ -515,4 +551,14 @@ def _tail(
         text.splitlines()[
             -lines:
         ]
+    )
+
+
+def _is_cuda_out_of_memory(
+    diagnostics: str,
+) -> bool:
+    normalized = diagnostics.casefold()
+    return (
+        "out of memory" in normalized
+        and "cuda" in normalized
     )

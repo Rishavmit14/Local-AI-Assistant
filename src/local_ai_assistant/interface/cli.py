@@ -238,9 +238,12 @@ def build_presentation_components(
     )
     computer_runner = ComputerAgencyRunner(
         computer_agency.ledger, computer_portal,
-        allowed_file_roots=resolved_config.desktop_control.allowed_file_roots,
+        allowed_file_roots=(*resolved_config.desktop_control.allowed_file_roots,
+                            resolved_config.paths.code_repo_dir),
         presentation_url=os.environ.get("LOCAL_AI_OWNER_UI_ORIGIN"),
         goal_planner=GroundedGoalPlanner(roles.client(Role.COMPUTER)),
+        workspace=Path.cwd(),
+        screen_context_provider=screen_context,
     )
     history = TaskHistoryService(
         TaskHistoryStore(resolved_config.paths.task_history_db),
@@ -573,6 +576,11 @@ def build_presentation_components(
         interactions=interactions,
         on_explicit_stop=computer_agency.stop_all,
     )
+    if wake_voice is not None:
+        voice_computer_actions.bind_active_task_stop_listener(
+            start=wake_voice.start_active_task_stop_listener,
+            stop=wake_voice.stop_active_task_stop_listener,
+        )
 
     app = create_presentation_app(
         runtime=runtime,

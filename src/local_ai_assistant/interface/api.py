@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import threading
 import time
@@ -45,6 +46,7 @@ from local_ai_assistant.desktop.agency import (
 )
 from local_ai_assistant.desktop.portal_client import PortalDesktopClient
 from local_ai_assistant.desktop.runner import ComputerAgencyRunner
+from local_ai_assistant.desktop.runtime_identity import runtime_identity_snapshot
 from local_ai_assistant.desktop.screen_understanding import ScreenUnderstandingService
 from local_ai_assistant.execution.history import redact
 from local_ai_assistant.gateway.auth import (
@@ -346,12 +348,15 @@ class PreferenceAdaptationRequest(BaseModel):
 class _CancellableInteractionStream:
     """Keep ownership until an in-flight synchronous iterator reaches a safe stop."""
 
-    def __init__(self, iterator: Iterator[str], cleanup: Callable[[], None]) -> None:
+    def __init__(self, iterator: Iterator[str], cleanup: Callable[[], None],
+                 on_cancel: Callable[[], object] | None = None) -> None:
         self._iterator = iterator
         self._cleanup = cleanup
+        self._on_cancel = on_cancel
         self._lock = threading.Lock()
         self._in_next = False
         self._cancelled = False
+        self._cancel_callback_called = False
         self._finalized = False
 
     def __iter__(self):
@@ -390,6 +395,14 @@ class _CancellableInteractionStream:
         with self._lock:
             self._cancelled = True
             close_now = not self._in_next
+            call_cancel = not self._cancel_callback_called
+            self._cancel_callback_called = True
+        if call_cancel and self._on_cancel is not None:
+            try:
+                self._on_cancel()
+            except (OSError, RuntimeError, ValueError):
+                # Stream cleanup still proceeds; the durable runner state fails closed.
+                pass
         if close_now:
             self._close_and_finalize()
 
@@ -419,8 +432,14 @@ if StreamingResponse is not None:
             self._on_close = on_close
 
         async def __call__(self, scope, receive, send) -> None:
+            async def receive_with_disconnect_cancel():
+                message = await receive()
+                if message.get("type") == "http.disconnect":
+                    self._on_close()
+                return message
+
             try:
-                await super().__call__(scope, receive, send)
+                await super().__call__(scope, receive_with_disconnect_cancel, send)
             finally:
                 self._on_close()
 
@@ -1544,6 +1563,14 @@ def create_presentation_app(
         except RuntimeError:
             return {"status": "unavailable"}
 
+    @app.get("/api/v1/computer/runtime/identity")
+    def computer_runtime_identity(request: Request):
+        """Expose fixed source identity only to the authenticated local Owner."""
+        context_owner(request)
+        if computer_runner is None:
+            raise HTTPException(503, detail="computer agency is unavailable")
+        return runtime_identity_snapshot(computer_runner)
+
     @app.post("/api/v1/computer/screen/describe")
     def describe_owner_screen(request: Request):
         context_owner(request, mutation=True)
@@ -1675,7 +1702,8 @@ def create_presentation_app(
             if (not isinstance(payload, dict) or not required.issubset(payload)
                     or set(payload) - required - {
                         "expected_focused", "expected_selection_all", "expected_text_exact",
-                        "expected_active", "expected_url",
+                        "expected_active", "expected_url", "expected_change_token",
+                        "expected_search_query",
                     }):
                 raise ValueError("computer action is invalid")
             if (not isinstance(payload["kind"], str) or not isinstance(payload["observation_id"], str)
@@ -1687,14 +1715,20 @@ def create_presentation_app(
                     or (payload.get("expected_active") is not None
                         and type(payload["expected_active"]) is not bool)
                     or not isinstance(payload.get("expected_url", ""), str)
-                    or len(payload.get("expected_url", "")) > 2048):
+                    or len(payload.get("expected_url", "")) > 2048
+                    or not isinstance(payload.get("expected_change_token", ""), str)
+                    or len(payload.get("expected_change_token", "")) > 64
+                    or not isinstance(payload.get("expected_search_query", ""), str)
+                    or len(payload.get("expected_search_query", "")) > 256):
                 raise ValueError("computer action is invalid")
             action = AgencyAction(payload["kind"], payload["observation_id"],
                                   identity(payload["target"]), identity(payload["expected"], expected=True),
                                   payload["value"], payload.get("expected_focused"),
                                   payload.get("expected_selection_all", False),
                                   payload.get("expected_text_exact", False),
-                                  payload.get("expected_active"), payload.get("expected_url", ""))
+                                  payload.get("expected_active"), payload.get("expected_url", ""),
+                                  payload.get("expected_change_token", ""),
+                                  payload.get("expected_search_query", ""))
             status = await run_in_threadpool(service.act, task_id, action)
             return {"status": status}
         except (RuntimeError, ValueError, TypeError) as exc:
@@ -1728,8 +1762,46 @@ def create_presentation_app(
         owned_computer_task(task_id, owner)
         if computer_runner is None:
             raise HTTPException(503, detail="computer goal runner is unavailable")
+        progress_events: list[dict[str, object]] = []
+        metric_keys = {
+            "plan_steps", "planning_elapsed_ms", "plan_validation_elapsed_ms",
+            "plan_total_elapsed_ms", "step_index", "step_elapsed_ms", "launch_elapsed_ms",
+            "workspace_loading_elapsed_ms", "window_focus_elapsed_ms",
+            "terminal_reused", "terminal_elapsed_ms",
+            "command_entry_elapsed_ms", "command_execution_and_render_elapsed_ms",
+            "output_capture_elapsed_ms", "semantic_observations", "ocr_calls", "vlm_calls",
+            "verified", "step_count", "final_verification_elapsed_ms", "total_elapsed_ms",
+            "search_field_elapsed_ms", "search_query_elapsed_ms",
+            "search_submission_elapsed_ms", "search_result_count", "search_result_elapsed_ms",
+            "file_manager_location_verification_ms",
+        }
+
+        def record_progress(stage: str, **details) -> None:
+            if len(progress_events) >= 128 or not isinstance(stage, str):
+                return
+            event: dict[str, object] = {"stage": stage[:64]}
+            for key, value in details.items():
+                if key not in metric_keys:
+                    continue
+                if type(value) is bool:
+                    event[key] = value
+                elif type(value) is int and 0 <= value <= 1_000_000_000:
+                    event[key] = value
+                elif (type(value) is float and math.isfinite(value)
+                      and 0.0 <= value <= 1_000_000_000):
+                    event[key] = value
+            progress_events.append(event)
+
         try:
-            return {"task": asdict(await run_in_threadpool(computer_runner.run, task_id))}
+            task = await run_in_threadpool(
+                computer_runner.run, task_id, on_progress=record_progress,
+            )
+            response = {"task": asdict(task), "progress": progress_events}
+            summary_reader = getattr(computer_runner, "result_summary", None)
+            summary = summary_reader(task_id) if callable(summary_reader) else None
+            if isinstance(summary, str) and len(summary) <= 500:
+                response["result_summary"] = summary
+            return response
         except (RuntimeError, ValueError) as exc:
             raise HTTPException(409, detail=str(exc)) from exc
 
@@ -3252,6 +3324,7 @@ def create_presentation_app(
         chunks = _CancellableInteractionStream(
             attached_stream(),
             cleanup,
+            on_cancel=getattr(conversation, "cancel_active_voice_action", None),
         )
 
         try:

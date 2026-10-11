@@ -10,7 +10,9 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 import stat
+import subprocess
 import sys
 from pathlib import Path
 from uuid import uuid4
@@ -243,8 +245,9 @@ class PortalRemoteDesktop:
         if (not isinstance(value, str) or not 1 <= len(value) <= 256
                 or any(not 0x20 <= ord(character) <= 0x7e for character in value)):
             raise ValueError("keyboard text is invalid")
+        caps_lock = self._caps_lock_enabled()
         for character in value:
-            shifted = character.isupper()
+            shifted = character.isupper() ^ caps_lock if character.isalpha() else character.isupper()
             keysym = ord(character.lower()) if character.isalpha() else ord(character)
             try:
                 if shifted:
@@ -254,6 +257,21 @@ class PortalRemoteDesktop:
             finally:
                 if shifted:
                     self.key(0xffe1, False)
+
+    @staticmethod
+    def _caps_lock_enabled() -> bool:
+        """Read the active XKB Caps Lock LED without changing keyboard state."""
+        try:
+            result = subprocess.run(
+                ["/usr/bin/xset", "q"], capture_output=True, text=True,
+                check=False, timeout=2,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RuntimeError("keyboard lock state is unavailable") from exc
+        match = re.search(r"\bLED mask:\s*(?:0x)?([0-9a-f]+)", result.stdout, re.I)
+        if result.returncode != 0 or match is None:
+            raise RuntimeError("keyboard lock state is unavailable")
+        return bool(int(match.group(1), 16) & 1)
 
     def release_all(self) -> None:
         if self.session is None:

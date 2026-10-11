@@ -37,6 +37,17 @@ def test_roles_use_one_model_with_bounded_prompt_only_context():
     assert "never mutate canonical curriculum or learner mastery" in model.calls[-1][1]["system_prompt"]
 
 
+def test_computer_role_supports_bounded_multi_step_plans_without_execution_authority():
+    model = FakeModel()
+    RoleOrchestrator(model).client(Role.COMPUTER).chat("plan the owner goal")
+
+    system_prompt = model.calls[0][1]["system_prompt"]
+    assert "complete owner computer goal" in system_prompt
+    assert "ordered, bounded typed plan" in system_prompt
+    assert "trusted code validates every step" in system_prompt
+    assert "no execution authority" in system_prompt
+
+
 def test_role_forwards_json_response_format_to_local_model():
     model = FakeModel()
     orchestrator = RoleOrchestrator(model)

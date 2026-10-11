@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Browser Search Fixture</title>
+  <style>
+    body { font: 18px/1.5 system-ui, sans-serif; margin: 3rem auto; max-width: 52rem; padding: 0 1rem; }
+    input { font: inherit; min-width: 24rem; padding: .6rem; }
+    button { font: inherit; padding: .6rem 1rem; }
+    li { margin: .6rem 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Local Browser Search</h1>
+    <form role="search" id="search-form">
+      <label for="search-query">Search</label>
+      <input id="search-query" name="q" type="search" autocomplete="off">
+      <button type="submit">Search</button>
+    </form>
+    <section aria-live="polite" aria-labelledby="results-heading">
+      <h2 id="results-heading">Featured resources</h2>
+      <ul id="results">
+        <li><a href="/resource/featured-one">Featured resource one</a></li>
+      </ul>
+    </section>
+  </main>
+  <script>
+    const datasets = new Map([
+      ["machine learning", ["Machine learning fundamentals", "Evaluating machine learning models"]],
+      ["distributed systems", ["Distributed systems concepts", "Designing reliable services"]],
+    ]);
+    const form = document.querySelector("#search-form");
+    const input = document.querySelector("#search-query");
+    const heading = document.querySelector("#results-heading");
+    const results = document.querySelector("#results");
+
+    function showResults(query) {
+      const normalized = query.trim().toLocaleLowerCase();
+      const titles = datasets.get(normalized) || [
+        `${query} overview`,
+        `Research and resources for ${query}`,
+      ];
+      heading.textContent = `Search results for ${query}`;
+      results.replaceChildren(...titles.map((title, index) => {
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = `/resource/${encodeURIComponent(normalized)}/${index + 1}`;
+        link.textContent = title;
+        item.append(link);
+        return item;
+      }));
+      const url = new URL(window.location.href);
+      url.searchParams.set("q", query);
+      window.history.pushState({ query }, "", url);
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      showResults(input.value);
+    });
+
+    const initialQuery = new URLSearchParams(window.location.search).get("q");
+    if (initialQuery) {
+      input.value = initialQuery;
+      showResults(initialQuery);
+    }
+  </script>
+</body>
+</html>

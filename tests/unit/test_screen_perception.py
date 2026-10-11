@@ -22,6 +22,30 @@ def test_screen_capture_is_private_metadata_and_uses_gnome_shell(tmp_path):
     assert (tmp_path / "captures.sqlite3").stat().st_mode & 0o777 == 0o600
 
 
+def test_discard_temporary_capture_removes_only_private_desktop_pixels(tmp_path):
+    def runner(command, **_kwargs):
+        Path(command[-1]).write_bytes(b"temporary-desktop-capture")
+        return SimpleNamespace(returncode=0)
+
+    service = ScreenCaptureService(tmp_path / "private", runner=runner)
+    capture = service.capture()
+    image = service.capture_dir / f"{capture.capture_id}.png"
+    assert image.is_file()
+    assert service.discard_temporary_capture(capture.capture_id) is True
+    assert not image.exists()
+    with service._db() as db:
+        assert db.execute(
+            "SELECT 1 FROM captures WHERE capture_id=?", (capture.capture_id,),
+        ).fetchone() is None
+
+    owner_image = tmp_path / "owner.png"
+    owner_image.write_bytes(b"owner-selected-image")
+    owner_capture = service.ingest_owner_file(owner_image)
+    with pytest.raises(ValueError, match="only transient desktop captures"):
+        service.discard_temporary_capture(owner_capture.capture_id)
+    assert (service.capture_dir / f"{owner_capture.capture_id}.png").is_file()
+
+
 def test_screen_capture_removes_failed_or_empty_output(tmp_path):
     def runner(command, **_kwargs):
         Path(command[-1]).write_bytes(b"")
@@ -182,3 +206,139 @@ def test_visual_labels_require_retained_capture_and_explicit_specialist(tmp_path
     capture = service.ingest_owner_file(source)
     service.set_vision_classifier(FakeVision())
     assert service.visual_labels(capture.capture_id, top_k=2)[0].label == "monitor"
+
+
+def test_visible_label_ocr_returns_only_requested_exact_label_geometry(tmp_path, monkeypatch):
+    import sys
+    from types import ModuleType
+
+    from PIL import Image
+
+    source = tmp_path / "owner.png"
+    Image.new("RGB", (320, 240), "white").save(source)
+    service = ScreenCaptureService(tmp_path / "private")
+    capture = service.ingest_owner_file(source)
+    calls = []
+    pytesseract = ModuleType("pytesseract")
+    pytesseract.Output = SimpleNamespace(DICT="dict")
+
+    def image_to_data(image, **kwargs):
+        calls.append((image.size, kwargs["config"], kwargs["output_type"]))
+        return {
+            "text": ["a", "Amber", "a", "Birch", "unrequested"],
+            "conf": ["48", "95", "48", "96", "99"],
+            "left": [10, 40, 10, 40, 10], "top": [60, 60, 110, 110, 5],
+            "width": [20, 100, 20, 100, 20], "height": [30, 30, 30, 30, 10],
+            "block_num": [1, 1, 1, 1, 2], "par_num": [1, 1, 1, 1, 1],
+            "line_num": [1, 1, 2, 2, 1], "page_num": [1, 1, 1, 1, 1],
+        }
+
+    pytesseract.image_to_data = image_to_data
+    monkeypatch.setitem(sys.modules, "pytesseract", pytesseract)
+
+    locations = service.locate_visible_labels(capture.capture_id, ("Amber", "Birch"))
+
+    assert set(locations) == {"Amber", "Birch"}
+    assert locations["Amber"].bounds == (20, 30, 50, 15)
+    assert locations["Birch"].bounds == (20, 55, 50, 15)
+    assert locations["Birch"].confidence == 96
+    assert calls == [((640, 480), "--psm 11", pytesseract.Output.DICT)]
+
+
+def test_visible_label_ocr_tries_bounded_layout_modes_until_all_exact_labels_are_found(
+    tmp_path, monkeypatch,
+):
+    import sys
+    from types import ModuleType
+
+    from PIL import Image
+
+    source = tmp_path / "owner.png"
+    Image.new("RGB", (320, 240), "white").save(source)
+    service = ScreenCaptureService(tmp_path / "private")
+    capture = service.ingest_owner_file(source)
+    calls = []
+    pytesseract = ModuleType("pytesseract")
+    pytesseract.Output = SimpleNamespace(DICT="dict")
+
+    def rows(labels):
+        return {
+            "text": list(labels),
+            "conf": ["96"] * len(labels),
+            "left": [40] * len(labels),
+            "top": [60 + index * 50 for index in range(len(labels))],
+            "width": [100] * len(labels),
+            "height": [30] * len(labels),
+            "block_num": [1] * len(labels),
+            "par_num": [1] * len(labels),
+            "line_num": list(range(1, len(labels) + 1)),
+            "page_num": [1] * len(labels),
+        }
+
+    def image_to_data(_image, **kwargs):
+        calls.append(kwargs["config"])
+        if kwargs["config"] == "--psm 11":
+            return rows(("Birch", "Cedar"))
+        return rows(("Amber", "Birch", "Cedar"))
+
+    pytesseract.image_to_data = image_to_data
+    monkeypatch.setitem(sys.modules, "pytesseract", pytesseract)
+
+    locations = service.locate_visible_labels(
+        capture.capture_id, ("Amber", "Birch", "Cedar"),
+    )
+
+    assert set(locations) == {"Amber", "Birch", "Cedar"}
+    assert locations["Amber"].bounds == (20, 30, 50, 15)
+    assert locations["Cedar"].bounds == (20, 80, 50, 15)
+    assert calls == ["--psm 11", "--psm 6"]
+
+
+def test_visible_label_ocr_crops_to_active_window_and_returns_screen_geometry(tmp_path, monkeypatch):
+    import sys
+    from types import ModuleType
+
+    from PIL import Image
+
+    source = tmp_path / "owner.png"
+    Image.new("RGB", (320, 240), "white").save(source)
+    service = ScreenCaptureService(tmp_path / "private")
+    capture = service.ingest_owner_file(source)
+    calls = []
+    pytesseract = ModuleType("pytesseract")
+    pytesseract.Output = SimpleNamespace(DICT="dict")
+
+    def image_to_data(image, **kwargs):
+        calls.append((image.size, kwargs["config"], kwargs["output_type"]))
+        return {
+            "text": ["Birch"], "conf": ["96"], "left": [40], "top": [60],
+            "width": [100], "height": [30], "block_num": [1], "par_num": [1],
+            "line_num": [1], "page_num": [1],
+        }
+
+    pytesseract.image_to_data = image_to_data
+    monkeypatch.setitem(sys.modules, "pytesseract", pytesseract)
+
+    locations = service.locate_visible_labels(
+        capture.capture_id, ("Birch",), window_bounds=(30, 40, 200, 100),
+        expected_screen_size=(320, 240),
+    )
+
+    assert locations["Birch"].bounds == (50, 70, 50, 15)
+    assert calls == [((400, 200), "--psm 11", pytesseract.Output.DICT)]
+
+
+def test_visible_label_ocr_rejects_capture_geometry_mismatch(tmp_path):
+    import pytest
+    from PIL import Image
+
+    source = tmp_path / "owner.png"
+    Image.new("RGB", (320, 240), "white").save(source)
+    service = ScreenCaptureService(tmp_path / "private")
+    capture = service.ingest_owner_file(source)
+
+    with pytest.raises(RuntimeError, match="geometry does not match"):
+        service.locate_visible_labels(
+            capture.capture_id, ("Birch",), window_bounds=(30, 40, 200, 100),
+            expected_screen_size=(640, 480),
+        )

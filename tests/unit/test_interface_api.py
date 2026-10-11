@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import os
 import threading
 from types import SimpleNamespace
 
@@ -66,6 +67,39 @@ def test_task_progress_narratives_cover_each_canonical_status_without_fake_metri
     assert "worker liveness is reported separately" in _TASK_PROGRESS_NARRATIVES["executing"]
     assert not any("%" in value or "ETA" in value for value in _TASK_PROGRESS_NARRATIVES.values())
     assert _EVENT_PROGRESS_SUMMARIES["plan_ready"] == "Canonical plan generated and recorded."
+
+
+def test_computer_runtime_identity_is_local_owner_authenticated_and_reports_actual_process():
+    runtime = FridayRuntime("runtime-identity-api")
+    runner = SimpleNamespace(_qualification_gate=None)
+    client = TestClient(create_presentation_app(
+        runtime,
+        FridayConversationService(FakeStreamingLLM(), runtime),
+        computer_runner=runner,
+        project_execution_sessions=ProjectOwnerSessions(),
+    ), base_url="http://127.0.0.1")
+
+    assert client.get("/api/v1/computer/runtime/identity").status_code == 401
+    client.cookies.set("friday_project_session", "owner-session")
+    response = client.get("/api/v1/computer/runtime/identity")
+    assert response.status_code == 200
+    identity = response.json()
+    assert identity["process_id"] == os.getpid()
+    assert identity["runner_class"] == {
+        "module": "types", "qualname": "SimpleNamespace",
+    }
+    assert identity["qualification_gate"]["active_in_runner"] is False
+    assert {item["name"] for item in identity["modules"]} >= {
+        "local_ai_assistant.desktop.runner",
+        "local_ai_assistant.desktop.visible_targets",
+        "local_ai_assistant.desktop.qualification_gate",
+    }
+    runner_module = next(
+        item for item in identity["modules"]
+        if item["name"] == "local_ai_assistant.desktop.runner"
+    )
+    assert runner_module["loaded"] is True
+    assert runner_module["sha256"]
 
 
 def make_client(chunks=None):
@@ -193,12 +227,14 @@ def test_computer_task_routes_require_owner_and_csrf_and_reject_malformed_action
 
     class Agency:
         ledger = ComputerAgencyLedger(tmp_path / "private" / "computer.sqlite3")
+        actions = []
 
         def observe(self, _task_id):
             return DesktopObservation("observation_" + "a" * 32, "2026-10-04T00:00:00Z", "a" * 64, ())
 
         def act(self, _task_id, _action):
-            raise AssertionError("invalid action reached controller")
+            self.actions.append(_action)
+            return "postcondition_verified"
 
         def reconcile(self, _task_id, _action_id):
             return False
@@ -212,9 +248,15 @@ def test_computer_task_routes_require_owner_and_csrf_and_reject_malformed_action
         calls = []
         resume_calls = []
 
-        def run(self, task_id):
+        def run(self, task_id, *, on_progress=None):
             self.calls.append(task_id)
+            if on_progress is not None:
+                on_progress("AGENCY_PLAN_READY", planning_elapsed_ms=12,
+                            window_focus_elapsed_ms=7, private_text="filtered")
             return agency.ledger.complete(task_id, succeeded=True)
+
+        def result_summary(self, task_id):
+            return "verified result"
 
         def resume(self, task_id):
             self.resume_calls.append(task_id)
@@ -258,6 +300,37 @@ def test_computer_task_routes_require_owner_and_csrf_and_reject_malformed_action
     assert client.post(recovery_route, headers={"Origin": "http://127.0.0.1"}).status_code == 401
     assert client.post(recovery_route, headers=headers).json() == {"status": "unresolved"}
     assert client.post(f"{route}/{task_id}/cancel", headers=headers).json()["task"]["state"] == "cancelled"
+    view_task_id = client.post(route, json={
+        "request": "Show the existing VS Code terminal output",
+        "action_budget": 1,
+    }, headers=headers).json()["task"]["task_id"]
+    observed = client.post(f"{route}/{view_task_id}/observe", headers=headers).json()["observation"]
+    action_response = client.post(f"{route}/{view_task_id}/actions", json={
+        "kind": "hotkey",
+        "observation_id": observed["observation_id"],
+        "target": {"path": [0], "application": "code", "role": "frame",
+                   "name": "Workspace - Visual Studio Code"},
+        "expected": {"path": [], "application": "code", "role": "*", "name": ""},
+        "value": "Shift+Alt+F2",
+        "expected_change_token": "accessible-view-opened",
+    }, headers=headers)
+    assert action_response.json() == {"status": "postcondition_verified"}
+    assert agency.actions[-1].expected_change_token == "accessible-view-opened"
+    search_task_id = client.post(route, json={
+        "request": "Open http://127.0.0.1:8080 and search for machine learning",
+        "action_budget": 2,
+    }, headers=headers).json()["task"]["task_id"]
+    search_response = client.post(f"{route}/{search_task_id}/actions", json={
+        "kind": "press_key",
+        "observation_id": observed["observation_id"],
+        "target": {"path": [0], "application": "chrome", "role": "entry", "name": "Search"},
+        "expected": {"path": [], "application": "chrome", "role": "*", "name": ""},
+        "value": "Return",
+        "expected_change_token": "search-results",
+        "expected_search_query": "machine learning",
+    }, headers=headers)
+    assert search_response.json() == {"status": "postcondition_verified"}
+    assert agency.actions[-1].expected_search_query == "machine learning"
     next_id = client.post(route, json=payload, headers=headers).json()["task"]["task_id"]
     assert client.post(f"{route}/{next_id}/run", headers={"Origin": "http://127.0.0.1"}).status_code == 401
     assert client.post(f"{route}/{next_id}/resume", headers={"Origin": "http://127.0.0.1"}).status_code == 401
@@ -266,7 +339,13 @@ def test_computer_task_routes_require_owner_and_csrf_and_reject_malformed_action
     client.cookies.set("friday_project_session", "valid-session")
     assert client.post(f"{route}/{next_id}/resume", headers=headers).json()["task"]["task_id"] == next_id
     assert runner.resume_calls == [next_id]
-    assert client.post(f"{route}/{next_id}/run", headers=headers).json()["task"]["state"] == "succeeded"
+    run_result = client.post(f"{route}/{next_id}/run", headers=headers).json()
+    assert run_result["task"]["state"] == "succeeded"
+    assert run_result["result_summary"] == "verified result"
+    assert run_result["progress"] == [
+        {"stage": "AGENCY_PLAN_READY", "planning_elapsed_ms": 12,
+         "window_focus_elapsed_ms": 7},
+    ]
     assert runner.calls == [next_id]
     assert client.post("/api/v1/computer/permission/revoke",
                        headers={"Origin": "http://127.0.0.1"}).status_code == 401
@@ -2351,9 +2430,12 @@ def test_disconnect_during_blocked_generation_holds_owner_until_safe_cancel():
     runtime = FridayRuntime("started-disconnect")
     interactions = FridayInteractionCoordinator()
     lifecycle = []
+    cancel_requests = []
+    conversation = FridayConversationService(BlockingAfterFirstChunk(), runtime)
+    conversation.cancel_active_voice_action = lambda: cancel_requests.append("stop")
     app = create_presentation_app(
         runtime,
-        FridayConversationService(BlockingAfterFirstChunk(), runtime),
+        conversation,
         interactions=interactions,
         presentation_pause=lambda: lifecycle.append("pause"),
         presentation_resume=lambda: lifecycle.append("resume"),
@@ -2397,6 +2479,7 @@ def test_disconnect_during_blocked_generation_holds_owner_until_safe_cancel():
         await asyncio.sleep(0.01)
         observed_during_block["owner"] = interactions.snapshot().owner
         observed_during_block["lifecycle"] = list(lifecycle)
+        observed_during_block["cancel_requests"] = list(cancel_requests)
         finish_next.set()
 
     async def run_disconnected_request():
@@ -2410,6 +2493,7 @@ def test_disconnect_during_blocked_generation_holds_owner_until_safe_cancel():
     assert observed_during_block == {
         "owner": "presentation",
         "lifecycle": ["pause"],
+        "cancel_requests": ["stop"],
     }
     assert interactions.snapshot().owner is None
     assert lifecycle == ["pause", "resume"]
@@ -2608,6 +2692,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/perception/screen/captures/{capture_id}/ui-state",
         "/api/v1/perception/screen/captures/{capture_id}/visual-labels",
         "/api/v1/computer/permission",
+        "/api/v1/computer/runtime/identity",
         "/api/v1/computer/permission/enroll",
         "/api/v1/computer/permission/revoke",
         "/api/v1/computer/screen/describe",

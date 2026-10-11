@@ -16,7 +16,7 @@ import threading
 import weakref
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -27,6 +27,7 @@ _KINDS = frozenset({
     "focus_app", "launch_app", "open_uri", "open_file", "activate_accessible",
     "move_pointer", "click", "double_click", "right_click", "scroll", "drag",
     "type_text", "press_key", "hotkey", "switch_window", "close_window",
+    "open_location", "create_directory", "move_file", "run_read_only_command",
 })
 _RISK = frozenset({"low", "medium", "consequential"})
 _SEMANTIC_KINDS = frozenset({
@@ -37,15 +38,35 @@ _SEMANTIC_KINDS = frozenset({
 # These actions are bound to a resolved URI or installed desktop entry rather
 # than a screen element. The runner revalidates that target before dispatch;
 # unrelated accessibility-tree changes must not invalidate the claim.
-_RESOLVED_TARGET_KINDS = frozenset({"launch_app", "open_uri"})
+_RESOLVED_TARGET_KINDS = frozenset({
+    "launch_app", "open_uri", "open_location", "create_directory",
+    "move_file", "run_read_only_command",
+})
 _OUTCOMES = frozenset({
     "postcondition_verified", "postcondition_failed", "observation_failed",
     "actor_failed", "interrupted",
 })
+_STALE_REASONS = frozenset({
+    "stale_observation_expired", "stale_application_changed", "stale_window_changed",
+    "stale_target_disappeared", "stale_target_moved", "stale_focus_changed",
+    "stale_collection_changed", "stale_observation_changed",
+})
 _VERIFICATION_RESULTS = frozenset({
     "active", "focused", "new_visible", "uri_visible", "browser_title_visible",
-    "not_found", "not_checked",
+    "not_found", "not_checked", "location_opened", "filesystem_exists",
+    "command_completed", "search_field_opened", "search_field_focused", "search_results_visible",
+    "command_palette_ready", "command_palette_focused", "command_palette_dismissed",
+    "accessible_view_dismissed", "accessible_view_opened", "terminal_ready", "terminal_created",
+    "terminal_output_captured",
+    "file_manager_location_verified",
+    "file_manager_location_read", "file_manager_location_dismissed",
+    "visible_target_opened",
+    "window_closed",
     "observation_failed",
+})
+_TASK_FAILURE_REASONS = frozenset({
+    "planner_rejected", "unsupported_goal", "target_unresolved",
+    "verification_failed", "cancelled", "execution_failed",
 })
 
 
@@ -57,6 +78,13 @@ def _recent(timestamp: str, *, seconds: int) -> bool:
     return -2 <= age <= seconds
 
 
+def _not_expired(timestamp: str) -> bool:
+    try:
+        return datetime.now(UTC) < datetime.fromisoformat(timestamp)
+    except (ValueError, TypeError):
+        return False
+
+
 @dataclass(frozen=True, slots=True)
 class ComputerTask:
     task_id: str
@@ -66,6 +94,21 @@ class ComputerTask:
     created_at: str
     action_budget: int
     action_count: int
+    failure_reason: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class ComputerClarification:
+    task_id: str
+    owner_id: str
+    question: str
+    unresolved_referent: str
+    observation_id: str | None
+    requested_at: str
+    expires_at: str
+    status: str
+    delivery_state: str
+    response: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +163,8 @@ class ComputerAgencyLedger:
                     task_id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, request TEXT NOT NULL,
                     state TEXT NOT NULL, created_at TEXT NOT NULL,
                     action_budget INTEGER NOT NULL, action_count INTEGER NOT NULL DEFAULT 0,
-                    cancel_requested INTEGER NOT NULL DEFAULT 0
+                    cancel_requested INTEGER NOT NULL DEFAULT 0,
+                    failure_reason TEXT
                 );
                 CREATE TABLE IF NOT EXISTS computer_observations (
                     observation_id TEXT PRIMARY KEY, task_id TEXT NOT NULL,
@@ -142,6 +186,15 @@ class ComputerAgencyLedger:
                     FOREIGN KEY(task_id) REFERENCES computer_tasks(task_id),
                     FOREIGN KEY(observation_id) REFERENCES computer_observations(observation_id)
                 );
+                CREATE TABLE IF NOT EXISTS computer_clarifications (
+                    clarification_id TEXT PRIMARY KEY, task_id TEXT NOT NULL,
+                    owner_id TEXT NOT NULL, question TEXT NOT NULL,
+                    unresolved_referent TEXT NOT NULL DEFAULT '', observation_id TEXT,
+                    requested_at TEXT NOT NULL, expires_at TEXT NOT NULL,
+                    status TEXT NOT NULL, delivery_state TEXT NOT NULL DEFAULT 'pending',
+                    delivered_at TEXT, response TEXT, responded_at TEXT,
+                    FOREIGN KEY(task_id) REFERENCES computer_tasks(task_id)
+                );
             """)
             columns = {row[1] for row in db.execute("PRAGMA table_info(computer_observations)")}
             if "target_digests" not in columns:
@@ -149,6 +202,8 @@ class ComputerAgencyLedger:
             task_columns = {row[1] for row in db.execute("PRAGMA table_info(computer_tasks)")}
             if "cancel_requested" not in task_columns:
                 db.execute("ALTER TABLE computer_tasks ADD COLUMN cancel_requested INTEGER NOT NULL DEFAULT 0")
+            if "failure_reason" not in task_columns:
+                db.execute("ALTER TABLE computer_tasks ADD COLUMN failure_reason TEXT")
             columns = {row[1] for row in db.execute("PRAGMA table_info(computer_actions)")}
             if "expected_result" not in columns:
                 db.execute("ALTER TABLE computer_actions ADD COLUMN expected_result TEXT")
@@ -212,17 +267,207 @@ class ComputerAgencyLedger:
         if not _ID.fullmatch(task_id):
             raise ValueError("computer task is unavailable")
         with self._db() as db:
-            row = db.execute("SELECT task_id,owner_id,request,state,created_at,action_budget,action_count "
+            row = db.execute("SELECT task_id,owner_id,request,state,created_at,action_budget,action_count,failure_reason "
                              "FROM computer_tasks WHERE task_id=?", (task_id,)).fetchone()
             if row is not None and row[3] == "active" and not _recent(row[4], seconds=1800):
                 db.execute("UPDATE computer_tasks SET state='expired' WHERE task_id=?", (task_id,))
                 db.execute("UPDATE computer_actions SET state='expired' "
                            "WHERE task_id=? AND state='prepared'", (task_id,))
-                row = db.execute("SELECT task_id,owner_id,request,state,created_at,action_budget,action_count "
+                row = db.execute("SELECT task_id,owner_id,request,state,created_at,action_budget,action_count,failure_reason "
                                  "FROM computer_tasks WHERE task_id=?", (task_id,)).fetchone()
+            if row is not None and row[3] == "awaiting_clarification":
+                clarification = db.execute(
+                    "SELECT clarification_id,expires_at FROM computer_clarifications "
+                    "WHERE task_id=? AND status='awaiting_answer' ORDER BY requested_at DESC LIMIT 1",
+                    (task_id,),
+                ).fetchone()
+                if clarification is None or not _not_expired(clarification[1]):
+                    db.execute("UPDATE computer_tasks SET state='expired' WHERE task_id=?", (task_id,))
+                    if clarification is not None:
+                        db.execute("UPDATE computer_clarifications SET status='expired' "
+                                   "WHERE clarification_id=?", (clarification[0],))
+                    row = db.execute(
+                        "SELECT task_id,owner_id,request,state,created_at,action_budget,action_count,failure_reason "
+                        "FROM computer_tasks WHERE task_id=?", (task_id,),
+                    ).fetchone()
         if row is None:
             raise ValueError("computer task is unavailable")
         return ComputerTask(*row)
+
+    @staticmethod
+    def _clarification_from_row(row) -> ComputerClarification:
+        return ComputerClarification(*row)
+
+    def await_clarification(self, task_id: str, question: str, *,
+                            unresolved_referent: str = "",
+                            observation_id: str | None = None,
+                            ttl_seconds: int = 300) -> ComputerClarification:
+        """Persist a zero-action task that is waiting for a spoken Owner answer."""
+        if (not _ID.fullmatch(task_id) or not isinstance(question, str)
+                or not 1 <= len(question.strip()) <= 1000
+                or not isinstance(unresolved_referent, str) or len(unresolved_referent) > 256
+                or observation_id is not None
+                and (not isinstance(observation_id, str) or not 1 <= len(observation_id) <= 128
+                     or any(ord(character) < 0x20 for character in observation_id))
+                or type(ttl_seconds) is not int or not 30 <= ttl_seconds <= 900):
+            raise ValueError("computer clarification is invalid")
+        requested = datetime.now(UTC)
+        expires = requested + timedelta(seconds=ttl_seconds)
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT owner_id,state,action_count,cancel_requested FROM computer_tasks WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+            in_flight = db.execute(
+                "SELECT 1 FROM computer_actions WHERE task_id=? "
+                "AND state IN ('prepared','in_flight') LIMIT 1",
+                (task_id,),
+            ).fetchone()
+            if (row is None or row[1] != "active" or row[3]
+                    or in_flight is not None):
+                raise ValueError("computer task cannot await clarification")
+            if row[2] != 0 and not self._only_location_discovery_actions(db, task_id):
+                raise ValueError("computer task has actions that cannot await clarification")
+            if observation_id is None:
+                latest = db.execute(
+                    "SELECT observation_id FROM computer_observations WHERE task_id=? "
+                    "ORDER BY observed_at DESC,rowid DESC LIMIT 1", (task_id,),
+                ).fetchone()
+                observation_id = latest[0] if latest is not None else None
+            if observation_id is not None and db.execute(
+                    "SELECT 1 FROM computer_observations WHERE observation_id=? AND task_id=?",
+                    (observation_id, task_id)).fetchone() is None:
+                raise ValueError("clarification observation is not part of this task")
+            db.execute("UPDATE computer_tasks SET state='awaiting_clarification' WHERE task_id=?",
+                       (task_id,))
+            db.execute("UPDATE computer_clarifications SET status='superseded' "
+                       "WHERE task_id=? AND status='awaiting_answer'", (task_id,))
+            clarification_id = uuid4().hex
+            db.execute(
+                "INSERT INTO computer_clarifications "
+                "(clarification_id,task_id,owner_id,question,unresolved_referent,observation_id,"
+                "requested_at,expires_at,status,delivery_state) VALUES(?,?,?,?,?,?,?,?,?,'pending')",
+                (clarification_id, task_id, row[0], question.strip(), unresolved_referent,
+                 observation_id, requested.isoformat(), expires.isoformat(), "awaiting_answer"),
+            )
+        return self.clarification(task_id)
+
+    def clarification(self, task_id: str) -> ComputerClarification:
+        if not _ID.fullmatch(task_id):
+            raise ValueError("computer clarification is unavailable")
+        with self._db() as db:
+            row = db.execute(
+                "SELECT task_id,owner_id,question,unresolved_referent,observation_id,requested_at,"
+                "expires_at,status,delivery_state,response FROM computer_clarifications "
+                "WHERE task_id=? ORDER BY requested_at DESC LIMIT 1", (task_id,),
+            ).fetchone()
+        if row is None:
+            raise ValueError("computer clarification is unavailable")
+        return self._clarification_from_row(row)
+
+    def pending_clarification(self, owner_id: str) -> ComputerClarification | None:
+        if not owner_id or len(owner_id) > 128:
+            return None
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT task_id FROM computer_clarifications WHERE owner_id=? "
+                "AND status='awaiting_answer' AND delivery_state='played' "
+                "ORDER BY requested_at DESC LIMIT 20", (owner_id,),
+            ).fetchall()
+        for (task_id,) in rows:
+            task = self.task(task_id)
+            if task.state == "awaiting_clarification":
+                return self.clarification(task_id)
+        return None
+
+    def record_clarification_delivery(self, task_id: str, *, played: bool) -> ComputerClarification:
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT clarification_id FROM computer_clarifications WHERE task_id=? "
+                "AND status='awaiting_answer' ORDER BY requested_at DESC LIMIT 1", (task_id,),
+            ).fetchone()
+            if row is None:
+                raise ValueError("computer clarification is unavailable")
+            db.execute("UPDATE computer_clarifications SET delivery_state=?,delivered_at=? "
+                       "WHERE clarification_id=?",
+                       ("played" if played else "failed",
+                        datetime.now(UTC).isoformat() if played else None, row[0]))
+        return self.clarification(task_id)
+
+    def resume_clarification(self, task_id: str, owner_id: str, response: str) -> ComputerTask:
+        if not isinstance(response, str) or not 1 <= len(response.strip()) <= 512 \
+                or any(ord(character) < 0x20 and character not in "\t" for character in response):
+            raise ValueError("clarification response is invalid")
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            clarification = db.execute(
+                "SELECT clarification_id,expires_at,delivery_state FROM computer_clarifications "
+                "WHERE task_id=? AND owner_id=? AND status='awaiting_answer' "
+                "ORDER BY requested_at DESC LIMIT 1", (task_id, owner_id),
+            ).fetchone()
+            task = db.execute(
+                "SELECT state,action_count,cancel_requested FROM computer_tasks WHERE task_id=? AND owner_id=?",
+                (task_id, owner_id),
+            ).fetchone()
+            if (clarification is None or task is None or task[0] != "awaiting_clarification"
+                    or task[2] or clarification[2] != "played"
+                    or not _not_expired(clarification[1])):
+                raise ValueError("computer clarification cannot be resumed")
+            if task[1] != 0 and not self._only_location_discovery_actions(db, task_id):
+                raise ValueError("computer clarification has an uncertain action outcome")
+            db.execute("UPDATE computer_tasks SET state='active' WHERE task_id=?", (task_id,))
+            db.execute("UPDATE computer_clarifications SET status='answered',response=?,responded_at=? "
+                       "WHERE clarification_id=?",
+                       (response.strip(), datetime.now(UTC).isoformat(), clarification[0]))
+        return self.task(task_id)
+
+    @staticmethod
+    def _only_location_discovery_actions(db: sqlite3.Connection, task_id: str) -> bool:
+        rows = db.execute(
+            "SELECT kind,state,verification_result FROM computer_actions "
+            "WHERE task_id=? ORDER BY rowid", (task_id,),
+        ).fetchall()
+        if not rows or len(rows) % 2:
+            return False
+        for index in range(0, len(rows), 2):
+            read, dismiss = rows[index:index + 2]
+            if (read != ("hotkey", "verified", "file_manager_location_read")
+                    or dismiss != ("press_key", "verified", "file_manager_location_dismissed")):
+                return False
+        return True
+
+    def can_await_clarification(self, task_id: str) -> bool:
+        """Permit clarification after no action or only verified location-bar reads."""
+        with self._db() as db:
+            task = db.execute(
+                "SELECT state,action_count,cancel_requested FROM computer_tasks WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+            if task is None or task[0] != "active" or task[2]:
+                return False
+            in_flight = db.execute(
+                "SELECT 1 FROM computer_actions WHERE task_id=? "
+                "AND state IN ('prepared','in_flight') LIMIT 1",
+                (task_id,),
+            ).fetchone()
+            return in_flight is None and (
+                task[1] == 0 or self._only_location_discovery_actions(db, task_id)
+            )
+
+    def cancel_clarification(self, task_id: str, owner_id: str) -> ComputerTask:
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            changed = db.execute(
+                "UPDATE computer_tasks SET state='cancelled' WHERE task_id=? AND owner_id=? "
+                "AND state='awaiting_clarification' AND action_count=0", (task_id, owner_id),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("computer clarification cannot be cancelled")
+            db.execute("UPDATE computer_clarifications SET status='cancelled' "
+                       "WHERE task_id=? AND status='awaiting_answer'", (task_id,))
+        return self.task(task_id)
 
     def recent_tasks(self, owner_id: str, *, limit: int = 20) -> tuple[ComputerTask, ...]:
         if not owner_id or not 1 <= limit <= 20:
@@ -233,6 +478,16 @@ class ComputerAgencyLedger:
                 (owner_id, limit),
             ).fetchall()
         return tuple(self.task(row[0]) for row in rows)
+
+    def active_task_ids(self) -> tuple[str, ...]:
+        """Return every active, recovery, or clarification task for gate scoping."""
+        with self._db() as db:
+            rows = db.execute(
+                "SELECT task_id FROM computer_tasks "
+                "WHERE state IN ('active','recovery_required','awaiting_clarification') "
+                "ORDER BY task_id"
+            ).fetchall()
+        return tuple(row[0] for row in rows)
 
     def record_observation(self, task_id: str, observation: DesktopObservation) -> None:
         self._validate_observation(observation)
@@ -252,6 +507,75 @@ class ComputerAgencyLedger:
                 observation.digest, len(observation.elements), len(observation.monitors),
                 self._target_digests(observation),
             ))
+
+    def record_stale_attempt(
+        self, task_id: str, *, kind: str, observation_id: str, target_digest: str,
+        fresh_observation: DesktopObservation, reason: str,
+        target_summary: tuple[str, str],
+        target_window: tuple[str, str, str] | None,
+    ) -> ComputerActionClaim:
+        """Durably reject a bound action after its source observation changes.
+
+        Rejected attempts do not consume physical action budget. The prior and
+        detecting observation IDs remain linked through the action record.
+        """
+        self._validate_observation(fresh_observation)
+        if (kind not in _KINDS or reason not in _STALE_REASONS
+                or not re.fullmatch(r"[a-f0-9]{64}", target_digest)
+                or not re.fullmatch(r"observation_[a-f0-9]{32}", observation_id)
+                or not isinstance(target_summary, tuple) or len(target_summary) != 2
+                or any(not isinstance(value, str) or len(value) > 256 for value in target_summary)
+                or target_window is not None and (
+                    not isinstance(target_window, tuple) or len(target_window) != 3
+                    or any(not isinstance(value, str) or len(value) > 256
+                           for value in target_window)
+                )):
+            raise ValueError("stale computer action evidence is invalid")
+        if not _recent(fresh_observation.observed_at, seconds=15):
+            raise ValueError("stale computer action requires a fresh detecting observation")
+        action_id = uuid4().hex
+        now = datetime.now(UTC).isoformat()
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            task = db.execute(
+                "SELECT state,action_budget,cancel_requested FROM computer_tasks WHERE task_id=?",
+                (task_id,),
+            ).fetchone()
+            prior = db.execute(
+                "SELECT observed_at,target_digests FROM computer_observations "
+                "WHERE observation_id=? AND task_id=?", (observation_id, task_id),
+            ).fetchone()
+            rejections = db.execute(
+                "SELECT COUNT(*) FROM computer_actions WHERE task_id=? AND state='stale' "
+                "AND outcome LIKE 'stale_%'", (task_id,),
+            ).fetchone()[0]
+            if (task is None or task[0] != "active" or task[2]
+                    or prior is None or not _recent(prior[0], seconds=1800)
+                    or rejections >= 2):
+                raise ValueError("stale computer recovery is unavailable or exhausted")
+            if prior[1] is not None and target_digest not in json.loads(prior[1]):
+                raise ValueError("stale action target was not present in its bound observation")
+            db.execute(
+                "INSERT INTO computer_observations "
+                "(observation_id,task_id,observed_at,digest,element_count,monitor_count,target_digests) "
+                "VALUES(?,?,?,?,?,?,?)", (
+                    fresh_observation.observation_id, task_id, fresh_observation.observed_at,
+                    fresh_observation.digest, len(fresh_observation.elements),
+                    len(fresh_observation.monitors), self._target_digests(fresh_observation),
+                ),
+            )
+            db.execute(
+                "INSERT INTO computer_actions "
+                "(action_id,task_id,kind,observation_id,target_digest,risk,state,created_at,completed_at,"
+                "outcome,claim_observation_id,target_summary,target_window) "
+                "VALUES(?,?,?,?,?,'low','stale',?,?,?,?,?,?)", (
+                    action_id, task_id, kind, observation_id, target_digest,
+                    now, now, reason, fresh_observation.observation_id,
+                    json.dumps(target_summary),
+                    json.dumps(target_window) if target_window is not None else None,
+                ),
+            )
+        return self.action(action_id)
 
     @staticmethod
     def fingerprint(observation: DesktopObservation, element: AccessibleElement) -> str:
@@ -277,6 +601,8 @@ class ComputerAgencyLedger:
 
     @staticmethod
     def _validate_observation(observation: DesktopObservation) -> None:
+        if type(observation.complete) is not bool:
+            raise ValueError("observation completeness is invalid")
         if not re.fullmatch(r"observation_[a-f0-9]{32}", observation.observation_id):
             raise ValueError("observation ID is invalid")
         if not re.fullmatch(r"[a-f0-9]{64}", observation.digest):
@@ -299,17 +625,29 @@ class ComputerAgencyLedger:
                 target_window: tuple[str, str, str] | None = None) -> ComputerActionClaim:
         if kind not in _KINDS or risk not in _RISK or not re.fullmatch(r"[a-f0-9]{64}", target_digest):
             raise ValueError("computer action specification is invalid")
-        if expected_result is not None and (
-            kind not in {"activate_accessible", "click", "double_click", "right_click"}
-            or not isinstance(expected_result, tuple) or len(expected_result) != 3
-            or any(not isinstance(part, str) or not part or len(part) > limit
-                   for part, limit in zip(expected_result, (128, 64, 256)))
-        ):
-            raise ValueError("computer expected result is invalid")
+        if expected_result is not None:
+            if not isinstance(expected_result, tuple) or len(expected_result) != 3:
+                raise ValueError("computer expected result is invalid")
+            terminal_input_result = (
+                kind == "hotkey"
+                and expected_result[1:] == ("__vscode_terminal_input__", "focused")
+            )
+            terminal_after_escape_result = (
+                kind == "press_key"
+                and expected_result[1:] == ("__vscode_terminal_after_escape__", "focused")
+            )
+            if ((kind not in {"activate_accessible", "click", "double_click", "right_click"}
+                    and not terminal_input_result and not terminal_after_escape_result) or any(
+                        not isinstance(part, str) or not part or len(part) > limit
+                        for part, limit in zip(expected_result, (128, 64, 256))
+                    ) or (expected_result[1] in {
+                        "__vscode_terminal_input__", "__vscode_terminal_after_escape__",
+                    } and not (terminal_input_result or terminal_after_escape_result))):
+                raise ValueError("computer expected result is invalid")
         if target_summary is not None and (
             not isinstance(target_summary, tuple) or len(target_summary) != 2
             or any(not isinstance(part, str) or not part or len(part) > limit
-                   for part, limit in zip(target_summary, (128, 256)))
+                   for part, limit in zip(target_summary, (1024, 256)))
         ):
             raise ValueError("computer target summary is invalid")
         if target_window is not None and (
@@ -425,6 +763,46 @@ class ComputerAgencyLedger:
                     datetime.now(UTC).isoformat(), fresh_observation.observation_id, action_id,
                 ))
                 db.execute("UPDATE computer_tasks SET action_count=action_count+1 WHERE task_id=?", (row[0],))
+        if stale:
+            raise ValueError("computer observation is stale")
+        return self.action(action_id)
+
+    def claim_current(self, action_id: str, *, observation: DesktopObservation) -> ComputerActionClaim:
+        """Claim against one freshly recorded state when another scan would age it out."""
+        self._validate_observation(observation)
+        if not _recent(observation.observed_at, seconds=15):
+            raise ValueError("current computer observation is too old")
+        stale = False
+        with self.execution_guard(), self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT a.task_id,a.state,a.risk,a.observation_id,t.state,t.action_count,"
+                "t.action_budget,t.cancel_requested,o.digest,o.target_digests,a.target_digest,a.kind "
+                "FROM computer_actions a JOIN computer_tasks t ON a.task_id=t.task_id "
+                "JOIN computer_observations o ON a.observation_id=o.observation_id "
+                "WHERE a.action_id=?", (action_id,),
+            ).fetchone()
+            if (row is None or row[1] != "prepared" or row[4] != "active"
+                    or row[5] >= row[6] or row[7]):
+                raise ValueError("computer action cannot be claimed")
+            if row[2] == "consequential":
+                raise ValueError("consequential computer action requires canonical approval")
+            if observation.observation_id != row[3]:
+                raise ValueError("current computer observation does not match the action")
+            fresh_targets = self._target_digests(observation)
+            scoped = row[11] in _SEMANTIC_KINDS and row[9] is not None
+            stale = (observation.digest != row[8]
+                     or fresh_targets != row[9]
+                     or (scoped and row[10] not in json.loads(fresh_targets)))
+            if stale:
+                db.execute("UPDATE computer_actions SET state='stale' WHERE action_id=?", (action_id,))
+            else:
+                db.execute("UPDATE computer_actions SET state='in_flight',claimed_at=?,claim_observation_id=? "
+                           "WHERE action_id=?", (
+                               datetime.now(UTC).isoformat(), observation.observation_id, action_id,
+                           ))
+                db.execute("UPDATE computer_tasks SET action_count=action_count+1 WHERE task_id=?",
+                           (row[0],))
         if stale:
             raise ValueError("computer observation is stale")
         return self.action(action_id)
@@ -546,10 +924,20 @@ class ComputerAgencyLedger:
                 return False
             application, role, name = json.loads(row[2])
             target_window = tuple(json.loads(row[4])) if row[4] else None
-            matches = [element for element in observation.elements
-                       if element.application == application and element.name == name
-                       and (role == "*" or element.role == role)
-                       and self._within_window(observation, element, target_window)]
+            if role in {
+                "__vscode_terminal_input__", "__vscode_terminal_after_escape__",
+            }:
+                matches = [element for element in observation.elements
+                           if element.application == application
+                           and element.role in {"entry", "text entry", "text"}
+                           and element.focused
+                           and re.match(r"^terminal\s+\d+\s*,", element.name, re.I)
+                           and self._within_window(observation, element, target_window)]
+            else:
+                matches = [element for element in observation.elements
+                           if element.application == application and element.name == name
+                           and (role == "*" or element.role == role)
+                           and self._within_window(observation, element, target_window)]
             db.execute("INSERT INTO computer_observations "
                        "(observation_id,task_id,observed_at,digest,element_count,monitor_count,target_digests) "
                        "VALUES(?,?,?,?,?,?,?)", (
@@ -629,15 +1017,10 @@ class ComputerAgencyLedger:
         return int(completed)
 
     def cancel(self, task_id: str) -> ComputerTask:
-        if not _ID.fullmatch(task_id):
-            raise ValueError("computer task cannot be cancelled")
-        # Persist stop intent before waiting for the current physical transaction.
-        with self._db() as db:
-            changed = db.execute("UPDATE computer_tasks SET cancel_requested=1 "
-                                 "WHERE task_id=? AND state IN ('active','recovery_required')",
-                                 (task_id,)).rowcount
-            if changed != 1:
-                raise ValueError("computer task cannot be cancelled")
+        current = self.task(task_id)
+        if current.state == "awaiting_clarification":
+            return self.cancel_clarification(task_id, current.owner_id)
+        self.request_cancel(task_id)
         with self.execution_guard(), self._db() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT state FROM computer_tasks WHERE task_id=?", (task_id,)).fetchone()
@@ -647,6 +1030,17 @@ class ComputerAgencyLedger:
             db.execute("UPDATE computer_actions SET state='cancelled' "
                        "WHERE task_id=? AND state='prepared'", (task_id,))
         return self.task(task_id)
+
+    def request_cancel(self, task_id: str) -> None:
+        """Persist Stop intent immediately without waiting for an active action guard."""
+        if not _ID.fullmatch(task_id):
+            raise ValueError("computer task cannot be cancelled")
+        with self._db() as db:
+            changed = db.execute("UPDATE computer_tasks SET cancel_requested=1 "
+                                 "WHERE task_id=? AND state IN ('active','recovery_required')",
+                                 (task_id,)).rowcount
+            if changed != 1:
+                raise ValueError("computer task cannot be cancelled")
 
     def cancellation_requested(self, task_id: str) -> bool:
         """Read the durable stop intent without waiting for the action guard."""
@@ -663,23 +1057,43 @@ class ComputerAgencyLedger:
 
     def cancel_active_tasks(self) -> tuple[str, ...]:
         """Emergency stop all local computer tasks, including recovery review."""
-        with self._db() as db:
-            db.execute("UPDATE computer_tasks SET cancel_requested=1 "
-                       "WHERE state IN ('active','recovery_required')")
+        task_ids = self.request_cancel_active_tasks()
         with self.execution_guard(), self._db() as db:
             db.execute("BEGIN IMMEDIATE")
-            rows = db.execute(
-                "SELECT task_id FROM computer_tasks WHERE state IN ('active','recovery_required')"
-            ).fetchall()
-            task_ids = tuple(row[0] for row in rows)
-            db.execute("UPDATE computer_tasks SET state='cancelled' "
-                       "WHERE state IN ('active','recovery_required')")
-            db.execute("UPDATE computer_actions SET state='cancelled' "
-                       "WHERE state='prepared' AND task_id IN "
-                       "(SELECT task_id FROM computer_tasks WHERE state='cancelled')")
+            placeholders = ",".join("?" for _ in task_ids)
+            if task_ids:
+                db.execute(f"UPDATE computer_tasks SET state='cancelled' WHERE task_id IN ({placeholders})",
+                           task_ids)
+            if task_ids:
+                db.execute(f"UPDATE computer_actions SET state='cancelled' "
+                           f"WHERE state='prepared' AND task_id IN ({placeholders})", task_ids)
+                db.execute(f"UPDATE computer_clarifications SET status='cancelled' "
+                           f"WHERE status='awaiting_answer' AND task_id IN ({placeholders})", task_ids)
         return task_ids
 
-    def complete(self, task_id: str, *, succeeded: bool) -> ComputerTask:
+    def request_cancel_active_tasks(self) -> tuple[str, ...]:
+        """Persist global Stop requests without waiting for an action to finish."""
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            rows = db.execute(
+                "SELECT task_id FROM computer_tasks "
+                "WHERE state IN ('active','recovery_required','awaiting_clarification')"
+            ).fetchall()
+            task_ids = tuple(row[0] for row in rows)
+            db.execute("UPDATE computer_tasks SET cancel_requested=1 "
+                       "WHERE state IN ('active','recovery_required','awaiting_clarification')")
+            db.execute("COMMIT")
+        return task_ids
+
+    def complete(self, task_id: str, *, succeeded: bool,
+                 failure_reason: str | None = None) -> ComputerTask:
+        if succeeded:
+            if failure_reason is not None:
+                raise ValueError("successful computer task cannot have a failure reason")
+        elif failure_reason is None:
+            failure_reason = "execution_failed"
+        if failure_reason is not None and failure_reason not in _TASK_FAILURE_REASONS:
+            raise ValueError("computer task failure reason is invalid")
         with self._db() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT state,cancel_requested FROM computer_tasks WHERE task_id=?",
@@ -688,8 +1102,8 @@ class ComputerAgencyLedger:
                                    (task_id,)).fetchone()
             if row is None or row[0] != "active" or row[1] or in_flight is not None:
                 raise ValueError("computer task cannot be completed")
-            db.execute("UPDATE computer_tasks SET state=? WHERE task_id=?",
-                       ("succeeded" if succeeded else "failed", task_id))
+            db.execute("UPDATE computer_tasks SET state=?,failure_reason=? WHERE task_id=?",
+                       ("succeeded" if succeeded else "failed", failure_reason, task_id))
             db.execute("UPDATE computer_actions SET state='cancelled' "
                        "WHERE task_id=? AND state='prepared'", (task_id,))
         return self.task(task_id)

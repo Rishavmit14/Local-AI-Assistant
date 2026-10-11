@@ -50,3 +50,22 @@ def test_non_screen_conversation_remains_generic():
     intent = FridayVoiceIntentRouter().classify("Can you explain how gradient descent works?")
 
     assert intent.kind is FridayVoiceIntentType.CONVERSATIONAL_KNOWLEDGE
+
+
+def test_multi_step_open_and_search_routes_to_general_computer_planning():
+    intent = FridayVoiceIntentRouter().classify(
+        "Hey Friday, open YouTube, search for machine learning."
+    )
+
+    assert intent.kind is FridayVoiceIntentType.COMPUTER_ACTION
+    assert intent.open_command is None
+    assert intent.computer_goal == "Hey Friday, open YouTube, search for machine learning."
+
+
+def test_historical_probe_transcript_routes_raw_text_without_asr_replacement():
+    transcript = "Open the second folder in this files video."
+
+    intent = FridayVoiceIntentRouter().classify(transcript)
+
+    assert intent.kind is FridayVoiceIntentType.COMPUTER_ACTION
+    assert intent.computer_goal == transcript
