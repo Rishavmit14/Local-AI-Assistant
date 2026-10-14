@@ -1720,6 +1720,12 @@ packages; full and production npm audits now report zero vulnerabilities.
 `docs/operations/friday-ui.md` records service and rollback operations
 and the host systemd namespace limitation.
 
+The accepted implementation and dependency-audit checkpoint is
+`018dc4bb7b609d23111060b0112e630cfa852b3d`. At that checkpoint,
+`stage-28/final-product-visual-acceptance` and `main` were fetched and verified
+against direct `git ls-remote` output at the exact same remote SHA. The final
+handoff reconciliation is documentation-only and follows that checkpoint.
+
 This qualifies the approved Stage 28 UI and its live local Qwen path. It does
 not qualify the broader Career Forge product or close roadmap rows 60 and 61;
 both remain **PARTIAL**. Populated owner-state visuals and native browser

@@ -1,34 +1,32 @@
-# Stage 28 Astra UI publication — 2026-10-15
+# Current Friday handoff — Stage 28 Astra UI
 
-## Accepted scope and current state
+Updated 2026-10-15. Reconstruct from this file, the canonical docs, and Git;
+chat history is not required.
 
-- Candidate worktree: `/home/kumar-rishav/.codex/worktrees/friday-stage28-final-visual/Local-AI-Assistant-terra-integration`.
-- Owning branch: `stage-28/final-product-visual-acceptance`, based on the published `a550266190befb4795c0572b9062e7d5801e2fce` checkpoint.
-- The Owner approved the exact Astra UI on 2026-10-14 and authorized qualification, publication to this Stage 28 branch and `main`, and activation at `http://127.0.0.1:5193`.
-- The final accepted branch tip is the Stage 28 publication recovery checkpoint. The live main worktree is a clean worktree at `~/.codex/worktrees/friday-stage28-live-main/Local-AI-Assistant-terra-integration`; the original dirty `/AI/projects/Local-AI-Assistant-terra-integration` main checkout was preserved.
-- The `friday-ui.service` user unit serves the built UI on loopback at port 5193. It uses `NoNewPrivileges=yes` and `UMask=0077`. This host's user systemd manager rejects mount, UTS, and capability namespace sandbox setup, so unsupported sandbox directives are omitted. The service continues to use existing API authentication, CSRF, Owner-task authorization, and restore checks.
-- The rollback unit and original GCA checkout remain intact. Rollback instructions are in `docs/operations/friday-ui.md`.
+## Recovery state
 
-## Qualification evidence
+- Stage candidate: `/home/kumar-rishav/.codex/worktrees/friday-stage28-final-visual/Local-AI-Assistant-terra-integration`, branch `stage-28/final-product-visual-acceptance`.
+- Live UI worktree: `/home/kumar-rishav/.codex/worktrees/friday-stage28-live-main/Local-AI-Assistant-terra-integration`, branch `main`.
+- Stage 28 implementation and dependency-audit checkpoint: `018dc4bb7b609d23111060b0112e630cfa852b3d`; it includes the approved UI, service, and lockfile advisory fixes. The stage branch and `main` were pushed and direct `git ls-remote` plus fetch verified both at this checkpoint. This handoff is a documentation-only follow-up to that code checkpoint.
+- The enabled `friday-ui.service` is active on loopback port 5193. At the final service check, `/` and `/health` both returned HTTP 200; UI PID was 156835 and the existing Friday API PID was 7350. The UI process has `NoNewPrivileges=1`. The browser showed Home with Friday ready and the authorized local Qwen smoke turn returned `READY`.
+- Friday API, Qwen, Pocket/Anna, voice, and computer-control processes were not restarted. No microphone, computer action, restore, or learner-state write was exercised.
+- Original checkout `/AI/projects/Local-AI-Assistant-terra-integration` remains attached to `recovery/local-main-before-stage28-20261015` at `47ae92bba1c3b50d9dd6f2264d95b6cfaf275e75`; its pre-existing dirty `ROADMAP.md` is preserved (SHA-256 `c804f92177ddbe033d81904aee3d59a6b5af748bca5d655ee6bb632c3bede897`). Private recovery patches and snapshots are under `/home/kumar-rishav/.local/state/friday-stage28-publication/`. Do not reset or replace that checkout.
 
-- All 16 registered routes passed at five viewports (1440×900, 1280×800, 768×1024, 390×844, and 320×740): 80 route/viewport checks, with no horizontal overflow, clipped focusable controls/headings, or mobile-route mismatch.
-- Keyboard navigation, modal focus containment/restoration, accessible labels, tabs, and reduced-motion behavior have regression coverage. The host browser reports native reduced motion as false and cannot emulate it, so no reduced-mode screenshot is claimed.
-- Frontend: 168 tests across 35 files, four Node Owner-bridge/local-server checks, ESLint, TypeScript, and production build passed. The existing Vite large-chunk advisory remains (~1.29 MB JavaScript).
-- Repository verifier passed with Python 3.11: 1,839 passed and 6 skipped; `pip check` passed. The initial Python 3.14 fallback had environment-specific subprocess and Bubblewrap failures; the corrected interpreter was the repository's existing `.venv`.
-- `systemd-analyze --user verify` passed for the unit templates with only an unrelated existing `spice-vdagent.service` unknown-key warning.
-- Live qualification on port 5193 returned HTTP 200 for `/` and `/health`, showed the real Friday UI, and completed a local Qwen conversation with `READY` after confirming the shared session was inactive and empty. No microphone, voice, computer action, owner restore, or learner-state write was exercised. Friday API, Qwen, Pocket/Anna, voice, and computer-control processes were not restarted.
+## Qualification and limitations
 
-## Product status and protected state
+- All 16 UI routes passed at five viewport sizes (80 route/viewport checks). Frontend: 168 tests across 35 files, four Node Owner-bridge/local-server checks, lint, TypeScript, and production build passed. Full and production npm audits report zero vulnerabilities.
+- Repository verifier passed on Python 3.11: 1,839 passed, 6 skipped; `pip check` passed. `systemd-analyze --user verify` passed with an unrelated installed `spice-vdagent.service` warning.
+- Existing Vite large-chunk advisory remains (~1.29 MB). Host browser cannot emulate native reduced motion, so no reduced-motion screenshot is claimed. Populated owner-state visuals and broader integrated Career Forge flows remain open.
+- Career Forge roadmap rows 60 and 61 remain **PARTIAL**; this publication does not qualify the full product. The running production API is an older checkout/version and currently returns 404 for some optional learning-path, Projects, and watch endpoints. The UI reports those as unavailable/retryable rather than inventing empty data.
+- The rollback unit and original GCA checkout remain available. See `docs/operations/friday-ui.md`; rollback affects only the UI service and must not restart Friday API, Qwen, Pocket/Anna, voice, or computer services.
 
-- Career Forge Roadmap rows 60 and 61 remain **PARTIAL**. The approved and live Stage 28 UI does not close broader Career Forge or whole-product qualification. Populated owner-state visuals and native reduced-motion browser capture remain limitations.
-- Protected `/AI/projects/Local-AI-Assistant`, the original GCA rollback worktree, the earlier `experiment/final-neetcode-ui` worktree, owner credentials/data, Qwen weights, and unrelated dirty local-main `ROADMAP.md` were preserved. No secret or credential value is committed.
-- No known blocker remains for the authorized Stage 28 UI publication. The next canonical capability is the active `ROADMAP.md` dependency after this UI publication; reconstruct it from the roadmap and architecture rather than this historical conversation.
+## Active dependency
 
-## Recovery and validation
-
-At publication, verify that `stage-28/final-product-visual-acceptance` and
-`main` resolve to the same remote commit, and that the clean live-main worktree
-matches that commit. Check `systemctl --user is-active friday-ui.service` and
-`http://127.0.0.1:5193/health`. To roll back only the UI, disable and stop
-`friday-ui.service`, then enable and start `friday-ui-rollback.service`; do not
-restart Friday API, Qwen, Pocket/Anna, voice, or computer services.
+Continue discovery for the remaining Row 60/61 Career Forge integration. First
+compare the canonical product integration matrix and API route inventory with
+the exact live runtime checkout/version, then identify the smallest safe
+owner-facing flow that is currently unavailable. Preserve the UI's truthful
+unavailable states and do not modify the protected production checkout until
+runtime/API compatibility, recovery, and the owning roadmap stage are clear.
+Use a fresh stage branch/worktree if this becomes a new major capability; do
+not continue new-stage implementation on the Stage 28 branch.
