@@ -1654,10 +1654,12 @@ qualified as of 2026-10-14; broader integrated owner flows and rows 60/61 remain
 PARTIAL. The final NeetCode-led UX now implements a responsive shared shell,
 keeps every existing destination discoverable, preserves `NeuralPresence`, and
 adds a canonical read-only Home continuation dashboard. Read-only inspection
-found the production runtime is a prior backend checkout/version and returns
-404 for optional learning paths, Projects, and watches; the frontend shows
-unavailable/retry rather than false empty claims. Progress retains available
-attempts/evidence/history and marks missing projections unavailable. Owner
+found the production API running from a separate General Computer Agency
+worktree. A final runtime audit listed 136 OpenAPI paths; the read-only list
+endpoints for learning paths, Projects, and watches returned HTTP 200, so the
+previously observed 404s were not reproduced and no current missing route is
+confirmed. Progress retains available attempts/evidence/history and marks
+missing projections unavailable. Owner
 decisions preserves the existing execution approval boundary. Stage 28's
 responsive matrix passed for all 16 routes at five viewport targets, and the
 current live Home and local Qwen conversation were qualified. The host browser

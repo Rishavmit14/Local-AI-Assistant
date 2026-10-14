@@ -28,7 +28,11 @@ product audit.
 Implementation/dependency-audit checkpoint
 `018dc4bb7b609d23111060b0112e630cfa852b3d` was fetched and verified by direct
 `git ls-remote`: the Stage 28 branch and `main` resolved to that exact SHA. The
-final recovery handoff is a documentation-only follow-up.
+final recovery handoff is a documentation-only follow-up. A read-only review of
+the live API found 136 OpenAPI paths and HTTP 200 from the learning-path,
+Projects, and watch list endpoints; previously observed 404s were not
+reproduced. The API is running from the separate, dirty GCA worktree, which
+remains protected and untouched.
 
 ## 2026-10-11 — Stage 28 final-product visual candidate prepared for Owner review
 
