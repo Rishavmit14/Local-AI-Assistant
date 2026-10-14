@@ -44,7 +44,9 @@ at `http://127.0.0.1:5193`. All 16 routes passed at five viewport targets
 Qwen UI conversation returned `READY` after the shared session was confirmed
 inactive and empty. Frontend tests, four bridge/local-server checks, lint,
 TypeScript/build, the full Python 3.11 repository verifier (1,839 passed, 6
-skipped), and `pip check` passed. The UI is now served by the loopback-only
+skipped), and `pip check` passed. A targeted patch to two development-only
+transitive packages cleared the npm audit findings; full and production audits
+now report zero vulnerabilities. The UI is now served by the loopback-only
 user-level `friday-ui.service`; backend and model processes were not restarted.
 
 This bounded Stage 28 publication does not close product capability rows 60

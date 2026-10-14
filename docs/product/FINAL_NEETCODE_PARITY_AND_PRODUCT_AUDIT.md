@@ -92,6 +92,9 @@ and local-UI-server checks, lint, TypeScript, and production build. The Python
 3.11 repository verifier passed 1,839 tests with 6 skipped, and `pip check`
 passed. `systemd-analyze --user verify` accepted the unit templates with only
 the host's unrelated existing `spice-vdagent.service` unknown-key warning.
+The build-tool lockfile patches the two high-severity transitive advisories in
+`brace-expansion` and `source-map-js`; the full and production npm audits now
+report zero vulnerabilities.
 The UI build retains Vite's existing ~1.29 MB JavaScript chunk advisory. The
 host browser reports native reduced motion as false and provides no media
 emulation, so a reduced-mode browser screenshot is not claimed; CSS and motion

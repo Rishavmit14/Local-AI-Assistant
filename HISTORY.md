@@ -12,7 +12,10 @@ Qualification passed for all 16 routes at five viewport targets (80 checks),
 the current live Home, the same-origin health path, and one local Qwen exchange
 that returned `READY` after the shared session was confirmed inactive and
 empty. Frontend qualification passed 168 tests across 35 files plus four Node
-Owner-bridge/local-server checks, lint, TypeScript, and production build. The
+Owner-bridge/local-server checks, lint, TypeScript, and production build. A
+full npm audit found two high-severity development-tool advisories; the lockfile
+patches `brace-expansion` to 5.0.12 and `source-map-js` to 1.2.2, after which
+the full and production npm audits both report zero vulnerabilities. The
 Python 3.11 repository verifier passed 1,839 tests with 6 skipped and `pip
 check`. The UI service sets `NoNewPrivileges=yes` and a restrictive umask;
 unsupported namespace sandbox directives are omitted because this host's user

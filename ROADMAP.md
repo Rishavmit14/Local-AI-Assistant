@@ -1715,7 +1715,9 @@ returned `READY`; no physical voice, computer action, restore, or learner-state
 write was exercised. Frontend qualification passed 168 tests across 35 files
 and four Node Owner-bridge/local-server checks; lint, TypeScript, production
 build, and the Python 3.11 repository verifier (1,839 passed, 6 skipped) also
-passed. `docs/operations/friday-ui.md` records service and rollback operations
+passed. The lockfile then patched two vulnerable development-only transitive
+packages; full and production npm audits now report zero vulnerabilities.
+`docs/operations/friday-ui.md` records service and rollback operations
 and the host systemd namespace limitation.
 
 This qualifies the approved Stage 28 UI and its live local Qwen path. It does
