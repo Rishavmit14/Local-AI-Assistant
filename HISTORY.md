@@ -34,6 +34,12 @@ Projects, and watch list endpoints; previously observed 404s were not
 reproduced. The API is running from the separate, dirty GCA worktree, which
 remains protected and untouched.
 
+A read-only Learn/Projects review found no saved dynamic learning paths or
+assigned projects. The four project templates are available, but the
+FraudShield "Explore the learning path" action opens generic Learn without
+retaining project context. The owner path-creation form was left empty; no
+learner state was mutated. This contextual handoff is the next Row 60/61 slice.
+
 ## 2026-10-11 — Stage 28 final-product visual candidate prepared for Owner review
 
 The recovered NeetCode-led UI candidate is being reviewed on the isolated

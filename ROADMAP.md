@@ -1669,6 +1669,14 @@ flows remain open; no whole-product qualification is claimed. See the current
 evidence in `docs/product/FINAL_NEETCODE_PARITY_AND_PRODUCT_AUDIT.md` and
 `CODEX_HANDOFF.md`.
 
+A final read-only owner-facing route review found no saved dynamic learning
+paths or assigned projects in the live owner state. Projects lists four
+canonical pathways; opening the FraudShield "Explore the learning path" action
+lands on generic Learn without carrying the selected project's identity or
+focus. The path-creation form was left empty and no learner state was written.
+This project-template-to-learning handoff is the next concrete Row 60/61
+integration slice; do not auto-create paths, projects, evidence, or mastery.
+
 ### Stage 28 responsive visual candidate — 2026-10-11
 
 The candidate adds the four-item mobile primary navigation, keeps the remaining
