@@ -415,6 +415,34 @@ records the NeetCode-led visual reference and the protected brain identity.
 No new frontend authority, model, remote asset dependency, or backend service
 is introduced by this shell.
 
+The final NeetCode-led candidate applies a responsive top navigation shell and
+shared visual tokens to the existing canonical projections. Home adds a small
+read-only continuation summary from current Learn path/sequence, Projects,
+activity, and Career Forge summary APIs; progress is derived only from satisfied
+canonical sequence nodes. Runtime connectivity is presented separately from
+cognitive presence. Human-readable status copy is a presentation mapping and
+does not rewrite canonical states. Search remains the entry point for every
+route not pinned in primary navigation. See
+`docs/product/FINAL_NEETCODE_PARITY_AND_PRODUCT_AUDIT.md` for the full route
+inventory and candidate qualification limits.
+
+The Stage 28 responsive candidate keeps Home, Learn, Practice, and Projects as
+fixed mobile destinations at widths up to 900 CSS px. `mobilePrimaryDestination`
+maps related Career Forge views back to Learn; the Ask Friday workspace finder
+keeps all 16 registered hash routes discoverable, including the routes outside
+the four-item mobile bar. At widths up to 640 px, Settings stacks its theme
+choices and settings links so narrow screens do not clip them. This is a
+presentation-only navigation/layout change: it adds no API, runtime authority,
+or permission path. Current route/layout evidence and the remaining acceptance
+boundary are recorded in the product audit.
+
+The accepted built frontend runs at the existing loopback origin through the
+user-level `friday-ui.service`. Its Node server serves only the built static
+files and proxies same-origin `/api` and `/health` to the existing local API.
+It reuses the exact local Owner restore bridge and adds no business logic or
+durable state; see `docs/architecture/frontend.md`, ADR 0051, and
+`docs/operations/friday-ui.md`.
+
 The Astra visual workspace consumes Friday only through `frontend/src/presentation`:
 a typed presentation adapter maps the existing `CareerForgeJourney` read model
 into Astra views, while explicit action methods retain the existing canonical

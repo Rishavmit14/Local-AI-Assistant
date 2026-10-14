@@ -1649,7 +1649,81 @@ owner qualification, including remaining Dynamic Learning Paths capability and i
 owner flows. At the UX-60A recovery boundary, DLP-1 was the next engineering
 step. DLP-1 through DLP-4 are now accepted and published. DLP-4 generalized
 arbitrary-domain teaching, assessment, evidence, mastery, retention and
-sequencing; final whole-product and owner visual acceptance remain deferred.
+sequencing. The Owner's Stage 28 visual approval and UI publication are
+qualified as of 2026-10-14; broader integrated owner flows and rows 60/61 remain
+PARTIAL. The final NeetCode-led UX now implements a responsive shared shell,
+keeps every existing destination discoverable, preserves `NeuralPresence`, and
+adds a canonical read-only Home continuation dashboard. Read-only inspection
+found the production runtime is a prior backend checkout/version and returns
+404 for optional learning paths, Projects, and watches; the frontend shows
+unavailable/retry rather than false empty claims. Progress retains available
+attempts/evidence/history and marks missing projections unavailable. Owner
+decisions preserves the existing execution approval boundary. Stage 28's
+responsive matrix passed for all 16 routes at five viewport targets, and the
+current live Home and local Qwen conversation were qualified. The host browser
+does not expose native reduced-motion emulation, so no reduced-mode screenshot
+is claimed. Populated owner-state visuals and broader integrated Career Forge
+flows remain open; no whole-product qualification is claimed. See the current
+evidence in `docs/product/FINAL_NEETCODE_PARITY_AND_PRODUCT_AUDIT.md` and
+`CODEX_HANDOFF.md`.
+
+### Stage 28 responsive visual candidate — 2026-10-11
+
+The candidate adds the four-item mobile primary navigation, keeps the remaining
+destinations available through the existing Ask Friday finder, and stacks
+Settings appearance choices and links at narrow widths. A live local preview
+checked all 16 hash routes at 1440 × 900, 1280 × 800, 768 × 1024, 390 × 844,
+and 320 × 740 CSS-pixel targets: every route rendered a visible heading and
+document width fit the viewport. The finder exposed all 16 unique destinations.
+Representative desktop Home, mobile Home, and 320 px Settings views were
+visually inspected. The candidate preview intentionally had no Qwen connection
+and showed “Local connection unavailable”; no owner progress was seeded.
+
+Frontend acceptance passed 159 tests across 31 files plus two Owner-bridge
+checks, ESLint, TypeScript, and production build. The repository verifier passed
+1,839 tests with 6 skipped, compilation/CLI checks, and dependency consistency
+using a disposable Python 3.11 environment whose editable package metadata
+points at this exact worktree. The initial fallback Python 3.14 environment had
+15 environment-specific failures (missing bubblewrap interpreter path,
+different editable checkout, and subprocess timeouts); the corrected targeted
+tests and full gate passed. The production bundle still has Vite's existing
+large-chunk advisory (~1.29 MB).
+
+This is a responsive candidate checkpoint, not whole-product qualification.
+Owner visual review remains open, as do broader integrated product evidence and
+the rest of Row 61 scope. Rows 60 and 61 remain PARTIAL. See
+`docs/product/FINAL_NEETCODE_PARITY_AND_PRODUCT_AUDIT.md` and the current
+`CODEX_HANDOFF.md` for exact candidate identity, protected state, and next step.
+
+### Stage 28 owner-approved Astra UI — qualified and published (2026-10-15)
+
+The Owner approved the exact responsive Astra UI on 2026-10-14 and authorized
+its qualification, publication on 2026-10-15 to
+`stage-28/final-product-visual-acceptance` and
+`main`, and activation as the normal UI at `http://127.0.0.1:5193`. The built
+frontend is served by the user-level `friday-ui.service`; same-origin `/api`
+and `/health` traffic reaches the existing local API. The service binds only to
+loopback and does not supervise or restart the API, Qwen, Pocket/Anna, voice, or
+computer-control services. The previous GCA UI and rollback unit are preserved.
+
+All 16 routes passed at 1440×900, 1280×800, 768×1024, 390×844, and 320×740
+(80 route/viewport checks). Keyboard, focus, accessible-label, responsive,
+modal, tabs, and reduced-motion regression coverage passed. The live UI and
+proxied health endpoint returned HTTP 200. The shared local conversation was
+confirmed inactive and empty before a bounded Qwen smoke exchange, which
+returned `READY`; no physical voice, computer action, restore, or learner-state
+write was exercised. Frontend qualification passed 168 tests across 35 files
+and four Node Owner-bridge/local-server checks; lint, TypeScript, production
+build, and the Python 3.11 repository verifier (1,839 passed, 6 skipped) also
+passed. `docs/operations/friday-ui.md` records service and rollback operations
+and the host systemd namespace limitation.
+
+This qualifies the approved Stage 28 UI and its live local Qwen path. It does
+not qualify the broader Career Forge product or close roadmap rows 60 and 61;
+both remain **PARTIAL**. Populated owner-state visuals and native browser
+reduced-motion capture remain limitations. See
+`docs/product/FINAL_NEETCODE_PARITY_AND_PRODUCT_AUDIT.md`, the integration
+matrix, and `CODEX_HANDOFF.md`.
 
 ## Dynamic Learning Paths — DLP-1–4 accepted and published (row 61, PARTIAL)
 

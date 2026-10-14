@@ -1,0 +1,18 @@
+[Unit]
+Description=Friday built local UI
+After=friday-local-ai.service
+Conflicts=friday-ui-rollback.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.codex/worktrees/friday-stage28-live-main/Local-AI-Assistant-terra-integration/frontend
+EnvironmentFile=%h/.config/friday/friday-ui.env
+ExecStart=/usr/bin/node server/local-ui.mjs
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+UMask=0077
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

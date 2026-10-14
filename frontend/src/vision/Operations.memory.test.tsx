@@ -134,7 +134,7 @@ describe("Astra canonical Memory workspace", () => {
     await mount();
     await settle();
 
-    expect(container?.querySelector('[role="alert"]')?.textContent).toContain("No example records are being shown");
+    expect(container?.querySelector('[role="alert"]')?.textContent).toContain("No example memories are being shown");
     expect(container?.textContent).not.toContain("Learning by building");
   });
 
@@ -156,7 +156,7 @@ describe("Astra canonical Memory workspace", () => {
 
     const toggle = container?.querySelector<HTMLButtonElement>('[role="switch"]');
     expect(toggle?.getAttribute("aria-checked")).toBe("false");
-    expect(container?.textContent).toContain("Eligible; opt-in is disabled");
+    expect(container?.textContent).toContain("Available when turned on");
     await act(async () => { toggle?.click(); await new Promise(resolve => setTimeout(resolve, 5)); });
     await settle();
 
@@ -164,9 +164,9 @@ describe("Astra canonical Memory workspace", () => {
       method: "POST", body: JSON.stringify({ enabled: true }),
     }));
     expect(container?.querySelector('[role="switch"]')?.getAttribute("aria-checked")).toBe("true");
-    expect(container?.textContent).toContain("Will be supplied to normal Conversation");
+    expect(container?.textContent).toContain("Used in replies");
     await act(async () => { container?.querySelector<HTMLButtonElement>(".op-memory-row")?.click(); });
-    expect(container?.textContent).toContain("Owner · Astra Memory");
+    expect(container?.textContent).toContain("You saved this");
     expect(container?.textContent).toContain("Usually answer concisely.");
 
     await act(async () => { root?.unmount(); });
@@ -177,13 +177,13 @@ describe("Astra canonical Memory workspace", () => {
     await settle();
     const remountedContainer = document.body.lastElementChild as HTMLDivElement;
     expect(remountedContainer.querySelector('[role="switch"]')?.getAttribute("aria-checked")).toBe("true");
-    expect(remountedContainer.textContent).toContain("Will be supplied to normal Conversation");
+    expect(remountedContainer.textContent).toContain("Used in replies");
 
     await act(async () => { remountedContainer.querySelector('[role="switch"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true })); await new Promise(resolve => setTimeout(resolve, 5)); });
     await settle();
     expect(enabled).toBe(false);
     expect(remountedContainer.querySelector('[role="switch"]')?.getAttribute("aria-checked")).toBe("false");
-    expect(remountedContainer.textContent).toContain("Eligible; opt-in is disabled");
+    expect(remountedContainer.textContent).toContain("Available when turned on");
     expect(remountedContainer.textContent).toContain("Usually answer concisely.");
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringMatching(/localStorage|sessionStorage/), expect.anything());
   });

@@ -1,10 +1,38 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { LockKeyhole, RotateCcw } from "lucide-react";
+import { Modal } from "./Modal";
 import { Status } from "./ui";
 
 type Operation = { operation_id: string; checkpoint_id: string; state: string; created_at: string; result: { status: string } | null };
 type Checkpoint = { task_id: string; checkpoint_id: string; label: string; created_at: string; plan_hash: string; plan_hash_full?: string; head: string; schema_version: number; eligible: boolean; reason: string | null };
 type Review = { operation_id: string; task_id: string; checkpoint_id: string; plan_hash: string; head: string; expires_at: string; action: string };
+
+function checkpointStatus(item: Checkpoint) {
+  if (item.eligible) return "Ready for review";
+  if (item.reason?.toLowerCase() === "recovery_required") return "Needs attention before restore";
+  return "Unavailable for restore";
+}
+
+function operationStatus(state: string) {
+  switch (state.toLowerCase()) {
+    case "reviewed": return "Waiting for owner review";
+    case "succeeded": return "Checkpoint restored";
+    case "failed_recovered": return "Restore stopped safely";
+    case "recovery_required": return "Needs owner attention";
+    default: return "Recovery activity recorded";
+  }
+}
+
+function resultSummary(status: string) {
+  switch (status.toLowerCase()) {
+    case "restored":
+    case "succeeded": return "Checkpoint restored. The saved state is back in place.";
+    case "rolled_back": return "The saved baseline was restored after validation failed.";
+    case "failed_recovered": return "Restore stopped safely. Friday returned the work area to its previous state.";
+    case "recovery_required": return "Restore needs attention. Review recovery history before taking another action.";
+    default: return "Friday recorded the recovery result. Refresh history to review the latest status.";
+  }
+}
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, { ...init, credentials: "same-origin" });
@@ -91,13 +119,13 @@ export function RollbackPanel({ taskIds, onComplete, projectOwnerCsrf = null }: 
 
   return <section className="op-history-section op-history-recovery" aria-label="Checkpoint rollback">
     <header><h2>Checkpoints &amp; recovery</h2><Status>{effectiveCsrf ? "Owner session · 10 minute expiry" : "Owner unlock required"}</Status></header>
-    <p>Rollback restores one eligible schema-2 checkpoint in its isolated task worktree. Review and execute are separate, and each review expires quickly. This does not undo publication, canonical repository changes, desktop actions, or other Friday data.</p>
-    {!effectiveCsrf ? <form onSubmit={unlock} className="op-rollback-unlock"><label htmlFor="rollback-token">Owner rollback token</label><input id="rollback-token" type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} required/><button className="btn" type="submit" disabled={busy || !taskIds.length}><LockKeyhole size={15}/>Unlock rollback</button></form> : <><div className="op-rollback-actions"><button className="btn" type="button" onClick={() => void refresh()} disabled={busy}>Refresh eligibility</button>{!projectOwnerCsrf && <button className="btn" type="button" onClick={() => void lock()}>Lock</button>}</div>
-      {checkpoints.length ? <ol>{checkpoints.map(item => <li key={item.checkpoint_id}><time>{new Date(item.created_at).toLocaleString()}</time><strong>{item.eligible ? "Eligible · exact task checkpoint" : `Unavailable · ${item.reason ?? "ineligible"}`}</strong><p>Checkpoint {item.checkpoint_id} · plan {item.plan_hash} · HEAD {item.head}</p>{item.eligible && <button className="btn" type="button" disabled={busy} onClick={() => void createReview(item)}>Review this exact checkpoint</button>}{!item.eligible && item.reason?.toLowerCase().includes("recovery_required") && <button className="btn" type="button" disabled={busy} onClick={() => void reconcileValidationFailure(item)}>Restore baseline after failed validation</button>}</li>)}</ol> : <p className="op-history-empty-inline">{taskIds.length ? "No eligible schema-2 task checkpoints are available." : "No task history is available to inspect."}</p>}
-      {operations.length > 0 && <><h3>Canonical rollback operations</h3><ol>{operations.map(item => <li key={item.operation_id}><time>{new Date(item.created_at).toLocaleString()}</time><strong>{item.state}</strong><p>Operation {item.operation_id} · checkpoint {item.checkpoint_id}{item.result ? ` · result ${item.result.status}` : ""}</p></li>)}</ol></>}
-      {review && <div role="dialog" aria-modal="true" aria-label="Confirm exact checkpoint rollback"><strong>Review exact restore</strong><p>Task {review.task_id} · checkpoint {review.checkpoint_id} · plan {review.plan_hash} · HEAD {review.head}</p><p>Expires {new Date(review.expires_at).toLocaleTimeString()}. Current worktree state will be rechecked before restore.</p><button className="btn" type="button" disabled={busy} onClick={() => void execute()}><RotateCcw size={15}/>Execute rollback</button><button className="btn" type="button" disabled={busy} onClick={() => setReview(null)}>Cancel review</button></div>}
+    <p>Restore a saved point in Friday’s task workspace. Review and restore are separate, and every review expires quickly. This does not undo publication, shared repository changes, computer actions, or other Friday data.</p>
+    {!effectiveCsrf ? <form onSubmit={unlock} className="op-rollback-unlock"><label htmlFor="rollback-token">Owner rollback token</label><input id="rollback-token" type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} required/><button className="btn" type="submit" disabled={busy || !taskIds.length}><LockKeyhole size={15}/>Unlock recovery</button></form> : <><div className="op-rollback-actions"><button className="btn" type="button" onClick={() => void refresh()} disabled={busy}>Refresh recovery</button>{!projectOwnerCsrf && <button className="btn" type="button" onClick={() => void lock()}>Lock</button>}</div>
+      {checkpoints.length ? <ol>{checkpoints.map(item => <li key={item.checkpoint_id}><time>{new Date(item.created_at).toLocaleString()}</time><strong>{checkpointStatus(item)}</strong><p>{item.eligible ? "Review this saved point before restoring it." : "Friday cannot restore this saved point while the work area needs attention."}</p>{item.eligible && <button className="btn" type="button" disabled={busy} onClick={() => void createReview(item)}>Review this checkpoint</button>}{!item.eligible && item.reason?.toLowerCase() === "recovery_required" && <button className="btn" type="button" disabled={busy} onClick={() => void reconcileValidationFailure(item)}>Restore baseline after failed validation</button>}<details><summary>Advanced details</summary><dl><div><dt>Task</dt><dd>{item.task_id}</dd></div><div><dt>Checkpoint</dt><dd>{item.checkpoint_id}</dd></div><div><dt>Plan reference</dt><dd>{item.plan_hash_full ?? item.plan_hash}</dd></div><div><dt>Saved revision</dt><dd>{item.head}</dd></div><div><dt>Checkpoint format</dt><dd>{item.schema_version}</dd></div><div><dt>Saved label</dt><dd>{item.label}</dd></div>{item.reason && <div><dt>Availability detail</dt><dd>{item.reason}</dd></div>}</dl></details></li>)}</ol> : <p className="op-history-empty-inline">{taskIds.length ? "No saved recovery points are available." : "No task history is available to inspect."}</p>}
+      {operations.length > 0 && <><h3>Recovery history</h3><ol>{operations.map(item => <li key={item.operation_id}><time>{new Date(item.created_at).toLocaleString()}</time><strong>{operationStatus(item.state)}</strong><p>Recovery activity was recorded for a saved task workspace.</p><details><summary>Advanced details</summary><dl><div><dt>Operation</dt><dd>{item.operation_id}</dd></div><div><dt>Checkpoint</dt><dd>{item.checkpoint_id}</dd></div><div><dt>Recorded status</dt><dd>{item.state}</dd></div>{item.result && <div><dt>Result detail</dt><dd>{item.result.status}</dd></div>}</dl></details></li>)}</ol></>}
+      {review && <Modal label="Review a saved checkpoint" onClose={() => setReview(null)}><div className="op-rollback-dialog"><header><h2>Restore this checkpoint?</h2></header><p>Friday will restore the saved point you reviewed in this task workspace. The current work area is checked again before anything changes.</p><p>This review expires at {new Date(review.expires_at).toLocaleTimeString()}.</p><details><summary>Advanced details</summary><dl><div><dt>Task</dt><dd>{review.task_id}</dd></div><div><dt>Checkpoint</dt><dd>{review.checkpoint_id}</dd></div><div><dt>Plan reference</dt><dd>{review.plan_hash}</dd></div><div><dt>Saved revision</dt><dd>{review.head}</dd></div><div><dt>Review operation</dt><dd>{review.operation_id}</dd></div><div><dt>Action</dt><dd>{review.action}</dd></div></dl></details><div className="modal-actions"><button className="btn" type="button" disabled={busy} onClick={() => setReview(null)}>Cancel review</button><button className="btn btn-primary" type="button" disabled={busy} onClick={() => void execute()}><RotateCcw size={15}/>Restore checkpoint</button></div></div></Modal>}
     </>}
-    {result && <p role="status">Rollback operation recorded: {result}. Refresh history for its canonical audit.</p>}
-    {error && <p className="op-history-error" role="alert">Rollback unavailable: {error}</p>}
+    {result && <p role="status">{resultSummary(result)}</p>}
+    {error && <div className="op-history-error" role="alert"><p>Friday couldn’t confirm this recovery action. Refresh to check its current status before trying again.</p><details><summary>Advanced details</summary><p>{error}</p></details></div>}
   </section>;
 }

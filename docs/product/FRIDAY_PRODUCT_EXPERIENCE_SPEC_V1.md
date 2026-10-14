@@ -1,6 +1,6 @@
 # Friday Product Experience V1
 
-**Owner contract, 2026-09-29.** UX-60A establishes the product shell. Dynamic Learning Paths owner controls were integrated afterward; this does not qualify matrix row 60 or accept the final visual design.
+**Owner contract, 2026-09-29.** UX-60A establishes the product shell. Dynamic Learning Paths owner controls were integrated afterward. The Owner approved the final Stage 28 visual design on 2026-10-14; that approval and UI publication do not qualify whole-product matrix row 60 or close row 61.
 
 ## Product model
 

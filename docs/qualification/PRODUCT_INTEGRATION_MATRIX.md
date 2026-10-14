@@ -1,6 +1,6 @@
 # Friday Product Integration Matrix
 
-**Audit date:** 2026-10-11; Career Forge rows reconciled 2026-09-21; Astra
+**Audit date:** 2026-10-15; Career Forge rows reconciled 2026-09-21; Astra
 frontend audit and Phases 1–2 source trace/owner qualification reconciled 2026-09-27;
 voice-action and live-vision candidate qualification reconciled 2026-10-07
 **Repository baseline:** Stage 21 accepted at `3770151bbf146ff580b8cafa0b4f73a0865c55c5`
@@ -35,6 +35,23 @@ Fresh owner microphone attempts verified Calculator and Friday UI through durabl
 `TS` = task history; `E2E` = real owner-facing qualification required; `N/A` =
 not applicable because the capability is absent/deferred.
 
+## Stage 28 responsive UI approval and publication — QUALIFIED (2026-10-15)
+
+The Owner approved the exact Astra UI on 2026-10-14 and authorized its
+qualification, publication to the Stage 28 branch and `main`, and activation
+at `http://127.0.0.1:5193`. All 16 routes passed at five viewport targets
+(80 checks). The live UI and same-origin `/health` returned HTTP 200; a local
+Qwen UI conversation returned `READY` after the shared session was confirmed
+inactive and empty. Frontend tests, four bridge/local-server checks, lint,
+TypeScript/build, the full Python 3.11 repository verifier (1,839 passed, 6
+skipped), and `pip check` passed. The UI is now served by the loopback-only
+user-level `friday-ui.service`; backend and model processes were not restarted.
+
+This bounded Stage 28 publication does not close product capability rows 60
+or 61. They remain **PARTIAL** pending broader integrated and populated
+Career Forge owner flows. See the current Stage 28 product audit and
+`CODEX_HANDOFF.md` for the service limitation and rollback path.
+
 ## Milestone C acceptance and publication — QUALIFIED (2026-10-11)
 
 The six physical General Computer Agency journeys passed, and the unchanged
@@ -51,8 +68,9 @@ equal. The accepted capability contains 67 intended paths. The unreferenced
 
 Milestone C is **QUALIFIED** for these six bounded owner journeys. Full cold-boot
 qualification and spoken-name fidelity remain unresolved limitations; broader
-owner qualification, latency, and final visual acceptance remain tracked under
-row 61 and Milestone F. The protected production checkout, Daybreak experiment,
+owner qualification and latency remain tracked under row 61 and Milestone F.
+The Stage 28 owner visual approval and UI publication are recorded above; they do
+not close either product row. The protected production checkout, Daybreak experiment,
 local-main unique commit, and dirty local-main Roadmap remain preserved and
 untouched.
 

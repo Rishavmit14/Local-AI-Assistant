@@ -1,3 +1,63 @@
+## 2026-10-15 — Stage 28 Astra UI approved, qualified, and published
+
+The Owner approved the exact Astra UI on 2026-10-14 and authorized publication
+to the Stage 28 capability branch and `main`, with activation at the normal local Friday
+origin `http://127.0.0.1:5193`. The production build now runs through the
+user-level `friday-ui.service`, serving static assets and proxying same-origin
+API and health requests to the existing backend. The service is loopback-only;
+the prior GCA UI and its rollback unit remain available. Friday API, Qwen,
+Pocket/Anna, voice, and computer-control processes were not restarted.
+
+Qualification passed for all 16 routes at five viewport targets (80 checks),
+the current live Home, the same-origin health path, and one local Qwen exchange
+that returned `READY` after the shared session was confirmed inactive and
+empty. Frontend qualification passed 168 tests across 35 files plus four Node
+Owner-bridge/local-server checks, lint, TypeScript, and production build. The
+Python 3.11 repository verifier passed 1,839 tests with 6 skipped and `pip
+check`. The UI service sets `NoNewPrivileges=yes` and a restrictive umask;
+unsupported namespace sandbox directives are omitted because this host's user
+systemd manager rejects them. No credential or owner capability value is
+committed. Rows 60 and 61 remain PARTIAL; this publication does not claim full
+Career Forge or whole-product qualification. Details and rollback instructions
+are in `CODEX_HANDOFF.md`, `docs/operations/friday-ui.md`, and the Stage 28
+product audit.
+
+## 2026-10-11 — Stage 28 final-product visual candidate prepared for Owner review
+
+The recovered NeetCode-led UI candidate is being reviewed on the isolated
+`stage-28/final-product-visual-acceptance` branch at base
+`a550266190befb4795c0572b9062e7d5801e2fce`. This candidate is uncommitted and
+unpublished. The original dirty `experiment/final-neetcode-ui` worktree and the
+protected `/AI/projects/Local-AI-Assistant` production checkout were not edited;
+`frontend/src/vision/NeuralPresence.tsx` remains unchanged.
+
+The candidate adds a four-destination mobile navigation bar and leaves every
+other workspace reachable through the Ask Friday finder. Browser checks opened
+all 16 registered routes at five CSS viewport targets (1440 × 900, 1280 × 800,
+768 × 1024, 390 × 844, 320 × 740). Every route rendered a visible heading with
+no horizontal overflow. The finder exposed all 16 unique destinations.
+Representative visual inspection covered desktop Home, mobile Home, and 320 px
+Settings. A live check found that the 1200 px global body width and, separately,
+the narrow Settings theme/grid layout contradicted earlier responsive claims.
+The body width issue was removed; phone Settings now stacks theme choices and
+links. The disposable preview reports its absent Qwen connection accurately and
+uses no owner progress or project data.
+
+Frontend qualification passed 159 tests across 31 files, two bridge checks,
+ESLint, TypeScript, and production build. The repository verifier passed 1,839
+tests with 6 skips, compilation/CLI checks, and `pip check`. Its initial Python
+3.14 fallback had 15 environment failures caused by an unavailable bubblewrap
+interpreter alias, editable metadata for another worktree, and subprocess
+timeouts. Focused reruns passed in a disposable Python 3.11 environment whose
+Friday editable metadata points to this candidate, followed by the full passing
+repository gate. Vite retains the existing ~1.29 MB bundle advisory.
+
+Rows 60 and 61 remain PARTIAL. The visual candidate is ready for Owner review;
+whole-product qualification, broader populated owner-flow review, and remaining
+Row 61 capability evidence are open. The preview and test environment are
+isolated under `/tmp/friday-stage28-visual.QwC1Va`; Friday and production Qwen
+were not restarted or modified.
+
 ## 2026-10-11 — Milestone C General Computer Agency accepted and published
 
 Owner authorization followed the closure audit. The isolated

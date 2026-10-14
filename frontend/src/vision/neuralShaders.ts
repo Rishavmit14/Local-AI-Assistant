@@ -1,4 +1,5 @@
 export const cognitionGLSL = `
+uniform float uDay;
 uniform float uTime;
 uniform float uActivity;
 uniform float uMode;
@@ -34,7 +35,10 @@ vec3 signalColor(float bundle,float phase){
  vec3 cold=mix(vec3(.29,.60,.80),vec3(.68,.80,1.),phase);
  vec3 warm=vec3(1.,.70,.36);
  vec3 c=mix(cold,warm,step(.83,phase)*.8);
- return c;
+ vec3 cobalt=vec3(.055,.18,.42);
+ vec3 copper=vec3(.67,.245,.105);
+ vec3 daylight=mix(copper,cobalt,step(.91,phase));
+ return mix(c,daylight,uDay);
 }
 `;
 export const cortexVertex=`
@@ -58,6 +62,13 @@ void main(){
  float alpha=(.028+rim*.19+ridge*.035+spec*.03)*(.25+.75*smoothstep(.05,.35,abs(vLateral)));
  alpha+=lattice*ridge*.025;
  if(!gl_FrontFacing)alpha*=.50;
+ float cavity=1.-smoothstep(-.025,.012,vFold);
+ vec3 daySurface=mix(vec3(.23,.28,.28),vec3(.87,.87,.81),.32+key*.53);
+ daySurface*=1.-cavity*.20;
+ daySurface+=vec3(.98,.97,.91)*(spec*.46+rim*.10);
+ daySurface+=vec3(.97,.95,.87)*pow(facing,6.)*.10;
+ color=mix(color,daySurface,uDay);
+ alpha=mix(alpha,(.15+rim*.20+ridge*.08+spec*.12)*(.3+.7*smoothstep(.05,.35,abs(vLateral))),uDay);
  gl_FragColor=vec4(color,alpha);
 }`;
 export const fiberVertex=`attribute float aProgress;attribute float aPhase;attribute float aBundle;varying float vProgress;varying float vPhase;varying float vBundle;varying float vDepth;void main(){vProgress=aProgress;vPhase=aPhase;vBundle=aBundle;vec4 mv=modelViewMatrix*vec4(position,1.);vDepth=-mv.z;gl_Position=projectionMatrix*mv;}`;
@@ -74,11 +85,25 @@ void main(){
  if(uMode>4.5&&uMode<5.5)lit=vec3(1.,.72,.38);
  if(uMode>5.5&&uMode<6.5)lit=vec3(1.,.42,.31);
  vec3 result=(color*rest+lit*firing*(uLayer<.5?.48:uLayer<1.5?.51:.40))*depth;
- gl_FragColor=vec4(result,clamp((rest*2.+firing*.78)*edge*depth,0.,.9));
+ float opacity=clamp((rest*2.+firing*.78)*edge*depth,0.,.9);
+ // Neutral structure recedes with depth; only firing paths carry energy.
+ float front=1.-smoothstep(3.25,5.9,vDepth);
+ float energized=smoothstep(.20,.90,firing)*smoothstep(.44,.65,vPhase);
+ vec3 structure=mix(vec3(.64,.66,.62),vec3(.20,.27,.27),front);
+ vec3 dayPulse=mix(structure,signalColor(vBundle,vPhase),energized);
+ dayPulse=mix(dayPulse,vec3(.97,.94,.82),smoothstep(1.1,1.7,firing)*.6);
+ result=mix(result,dayPulse,uDay);
+ float dayRest=uLayer<.5?.09:uLayer<1.5?.085:.0;
+ opacity=mix(opacity,clamp(dayRest+energized*.56,0.,.78)*edge*(.24+.76*front),uDay);
+ gl_FragColor=vec4(result,opacity);
 }`;
 export const pointVertex=cognitionGLSL+`
 attribute float aPhase;attribute float aBundle;attribute float aProgress;attribute float aSize;varying float vPhase;varying float vBundle;varying float vSignal;varying float vDepth;uniform float uLayer;
 void main(){vPhase=aPhase;vBundle=aBundle;vSignal=activity(aProgress,aPhase,aBundle);vec4 mv=modelViewMatrix*vec4(position,1.);vDepth=-mv.z;gl_Position=projectionMatrix*mv;float s=uLayer<.5?1.1:2.;gl_PointSize=clamp((s+vSignal*(uLayer<.5?2.3:5.))*aSize*3.6/-mv.z,.65,9.);}`;
 export const pointFragment=cognitionGLSL+`
 varying float vPhase;varying float vBundle;varying float vSignal;varying float vDepth;uniform float uLayer;
-void main(){float d=length(gl_PointCoord-.5)*2.;if(d>1.)discard;float sharp=exp(-d*d*5.);float aura=exp(-d*d*1.5)*.18;float near=clamp(1.4-(vDepth-3.)*.23,.3,1.);vec3 color=signalColor(vBundle,vPhase);if(uMode>4.5&&uMode<5.5)color=mix(color,vec3(1.,.72,.38),min(1.,vSignal));if(uMode>5.5&&uMode<6.5)color=mix(color,vec3(1.,.42,.31),min(1.,vSignal));float base=uLayer<.5?.15:.18;gl_FragColor=vec4(color*(.6+vSignal*1.25), (sharp+aura)*(base+vSignal*.85)*near);}`;
+void main(){float d=length(gl_PointCoord-.5)*2.;if(d>1.)discard;float sharp=exp(-d*d*5.);float aura=exp(-d*d*1.5)*.18;float near=clamp(1.4-(vDepth-3.)*.23,.3,1.);vec3 color=signalColor(vBundle,vPhase);if(uMode>4.5&&uMode<5.5)color=mix(color,vec3(1.,.72,.38),min(1.,vSignal));if(uMode>5.5&&uMode<6.5)color=mix(color,vec3(1.,.42,.31),min(1.,vSignal));float base=mix(uLayer<.5?.15:.18,uLayer<.5?.10:.16,uDay);
+ float energized=smoothstep(.25,1.,vSignal)*smoothstep(.45,.7,vPhase);
+ vec3 dayPoint=mix(vec3(.40,.47,.45),signalColor(vBundle,vPhase),energized);
+ dayPoint=mix(dayPoint,vec3(.97,.95,.88),smoothstep(.8,1.5,vSignal));
+ color=mix(color,dayPoint,uDay);gl_FragColor=vec4(color*(.6+vSignal*1.25), (sharp+aura)*(base+vSignal*.85)*near);}`;

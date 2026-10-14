@@ -13,6 +13,7 @@ import type {
   FridayVoiceRuntimeHealth,
 } from "../runtime";
 import { SectionHeader, Status } from "./ui";
+import { statusLabel } from "./presentationStatus";
 import "./System.css";
 
 interface RequestState<T> {
@@ -57,7 +58,7 @@ function reported(value: boolean | null | undefined): string {
 }
 
 function ErrorState({ error, resource }: { error: string | null; resource: string }) {
-  return error ? <p className="system-error" role="alert">Canonical {resource} request failed: {error}. No value is assumed.</p> : null;
+  return error ? <div className="system-error" role="alert"><p>{resource} information couldn’t be loaded. No status is assumed.</p><details><summary>Advanced details</summary><p>{error}</p></details></div> : null;
 }
 
 function HealthValue({ label, value }: { label: string; value: string }) {
@@ -125,24 +126,25 @@ export function SystemWorkspace() {
 
   return <section className="op-system-canonical">
     <SectionHeader
-      eyebrow="FRIDAY / CANONICAL SYSTEM STATE"
-      title="System"
-      description="A read-only view of Friday's capability registry and the runtime signals each existing endpoint actually reports."
+      eyebrow="MADE TO FEEL LIKE YOURS"
+      title="Your Friday"
+      description="A personal workspace. A private foundation. Everything in its place."
       actions={<button className="btn" type="button" onClick={() => void refresh()} disabled={loading}><RefreshCw size={15}/>{loading ? "Refreshing" : "Refresh status"}</button>}
     />
 
-    <div className="system-authority-note" role="note"><ShieldCheck size={18}/><p>These reports describe capability maturity, configuration, policy flags, and specific service signals separately. Viewing this page does not grant permissions, approve plans, execute tasks, change service state, or restart Friday.</p></div>
-    <div className="system-refresh-meta" aria-live="polite">{checkedAt ? `Read from Friday at ${checkedAt}` : "Loading canonical Friday state…"}</div>
-
+    <div className="db-settings-overview"><div><span className="eyebrow">YOUR PRIVATE FOUNDATION</span><h2>Intelligence that<br/>stays <em>with you.</em></h2><p>Friday’s local services, preferences, and capabilities —<br/>visible when you need them.</p></div><dl><div><dt>Workspace connection</dt><dd>{snapshot.apiHealth.value ? "Responding" : loading ? "Checking…" : "Unavailable"}</dd></div><div><dt>Conversation</dt><dd>{runtime?.session.active ? "In progress" : runtime ? "Ready" : loading ? "Checking…" : "Unavailable"}</dd></div><div><dt>Saved preferences</dt><dd><a href="#memory">Manage your memory ↗</a></dd></div></dl></div>
+    <div className="system-refresh-meta" aria-live="polite">{checkedAt ? `Last checked ${checkedAt}` : "Checking Friday’s status…"}</div>
+    <details className="db-settings-disclosure" open><summary><span>01</span><div>Capabilities<small>What Friday can help you with</small></div></summary>
     <section className="system-panel" aria-labelledby="system-capabilities-heading">
-      <div className="system-panel-heading"><div><Cpu size={18}/><h2 id="system-capabilities-heading">Capability registry</h2></div><span>Canonical · read-only</span></div>
-      <p className="system-panel-explainer">The backend's <code>status</code> is integration maturity. <code>configured</code>, <code>permissioned</code>, and <code>healthy</code> are separate registry fields; a permissioned flag is not an action grant, and a healthy field is not a universal service probe.</p>
+      <div className="system-panel-heading"><div><Cpu size={18}/><h2 id="system-capabilities-heading">Friday’s features</h2></div><span>Read only</span></div>
+      <details className="system-panel-explainer"><summary>Advanced details</summary><p>Feature availability, configuration, permissions, and health checks are reported separately. A permission flag does not grant access; each check describes only its own service.</p></details>
       <ErrorState error={snapshot.capabilities.error} resource="capability registry"/>
-      {loading && !snapshot.capabilities.value ? <p>Loading Friday's capability registry…</p> : null}
-      {!loading && capabilities?.length === 0 ? <p>No capabilities were returned by Friday's registry.</p> : null}
+      {loading && !snapshot.capabilities.value ? <p>Loading Friday’s features…</p> : null}
+      {!loading && capabilities?.length === 0 ? <p>Feature information isn’t available yet.</p> : null}
       {capabilities?.length ? <div className="system-capability-list">{capabilities.map((capability) => <details className="system-capability" key={capability.key}>
-        <summary><span><strong>{capability.title}</strong><small>{capability.key}</small></span><Status>{capability.status}</Status></summary>
+        <summary><span><strong>{capability.title}</strong></span><Status>{["integrated","implemented"].includes(capability.status.toLowerCase()) ? "Available" : statusLabel(capability.status)}</Status></summary>
         <dl>
+          <div><dt>Feature key</dt><dd>{capability.key}</dd></div>
           <div><dt>Integration maturity</dt><dd>{capability.status}</dd></div>
           <div><dt>Configured</dt><dd>{reported(capability.configured)}</dd></div>
           <div><dt>Permissioned registry flag</dt><dd>{reported(capability.permissioned)}</dd></div>
@@ -151,11 +153,13 @@ export function SystemWorkspace() {
           {capability.limitation ? <div><dt>Limitation</dt><dd>{capability.limitation}</dd></div> : null}
         </dl>
       </details>)}</div> : null}
-      <p className="system-small-note">Conversation receives its grounding from this same backend registry. Astra displays the registry fields directly and adds no separate availability rules.</p>
+      <p className="system-small-note">Friday uses the same feature information in Conversation. No separate availability rules are added here.</p>
     </section>
 
+    </details>
+    <details className="db-settings-disclosure"><summary><span>02</span><div>Local service details<small>Voice, connection, computer, and background updates</small></div></summary>
     <section className="system-panel" aria-labelledby="system-runtime-heading">
-      <div className="system-panel-heading"><div><Activity size={18}/><h2 id="system-runtime-heading">Runtime and service signals</h2></div><span>Each value comes from its named endpoint</span></div>
+      <div className="system-panel-heading"><div><Activity size={18}/><h2 id="system-runtime-heading">Service status</h2></div><span>Local checks</span></div>
       <div className="system-health-grid">
         <article className="system-health-card">
           <h3>Presentation API</h3><ErrorState error={snapshot.apiHealth.error} resource="presentation API health"/>
@@ -198,8 +202,8 @@ export function SystemWorkspace() {
         </article>
 
         <article className="system-health-card">
-          <h3>Perception host status</h3><ErrorState error={snapshot.activeWindow.error} resource="active-window status"/>
-          {activeWindow ? <><HealthValue label="Active-window query" value={activeWindow.status}/><p className="system-small-note">This fixed read-only query does not establish GNOME screenshot permission. No capture request is made from System.</p></> : null}
+          <h3>Screen and computer status</h3><ErrorState error={snapshot.activeWindow.error} resource="active-window status"/>
+          {activeWindow ? <><HealthValue label="Active-window query" value={activeWindow.status}/><p className="system-small-note">Friday did not request a screenshot. This check does not grant screen-capture permission.</p></> : null}
         </article>
 
         <article className="system-health-card">
@@ -213,6 +217,7 @@ export function SystemWorkspace() {
       </div>
     </section>
 
+    </details>
     <div className="system-authority-note system-authority-note-muted"><ShieldCheck size={17}/><p>Objective execution still needs its exact-plan approval and isolation gates. Desktop actions keep their allowlist and explicit proposal/approval lifecycle. Notifications only notify. No System control changes any of those policies.</p></div>
   </section>;
 }

@@ -1,0 +1,17 @@
+[Unit]
+Description=Friday previous GCA UI rollback
+After=friday-local-ai.service
+Conflicts=friday-ui.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/kumar-rishav/.codex/worktrees/friday-general-computer-agency/Local-AI-Assistant-terra-integration/frontend
+EnvironmentFile=%h/.config/friday/friday-ui.env
+ExecStart=/usr/bin/node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5193 --strictPort
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+UMask=0077
+
+[Install]
+WantedBy=default.target

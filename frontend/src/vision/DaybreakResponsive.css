@@ -1,0 +1,559 @@
+.vision-app.daybreak .product-mobile-navigation {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .vision-app.daybreak .db-topbar {
+    gap: 12px;
+    padding-inline: 20px;
+  }
+
+  .vision-app.daybreak .db-primary-nav {
+    display: none;
+  }
+
+  .vision-app.daybreak .product-mobile-navigation {
+    position: fixed;
+    z-index: 90;
+    inset: auto 0 0;
+    min-height: 66px;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 5px 7px max(5px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--db-line);
+    background: color-mix(in srgb, var(--db-surface) 94%, transparent);
+    backdrop-filter: blur(18px);
+  }
+
+  .vision-app.daybreak .product-mobile-navigation button {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--db-muted);
+    font: 10px/1.2 'Friday Sans', Arial, sans-serif;
+  }
+
+  .vision-app.daybreak .product-mobile-navigation button[aria-current="page"] {
+    background: var(--db-wash);
+    color: var(--db-ink);
+  }
+
+  .vision-app.daybreak .product-main {
+    padding-bottom: 76px;
+  }
+}
+
+@media (max-width: 640px) {
+  .vision-app.daybreak .db-topbar {
+    height: 64px;
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .vision-app.daybreak .db-brand {
+    gap: 7px;
+  }
+
+  .vision-app.daybreak .db-brand > svg {
+    width: 24px;
+    height: 26px;
+  }
+
+  .vision-app.daybreak .db-brand > span {
+    font-size: 29px;
+  }
+
+  .vision-app.daybreak .db-global-tools {
+    gap: 7px;
+  }
+
+  .vision-app.daybreak .db-command {
+    width: 36px;
+    height: 36px;
+    justify-content: center;
+    padding: 8px;
+    font-size: 0;
+  }
+
+  .vision-app.daybreak .db-command kbd {
+    display: none;
+  }
+
+  .vision-app.daybreak .db-assistant-rail {
+    display: none;
+  }
+
+  .vision-app.daybreak .product-main {
+    width: 100%;
+    margin-left: 0;
+    padding-bottom: 82px;
+  }
+
+  .vision-app.daybreak .daybreak-home {
+    max-width: none;
+    padding: 18px 16px 82px;
+  }
+
+  .vision-app.daybreak .db-home-meta {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .vision-app.daybreak .db-home-meta > span:last-child {
+    font-size: 10px;
+  }
+
+  .vision-app.daybreak .db-home-hero {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    row-gap: 4px;
+  }
+
+  .vision-app.daybreak .db-hero-copy {
+    padding: 20px 0 8px;
+  }
+
+  .vision-app.daybreak .db-hero-copy h1 {
+    max-width: none;
+    font-size: clamp(42px, 12vw, 58px);
+    line-height: 1;
+    letter-spacing: -1.1px;
+    overflow-wrap: anywhere;
+  }
+
+  .vision-app.daybreak .db-hero-copy > p {
+    font-size: 13px;
+    line-height: 1.65;
+    margin-bottom: 17px;
+  }
+
+  .vision-app.daybreak .db-neural-scene {
+    z-index: 0;
+    width: 100%;
+    height: 220px;
+    margin: 0;
+  }
+
+  .vision-app.daybreak .db-neural-field {
+    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .vision-app.daybreak .db-orbits {
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .vision-app.daybreak .db-neural-coordinate {
+    top: 9px;
+    left: 12px;
+  }
+
+  .vision-app.daybreak .db-presence-note {
+    top: 12px;
+    right: 10px;
+  }
+
+  .vision-app.daybreak .db-presence-status {
+    bottom: 8px;
+    left: 50%;
+  }
+
+  .vision-app.daybreak .db-command-deck {
+    width: 100%;
+    margin-top: 0;
+    padding-bottom: 12px;
+  }
+
+  .vision-app.daybreak .db-command-label {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .vision-app.daybreak .workspace-host {
+    width: 100%;
+    padding: 18px 14px 92px;
+  }
+
+  .vision-app.daybreak .product-conversation-page {
+    padding: 18px 14px 94px;
+  }
+
+  .vision-app.daybreak .db-appearance-options {
+    width: 100%;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .vision-app.daybreak .db-appearance-options button {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    grid-template-columns: 30px minmax(0, 1fr);
+    padding: 16px;
+  }
+
+  .vision-app.daybreak .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  body {
+    min-width: 0;
+  }
+
+  .vision-app.daybreak .db-topbar {
+    padding-inline: 8px;
+  }
+
+  .vision-app.daybreak .db-brand > span {
+    font-size: 26px;
+  }
+
+  .vision-app.daybreak .db-global-tools {
+    gap: 4px;
+  }
+
+  .vision-app.daybreak .product-mobile-navigation button {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 900px) {
+  .vision-app.daybreak.view-conversation .product-home-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 24px;
+  }
+
+  .vision-app.daybreak.view-conversation .product-home-body > .product-conversation,
+  .vision-app.daybreak.view-conversation .product-home-body > .product-presence {
+    grid-column: 1;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .vision-app.daybreak.view-conversation .product-home-body > .product-conversation {
+    grid-row: 1;
+  }
+
+  .vision-app.daybreak.view-conversation .product-home-body > .product-presence {
+    grid-row: 2;
+  }
+
+  .vision-app.daybreak.view-conversation .product-conversation :is(.conversation-scroll, .conversation-empty, .conversation-turn, .composer-entry) {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .vision-app.daybreak .db-research-opening {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .vision-app.daybreak .db-research-opening > * {
+    min-width: 0;
+  }
+
+  .vision-app.daybreak .db-research-art {
+    justify-self: center;
+    max-width: 100%;
+  }
+
+  .vision-app.daybreak .db-research-index {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
+
+  .vision-app.daybreak .operations .op-research-source-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .vision-app.daybreak .operations .op-system-canonical > .section-header {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .vision-app.daybreak .operations .op-system-canonical > .section-header > div {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .vision-app.daybreak .operations .db-settings-overview {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .vision-app.daybreak .operations .db-settings-overview > * {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .vision-app.daybreak .operations .db-computer-stage {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .vision-app.daybreak .operations .db-computer-stage > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .vision-app.daybreak .operations .db-computer-stage h2 {
+    font-size: clamp(30px, 8vw, 39px);
+    overflow-wrap: anywhere;
+  }
+
+  .vision-app.daybreak .operations .op-memory-split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .vision-app.daybreak .operations .op-memory-split > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .vision-app.daybreak .operations-memory .op-toolbar {
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .vision-app.daybreak .operations-memory .op-toolbar > .tabs,
+  .vision-app.daybreak .operations-memory .op-toolbar > .op-search {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .vision-app.daybreak .daybreak-home .db-next {
+    display: grid;
+    grid-template-columns: minmax(88px, 108px) minmax(0, 1fr);
+    align-items: start;
+    column-gap: 14px;
+    row-gap: 10px;
+  }
+
+  .vision-app.daybreak .daybreak-home .db-next-index {
+    min-width: 0;
+    flex: none;
+    gap: 8px;
+    padding-top: 3px;
+  }
+
+  .vision-app.daybreak .daybreak-home .db-next-index > span {
+    max-width: 54px;
+    font-size: 9px;
+  }
+
+  .vision-app.daybreak .daybreak-home .db-next-copy {
+    min-width: 0;
+  }
+
+  .vision-app.daybreak .daybreak-home .db-next-copy h2 {
+    font-size: clamp(21px, 7vw, 27px);
+    overflow-wrap: anywhere;
+  }
+
+  .vision-app.daybreak .daybreak-home .db-next-copy > p {
+    white-space: normal;
+    overflow: visible;
+  }
+
+  .vision-app.daybreak .daybreak-home .db-next > .db-primary {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 8px 0 0;
+    box-sizing: border-box;
+    justify-content: space-between;
+  }
+
+  .vision-app.daybreak .db-prompt-suggestions {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .vision-app.daybreak .db-prompt-suggestions > button {
+    max-width: 100%;
+  }
+
+  .vision-app.daybreak .db-practice-entry-footer {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    padding-top: 22px;
+  }
+
+  .vision-app.daybreak .db-practice-flow {
+    min-width: 0;
+  }
+
+  .vision-app.daybreak .db-practice-flow ol {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .vision-app.daybreak .db-practice-flow li {
+    align-items: center;
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .vision-app.daybreak .db-practice-recommendation {
+    min-width: 0;
+    border-top: 1px solid var(--db-line);
+    border-left: 0;
+    padding: 20px 0 0;
+  }
+
+  .vision-app.daybreak .product-main .learning-paths-heading {
+    min-width: 0;
+  }
+
+  .vision-app.daybreak .product-main .learning-path-builder {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .vision-app.daybreak .product-main .learning-path-builder > form,
+  .vision-app.daybreak .product-main .learning-path-builder > form > div {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .vision-app.daybreak .product-main .learning-path-builder input {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .vision-app.daybreak .operations .db-memory-intro {
+    grid-template-columns: minmax(0, 1fr) 96px;
+    grid-template-areas: "copy count" "mark mark";
+    align-items: start;
+    gap: 12px 14px;
+    padding: 22px 0 26px;
+  }
+
+  .vision-app.daybreak .operations .db-memory-intro > .db-memory-mark {
+    grid-area: mark;
+    justify-self: center;
+    max-width: 100%;
+  }
+
+  .vision-app.daybreak .operations .db-memory-intro > div:nth-child(2) {
+    grid-area: copy;
+    min-width: 0;
+  }
+
+  .vision-app.daybreak .operations .db-memory-intro > .db-memory-count {
+    grid-area: count;
+    min-width: 0;
+    width: auto;
+    margin: 0;
+  }
+
+  .vision-app.daybreak .operations .db-memory-intro h2 {
+    font-size: clamp(25px, 8vw, 32px);
+    overflow-wrap: anywhere;
+  }
+
+  .vision-app.daybreak .operations .db-history-intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 10px 14px;
+    padding: 14px 0 24px;
+  }
+
+  .vision-app.daybreak .operations .db-history-line {
+    display: none;
+  }
+
+  .vision-app.daybreak .operations .db-history-intro > p {
+    min-width: 0;
+    grid-column: 1;
+    font-size: clamp(20px, 6vw, 24px);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .vision-app.daybreak .operations .db-history-intro > span:last-child {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    font-size: 30px;
+    text-align: right;
+  }
+
+  .vision-app.daybreak .operations .op-history-section > header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .vision-app.daybreak .operations .op-history-section li {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 18px 14px;
+  }
+
+  .vision-app.daybreak .operations .op-history-section li > :is(time, strong, p, details, .btn) {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 360px) {
+  .vision-app.daybreak .daybreak-home .db-home-context {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .vision-app.daybreak .daybreak-home .db-home-context > section {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .vision-app.daybreak .daybreak-home .db-home-context header {
+    align-items: flex-start;
+  }
+
+  .vision-app.daybreak .daybreak-home .db-home-context header button {
+    white-space: nowrap;
+  }
+}

@@ -62,8 +62,8 @@ describe("Astra canonical Perception workspace", () => {
 
     await mount();
 
-    expect(container?.textContent).toContain("No retained captures");
-    expect(container?.textContent).toContain("host does not expose the fixed GNOME focus query");
+    expect(container?.textContent).toContain("No screenshots yet");
+    expect(container?.textContent).toContain("Active window details aren’t available on this computer");
     expect(container?.textContent).not.toContain("pipeline.py");
     expect(fetchMock.mock.calls.map(([url]) => url).sort()).toEqual([
       "/api/v1/computer/tasks",
@@ -92,23 +92,23 @@ describe("Astra canonical Perception workspace", () => {
 
     await mount();
     expect(container?.textContent).toContain("screen_canonical_1");
-    expect(container?.textContent).toContain("OWNER SELECTED");
-    expect(container?.textContent).toContain("Expires");
+    expect(container?.textContent).toContain("SCREENSHOT");
+    expect(container?.textContent).toContain("Capture details");
 
     await act(async () => {
-      [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Read OCR text"))?.click();
+      [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Read text"))?.click();
       await settle();
     });
-    expect(container?.textContent).toContain("Observed OCR text · untrusted");
+    expect(container?.textContent).toContain("Text found in the screenshot");
     expect(container?.textContent).toContain("Observed error: failed");
 
-    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Derive UI-state hints"))?.click(); await settle(); });
-    expect(container?.textContent).toContain("Deterministic UI-state hint");
-    expect(container?.textContent).toContain("error like");
-    expect(container?.textContent).toContain("Matched evidence: error, failed");
+    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Show screen hints"))?.click(); await settle(); });
+    expect(container?.textContent).toContain("Screen hints");
+    expect(container?.textContent).toContain("Possible error");
+    expect(container?.textContent).toContain("Matched terms: error, failed");
 
-    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Request visual labels"))?.click(); await settle(); });
-    expect(container?.textContent).toContain("Local model labels · inference");
+    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Describe the image"))?.click(); await settle(); });
+    expect(container?.textContent).toContain("Image description");
     expect(container?.textContent).toContain("computer monitor · 82.0%");
     expect(fetchMock.mock.calls.map(([url, options]) => [url, options?.method ?? "GET"])).toContainEqual([
       `/api/v1/perception/screen/captures/${capture.capture_id}/ocr`, "POST",
@@ -140,7 +140,7 @@ describe("Astra canonical Perception workspace", () => {
     await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Capture current screen"))?.click(); await settle(); });
 
     expect(container?.textContent).toContain("desktop privacy permission is required for screen capture");
-    expect(container?.textContent).toContain("No retained captures");
+    expect(container?.textContent).toContain("No screenshots yet");
     expect(fetchMock.mock.calls.some(([url, options]) => url.endsWith("/screen/capture") && options?.method === "POST")).toBe(true);
     expect(fetchMock.mock.calls.every(([url]) => !url.includes("desktop/") && !url.includes("objectives/") && !url.includes("career-forge/"))).toBe(true);
   });
@@ -163,7 +163,7 @@ describe("Astra canonical Perception workspace", () => {
     fail = true;
     await mount();
     expect(container?.textContent).toContain("screen metadata request failed: offline");
-    expect(container?.textContent).not.toContain("No retained captures");
+    expect(container?.textContent).not.toContain("No screenshots yet");
     expect(container?.textContent).not.toContain("pipeline.py");
   });
 
@@ -203,7 +203,7 @@ describe("Astra canonical Perception workspace", () => {
 
     await mount();
     await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Check permission"))?.click(); await settle(); });
-    expect(container?.textContent).toContain("active");
+    expect(container?.textContent).toContain("Approved");
     await act(async () => {
       const field = container!.querySelector(".op-screen-goal textarea")!;
       const nativeSetter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!;
@@ -211,8 +211,8 @@ describe("Astra canonical Perception workspace", () => {
       field.dispatchEvent(new Event("input", { bubbles: true }));
       await settle();
     });
-    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Run bounded task"))?.click(); await settle(); });
-    expect(container?.textContent).toContain("succeeded · 4/16 actions");
+    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Run task"))?.click(); await settle(); });
+    expect(container?.textContent).toContain("Completed");
     const create = fetchMock.mock.calls.find(([url, options]) => url.endsWith("/computer/tasks") && options?.method === "POST");
     expect(create?.[1]?.headers).toMatchObject({ "X-Friday-CSRF": "owner-csrf", "Content-Type": "application/json" });
     expect(JSON.parse(String(create?.[1]?.body))).toEqual({ request: task.request, action_budget: 16 });
@@ -231,12 +231,12 @@ describe("Astra canonical Perception workspace", () => {
     ));
     vi.stubGlobal("fetch", fetchMock);
     await mount();
-    expect(container?.textContent).toContain("recovery required · 1/16 actions");
+    expect(container?.textContent).toContain("Needs attention");
     await act(async () => { root?.unmount(); });
     root = undefined;
     container?.remove();
     await mount();
-    expect(container?.textContent).toContain("recovery required · 1/16 actions");
+    expect(container?.textContent).toContain("Needs attention");
     expect(fetchMock.mock.calls.filter(([url]) => url.endsWith("/computer/tasks"))).toHaveLength(2);
   });
 
@@ -264,20 +264,20 @@ describe("Astra canonical Perception workspace", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     await mount();
-    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Inspect recovery"))?.click(); await settle(); });
-    expect(container?.textContent).toContain("activate accessible · in doubt");
+    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Review recovery"))?.click(); await settle(); });
+    expect(container?.textContent).toContain("Screen action · Needs checking");
     expect(container?.textContent).toContain("Native Fixture · Open details · window: Details Fixture · expected: Details ready");
-    expect(container?.textContent).toContain("execution started");
-    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Re-observe result"))?.click(); await settle(); });
-    expect(container?.textContent).toContain("activate accessible · result present");
-    expect(container?.textContent).toContain("Expected result is visible; task remains paused.");
-    expect(container?.textContent).toContain("Latest observation: observation_123");
-    expect(container?.textContent).toContain("recovery required · 1/16 actions");
+    expect(container?.textContent).toContain("An action started before the interruption.");
+    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Check result again"))?.click(); await settle(); });
+    expect(container?.textContent).toContain("Screen action · Checked");
+    expect(container?.textContent).toContain("The expected result is visible. The task remains paused.");
+    expect(container?.textContent).toContain("observation_123");
+    expect(container?.textContent).toContain("Needs attention");
     const recovery = fetchMock.mock.calls.find(([url]) => url.endsWith("/reconcile"));
     expect(recovery?.[1]?.method).toBe("POST");
     expect(recovery?.[1]?.headers).toMatchObject({ "X-Friday-CSRF": "owner-csrf" });
-    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Resume safe plan"))?.click(); await settle(); });
-    expect(container?.textContent).toContain("succeeded · 1/16 actions");
+    await act(async () => { [...container!.querySelectorAll("button")].find((button) => button.textContent?.includes("Continue safe steps"))?.click(); await settle(); });
+    expect(container?.textContent).toContain("Completed");
     const resume = fetchMock.mock.calls.find(([url]) => url.endsWith("/resume"));
     expect(resume?.[1]?.headers).toMatchObject({ "X-Friday-CSRF": "owner-csrf" });
   });

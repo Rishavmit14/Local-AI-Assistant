@@ -1,0 +1,307 @@
+/* The open workspace system: navigation, readable hierarchy, and intentional containment. */
+:root {
+  --nc-bg:#141517; --nc-card:#1a1b1f; --nc-raised:#25262c; --nc-border:#303138;
+  --nc-text:#eeeef2; --nc-muted:#a7a8b2; --nc-subtle:#858792; --nc-accent:#b3a7ff;
+  --bg:var(--nc-bg); --surface:var(--nc-card); --surface-elevated:var(--nc-raised);
+  --border:var(--nc-border); --text:var(--nc-text); --text-secondary:var(--nc-muted);
+  --text-muted:var(--nc-subtle); --accent:var(--nc-accent); --line:#ffffff0d;
+  --nc-topbar-height:68px; --nc-sidebar-width:184px; --workspace-edge:clamp(24px,4vw,64px);
+}
+body { background:var(--nc-bg); }
+.vision-app { font-family:'Friday Sans',Inter,ui-sans-serif,system-ui,sans-serif; letter-spacing:-.012em; }
+.vision-app button { cursor:pointer; }
+.vision-app button:disabled { cursor:not-allowed; opacity:.45; }
+.vision-app :is(button,a,input,textarea,select,summary):focus-visible { outline:2px solid var(--nc-accent); outline-offset:4px; }
+.vision-app .product-topbar { height:68px; padding:0 28px; background:#141517f5; border-bottom:1px solid #ffffff0a; backdrop-filter:blur(16px); }
+.vision-app .product-brand { min-width:164px; border:0; padding:0; gap:12px; font-size:17px; letter-spacing:.11em; }
+.vision-app .product-brand span { display:inline; }
+.vision-app .product-brand svg { width:24px; height:28px; color:#d7d0fc; }
+.vision-app .product-top-navigation { display:flex; gap:6px; padding:0 14px; }
+.vision-app .product-top-navigation button { height:38px; padding:0 16px; border:0; border-radius:8px; font-size:14px; gap:8px; }
+.vision-app .product-top-navigation button span { display:inline; }
+.vision-app .product-top-navigation button svg { display:none; }
+.vision-app .product-top-navigation button.active { background:#ffffff08; color:#e7e1ff; position:relative; }
+.vision-app .product-top-navigation button.active::after { content:''; position:absolute; bottom:-15px; left:18px; right:18px; height:2px; background:#b3a7ff; }
+.vision-app .product-top-actions { gap:9px; }
+.vision-app .product-top-action { border:1px solid #ffffff13; background:#212127; color:#d9d6e6; border-radius:9px; height:36px; }
+.vision-app .product-icon-action,.vision-app .product-topbar .attention-button { background:transparent; border:0; color:#aba9b5; width:34px; }
+.vision-app .product-sidebar { inset:68px auto 0 0; width:184px; height:auto; max-height:none; padding:28px 14px 20px; border:0; border-right:1px solid #ffffff08; border-radius:0; background:transparent; }
+.vision-app .product-sidebar-heading { padding:0 9px 16px; height:auto; border:0; font-size:9px; letter-spacing:.1em; }
+.vision-app .product-sidebar-heading>span { display:none; }
+.vision-app .product-sidebar-toggle { margin-left:auto; opacity:.6; }
+.vision-app .product-navigation { max-height:none; flex:1; padding:0; }
+.vision-app .product-nav-group { margin-bottom:26px; gap:4px; }
+.vision-app .product-nav-heading { display:block; padding:0 12px 9px; font-size:9px; color:#757782; letter-spacing:.09em; }
+.vision-app .product-navigation button,.vision-app .product-sidebar-bottom button { justify-content:flex-start; min-height:38px; gap:11px; padding:0 12px; border:0; border-radius:7px; color:#9495a0; font-size:12px; }
+.vision-app .product-navigation button span,.vision-app .product-sidebar-bottom button span { display:inline; }
+.vision-app .product-navigation button.active { background:#b3a7ff0d; color:#d4caff; }
+.vision-app .product-sidebar-bottom { margin-top:auto; border-top:1px solid #ffffff08; padding-top:15px; gap:6px; }
+.vision-app .product-main { padding:68px 0 0 184px; }
+.vision-app .product-main .workspace-host,.vision-app .product-main .product-home { width:100%; max-width:1376px; padding:38px var(--workspace-edge) 64px; margin:0 auto; background:transparent; }
+.vision-app .product-main .workspace-topline { height:auto; margin:0 0 20px; color:#737580; font-size:11px; }
+.vision-app .product-main .workspace-topline:not(:has(.back-link)) { display:none; }
+.vision-app .product-main .section-header { padding:8px 0 26px; margin-bottom:20px; border:0; align-items:center; }
+.vision-app .product-main .section-header h1 { font-size:36px; line-height:1.16; font-weight:600; letter-spacing:-.045em; margin:6px 0 10px; }
+.vision-app .product-main .section-description { max-width:660px; font-size:14px; line-height:1.7; color:#989aa5; }
+.vision-app :is(.product-eyebrow,.eyebrow) { color:#878995; font-size:10px; letter-spacing:.11em; font-weight:600; }
+.vision-app .product-main :is(.btn,.text-link) { border-radius:8px; min-height:38px; padding:9px 15px; font-size:12px; }
+.vision-app .product-main :is(.btn-primary,.btn-accent) { background:#c2b7ff; border:1px solid #c2b7ff; color:#201b32; font-weight:650; box-shadow:0 3px 12px #0002; }
+.vision-app .product-main :is(.btn-primary,.btn-accent):hover:not(:disabled) { background:#d5ccff; border-color:#d5ccff; }
+.vision-app .product-main .text-link { padding-left:0; padding-right:0; color:#b7addd; border:0; background:none; }
+.vision-app .product-main :is(input,textarea,select) { border-color:#ffffff18; border-radius:8px; background:#1b1c20; color:#e3e3e9; }
+.vision-app .product-main :is(input,textarea)::placeholder { color:#7f818d; }
+.vision-app .product-main .learning-nav,.vision-app .product-subnav,.vision-app .tabs { gap:20px; margin:0 0 26px; padding:0; border:0; border-bottom:1px solid #ffffff0d; border-radius:0; background:none; }
+.vision-app .product-main .learning-nav button,.vision-app .product-subnav button,.vision-app .tabs>button { min-height:42px; padding:0 2px; border:0; border-bottom:2px solid transparent; border-radius:0; background:none; font-size:12px; color:#9799a5; }
+.vision-app .product-main .learning-nav button.active,.vision-app .product-main .learning-nav button[aria-current=page],.vision-app .product-subnav button[aria-current=page],.vision-app .tabs>button[aria-selected=true] { border-color:#b3a7ff; background:none; color:#e1dbf8; }
+.vision-app .learning-nav button>span { display:none; }
+
+/* Home is an open composition with one dominant next step. */
+.friday-home-intro { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.friday-home-intro h1 { margin:10px 0 0; font-size:clamp(32px,3.2vw,46px); font-weight:500; letter-spacing:-.055em; line-height:1.15; }
+.friday-home-intro .product-connection { display:flex; align-items:center; gap:8px; color:#91949d; font-size:11px; }
+.friday-home-intro .home-connection-dot { display:block; width:5px; height:5px; box-shadow:none; }
+.home-focus { position:relative; display:grid; grid-template-columns:1.15fr 1fr; min-height:365px; align-items:center; gap:24px; border-bottom:1px solid #ffffff0d; }
+.home-focus-copy { z-index:1; padding:46px 0; }
+.home-focus-label { display:flex; align-items:center; gap:8px; font-size:10px; letter-spacing:.1em; color:#b6add6; font-weight:600; }
+.home-focus-label>span { width:18px; height:1px; background:#b6add6; }
+.home-focus-copy h2 { max-width:560px; margin:18px 0 15px; font-size:clamp(27px,2.4vw,35px); line-height:1.2; letter-spacing:-.04em; font-weight:500; color:#efedf6; text-wrap:balance; }
+.home-focus-copy>p { max-width:470px; margin:0 0 25px; color:#a0a1ae; font-size:14px; line-height:1.8; }
+.home-focus-actions { display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
+.vision-app .home-focus-actions .btn { min-height:43px; padding:11px 19px; font-size:13px; gap:20px; }
+.home-talk-action { display:inline-flex; align-items:center; gap:9px; background:none; border:0; padding:10px 0; color:#bbb9c7; font-size:12px; }
+.home-talk-action:hover { color:#fff; }
+.home-focus-footnote { display:flex; gap:9px; margin-top:20px; color:#838591; font-size:10px; }
+.home-ambient-presence { position:relative; align-self:stretch; min-width:0; min-height:320px; }
+.home-ambient-presence .presence-field { position:absolute; inset:-22px -30px 0; width:calc(100% + 60px); height:calc(100% + 22px); max-height:none; opacity:.92; mask-image:radial-gradient(ellipse at center,#000 27%,#000c 46%,transparent 70%); }
+.home-ambient-presence>button { position:absolute; bottom:27px; left:0; right:0; display:flex; align-items:center; justify-content:center; gap:9px; border:0; background:none; color:#8e8b9f; font-size:10px; z-index:2; }
+.home-ambient-presence .presence-indicator { width:4px; height:4px; background:#b1a6ec; box-shadow:none; }
+.home-journey { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); padding:22px 0 24px; gap:12px; border-bottom:1px solid #ffffff0d; }
+.home-journey>button { display:flex; align-items:center; gap:12px; padding:9px 0; border:0; background:none; text-align:left; color:#aaa1c9; min-width:0; }
+.journey-number { color:#5f616b; font-size:10px; }
+.home-journey>button>span:not(.journey-number) { display:grid; gap:4px; flex:1; }
+.home-journey strong { font-size:13px; font-weight:500; color:#d7d6e0; }
+.home-journey small { color:#81838f; font-size:10px; }
+.home-journey>button>svg:last-child { color:#555761; width:12px; }
+.home-journey>button:hover strong,.home-journey>button:hover>svg:last-child { color:#c5baff; }
+.home-work-layout { display:grid; grid-template-columns:minmax(0,1.8fr) minmax(210px,1fr); gap:54px; padding-top:35px; }
+.friday-home .home-section-heading { margin:0 0 14px; align-items:center; }
+.friday-home .home-section-heading h2 { font-size:16px; font-weight:500; letter-spacing:-.025em; margin:0; }
+.friday-home .home-section-heading button { display:inline-flex; align-items:center; gap:7px; color:#9993af; border:0; background:none; padding:4px 0; font-size:10px; }
+.home-work-row { display:flex; width:100%; gap:18px; padding:23px 0; border:0; border-bottom:1px solid #ffffff0c; background:none; text-align:left; align-items:center; color:#a5a1b8; }
+.home-work-row>span:nth-child(2) { display:grid; gap:7px; flex:1; min-width:0; }
+.home-work-row strong { color:#dcdce4; font-size:15px; font-weight:500; }
+.home-work-row small { font-size:9px; letter-spacing:.09em; color:#7f818e; }
+.home-work-row>span>span:not(.home-inline-progress) { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; font-size:12px; line-height:1.6; color:#8d8f9b; }
+.home-work-icon { display:grid; place-items:center; width:42px; height:42px; background:#b3a7ff07; border-radius:50%; flex:none; color:#aaa2c9; }
+.home-work-row>svg { flex:none; color:#656571; transition:transform .16s ease; }
+.home-work-row:hover>svg { color:#c0b3ee; transform:translateX(3px); }
+.home-inline-progress { height:3px; background:#ffffff0d; margin-top:6px; max-width:260px; overflow:hidden; border-radius:4px; }
+.home-inline-progress i { display:block; height:100%; background:#afa1ed; }
+.home-evidence-note { display:flex; align-items:center; gap:7px; color:#7c7f8a; font-size:10px; flex-wrap:wrap; padding-top:16px; }
+.home-evidence-note button,.home-text-link { display:inline-flex; gap:6px; align-items:center; border:0; background:none; color:#a79dbc; font-size:10px; padding:0; }
+.home-evidence-note button { margin-left:auto; }
+.home-now { padding-left:28px; border-left:1px solid #ffffff0d; }
+.home-radar-link { display:flex; width:100%; justify-content:space-between; gap:10px; margin:3px 0 28px; padding:16px 0; border:0; border-bottom:1px solid #ffffff0d; background:none; color:#b9b5c8; text-align:left; font-size:12px; }
+.home-now ol { list-style:none; padding:0; margin:12px 0 18px; }
+.home-now li { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; color:#a5a5b2; font-size:11px; }
+.home-now time { color:#696d79; font-size:10px; white-space:nowrap; }
+.home-now>p { font-size:12px; color:#8f929d; line-height:1.7; }
+.home-footer-links { display:flex; flex-wrap:wrap; align-items:center; gap:24px; margin-top:42px; padding-top:24px; border-top:1px solid #ffffff0a; color:#676b77; font-size:11px; }
+.home-footer-links>span { margin-right:auto; }
+.home-footer-links button { display:flex; align-items:center; gap:8px; color:#9694a7; background:none; border:0; padding:4px 0; font-size:11px; }
+
+/* Shared workspace sections: remove nesting, keep containment at the interaction. */
+.vision-app .product-main :is(.learning-canonical-summary,.learning-overview,.learning-editorial-note,.learning-canonical-detail,.learning-progress-intro,.canonical-projection,.op-research-canonical,.op-memory-canonical,.op-objectives-canonical,.op-notifications-canonical,.op-system-canonical,.op-perception-canonical,.op-history,.op-canonical,.op-screen-canonical) { border:0; border-radius:0; background:transparent; box-shadow:none; padding:0; }
+.vision-app .product-main :is(.canonical-projection-grid>section,.canonical-project-card,.learning-course-card,.learning-path-card,.op-history-section,.op-research-knowledge-card,.memory-record,.op-source-card,.op-screen-captures,.op-screen-computer,.op-screen-inspector,.system-panel) { border:0; border-top:1px solid #ffffff10; border-radius:0; background:transparent; box-shadow:none; padding:24px 0; }
+.vision-app .product-main :is(.canonical-record-list>li,.op-research-source-list>button) { border:0; border-bottom:1px solid #ffffff0d; border-radius:0; background:transparent; box-shadow:none; padding:15px 0; }
+.vision-app .product-main :is(.canonical-record-list>li:hover,.op-research-source-list>button:hover) { background:#ffffff03; }
+.vision-app .product-main :is(.canonical-projection-grid,.canonical-project-grid) { gap:32px; }
+.vision-app .product-main :is(.canonical-projection-grid>section,.canonical-project-card)>h3 { margin:0 0 15px; color:#d8d6e2; font-size:16px; }
+.vision-app .product-main :is(.op-advanced-details,.canonical-advanced-details,details.canonical-projection) { border:0; border-top:1px solid #ffffff0d; border-radius:0; padding:14px 0; background:none; }
+.vision-app .product-main details>summary { color:#9b96ae; font-size:12px; cursor:pointer; }
+.vision-app .product-main :is(.op-empty,.op-history-empty,.op-screen-empty) { background:transparent; border:0; padding:28px 0; text-align:left; }
+.vision-app .product-main :is(.learning-practice-empty,.learning-practice-empty-body,.learning-practice-empty-copy) { border:0; background:none; padding-left:0; padding-right:0; }
+.vision-app .product-main .learning-practice-empty-body { padding-top:35px; padding-bottom:30px; gap:22px; }
+.vision-app .product-main .learning-practice-empty-copy h2 { font-size:28px; max-width:500px; }
+.vision-app .product-main .learning-practice-empty-icon { border:0; border-radius:50%; background:#b3a7ff0a; }
+.vision-app .product-main .learning-practice-flow { border-color:#ffffff0d; }
+.vision-app .product-main .nc-course-card { background:#1b1c20; border:1px solid #ffffff09; border-radius:12px; box-shadow:none; overflow:hidden; }
+.vision-app .product-main .nc-course-card-art { opacity:.75; max-height:140px; }
+.vision-app .product-main .nc-course-card-body { padding:20px; }
+.vision-app .product-main .nc-course-card:hover { background:#202126; border-color:#ffffff1c; }
+.vision-app .product-main :is(.learning-canonical-summary-heading,.canonical-projection-heading) { padding-bottom:18px; border-bottom:1px solid #ffffff0c; margin-bottom:22px; }
+.vision-app .product-main :is(.learning-career-summary,.learning-next-mission) { padding:24px 0; border:0; border-bottom:1px solid #ffffff0d; background:none; }
+.vision-app .product-main :is(.canonical-roadmap-shell,.canonical-roadmap-canvas,.learning-map-canvas,.canonical-map-canvas) { border:0; border-radius:0; background:transparent; box-shadow:none; }
+.vision-app .product-main .canonical-progress-stats { background:transparent; border:0; padding:12px 0 28px; border-bottom:1px solid #ffffff10; gap:24px; }
+.vision-app .product-main .canonical-progress-stats>div { background:none; border:0; border-radius:0; padding:0 24px 0 0; border-right:1px solid #ffffff10; }
+.vision-app .product-main .canonical-readiness-ring>span { background:var(--nc-bg); }
+.vision-app .product-main .settings-grid { display:grid; gap:28px; }
+.vision-app .product-main .settings-grid>button,.vision-app .product-main .settings-advanced { border:0; border-top:1px solid #ffffff10; border-radius:0; background:none; padding:25px 0; text-align:left; min-height:150px; }
+
+/* One conversational space; the presence is ambient, the composer is the anchor. */
+.vision-app .product-main .product-conversation-page { padding-top:28px; padding-bottom:24px; }
+.vision-app .product-conversation-page .product-home-heading { margin:0 0 18px; align-items:flex-start; }
+.vision-app .product-conversation-page .product-home-heading h1 { font-size:30px; font-weight:500; }
+.vision-app .product-conversation-page .product-home-heading p { font-size:12px; color:#9395a2; }
+.vision-app .product-conversation-page .product-home-body { grid-template-columns:minmax(200px,.65fr) minmax(420px,1.35fr); gap:32px; }
+.vision-app .product-presence { background:none; border:0; border-radius:0; min-height:450px; overflow:visible; }
+.vision-app .product-presence .presence-field { inset:0 -30px; width:calc(100% + 60px); height:100%; mask-image:radial-gradient(ellipse at 50% 45%,#000 25%,#0009 48%,transparent 73%); }
+.vision-app .product-presence .presence-aura { display:none; }
+.vision-app .product-presence-caption { background:none; border:0; border-radius:0; backdrop-filter:none; padding:0; left:0; right:0; bottom:22px; flex-wrap:wrap; }
+.vision-app .product-presence-caption p { font-size:10px; color:#818390; }
+.vision-app .product-presence-caption strong { font-size:12px; font-weight:500; }
+.vision-app .product-presence-caption button { font-size:10px; color:#9f98b6; }
+.vision-app .product-conversation { height:calc(100svh - 250px); min-height:440px; border:0; border-radius:0; background:none; }
+.vision-app .product-conversation-heading { background:none; border:0; border-bottom:1px solid #ffffff0d; padding:0 0 15px; }
+.vision-app .product-conversation-heading .product-eyebrow { display:none; }
+.vision-app .product-conversation-heading h2 { color:#c7c5d1; font-weight:500; font-size:13px; }
+.vision-app .product-conversation .conversation-scroll { padding:16px 4px 24px; }
+.vision-app .product-conversation .conversation-turn { border:0; padding:20px 0; }
+.vision-app .product-conversation .rich-text { font-size:14px; line-height:1.8; color:#c5c5ce; }
+.vision-app .product-composer { background:none; border:0; padding:12px 0 0; }
+.vision-app .product-composer .thought-composer { background:#202126; border:1px solid #ffffff1b; border-radius:14px; padding:17px; box-shadow:0 8px 35px #0002; }
+.vision-app .product-composer .thought-composer:focus-within { border-color:#a499cb77; }
+.vision-app .product-composer .composer-entry textarea { background:none; border:0; min-height:46px; font-size:14px; }
+.vision-app .product-composer .composer-send { background:#c2b7ff; color:#201b32; border-radius:9px; }
+.vision-app .product-home-links { margin-top:10px; }
+.vision-app .product-home-links button { font-size:10px; color:#8b869c; }
+.vision-app .modal-surface { background:#1b1c20; border:1px solid #ffffff18; border-radius:16px; box-shadow:0 30px 100px #0009; }
+.vision-app .product-palette button { border-radius:8px; background:none; }
+.vision-app .product-palette button:hover { background:#ffffff08; }
+
+/* Route-specific compositions built from the same open section language. */
+.vision-app .product-main .learning-workspace .learning-career-summary { display:block; width:100%; padding:0 0 28px; margin:0 0 28px; border:0; border-bottom:1px solid #ffffff0d; border-radius:0; background:none; }
+.vision-app .learning-career-summary .nc-course-card-art { display:none; }
+.vision-app .learning-career-summary .nc-course-card-body { padding:0; min-height:0; }
+.vision-app .product-main .learning-career-summary .learning-canonical-summary-heading { border:0; margin:0 0 12px; padding:0; }
+.vision-app .product-main .learning-workspace .learning-career-summary .nc-course-card-body h3 { font-size:29px; font-weight:500; line-height:1.3; letter-spacing:-.035em; max-width:720px; }
+.vision-app .product-main .learning-career-summary .learning-career-summary-meta { display:flex; flex-wrap:wrap; gap:12px 26px; padding-top:13px; color:#a7a3b4; font-size:12px; }
+.vision-app .product-main .learning-lesson-layout { display:grid; grid-template-columns:minmax(0,1fr) 200px; gap:44px; margin-bottom:46px; }
+.vision-app .product-main .learning-lesson { grid-column:1; grid-row:1; border:0; border-radius:0; background:none; padding:0; }
+.vision-app .product-main .learning-mission-rail { grid-column:2; grid-row:1; display:block; background:none; border:0; border-left:1px solid #ffffff0d; border-radius:0; padding:0 0 0 25px; }
+.vision-app .product-main .learning-mission-rail :is(.learning-why,.learning-resume) { border:0; background:none; padding:15px 0; }
+.vision-app .product-main .learning-lesson h2 { font-size:22px; font-weight:500; }
+.vision-app .product-main .learning-lesson>.learning-editorial-note { border:0; border-top:1px solid #ffffff0d; background:none; border-radius:0; margin-top:25px; padding:18px 0; }
+.vision-app .product-main .learning-paths-panel { margin-top:32px; padding-top:28px; border-top:1px solid #ffffff12; }
+.vision-app .product-main .lesson-context-tools { margin:16px 0; padding:12px 0; border-top:1px solid #ffffff0d; }
+.vision-app .lesson-context-tools>button { margin:12px 10px 0 0; }
+.vision-app .product-main .canonical-progress-columns { grid-template-columns:repeat(2,minmax(0,1fr)); gap:32px; }
+.vision-app .product-main .learning-workspace .canonical-progress-columns>section { padding:24px 0; border:0; border-top:1px solid #ffffff12; border-radius:0; background:none; }
+.vision-app .product-main .learning-workspace .canonical-progress-counts>span { border:0; border-right:1px solid #ffffff10; border-radius:0; padding:5px 22px 5px 0; background:none; color:#888b98; font-size:11px; }
+.vision-app .product-main .canonical-progress-counts { padding:24px 0; margin:18px 0; gap:22px; grid-template-columns:repeat(4,minmax(0,1fr)); }
+.vision-app .product-main .canonical-progress-counts strong { font-size:32px; font-weight:500; letter-spacing:-.05em; }
+.career-next-step { position:relative; padding:22px 24px; margin:22px 0; border-left:2px solid #a799db; background:#b3a7ff05; }
+.career-next-step p { margin:10px 0 16px; color:#c5c1d0; max-width:650px; font-size:15px; line-height:1.7; }
+.vision-app .product-main .roadmap-canvas { border:0; border-radius:0; background-color:transparent; padding:20px 0; }
+.vision-app .product-main .learning-studio { gap:30px; }
+.vision-app .product-main .learning-editor-stage { border:1px solid #ffffff12; border-radius:12px; background:#18191d; overflow:hidden; }
+.vision-app .product-main .learning-lab-context,.vision-app .product-main .learning-tutor { background:none; border:0; border-radius:0; }
+.vision-app .product-main .learning-tutor-answer { background:none; border:0; border-top:1px solid #ffffff12; border-radius:0; padding:20px 0; }
+.vision-app .product-main .learning-runbar { background:#202126; border:0; border-top:1px solid #ffffff10; padding:12px; }
+.vision-app .product-main .learning-output-body { background:#141518; border:0; border-top:1px solid #ffffff0d; padding:20px; }
+.vision-app .product-main .learning-workspace .canonical-project-course { display:grid; grid-template-columns:76px minmax(0,1fr); gap:20px; align-items:start; padding:26px 0; border:0; border-bottom:1px solid #ffffff10; border-radius:0; background:none; overflow:visible; }
+.vision-app .product-main .canonical-project-course .nc-course-card-art { width:76px; min-height:76px; height:76px; max-height:76px; border:0; border-radius:14px; opacity:.65; }
+.vision-app .product-main .canonical-project-course .nc-course-card-body { padding:0; min-height:0; }
+.vision-app .product-main .canonical-project-course .canonical-project-links { margin-top:18px; font-size:11px; }
+.vision-app .product-main .canonical-project-grid { gap:8px 36px; }
+.vision-app .product-main .learning-view-lab .section-header { padding-bottom:16px; margin-bottom:9px; }
+.vision-app .product-main .learning-nav button { border-radius:0!important; box-shadow:none; }
+
+@media(min-width:1051px) {
+  .vision-app[data-sidebar-collapsed=true] .product-sidebar { left:0; width:68px; padding:28px 10px 20px; }
+  .vision-app[data-sidebar-collapsed=true] .product-main { padding-left:68px; }
+  .vision-app[data-sidebar-collapsed=true] .product-navigation button span,.vision-app[data-sidebar-collapsed=true] .product-sidebar-bottom button span,.vision-app[data-sidebar-collapsed=true] .product-nav-heading { display:none; }
+  .vision-app[data-sidebar-collapsed=true] .product-navigation button,.vision-app[data-sidebar-collapsed=true] .product-sidebar-bottom button { justify-content:center; padding:0; }
+}
+@media(max-width:1050px) and (min-width:761px) {
+  .vision-app .product-sidebar { left:0; width:68px; padding:24px 10px; }
+  .vision-app .product-navigation button span,.vision-app .product-sidebar-bottom button span,.vision-app .product-nav-heading { display:none; }
+  .vision-app .product-navigation button,.vision-app .product-sidebar-bottom button { justify-content:center; padding:0; }
+  .vision-app .product-main { padding-left:68px; }
+  .vision-app .product-brand { min-width:120px; }
+  .vision-app .product-top-navigation { gap:2px; padding:0 4px; }
+  .vision-app .product-top-navigation button { padding:0 12px; font-size:13px; }
+  .vision-app .product-top-action { width:34px; padding:0; }
+  .vision-app .product-top-action span { display:none; }
+  .home-work-layout { gap:28px; }
+  .home-journey { gap:16px; }
+  .home-journey .journey-number,.home-journey>button>svg:last-child { display:none; }
+  .home-focus { grid-template-columns:1.2fr 1fr; gap:8px; }
+}
+@media(max-width:900px) {
+  .vision-app .product-conversation-page .product-home-body { grid-template-columns:1fr; position:relative; }
+  .vision-app .product-conversation-page .product-presence { position:absolute; right:0; top:-104px; width:140px; min-height:0; height:100px; pointer-events:none; opacity:.55; }
+  .vision-app .product-presence-caption { display:none; }
+  .vision-app .product-conversation-page .product-home-heading { padding-right:100px; }
+  .vision-app .product-conversation-page .product-home-heading>.product-connection { display:none; }
+  .vision-app .product-conversation { height:calc(100svh - 252px); min-height:410px; }
+}
+@media(max-width:760px) {
+  :root { --workspace-edge:22px; }
+  .vision-app .product-topbar { height:60px; padding:0 20px; }
+  .vision-app .product-brand { min-width:0; font-size:15px; gap:9px; }
+  .vision-app .product-top-navigation,.vision-app .product-sidebar { display:none; }
+  .vision-app .product-top-action { width:auto; min-width:34px; font-size:11px; padding:0 10px; }
+  .vision-app .product-top-action span { display:inline; }
+  .vision-app .product-top-actions { gap:4px; }
+  .vision-app .product-main { padding:60px 0 72px; }
+  .vision-app .product-main .workspace-host,.vision-app .product-main .product-home { padding:28px 22px 36px; }
+  .vision-app .product-mobile-navigation { display:flex; position:fixed; z-index:90; inset:auto 0 0; height:66px; padding:6px 8px max(6px,env(safe-area-inset-bottom)); background:#17181cf7; border:0; border-top:1px solid #ffffff0e; backdrop-filter:blur(16px); }
+  .vision-app .product-mobile-navigation button { flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:4px; background:none; border:0; color:#838692; font-size:10px; }
+  .vision-app .product-mobile-navigation button[aria-current=page] { background:none; color:#c7baff; }
+  .friday-home-intro { display:block; }
+  .friday-home-intro h1 { font-size:32px; }
+  .friday-home-intro .product-eyebrow { font-size:9px; }
+  .friday-home-intro .product-connection { margin-top:13px; font-size:10px; }
+  .home-focus { display:block; min-height:0; padding-top:8px; }
+  .home-focus-copy { padding:36px 0 29px; position:relative; }
+  .home-focus-copy h2 { max-width:100%; font-size:28px; margin:15px 0 13px; }
+  .home-focus-copy>p { max-width:100%; font-size:13px; line-height:1.7; }
+  .home-focus-actions { gap:20px; }
+  .home-focus-footnote { font-size:9px; }
+  .home-ambient-presence { position:absolute; right:0; top:-86px; width:68px; height:68px; min-height:0; pointer-events:none; opacity:.25; overflow:hidden; }
+  .home-ambient-presence>button { display:none; }
+  .home-journey { grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; padding:19px 0; }
+  .home-journey>button { flex-direction:column; align-items:flex-start; gap:10px; padding:0; }
+  .home-journey .journey-number,.home-journey>button>svg:last-child,.home-journey small { display:none; }
+  .home-journey strong { font-size:12px; }
+  .home-work-layout { grid-template-columns:1fr; gap:30px; padding-top:29px; }
+  .home-now { padding:23px 0 0; border:0; border-top:1px solid #ffffff0d; }
+  .home-work-row { padding:20px 0; gap:13px; }
+  .home-work-row strong { font-size:14px; }
+  .home-work-row>span>span:not(.home-inline-progress) { font-size:11px; }
+  .home-work-icon { width:32px; height:32px; }
+  .home-evidence-note { font-size:9px; row-gap:12px; }
+  .home-evidence-note button { margin-left:22px; }
+  .home-radar-link { margin-bottom:20px; }
+  .home-footer-links { gap:18px; margin-top:24px; }
+  .home-footer-links>span { width:100%; }
+  .home-footer-links button { font-size:10px; }
+  .vision-app .product-main .section-header h1 { font-size:29px; }
+  .vision-app .product-main .section-description { font-size:12px; }
+  .vision-app .product-main .learning-nav { gap:18px; margin-bottom:22px; }
+  .vision-app .product-main .learning-nav button { font-size:11px; }
+  .vision-app .product-main :is(.canonical-projection-grid,.canonical-project-grid) { grid-template-columns:1fr; gap:22px; }
+  .vision-app .product-main .canonical-progress-columns { grid-template-columns:1fr; gap:10px; }
+  .vision-app .product-main .canonical-progress-counts { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+  .vision-app .product-main .learning-lesson-layout { grid-template-columns:1fr; gap:25px; }
+  .vision-app .product-main .learning-mission-rail { grid-column:1; grid-row:2; padding:20px 0 0; border:0; border-top:1px solid #ffffff0d; }
+  .vision-app .product-main .learning-workspace .learning-career-summary .nc-course-card-body h3 { font-size:24px; }
+  .vision-app .product-main .learning-workspace .canonical-project-course { grid-template-columns:54px minmax(0,1fr); gap:16px; padding:22px 0; }
+  .vision-app .product-main .canonical-project-course .nc-course-card-art { width:54px; min-height:54px; height:54px; max-height:54px; border-radius:10px; }
+  .vision-app .product-main .learning-practice-empty-body { grid-template-columns:1fr; gap:16px; }
+  .vision-app .product-main .learning-practice-empty-copy h2 { font-size:26px; }
+  .vision-app .product-main .learning-practice-flow { padding:22px 0 0; border:0; border-top:1px solid #ffffff0d; }
+  .vision-app .product-main .product-conversation-page { padding-top:25px; }
+  .vision-app .product-conversation-page .product-home-heading h1 { font-size:27px; }
+  .vision-app .product-conversation-page .product-home-heading p { font-size:11px; }
+  .vision-app .product-conversation { min-height:350px; height:calc(100svh - 325px); }
+  .vision-app .product-conversation .rich-text { font-size:13px; }
+  .vision-app .product-composer .thought-composer { padding:13px; border-radius:12px; }
+  .vision-app .product-composer .composer-entry textarea { font-size:13px; min-height:36px; }
+  .vision-app .product-home-links { gap:15px; }
+  .vision-app .product-home-links button { padding:0; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .vision-app *, .vision-app *::before,.vision-app *::after { transition:none!important; animation:none!important; scroll-behavior:auto!important; }
+}

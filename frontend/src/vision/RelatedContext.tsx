@@ -20,7 +20,7 @@ export function RelatedContext({attachments, client, onOpen, onAttach}:{
     return()=>{live=false;};
   },[attachments,client]);
   if (!attachments.length) return null;
-  return <aside className="related-context" aria-label="Related canonical context">
+  return <aside className="related-context" aria-label="Related context">
     {attachments.map(item=>{
       const view=views[item.attachment_id];
       if (!view||item.status!=='current') return null;

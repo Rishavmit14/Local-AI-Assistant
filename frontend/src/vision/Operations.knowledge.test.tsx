@@ -19,7 +19,7 @@ function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-describe("Astra private-document Knowledge workspace", () => {
+describe("Friday private-document workspace", () => {
   let root: Root | undefined;
   let container: HTMLDivElement | undefined;
 
@@ -77,7 +77,7 @@ describe("Astra private-document Knowledge workspace", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await mount();
-    click("Knowledge");
+    click("Your documents");
     await settle();
     expect(container?.textContent).toContain(source.display_name);
     expect(container?.textContent).not.toContain("/AI/projects");
@@ -85,15 +85,15 @@ describe("Astra private-document Knowledge workspace", () => {
     if (!checkbox) throw new Error("indexed source selector not found");
     act(() => checkbox.click());
     setQuestion("What protocol does PROJECT-CIRRUS-7319 use?");
-    click("Ask selected documents");
+    click("Ask about these documents");
     await settle();
-    expect(container?.textContent).toContain("Generated interpretation");
+    expect(container?.textContent).toContain("Generated from your documents");
     expect(container?.textContent).toContain("SOURCE 1 · phase18a-private-knowledge.txt");
     const request = fetchMock.mock.calls.find(([url, init]) => url === "/api/v1/knowledge/ask" && init?.method === "POST");
     expect(JSON.parse(String(request?.[1]?.body))).toEqual({ source_ids: [source.source_id], question: "What protocol does PROJECT-CIRRUS-7319 use?" });
 
-    click("Registered sources");
-    click("Knowledge");
+    click("Sources");
+    click("Your documents");
     await settle();
     expect(container?.textContent).toContain(source.display_name);
     expect(fetchMock.mock.calls.filter(([url]) => url === "/api/v1/knowledge/documents")).toHaveLength(2);

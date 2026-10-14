@@ -6,6 +6,7 @@ import { selectObjectiveDisplay } from "../runtime/objectives";
 import { ObjectiveOutcome } from "./ObjectiveOutcome";
 import { TaskExplanationPanel } from "./TaskExplanationPanel";
 import type { FridayObjectiveExplanation, FridayTaskExplanation } from "../runtime/types";
+import { activityLabel, statusLabel } from "../vision/presentationStatus";
 
 export function ObjectiveConsole() {
   const client = useMemo(() => new FridayRuntimeClient(), []);
@@ -83,7 +84,7 @@ export function ObjectiveConsole() {
     if (!current || !repositoryId.trim()) return;
     setBusy(true);
     try { await client.requestObjectivePlan(current.objective_id, repositoryId.trim()); await refresh(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not request a canonical plan"); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not prepare this plan"); }
     finally { setBusy(false); }
   };
   const explain = async () => {
@@ -93,73 +94,79 @@ export function ObjectiveConsole() {
     catch (reason) { setExplanationError(reason instanceof Error ? reason.message : "Canonical explanation unavailable"); }
     finally { setExplanationLoading(false); }
   };
-  return <aside className="objective-console" aria-label="Autonomous objectives">
-    <div className="career-forge-heading"><span>OBJECTIVE</span><small>LOCAL · GUARDED</small></div>
+  return <aside className="objective-console" aria-label="Goal and activity">
+    <div className="career-forge-heading"><span>GOAL</span><small>Runs on this device</small></div>
     {error ? <div className="objective-service-error" role="alert">
-      <p>Friday's canonical objective and activity projection could not refresh ({error}).{hasSnapshot ? " The last confirmed projection remains visible." : " No canonical state is available yet."}</p>
-      <button type="button" onClick={() => void refresh()}>RETRY</button>
+      <p>Friday couldn’t refresh your goal or recent activity. {hasSnapshot ? "The last confirmed information is still shown." : "Try again in a moment."}</p>
+      <details><summary>Advanced details</summary><p>{error}</p></details>
+      <button type="button" onClick={() => void refresh()}>Try again</button>
     </div> : null}
-    {!loaded ? <p aria-live="polite">Loading canonical objective state…</p> : hasSnapshot && current ? <>
+    {!loaded ? <p aria-live="polite">Loading your goal and activity…</p> : hasSnapshot && current ? <>
       <strong>{current.text}</strong>
-      <p>{current.task_state ?? current.state} · {current.task_id ? "canonical task linked" : "planning not yet linked"}</p>
-      {progress ? <section className="objective-progress" aria-label="Canonical objective progress">
+      <p>{statusLabel(current.task_state ?? current.state)}</p>
+      {progress ? <section className="objective-progress" aria-label="Goal progress">
         <h3>What Friday is doing</h3>
         <p>{progress.task?.narrative ?? progress.objective.narrative}</p>
-        <dl>
+        <details><summary>Advanced details</summary><dl>
           <div><dt>Objective id</dt><dd>{progress.objective.objective_id}</dd></div>
           {progress.task ? <div><dt>Linked task id</dt><dd>{progress.task.task_id}</dd></div> : null}
-          <div><dt>Objective state</dt><dd>{progress.objective.state}</dd></div>
-          <div><dt>Linked task state</dt><dd>{progress.task?.status ?? "Unavailable: no canonical task record"}</dd></div>
-          <div><dt>Owner attention</dt><dd>{progress.owner_attention.replaceAll("_", " ")}</dd></div>
+          <div><dt>Goal status</dt><dd>{statusLabel(progress.objective.state)}</dd></div>
+          <div><dt>Linked task status</dt><dd>{statusLabel(progress.task?.status)}</dd></div>
+          <div><dt>Owner attention</dt><dd>{statusLabel(progress.owner_attention)}</dd></div>
           <div><dt>Recovery</dt><dd>{progress.recovery.summary}</dd></div>
           {progress.task ? <>
-            <div><dt>Recovery state / attention</dt><dd>{progress.recovery.overall_status} · {progress.recovery.owner_attention}</dd></div>
-            <div><dt>Worker liveness</dt><dd>{progress.recovery.worker_liveness}</dd></div>
-            <div><dt>Isolation</dt><dd>{progress.recovery.isolation.status}{progress.recovery.isolation.state ? ` · ${progress.recovery.isolation.state}` : ""}</dd></div>
-            <div><dt>Claims</dt><dd>Planning {progress.recovery.planning_claim.state} · execution {progress.recovery.execution_claim.state}</dd></div>
-            <div><dt>Rollback / cleanup</dt><dd>{progress.recovery.rollback.state} · {progress.recovery.cleanup.state}</dd></div>
-            <div><dt>Reconciliation</dt><dd>{progress.recovery.reconciliation.state}</dd></div>
+            <div><dt>Recovery status</dt><dd>{statusLabel(progress.recovery.overall_status)} · {statusLabel(progress.recovery.owner_attention)}</dd></div>
+            <div><dt>Worker status</dt><dd>{statusLabel(progress.recovery.worker_liveness)}</dd></div>
+            <div><dt>Work area</dt><dd>{statusLabel(progress.recovery.isolation.status)}{progress.recovery.isolation.state ? ` · ${statusLabel(progress.recovery.isolation.state)}` : ""}</dd></div>
+            <div><dt>Current steps</dt><dd>Planning {statusLabel(progress.recovery.planning_claim.state)} · execution {statusLabel(progress.recovery.execution_claim.state)}</dd></div>
+            <div><dt>Restore / cleanup</dt><dd>{statusLabel(progress.recovery.rollback.state)} · {statusLabel(progress.recovery.cleanup.state)}</dd></div>
+            <div><dt>Reconciliation</dt><dd>{statusLabel(progress.recovery.reconciliation.state)}</dd></div>
           </> : null}
           {progress.task?.outcome && <div><dt>Outcome</dt><dd>{progress.task.outcome}</dd></div>}
           {progress.task?.failure_reason && <div><dt>Failure detail</dt><dd>{progress.task.failure_reason}</dd></div>}
           {progress.task?.final_decision && <div><dt>Final decision</dt><dd>{progress.task.final_decision}</dd></div>}
           {progress.task?.duration_seconds !== null && progress.task?.duration_seconds !== undefined && <div><dt>Recorded duration</dt><dd>{progress.task.duration_seconds} seconds</dd></div>}
-        </dl>
-        <p className="objective-progress-latest">Latest recorded event: {progress.latest_event ? `${progress.latest_event.summary} · ${progress.latest_event.timestamp}` : "Unavailable: no task timeline event is recorded."}</p>
-        <details><summary>Recent canonical lifecycle ({progress.timeline.length})</summary>
-          {progress.timeline.length ? <ol>{progress.timeline.map((event) => <li key={event.event_id}><time dateTime={event.timestamp}>{event.timestamp}</time><strong>{event.kind.replaceAll("_", " ")}</strong><span>{event.summary}</span></li>)}</ol> : <p>No canonical task timeline is recorded.</p>}
-        </details>
+        </dl><p className="objective-progress-latest">Latest recorded event: {progress.latest_event ? `${progress.latest_event.summary} · ${progress.latest_event.timestamp}` : "No recent event is recorded."}</p>
+        <details><summary>Recent activity details ({progress.timeline.length})</summary>
+          {progress.timeline.length ? <ol>{progress.timeline.map((event) => <li key={event.event_id}><time dateTime={event.timestamp}>{event.timestamp}</time><strong>{activityLabel(event.kind)}</strong><span>{event.summary}</span></li>)}</ol> : <p>No recent task activity is recorded.</p>}
+        </details></details>
       </section> : null}
-      <button type="button" onClick={() => void explain()} disabled={explanationLoading}>EXPLAIN WHAT HAPPENED</button>
-      {current.task_id ? <button type="button" onClick={() => { window.location.hash = "history"; }}>OPEN IN HISTORY / RECOVERY</button> : null}
+      <div className="objective-console-actions" role="group" aria-label="Goal actions">
+        <button className="btn" type="button" onClick={() => void explain()} disabled={explanationLoading}>Explain this goal</button>
+        {current.task_id ? <button className="btn" type="button" onClick={() => { window.location.hash = "history"; }}>View history and recovery</button> : null}
+        {current.state === "created" ? <button className="btn btn-primary" type="button" onClick={() => void resume()} disabled={busy}>Plan this goal</button> : null}
+        <button className="btn" type="button" onClick={() => void cancel()} disabled={busy}>Cancel goal</button>
+      </div>
       <TaskExplanationPanel explanation={explanation} loading={explanationLoading} error={explanationError}/>
-      {current.state === "created" ? <button type="button" onClick={() => void resume()} disabled={busy}>BEGIN PLANNING</button> : null}
       {current.state === "planning" ? <>
-        <label className="objective-create-label" htmlFor="objective-repository">CONFIGURED REPOSITORY ID</label>
-        <input id="objective-repository" value={repositoryId} maxLength={200} onChange={(event) => setRepositoryId(event.target.value)} placeholder="For example: friday" />
-        <button type="button" onClick={() => void plan()} disabled={busy || !repositoryId.trim()}>REQUEST CANONICAL PLAN</button>
+        <div className="objective-console-plan-form">
+          <label className="objective-create-label" htmlFor="objective-repository">PROJECT TO WORK IN</label>
+          <input id="objective-repository" value={repositoryId} maxLength={200} onChange={(event) => setRepositoryId(event.target.value)} placeholder="For example: friday" />
+          <button className="btn btn-primary" type="button" onClick={() => void plan()} disabled={busy || !repositoryId.trim()}>Prepare a plan for review</button>
+        </div>
       </> : null}
-      {review && current.task_id === review.task_id ? <section className="objective-plan-review" aria-label="Canonical plan review">
-        <small>CANONICAL PLAN · {review.approval.status}</small>
+      {review && current.task_id === review.task_id ? <section className="objective-plan-review" aria-label="Plan review">
+        <small>PLAN FOR REVIEW · {statusLabel(review.approval.status)}</small>
         <p>{review.summary}</p>
         <p>Risk: {review.risk.level}. {review.risk.reasons.join(" ")}</p>
         {review.steps.length ? <ol>{review.steps.map((step, index) => <li key={`${index}-${step}`}>{step}</li>)}</ol> : null}
         {review.unresolved_questions.length ? <p>Review questions: {review.unresolved_questions.join(" ")}</p> : null}
       </section> : null}
-      <button type="button" onClick={() => void cancel()} disabled={busy}>CANCEL OBJECTIVE</button>
-    </> : hasSnapshot && !current && !error ? <p>No objective is active. Friday will not create work without an explicit local objective.</p> : null}
+    </> : hasSnapshot && !current && !error ? <p>No goal is active. Set one here, then review any plan before work begins.</p> : null}
     {recentResult ? <ObjectiveOutcome objective={recentResult} /> : null}
-    <label className="objective-create-label" htmlFor="objective-text">NEW LOCAL OBJECTIVE</label>
-    <textarea id="objective-text" value={text} maxLength={4000} onChange={(event) => setText(event.target.value)} placeholder="Describe the bounded outcome Friday should pursue" />
-    <button type="button" onClick={() => void create()} disabled={busy || !text.trim()}>{busy ? "SAVING" : "SAVE OBJECTIVE"}</button>
-    <section className="objective-activity" aria-label="Canonical activity">
-      <h3>Activity</h3>
+    <div className="objective-create-form">
+      <label className="objective-create-label" htmlFor="objective-text">SET A GOAL</label>
+      <textarea id="objective-text" value={text} maxLength={4000} onChange={(event) => setText(event.target.value)} placeholder="What would you like Friday to work on?" />
+      <button className="btn btn-primary" type="button" onClick={() => void create()} disabled={busy || !text.trim()}>{busy ? "Saving…" : "Save goal"}</button>
+    </div>
+    <section className="objective-activity" aria-label="Recent activity">
+      <h3>Recent activity</h3>
       {activity.length ? <ol>{activity.map((item) => <li key={item.id}>
         <time dateTime={item.occurred_at}>{item.occurred_at}</time>
-        <strong>{item.kind.replaceAll("_", " ")}</strong>
+        <strong>{activityLabel(item.kind)}</strong>
         <span>{item.summary}</span>
-        {item.task_id ? <small>Task {item.task_id} · {item.task_state ?? "state unavailable"}</small> : null}
-      </li>)}</ol> : <p>No canonical task or objective history is recorded yet.</p>}
+        {item.task_id ? <details><summary>Advanced details</summary><small>Task {item.task_id} · {statusLabel(item.task_state)}</small></details> : null}
+      </li>)}</ol> : <p>When Friday works on a goal, you’ll see updates here.</p>}
     </section>
   </aside>;
 }

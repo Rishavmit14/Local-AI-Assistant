@@ -86,7 +86,7 @@ describe("Astra canonical desktop attention", () => {
     await click("Review action");
     expect(view.textContent).toContain("org.gnome.Calculator.desktop");
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
-    expect(view.textContent).toContain("Approval authorizes only this persisted desktop action and does not execute it");
+    expect(view.textContent).toContain("Approval applies only to this saved desktop action and does not run it");
     expect(view.textContent).not.toMatch(/docs\.python\.org|decline|reset this preview/i);
     expect(localStorage.length).toBe(0);
 
@@ -111,7 +111,7 @@ describe("Astra canonical desktop attention", () => {
     await act(async () => { root?.unmount(); }); root = undefined; first.remove(); container = undefined;
     current = null;
     const empty = await mount();
-    expect(empty.textContent).toContain("No canonical desktop actions have been recorded.");
+    expect(empty.textContent).toContain("No actions need your decision right now.");
   });
 
   it("surfaces backend failure without fixture fallback and derives attention only from canonical pending states", async () => {

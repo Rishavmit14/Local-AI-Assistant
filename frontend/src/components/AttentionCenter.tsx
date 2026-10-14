@@ -49,7 +49,7 @@ export function AttentionCenter({
       if (kind === "approve") await client.approveDesktopAction(action.action_id);
       else await client.executeDesktopAction(action.action_id);
       if (await refresh()) setExpandedId(null);
-      else setRefreshMessage("The request returned, but canonical state could not be reloaded. The displayed state may be stale.");
+      else setRefreshMessage("The request returned, but Friday could not refresh the latest status. The displayed information may be out of date.");
     } catch (reason) {
       setActionError(reason instanceof Error ? reason.message : `Desktop ${kind} request failed`);
       await refresh();
@@ -60,17 +60,17 @@ export function AttentionCenter({
 
   return <div className="attention-content">
     <div className="drawer-heading">
-      <div className="eyebrow">CANONICAL DESKTOP ACTIONS</div>
+      <div className="eyebrow">OWNER DECISIONS</div>
       <button className="icon-button" aria-label="Close attention" onClick={onClose}><X size={19}/></button>
     </div>
     <Bell size={25}/>
     <h2>Attention.</h2>
-    <p>Notifications are shown in their separate Notifications workspace. This panel lists canonical desktop action records.</p>
+    <p>Review desktop actions that need your decision. Friday notifications appear in the Notifications workspace.</p>
     {error && <p className="attention-error" role="alert">Desktop action state unavailable: {error}</p>}
     {actionError && <p className="attention-error" role="alert">{actionError}</p>}
     {refreshMessage && <p className="attention-error" role="status">{refreshMessage}</p>}
-    {loading && <p role="status">Loading canonical desktop actions…</p>}
-    {!loading && !error && actions.length === 0 && <p>No canonical desktop actions have been recorded.</p>}
+    {loading && <p role="status">Loading owner decisions…</p>}
+    {!loading && !error && actions.length === 0 && <p>No actions need your decision right now.</p>}
     {!loading && !error && actions.length > 0 && pendingDesktopActionCount(actions) === 0 && <p>No desktop actions currently need an owner decision.</p>}
     <div className="attention-action-list">
       {actions.map((action) => {
@@ -91,27 +91,28 @@ export function AttentionCenter({
             {expanded ? "Close review" : "Review action"}<ArrowUpRight size={15}/>
           </button>
           {expanded && <div className="attention-action-review">
-            <div className="detail-row"><span>Canonical action</span><span>{action.action}</span></div>
+            <div className="detail-row"><span>Action</span><span>{action.action}</span></div>
             {targetVisible
               ? <div className="detail-row"><span>Exact target</span><code>{action.app_id}</code></div>
-              : <p>The exact target is not available for informed review in Astra. Approval and execution are unavailable here.</p>}
-            <p>Approval authorizes only this persisted desktop action and does not execute it. The backend enforces its configured approval expiry. Execution is a separate, one-time owner action. DesktopControlService owns this audit record.</p>
+              : <p>The exact target is not available for review in Friday. Approval and execution are unavailable here.</p>}
+            <p>Approval applies only to this saved desktop action and does not run it. Approval expires according to Friday’s local policy. Running it is a separate, one-time owner action.</p>
+            <details><summary>Advanced details</summary><p>Friday’s local desktop action service stores this review record.</p></details>
             {canApprove && <button className="btn btn-primary" type="button" disabled={busyId !== null || loading || error !== null} onClick={() => void transition(action, "approve")}>
               {busyId === action.action_id ? "Requesting approval…" : "Approve this desktop action"}<Check size={16}/>
             </button>}
             {canExecute && <>
-              <p>The action is canonically approved. Friday has not executed it. Execute will perform only this persisted action.</p>
+              <p>This action is approved but has not been run. Execute will perform only this saved action.</p>
               <button className="btn btn-primary" type="button" disabled={busyId !== null || loading || error !== null} onClick={() => void transition(action, "execute")}>
                 {busyId === action.action_id ? "Requesting execution…" : "Execute approved action"}<ArrowUpRight size={16}/>
               </button>
             </>}
             {action.state === "executed" && <p>Friday recorded this action as executed. This is the persisted service state.</p>}
-            {action.state === "failed" && <p>The canonical service recorded an execution failure.</p>}
-            {action.state === "expired" && <p>The canonical approval window expired. Astra will not create a replacement proposal.</p>}
+            {action.state === "failed" && <p>Friday recorded that this action did not complete.</p>}
+            {action.state === "expired" && <p>This approval expired. Friday needs a new review before the action can run.</p>}
           </div>}
         </article>;
       })}
     </div>
-    <p className="attention-task-boundary">Exact-plan task approval and objective execution remain behind Friday’s authenticated Gateway boundary. No task approval or execution is available here.</p>
+    <p className="attention-task-boundary">Task approval and execution happen in Friday’s protected review flow. This panel cannot approve or start a task.</p>
   </div>;
 }

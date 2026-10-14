@@ -130,7 +130,7 @@ describe("Astra canonical Research workspace", () => {
     await act(async () => { add?.click(); });
     setField("Domain", source.domain);
     setField("Title", source.title);
-    setField("Provenance · how you obtained this", source.provenance);
+    setField("Where this came from", source.provenance);
     setField("Version", source.version);
     setField("Source text", sourceBody.content);
     await act(async () => {
@@ -145,7 +145,7 @@ describe("Astra canonical Research workspace", () => {
     expect(container?.textContent).toContain(source.content_hash);
     expect(container?.textContent).not.toContain("research-notes");
 
-    const synthesisTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Evidence synthesis");
+    const synthesisTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Source findings");
     await act(async () => { synthesisTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
     setField("Question", synthesis.question);
     await act(async () => {
@@ -153,8 +153,8 @@ describe("Astra canonical Research workspace", () => {
       await new Promise((resolve) => window.setTimeout(resolve, 5));
     });
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/research/synthesis?domain=astra-qualification&question=What+shape+has+four+sides%3F", expect.anything());
-    expect(container?.textContent).toContain("SOURCE EVIDENCE · NOT GENERATED PROSE");
-    expect(container?.textContent).toContain("Question applied to retrieval: no");
+    expect(container?.textContent).toContain("SAVED SOURCE FINDINGS");
+    expect(container?.textContent).toContain("does not yet tailor the results");
     expect(container?.textContent).toContain("provenance=owner-provided synthetic text");
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/memory/"))).toBe(false);
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/career-forge/"))).toBe(false);
@@ -172,10 +172,10 @@ describe("Astra canonical Research workspace", () => {
 
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/research/answer"))).toBe(false);
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/conversation/stream"))).toBe(false);
-    const askTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Ask Friday from evidence");
+    const askTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Ask Friday");
     await act(async () => { askTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
-    setField("Canonical research domain", source.domain);
-    setField("Question for Friday", generatedAnswer.question);
+    setField("Source group", source.domain);
+    setField("Your question", generatedAnswer.question);
     await act(async () => {
       container?.querySelector(".op-research-answer .op-form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       await new Promise((resolve) => window.setTimeout(resolve, 5));
@@ -185,12 +185,12 @@ describe("Astra canonical Research workspace", () => {
       method: "POST",
       body: JSON.stringify({ domain: source.domain, question: generatedAnswer.question }),
     }));
-    expect(container?.textContent).toContain("MODEL-GENERATED INTERPRETATION FROM LOCAL EVIDENCE");
+    expect(container?.textContent).toContain("FRIDAY’S ANSWER");
     expect(container?.textContent).toContain(generatedAnswer.answer);
-    expect(container?.textContent).toContain("Sources supplied");
+    expect(container?.textContent).toContain("Sources used");
     expect(container?.textContent).toContain(source.source_id);
     expect(container?.textContent).toContain(source.content_hash);
-    expect(container?.textContent).toContain("Citation-level validation is not provided");
+    expect(container?.textContent).toContain("Check important details against the original sources");
     expect(container?.textContent).not.toContain(sourceBody.content);
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/memory/"))).toBe(false);
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/v1/career-forge/"))).toBe(false);
@@ -217,32 +217,32 @@ describe("Astra canonical Research workspace", () => {
     )));
     await mount();
     await settle();
-    const askTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Ask Friday from evidence");
+    const askTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Ask Friday");
     await act(async () => { askTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
-    setField("Canonical research domain", "empty-domain");
-    setField("Question for Friday", "What is stored?");
+    setField("Source group", "empty-domain");
+    setField("Your question", "What is stored?");
     await act(async () => {
       container?.querySelector(".op-research-answer .op-form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       await new Promise((resolve) => window.setTimeout(resolve, 5));
     });
-    expect(container?.textContent).toContain("No local evidence available");
-    expect(container?.textContent).toContain(noEvidence.message);
-    expect(container?.textContent).not.toContain("MODEL-GENERATED INTERPRETATION");
+    expect(container?.textContent).toContain("No supporting information found");
+    expect(container?.textContent).not.toContain(noEvidence.message);
+    expect(container?.textContent).not.toContain("FRIDAY’S ANSWER");
   });
 
   it("shows research failure without restoring examples and states the real Knowledge boundary", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({ detail: "unavailable" }, 503)));
     await mount();
     await settle();
-    expect(container?.querySelector('[role="alert"]')?.textContent).toContain("No example sources or synthesis are shown");
+    expect(container?.querySelector('[role="alert"]')?.textContent).toContain("Research couldn’t load just now");
     expect(container?.textContent).not.toContain("The iterator protocol");
 
-    const knowledgeTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Knowledge");
+    const knowledgeTab = [...(container?.querySelectorAll('[role="tab"]') ?? [])].find((button) => button.textContent === "Your documents");
     await act(async () => { knowledgeTab?.dispatchEvent(new MouseEvent("click", { bubbles: true })); });
-    expect(container?.textContent).toContain("PRIVATE DOCUMENTS · LOCAL INDEX");
-    expect(container?.textContent).toContain("Private document knowledge is unavailable");
+    expect(container?.textContent).toContain("YOUR SAVED DOCUMENTS");
+    expect(container?.textContent).toContain("Your documents could not be loaded");
     expect(container?.textContent).not.toContain("Not connected to Astra");
-    expect(container?.textContent).toContain("INTERNAL / GUARDED ENGINEERING PATH");
+    expect(container?.textContent).toContain("Other kinds of information");
     expect(container?.textContent).not.toContain("Private knowledge · Python");
   });
 });

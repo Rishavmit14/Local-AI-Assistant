@@ -7,6 +7,7 @@ import { buildBrainGeometry } from './anatomy';
 import { buildTractography } from './tractography';
 import { buildMicrocircuits } from './microcircuits';
 import { cortexVertex,cortexFragment,fiberVertex,fiberFragment,pointVertex,pointFragment } from './neuralShaders';
+import { advanceNeuralTransition } from './neuralMotion';
 import type { CognitiveState } from './types';
 const stateIndex:Record<CognitiveState,number>={idle:0,listening:1,thinking:2,speaking:3,working:4,waiting:5,error:6,focus:7};
 function attributes(geometry:BufferGeometry, data:Record<string,number[]>){for(const [name,values] of Object.entries(data))geometry.setAttribute(name,new Float32BufferAttribute(values,name==='position'?3:1));return geometry;}
@@ -53,7 +54,7 @@ function Brain({state,reduced}:{state:CognitiveState;reduced:boolean}){
  useEffect(()=>()=>{geometry.forEach(g=>g.dispose());cortex.points.dispose();cortex.lines.dispose();connectome.tracts.dispose();connectome.nuclei.dispose();micro.lines.dispose();micro.points.dispose();field.dispose();Object.values(materials).forEach(m=>m.dispose());},[geometry,cortex,connectome,micro,field,materials]);
  useFrame(({clock,pointer},delta)=>{
   const t=clock.elapsedTime;
-  for(const material of Object.values(materials)){material.uniforms.uTime.value=reduced?0:t;material.uniforms.uTransition.value=Math.min(1,material.uniforms.uTransition.value+delta*.9);}
+  for(const material of Object.values(materials)){material.uniforms.uTime.value=reduced?0:t;material.uniforms.uTransition.value=advanceNeuralTransition(material.uniforms.uTransition.value,delta,reduced);}
   if(group.current){rotation.current+=reduced?0:Math.min(delta,.05)*(state==='waiting'?.007:state==='focus'?.022:.055);group.current.rotation.y+=(rotation.current+pointer.x*.10-group.current.rotation.y)*Math.min(delta*2,1);group.current.rotation.x+=(.20+(reduced?0:Math.sin(t*.13)*.04)-pointer.y*.04-group.current.rotation.x)*Math.min(delta*2,1);group.current.rotation.z=-.055+(reduced?0:Math.sin(t*.16)*.02);group.current.position.y=reduced?0:Math.sin(t*.52)*.012;group.current.scale.setScalar(1.91+(reduced?0:Math.sin(t*.82)*.009));}
  });
  return <group ref={group} scale={1.91} rotation={[.2,-.92,-.055]}>

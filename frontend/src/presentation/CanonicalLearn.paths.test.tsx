@@ -19,6 +19,14 @@ describe("Learn Dynamic Learning Paths integration", () => {
   beforeEach(() => { vi.spyOn(FridayRuntimeClient.prototype,"getCareerJourney").mockResolvedValue({progress:{retention_reviews:[]}} as never); });
   afterEach(() => { act(() => root?.unmount()); root=undefined; container?.remove(); vi.restoreAllMocks(); });
 
+  it("does not claim a path list is empty when the path service is unavailable", async () => {
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockRejectedValue(new Error("request failed: 404"));
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null}));await new Promise(r=>setTimeout(r,0));});
+    expect(container.textContent).toContain("Learning paths are unavailable.");
+    expect(container.textContent).not.toContain("No learning paths yet");
+  });
+
   it("renders canonical path and sequence, selects persistently, and starts a diagnostic through Career Forge", async () => {
     let selected="p1";
     const lifecycle:Record<string,string>={p1:"active",p2:"draft"};
@@ -32,7 +40,7 @@ describe("Learn Dynamic Learning Paths integration", () => {
     const onHandoff=vi.fn(); const navigate=vi.fn();
     container=document.createElement("div");document.body.append(container);root=createRoot(container);
     await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate,onHandoff,activeMission:null}));await new Promise(r=>setTimeout(r,0));});
-    expect(container.textContent).toContain("Path p1 · active · current");
+    expect(container.textContent).toContain("Path p1 · In progress · current");
     expect(container.textContent).toContain("A canonical diagnostic is recommended.");
     expect(container.textContent).toContain("Eligible next candidates: Python foundations");
     const pathButton=[...container.querySelectorAll("button")].find(b=>b.textContent?.includes("Path p2"));
@@ -128,7 +136,7 @@ describe("Learn Dynamic Learning Paths integration", () => {
     vi.spyOn(FridayRuntimeClient.prototype,"getProjectMilestone").mockResolvedValue({path:{path_id:"project-recovery",version:1,state:"active",selected:true},node:current.current.nodes[0],milestone,prerequisite_node_ids:[],prerequisites_satisfied:true,project,can_assign:false} satisfies LearningProjectMilestone);
     container=document.createElement("div");document.body.append(container);root=createRoot(container);
     await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null}));await new Promise(r=>setTimeout(r,0));});
-    expect(container.textContent).toContain("Project state: completed");
+    expect(container.textContent).toContain("Project state: Completed");
     expect(container.textContent).toContain("Local Career Forge Reviewer · correct");
     expect(container.textContent).toContain("The explanation accurately connects validation behavior to the tested edge cases.");
     expect(container.textContent).toContain("project_milestone_assessment_v1 · local_qwen_reviewer · evidence evidence-project-1");
@@ -184,7 +192,7 @@ describe("Learn Dynamic Learning Paths integration", () => {
     const button=[...container.querySelectorAll("button")].find(b=>b.textContent==="Create");
     await act(async()=>{button?.click();await new Promise(r=>setTimeout(r,0));});
     expect(generate).toHaveBeenCalledOnce();
-    expect(container.textContent).toContain("Path p3 · draft");
+    expect(container.textContent).toContain("Path p3 · Draft");
     expect(container.textContent).toContain("Python foundations");
     expect(container.textContent).not.toMatch(/\b(100%|completed|mastered)\b/i);
   });
@@ -243,7 +251,7 @@ describe("Learn Dynamic Learning Paths integration", () => {
     const handoff=vi.spyOn(FridayRuntimeClient.prototype,"handoffLearningPathNode").mockResolvedValue({action:"reinforcement",subject_id:"subject-sql",resumed:true,mission:{resume_point:{interrupted_mission_id:"mission-prior"}} as never,completion_claimed:false});
     const onHandoff=vi.fn();container=document.createElement("div");document.body.append(container);root=createRoot(container);
     await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff,activeMission:null}));await new Promise(r=>setTimeout(r,0));});
-    expect(container.textContent).toContain("REINFORCE FIRST");
+    expect(container.textContent).toContain("Strengthen this skill");
     const start=[...container.querySelectorAll("button")].find(b=>b.textContent==="Start reinforcement");
     await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
     expect(handoff).toHaveBeenCalledWith("p-dynamic","sql","reinforcement",1);expect(onHandoff).toHaveBeenCalledOnce();

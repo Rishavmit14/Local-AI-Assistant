@@ -33,16 +33,18 @@ export function localOwnerBridge(env = process.env) {
     } finally { closeSync(fd); }
   };
   readCapability();
+  const authorizeProxyRequest = (proxyReq, req) => {
+    proxyReq.removeHeader('x-friday-local-owner');
+    if (req.method !== 'POST' || req.url !== '/api/v1/project-execution/restore') return;
+    if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress)
+        || req.headers.origin !== origin || req.headers.host !== new URL(origin).host) return;
+    try { proxyReq.setHeader('x-friday-local-owner', readCapability()); }
+    catch { /* Revoked or invalid local credentials fail closed at the API. */ }
+  };
   return {
+    authorizeProxyRequest,
     configure(proxy) {
-      proxy.on('proxyReq', (proxyReq, req) => {
-        proxyReq.removeHeader('x-friday-local-owner');
-        if (req.method !== 'POST' || req.url !== '/api/v1/project-execution/restore') return;
-        if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress)
-            || req.headers.origin !== origin || req.headers.host !== new URL(origin).host) return;
-        try { proxyReq.setHeader('x-friday-local-owner', readCapability()); }
-        catch { /* Revoked or invalid local credentials fail closed at the API. */ }
-      });
+      proxy.on('proxyReq', authorizeProxyRequest);
     },
     plugin: {
       name: 'friday-local-owner-boundary',

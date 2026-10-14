@@ -25,14 +25,15 @@ const explanation: FridayTaskExplanation = {
 describe("grounded explanation panel", () => {
   let root: Root | undefined;
   let container: HTMLDivElement | undefined;
-  afterEach(() => { root?.unmount(); container?.remove(); root = undefined; container = undefined; });
+  afterEach(() => { if (root) act(() => root?.unmount()); container?.remove(); root = undefined; container = undefined; });
   it("shows separate canonical states and read-only evidence without action controls", () => {
     container = document.createElement("div"); root = createRoot(container);
     act(() => root?.render(createElement(TaskExplanationPanel, { explanation })));
-    expect(container.textContent).toContain("planned");
-    expect(container.textContent).toContain("awaiting_approval");
+    expect(container.textContent).toContain("Planned");
+    expect(container.textContent).toContain("Waiting for approval");
+    expect(container.textContent).toContain("Goal statusPlanned");
     expect(container.textContent).toContain("none present");
-    expect(container.textContent).toContain("No model-generated claims");
+    expect(container.textContent).toContain("Built from recorded facts");
     expect(container.textContent).toContain("no_isolation_record · unknown");
     expect(container.textContent).toContain("Worker liveness");
     expect(container.textContent).toContain("Planning none · execution none");

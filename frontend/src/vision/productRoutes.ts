@@ -9,6 +9,26 @@ const aliases: Record<string,VisionView> = {
  diagnostics:'system', practice:'lab', roadmap:'map', personalization:'memory',
 };
 
+export function secondaryProductDestinations<T extends { id: string }>(
+ destinations: readonly T[],
+ primaryIds: ReadonlySet<string>,
+): T[] {
+ const seen = new Set(primaryIds);
+ const result: T[] = [];
+ for (const destination of destinations) {
+  if (seen.has(destination.id)) continue;
+  seen.add(destination.id);
+  result.push(destination);
+ }
+ return result;
+}
+
+export function mobilePrimaryDestination(view: VisionView): VisionView | null {
+ if(view==='conversation') return 'home';
+ if(['map','interview','progress'].includes(view)) return 'learn';
+ return ['home','learn','lab','projects'].includes(view) ? view : null;
+}
+
 /** Keeps existing bookmarks while giving each route one owner-facing destination. */
 export function resolveProductRoute(hash:string):VisionView {
  const route=hash.replace(/^#/,'').split('?',1)[0].toLowerCase();

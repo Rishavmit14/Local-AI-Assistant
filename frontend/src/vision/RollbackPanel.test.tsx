@@ -27,17 +27,24 @@ describe("Astra owner rollback panel", () => {
     const input = container.querySelector("input")!;
     await act(async () => { input.value = "owner-token-placeholder"; input.dispatchEvent(new Event("input", { bubbles: true })); });
     await act(async () => { container!.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
-    expect(container.textContent).toContain("Eligible · exact task checkpoint");
-    expect(container.textContent).not.toContain("hidden");
+    expect(container.querySelector("li strong")?.textContent).toBe("Ready for review");
+    expect(container.querySelector<HTMLDetailsElement>("li details")?.open).toBe(false);
+    expect(container.querySelector("li details")?.textContent).toContain("checkpoint-exact");
+    const visibleCheckpoint = container.querySelector("li")?.cloneNode(true) as HTMLElement;
+    visibleCheckpoint.querySelectorAll("details").forEach(details => details.remove());
+    expect(visibleCheckpoint.textContent).not.toContain("hidden");
     expect(localStorage.length + sessionStorage.length).toBe(0);
-    await act(async () => { [...container!.querySelectorAll("button")].find(button => button.textContent?.includes("Review this exact checkpoint"))!.click(); });
-    expect(container.textContent).toContain("Review exact restore");
+    await act(async () => { [...container!.querySelectorAll("button")].find(button => button.textContent?.includes("Review this checkpoint"))!.click(); });
+    const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog?.getAttribute("aria-label")).toBe("Review a saved checkpoint");
+    expect(dialog?.textContent).toContain("Restore this checkpoint?");
+    expect(dialog?.querySelector<HTMLDetailsElement>("details")?.open).toBe(false);
     expect(calls.map(call => new URL(call.url, location.href).pathname)).not.toContain("/api/v1/rollback/operations/operation-once/execute");
-    await act(async () => { [...container!.querySelectorAll("button")].find(button => button.textContent?.includes("Execute rollback"))!.click(); });
+    await act(async () => { [...container!.querySelectorAll("button")].find(button => button.textContent?.includes("Restore checkpoint"))!.click(); });
     const execute = calls.find(call => call.url.endsWith("/execute"))!;
     expect(execute.init?.headers).toMatchObject({ "X-Friday-CSRF": "csrf-memory-only" });
     expect((execute.init?.headers as Record<string, string>) ["Idempotency-Key"]).toBeTruthy();
-    expect(container.textContent).toContain("Rollback operation recorded: restored");
+    expect(container.textContent).toContain("Checkpoint restored. The saved state is back in place.");
     expect(localStorage.length + sessionStorage.length).toBe(0);
   });
 
@@ -73,6 +80,6 @@ describe("Astra owner rollback panel", () => {
     expect(call.init?.headers).toMatchObject({ "X-Friday-CSRF": "restored-owner-csrf", "Content-Type": "application/json" });
     expect(JSON.parse(String(call.init?.body))).toMatchObject({ plan_hash: "a".repeat(64) });
     expect(JSON.parse(String(call.init?.body)).idempotency_key).toBeTruthy();
-    expect(container.textContent).toContain("Rollback operation recorded: rolled_back");
+    expect(container.querySelector("[role=status]")?.textContent).toBe("The saved baseline was restored after validation failed.");
   });
 });

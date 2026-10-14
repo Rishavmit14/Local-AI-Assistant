@@ -31,7 +31,7 @@ describe("Learn project milestone flow",()=>{
     const assignButton=[...container.querySelectorAll("button")].find(button=>button.textContent==="Assign learning project");
     await act(async()=>{assignButton?.click();await new Promise(r=>setTimeout(r,0));});
     expect(assign).toHaveBeenCalledWith("path-1","capstone",1);
-    expect(container.textContent).toContain("Project state: assigned");
+    expect(container.textContent).toContain("Project state: Ready");
     const start=[...container.querySelectorAll("button")].find(button=>button.textContent==="Start project in Objectives");
     await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
     expect(objective).toHaveBeenCalledWith("proj_1");

@@ -33,13 +33,13 @@ describe("Astra History canonical read projection", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     const mounted = await mount();
-    expect(mounted.textContent).toContain("task_290e6c92cefe4902b62b · awaiting_approval");
+    expect(mounted.textContent).toContain("task_290e6c92cefe4902b62b · Waiting for approval");
     expect(mounted.textContent).toContain("No outcome recorded");
-    expect(mounted.textContent).toContain("Acknowledged ·");
+    expect(mounted.textContent).toContain("Seen");
     expect(mounted.textContent).toContain("Owner unlock required");
     expect(mounted.textContent).toContain("Session-only");
     expect(mounted.textContent).not.toContain("/private/owner/secret.txt");
-    expect(mounted.textContent).toContain("separate owner-authenticated review and execute flow");
+    expect(mounted.textContent).toContain("separate review flow for eligible project tasks");
     expect([...mounted.querySelectorAll("button")].map(button => button.textContent).join(" ")).not.toMatch(/approve|execute|cancel|retry|restore/i);
     expect(methods).toEqual(["POST", "GET", "GET", "GET", "GET"]);
     expect(localStorage.length).toBe(0);
@@ -53,10 +53,10 @@ describe("Astra History canonical read projection", () => {
       response({ actions: [] }),
     )));
     const mounted = await mount();
-    expect(mounted.textContent).toContain("Proactive notifications: unavailable");
+    expect(mounted.textContent).toContain("Notifications: unavailable. Other sources are shown independently.");
     expect(mounted.textContent).toContain("Some sources could not be read");
-    expect(mounted.textContent).not.toContain("No canonical records in these sources");
-    expect(mounted.textContent).toContain("Objective/task activity: no canonical records");
+    expect(mounted.textContent).not.toContain("No records yet");
+    expect(mounted.textContent).toContain("Goal and task activity: no records");
   });
 
   it("reconstructs the same records after remount without browser history storage", async () => {
@@ -70,7 +70,7 @@ describe("Astra History canonical read projection", () => {
     await act(async () => { root?.unmount(); }); root = undefined; first.remove(); container = undefined;
     const remounted = await mount();
     expect(remounted.textContent).toContain("Synthetic objective plan prepared");
-    expect(remounted.textContent).toContain("Acknowledged");
+    expect(remounted.textContent).toContain("Seen");
     expect(localStorage.length).toBe(0);
   });
 
@@ -99,10 +99,11 @@ describe("Astra History canonical read projection", () => {
     )));
     const mounted = await mount();
     await act(async () => {
-      [...mounted.querySelectorAll("button")].find(button => button.textContent?.includes("View task recovery"))?.click();
+      [...mounted.querySelectorAll("button")].find(button => button.textContent?.includes("Review task and recovery"))?.click();
       await new Promise(resolve => window.setTimeout(resolve, 0));
     });
-    expect(mounted.textContent).toContain("interrupted_lifecycle · inspect");
+    expect(mounted.textContent).toContain("Interrupted lifecycle requires inspection.");
+    expect(mounted.textContent).toContain("Review this task");
     expect(mounted.textContent).toContain("Worker liveness");
     expect(mounted.textContent).toContain("Planning none · execution active");
     expect(mounted.textContent).toContain("A claim does not prove worker liveness.");

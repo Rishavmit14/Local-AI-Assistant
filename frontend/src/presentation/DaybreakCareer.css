@@ -1,0 +1,128 @@
+/* Daybreak studios: open pages, measured typography, and one clear next step. */
+.vision-app :is(.db-projects,.db-career,.db-interview){color:var(--db-ink,#203330);background:transparent;border:0;border-radius:0;padding:0;box-shadow:none}
+.vision-app :is(.db-projects,.db-career,.db-interview) p{color:var(--db-muted,#738078);line-height:1.7}
+.vision-app :is(.db-projects,.db-career,.db-interview) h3{color:var(--db-ink,#203330)}
+.vision-app .db-kicker{display:block;color:var(--db-accent,#b7583b);font-size:10px;font-weight:650;letter-spacing:1.65px;line-height:1.5}
+.vision-app .db-action{display:inline-flex;align-items:center;justify-content:center;gap:22px;border:1px solid var(--db-ink);border-radius:7px;padding:13px 20px;background:var(--db-ink);color:var(--db-bg);font-size:12px;font-weight:550;cursor:pointer;transition:transform .2s ease,background .2s ease;min-height:44px}
+.vision-app .db-action:hover:not(:disabled){transform:translateY(-2px);background:var(--db-accent);border-color:var(--db-accent)}
+.vision-app .db-action:disabled{opacity:.45;cursor:not-allowed}
+.vision-app .db-text-action{display:inline-flex;align-items:center;gap:12px;padding:9px 0;color:var(--db-ink);font-size:12px;font-weight:600;border:0;background:none;cursor:pointer;white-space:nowrap}
+.vision-app .db-text-action:hover{color:var(--db-accent)}
+.vision-app :is(.db-projects,.db-career,.db-interview) button:focus-visible,.vision-app :is(.db-projects,.db-career,.db-interview) summary:focus-visible{outline:2px solid var(--db-accent);outline-offset:5px}
+.vision-app :is(.db-projects,.db-career,.db-interview) :is(input:not([type=checkbox]),textarea){background:var(--db-surface);color:var(--db-ink);border:1px solid var(--db-line);border-radius:6px}
+.vision-app .db-subtle{display:block;color:var(--db-muted);font-size:10px;margin-top:16px;letter-spacing:.2px}
+.vision-app .db-project-hero{display:grid;grid-template-columns:1fr 1.12fr;align-items:center;gap:40px;padding:15px 0 42px}
+.vision-app :is(.db-project-intro,.db-career-intro) h2,.vision-app .db-interview-main h2{font:400 clamp(48px,4vw,63px)/1.04 var(--db-serif,Georgia,serif);letter-spacing:-1.5px;color:var(--db-ink);margin:21px 0}
+.vision-app :is(.db-project-intro,.db-career-intro) h2 em,.vision-app .db-interview-main h2 em{color:var(--db-accent);font-weight:400}
+.vision-app .db-project-intro>p,.vision-app .db-career-intro>p{font-size:13px;margin:0 0 25px}
+.vision-app .db-project-drawing{padding:22px 12px 0;position:relative;background:radial-gradient(ellipse at 54% 47%,color-mix(in srgb,var(--db-accent) 8%,transparent),transparent 62%)}
+.vision-app .db-drawing-meta{display:flex;justify-content:space-between;color:var(--db-muted);font-size:8px;letter-spacing:1.7px;padding:0 23px}
+.vision-app .db-project-drawing svg{display:block;width:100%;overflow:visible;margin:17px 0 10px;filter:drop-shadow(0 14px 20px #20333008)}
+.vision-app .db-drawing-wire{stroke:var(--db-line);stroke-width:1;fill:none}
+.vision-app .db-build-phases{display:flex;justify-content:space-between;padding:18px 25px 0;border-top:1px solid var(--db-line)}
+.vision-app .db-build-phases>span{font-size:12px;font-weight:600}
+.vision-app .db-build-phases i{font-size:9px;font-style:normal;color:var(--db-accent);margin-right:9px}
+.vision-app .db-project-shelf-heading{display:flex;align-items:end;justify-content:space-between;padding:25px 0 17px;border-top:1px solid var(--db-line)}
+.vision-app .db-project-shelf-heading h3{font:400 30px/1.25 var(--db-serif,Georgia,serif);margin:8px 0 0;letter-spacing:-.4px}
+.vision-app .db-project-shelf-heading>span{color:var(--db-muted);font-size:11px}
+.vision-app .db-project-pathway{display:grid;grid-template-columns:28px 58px minmax(0,1fr) 177px 40px;column-gap:18px;align-items:center;padding:23px 3px;border-bottom:1px solid var(--db-line);transition:background .2s}
+.vision-app .db-project-pathway:hover{background:color-mix(in srgb,var(--db-surface) 60%,transparent)}
+.vision-app .db-pathway-number{color:var(--db-muted);font-size:10px}
+.vision-app .db-pathway-mark{width:54px;height:54px;display:grid;place-items:center;border-radius:12px 2px 12px 2px;background:color-mix(in srgb,var(--db-accent) 8%,var(--db-bg));color:var(--db-accent)}
+.vision-app .db-project-pathway:nth-child(2n) .db-pathway-mark{color:var(--db-ink);background:var(--db-wash);border-radius:50%}
+.vision-app .db-pathway-copy h3{font-size:16px;font-weight:550;margin:0 0 5px;letter-spacing:-.35px}
+.vision-app .db-pathway-copy p{font-size:11px;line-height:1.55;margin:0;max-width:510px}
+.vision-app .db-pathway-meta{display:grid;gap:7px;font-size:10px}
+.vision-app .db-pathway-meta small{color:var(--db-muted);font-size:9px}
+.vision-app .db-pathway-open{border:0;background:none;color:var(--db-ink);cursor:pointer;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;transition:all .2s}
+.vision-app .db-pathway-open:hover,.vision-app .db-project-pathway.is-expanded .db-pathway-open{color:var(--db-bg);background:var(--db-ink)}
+.vision-app .db-project-pathway.is-expanded .db-pathway-open svg{transform:rotate(90deg)}
+.vision-app .db-pathway-expanded{grid-column:3/-1;padding-top:14px;max-width:700px}
+.vision-app .db-pathway-expanded>p{font-size:12px}
+.vision-app .db-pathway-expanded small{display:block;margin-top:10px;color:var(--db-muted)}
+.vision-app .db-project-empty{display:flex;align-items:center;gap:25px;padding:30px 0;border-bottom:1px solid var(--db-line)}
+.vision-app .db-project-empty>svg{color:var(--db-accent)}
+.vision-app .db-project-empty>div{flex:1}
+.vision-app .db-project-empty h3{font:400 26px var(--db-serif,Georgia,serif);margin:0 0 8px}
+.vision-app .db-project-empty p{margin:0;font-size:12px}
+.vision-app .db-projects .canonical-review-response{background:transparent;border:0;border-top:1px solid var(--db-line);border-radius:0;padding:24px 0;margin:25px 0}
+.vision-app .db-projects .canonical-project-boundary{background:transparent;border:0;padding:18px 0;margin:10px 0;max-width:820px}
+.vision-app .db-projects .canonical-project-boundary p{color:var(--db-muted);font-size:10px}
+.vision-app .db-owner-access summary{cursor:pointer;color:var(--db-muted);font-size:11px}
+.vision-app .db-owner-access h3{font-size:18px}
+.vision-app .db-projects .canonical-record-list li{border-color:var(--db-line);background:transparent}
+.vision-app .db-projects .canonical-record-list :is(strong,span){color:var(--db-ink)}
+.vision-app .db-career-hero{display:grid;grid-template-columns:1fr 1.05fr;gap:35px;align-items:center;padding:10px 0 35px}
+.vision-app .db-career-intro h2{font-size:57px}
+.vision-app .db-growth-landscape{padding:20px 0 0}
+.vision-app .db-landscape-label{font-size:8px;letter-spacing:1.7px;color:var(--db-muted);display:block;margin:0 0 20px 24px}
+.vision-app .db-growth-landscape svg{width:100%;height:auto;overflow:visible}
+.vision-app .db-growth-landscape svg text{fill:var(--db-muted);font-family:inherit;font-size:8px;letter-spacing:1px}
+.vision-app .db-growth-caption{display:flex;align-items:center;justify-content:space-between;font-size:8px;color:var(--db-muted);padding:13px 18px 0}
+.vision-app .db-growth-caption i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--db-accent);margin-right:5px}
+.vision-app .db-career-scoreline{display:grid;grid-template-columns:1.65fr 1fr 1fr 1fr;border-top:1px solid var(--db-line);border-bottom:1px solid var(--db-line);padding:22px 0}
+.vision-app .db-career-scoreline>div{padding:0 30px;display:flex;flex-direction:column;justify-content:center;gap:8px;border-left:1px solid var(--db-line)}
+.vision-app .db-career-scoreline>div>strong{font:400 32px/.95 var(--db-serif,Georgia,serif);color:var(--db-ink)}
+.vision-app .db-career-scoreline>div>span{font-size:10px;color:var(--db-muted)}
+.vision-app .db-career-scoreline .db-readiness-number{display:flex;flex-direction:row;align-items:center;justify-content:start;width:auto;height:auto;padding:0 23px 0 0;gap:8px;border:0;border-radius:0;background:none}
+.vision-app .db-readiness-number>strong{font-size:50px!important}
+.vision-app .db-readiness-number>span{font:400 25px var(--db-serif,Georgia,serif)!important;align-self:center;width:auto;height:auto;background:none}
+.vision-app .db-readiness-number>div{margin-left:13px;display:grid;gap:8px}
+.vision-app .db-readiness-number b{font-size:11px;font-weight:600}
+.vision-app .db-readiness-number small{font-size:9px;color:var(--db-muted)}
+.vision-app .db-career-next{display:flex;align-items:center;gap:18px;padding:26px 0 25px}
+.vision-app .db-career-next>svg{color:var(--db-accent);flex-shrink:0}
+.vision-app .db-career-next>div{flex:1}
+.vision-app .db-career-next p{font-size:12px;margin:5px 0 0;color:var(--db-ink)}
+.vision-app .db-career-next .db-kicker{font-size:8px}
+.vision-app .db-career-tabs{display:flex;gap:32px;border-bottom:1px solid var(--db-line);padding-top:6px}
+.vision-app .db-career-tabs button{border:0;border-bottom:2px solid transparent;background:none;padding:13px 0;color:var(--db-muted);font-size:12px;cursor:pointer}
+.vision-app .db-career-tabs button.active{color:var(--db-ink);border-bottom-color:var(--db-accent)}
+.vision-app .db-career .db-career-sections{display:grid;grid-template-columns:1fr 1fr;gap:35px;margin:0;padding-top:30px}
+.vision-app .db-career-sections>section{background:transparent;border:0;border-radius:0;padding:0}
+.vision-app .db-career-sections>section[hidden]{display:none!important}
+.vision-app .db-career-sections>section>h3{font:400 28px/1.2 var(--db-serif,Georgia,serif);margin:8px 0 18px;letter-spacing:-.4px}
+.vision-app .db-career-sections>section>p{font-size:12px}
+.vision-app .db-career-sections .db-kicker{font-size:8px}
+.vision-app .db-career-sections .canonical-record-list{margin:0}
+.vision-app .db-career-sections .canonical-record-list li{border:0;background:none;border-bottom:1px solid var(--db-line);padding:14px 0}
+.vision-app .db-career-sections .canonical-record-list strong{color:var(--db-ink);font-weight:550;font-size:12px}
+.vision-app .db-career-sections .canonical-record-list span,.vision-app .db-career-sections .canonical-record-list small{color:var(--db-muted);font-size:11px}
+.vision-app .db-career-sections .canonical-record-list details p{font-size:11px}
+.vision-app .db-career-sections .db-readiness-detail{grid-column:1/-1;border-top:1px solid var(--db-line);padding-top:25px}
+.vision-app .db-readiness-pill{display:flex;align-items:center;gap:8px;color:var(--db-ink);font-size:12px;margin:15px 0}
+.vision-app .db-readiness-detail>small{color:var(--db-muted)}
+.vision-app .db-growth-empty{display:grid;grid-template-columns:30px 1fr;column-gap:14px;align-items:start;padding:12px 0 10px}
+.vision-app .db-growth-empty>svg{color:var(--db-accent)}
+.vision-app .db-growth-empty p{margin:0;font-size:12px}
+.vision-app .db-growth-empty small{grid-column:2;font-size:9px;line-height:1.6;color:var(--db-muted);opacity:.85;margin-top:8px}
+.vision-app .db-interview-heading{display:flex;justify-content:space-between;padding:14px 0 25px;border-bottom:1px solid var(--db-line)}
+.vision-app .db-interview-heading>span:last-child{font-size:10px;color:var(--db-muted)}
+.vision-app .db-interview-heading i{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--db-accent);margin:0 7px 1px 0}
+.vision-app .db-interview-layout{display:grid;grid-template-columns:minmax(0,1fr) 295px;gap:65px;padding:42px 0}
+.vision-app .db-interview-symbol{display:flex;align-items:center;gap:12px;color:var(--db-accent);margin:5px 0 30px}
+.vision-app .db-interview-symbol>span{font-size:9px;letter-spacing:1.5px}
+.vision-app .db-interview-main h2{font-size:62px;margin:22px 0}
+.vision-app .db-interview-intro{font-size:13px;margin:0 0 28px}
+.vision-app .db-interview-prerequisite{font-size:11px;margin:25px 0 12px}
+.vision-app .db-interview-aside{border-left:1px solid var(--db-line);padding-left:32px}
+.vision-app .db-interview-aside>.db-kicker{font-size:8px;margin-bottom:31px}
+.vision-app .db-interview-aside ol{padding:0;margin:0;list-style:none}
+.vision-app .db-interview-aside li{display:flex;gap:16px;margin-bottom:29px}
+.vision-app .db-interview-aside li>span{color:var(--db-accent);font-size:9px;padding-top:4px}
+.vision-app .db-interview-aside h3{font-size:12px;font-weight:550;margin:0 0 8px}
+.vision-app .db-interview-aside p{font-size:11px;margin:0}
+.vision-app .db-interview-trust{display:flex;gap:13px;border-top:1px solid var(--db-line);padding:25px 0}
+.vision-app .db-interview-trust>svg{color:var(--db-muted);flex-shrink:0}
+.vision-app .db-interview-trust p{font-size:10px}
+.vision-app .db-interview-aside .db-text-action{font-size:11px}
+.vision-app .db-interview-question h3{font:400 32px/1.35 var(--db-serif,Georgia,serif);letter-spacing:-.4px;margin:17px 0 32px}
+.vision-app .db-interview-question label{display:block;font-size:8px;letter-spacing:1.4px;color:var(--db-muted);margin-bottom:10px}
+.vision-app .db-interview-question textarea{display:block;resize:vertical;width:100%;min-height:190px;padding:18px;font-size:13px;line-height:1.8;border:1px solid var(--db-line);outline-color:var(--db-accent);box-sizing:border-box}
+.vision-app .db-answer-footer{display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:18px}
+.vision-app .db-answer-footer>span{font-size:9px;color:var(--db-muted)}
+.vision-app .db-answer-footer .db-action{font-size:11px}
+.vision-app .db-interview-complete{display:flex;gap:14px;align-items:center;background:var(--db-wash);padding:18px;margin-top:25px}
+.vision-app .db-interview-complete p{margin:0;font-size:12px}
+.vision-app .db-interview-feedback{border-left:2px solid var(--db-accent);padding:10px 0 10px 18px;margin-top:25px;font-size:12px}
+@media(prefers-reduced-motion:reduce){.vision-app :is(.db-projects,.db-career,.db-interview) *{transition:none!important;animation:none!important}}

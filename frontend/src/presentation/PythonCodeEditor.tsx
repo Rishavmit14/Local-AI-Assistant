@@ -51,7 +51,7 @@ export const PythonCodeEditor = forwardRef<PythonCodeEditorHandle, PythonCodeEdi
             python(),
             EditorView.lineWrapping,
             EditorView.contentAttributes.of({
-              "aria-label": "Canonical Practice Lab code",
+              "aria-label": "Practice Lab code",
               "aria-multiline": "true",
               spellcheck: "false",
             }),

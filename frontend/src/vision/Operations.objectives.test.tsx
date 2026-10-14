@@ -97,12 +97,17 @@ describe("Astra canonical Objectives workspace", () => {
     await mount();
     await settle();
     expect(container?.textContent).toContain("Canonical owner objective");
-    expect(container?.textContent).toContain("awaiting_approval · canonical task linked");
+    expect(container?.textContent).toContain("Waiting for approval");
     expect(container?.textContent).toContain("Canonical plan summary");
+    const goalActions = container?.querySelector(".objective-console-actions");
+    const actionButtons = [...(goalActions?.querySelectorAll("button") ?? [])];
+    expect(actionButtons.length).toBeGreaterThan(0);
+    expect(actionButtons.every(button => button.classList.contains("btn"))).toBe(true);
+    expect(container?.querySelector(".objective-create-form #objective-text")).not.toBeNull();
     expect(container?.textContent).toContain("waiting for owner approval");
     expect(container?.textContent).toContain(`Objective id${objective.objective_id}`);
     expect(container?.textContent).toContain(`Linked task id${objective.task_id}`);
-    expect(container?.textContent).not.toMatch(/\b\d+%|ETA/i);
+    expect(container?.textContent).not.toContain("%");
     expect(container?.textContent).toContain("Canonical timeline entry");
     expect(container?.textContent).toContain("not a complete audit export");
     expect(container?.textContent).not.toContain("Browser seeded objective");
@@ -115,7 +120,7 @@ describe("Astra canonical Objectives workspace", () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/rollback") || String(url).includes("/restore"))).toBe(false);
     expect(fetchMock).toHaveBeenCalledWith(`/api/v1/objectives/${objective.objective_id}/progress`, expect.anything());
     expect(localStorage.getItem("astra-vision:objectives")).toContain("Browser seeded objective");
-    const historyLink = [...(container?.querySelectorAll("button") ?? [])].find(button => button.textContent?.includes("OPEN IN HISTORY / RECOVERY"));
+    const historyLink = [...(container?.querySelectorAll("button") ?? [])].find(button => button.textContent?.includes("View history and recovery"));
     expect(historyLink).toBeDefined();
     act(() => historyLink?.click());
     expect(window.location.hash).toBe("#history");
@@ -134,7 +139,7 @@ describe("Astra canonical Objectives workspace", () => {
 
     await mount();
     await settle();
-    expect(container?.textContent).toContain("CANONICAL PLAN · automatic");
+    expect(container?.textContent).toContain("PLAN FOR REVIEW · Automatic");
     expect(container?.textContent).toContain("Canonical plan summary");
     expect(fetchMock).toHaveBeenCalledWith(`/api/v1/objectives/${objective.objective_id}/plan`, expect.anything());
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/approve") || String(url).includes("/execute"))).toBe(false);
@@ -171,7 +176,7 @@ describe("Astra canonical Objectives workspace", () => {
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    const save = [...(container?.querySelectorAll("button") ?? [])].find((button) => button.textContent?.includes("SAVE OBJECTIVE"));
+    const save = [...(container?.querySelectorAll("button") ?? [])].find((button) => button.textContent?.includes("Save goal"));
     await act(async () => { save?.click(); await new Promise((resolve) => window.setTimeout(resolve, 10)); });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/objectives", expect.objectContaining({
@@ -194,7 +199,7 @@ describe("Astra canonical Objectives workspace", () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => Promise.resolve(url === "/api/v1/activity" ? response({ activity: [] }) : response({ objectives: [] }))));
     await mount();
     await settle();
-    expect(container?.textContent).toContain("No objective is active");
+    expect(container?.textContent).toContain("No goal is active");
     expect(container?.textContent).not.toContain("The iterator protocol");
     expect(container?.textContent).not.toContain("Connect this week’s learning evidence");
   });
@@ -205,9 +210,9 @@ describe("Astra canonical Objectives workspace", () => {
     await settle();
 
     const alert = container?.querySelector('[role="alert"]');
-    expect(alert?.textContent).toContain("could not refresh");
-    expect(alert?.textContent).toContain("No canonical state is available yet");
-    expect(container?.textContent).not.toContain("No objective is active");
+    expect(alert?.textContent).toContain("couldn’t refresh");
+    expect(alert?.textContent).toContain("Try again in a moment");
+    expect(container?.textContent).not.toContain("No goal is active");
     expect(container?.textContent).not.toContain("Browser seeded objective");
     expect(container?.textContent).not.toContain("Make the pipeline easier to reason about");
   });

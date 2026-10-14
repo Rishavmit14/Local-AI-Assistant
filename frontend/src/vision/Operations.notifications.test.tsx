@@ -36,7 +36,7 @@ function response(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
 
-describe("Astra canonical Notifications workspace", () => {
+describe("Friday Notifications workspace", () => {
   let root: Root | undefined;
   let container: HTMLDivElement | undefined;
 
@@ -83,9 +83,9 @@ describe("Astra canonical Notifications workspace", () => {
     expect(container?.textContent).toContain("Friday task lifecycle changed");
     expect(container?.textContent).toContain("task.changed");
     expect(container?.textContent).toContain("Friday task lifecycle");
-    expect(container?.textContent).toContain("Engine relevance score");
-    expect(container?.textContent).toContain("observer attached; health unknown");
-    expect(container?.textContent).toContain("notification permission only");
+    expect(container?.textContent).toContain("Relevance score");
+    expect(container?.textContent).toContain("Checks for updates");
+    expect(container?.textContent).toContain("Notifications");
     expect(container?.textContent).not.toContain("Browser-only routine");
     expect(container?.textContent).not.toContain("Fake completed automation");
     expect(container?.textContent).not.toContain("Automation completed");
@@ -107,15 +107,15 @@ describe("Astra canonical Notifications workspace", () => {
     expect(container?.textContent).not.toMatch(/Event: \d+\/\d+\/2026/);
   });
 
-  it("describes a schedule-source observer as a due-item observer and leaves health unknown", async () => {
+  it("describes a schedule source in human-readable terms without claiming health", async () => {
     const dueWatch = { ...watches[0], source: "schedule", label: "Career Forge retention review" };
     vi.stubGlobal("fetch", vi.fn().mockImplementation((url: string) => Promise.resolve(
       url.includes("/notifications?") ? response({ notifications: [] }) : response({ worker_running: true, watches: [dueWatch] }),
     )));
     await mount();
     await settle();
-    expect(container?.textContent).toContain("due-item observer attached");
-    expect(container?.textContent).toContain("health unknown");
+    expect(container?.textContent).toContain("Checks due items");
+    expect(container?.textContent).toContain("check status unknown");
     expect(container?.textContent).not.toContain("change observer attached");
     expect(container?.textContent).not.toContain("Observing");
   });
@@ -126,8 +126,8 @@ describe("Astra canonical Notifications workspace", () => {
     )));
     await mount();
     await settle();
-    expect(container?.textContent).toContain("No canonical notifications");
-    expect(container?.textContent).toContain("No watches are configured in this runtime");
+    expect(container?.textContent).toContain("No notifications yet");
+    expect(container?.textContent).toContain("No update sources are configured yet");
     expect(container?.textContent).not.toContain("Yesterday");
     expect(container?.textContent).not.toContain("Learning evidence is ready to review");
   });
@@ -139,8 +139,8 @@ describe("Astra canonical Notifications workspace", () => {
     )));
     await mount();
     await settle();
-    expect(container?.textContent).toContain("Polling worker stopped");
-    expect(container?.textContent).toContain("Disabled");
+    expect(container?.textContent).toContain("Paused");
+    expect(container?.textContent).toContain("Off");
     expect([...container!.querySelectorAll("button")].map((button) => button.textContent).join(" ")).not.toMatch(/enable|disable|resume|pause/i);
   });
 
@@ -169,10 +169,10 @@ describe("Astra canonical Notifications workspace", () => {
 
     await mount();
     await settle();
-    const acknowledge = [...(container?.querySelectorAll("button") ?? [])].find((button) => button.textContent?.includes("Acknowledge notification"));
+    const acknowledge = [...(container?.querySelectorAll("button") ?? [])].find((button) => button.textContent?.includes("Mark as seen"));
     await act(async () => { acknowledge?.click(); await new Promise((resolve) => window.setTimeout(resolve, 10)); });
     expect(fetchMock).toHaveBeenCalledWith(`/api/v1/proactive/notifications/${notice.notification_id}/acknowledge`, { method: "POST" });
-    expect(container?.textContent).toContain("Acknowledged at");
+    expect(container?.textContent).toContain("Seen at");
     expect(container?.textContent).toContain("2026");
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/execute") || String(url).includes("/approve"))).toBe(false);
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
@@ -181,8 +181,8 @@ describe("Astra canonical Notifications workspace", () => {
     root = undefined;
     await mount();
     await settle();
-    expect(container?.textContent).toContain("Acknowledged");
-    expect(container?.textContent).toContain("Acknowledged at");
+    expect(container?.textContent).toContain("Seen");
+    expect(container?.textContent).toContain("Seen at");
   });
 
   it("shows backend failure without falling back to browser notification fixtures", async () => {
@@ -191,9 +191,21 @@ describe("Astra canonical Notifications workspace", () => {
     await mount();
     await settle();
 
-    expect(container?.querySelector('[role="alert"]')?.textContent).toContain("could not refresh");
-    expect(container?.querySelector('[role="alert"]')?.textContent).toContain("No canonical state is available yet");
+    expect(container?.querySelector('[role="alert"]')?.textContent).toContain("couldn't load your notifications");
     expect(container?.textContent).not.toContain("Fake completed automation");
+  });
+
+  it("keeps notifications visible when the optional watch status endpoint is unavailable", async () => {
+    const fetchMock = vi.fn().mockImplementation((url: string) => url.includes("/notifications?")
+      ? Promise.resolve(response({ notifications: [notice] }))
+      : Promise.resolve(response({ detail: "not found" }, 404)));
+    vi.stubGlobal("fetch", fetchMock);
+    await mount();
+    await settle();
+    expect(container?.textContent).toContain("Friday task lifecycle changed");
+    expect(container?.textContent).toContain("Update source status isn't available");
+    expect(container?.textContent).not.toContain("No notifications yet");
+    expect(container?.querySelector('[role="alert"]')).toBeNull();
   });
 
   it("does not persist notification state or expose authoring and action controls", async () => {

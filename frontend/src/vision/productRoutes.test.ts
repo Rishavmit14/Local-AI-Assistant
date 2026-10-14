@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { productNavigationGroup, readRelatedRoute, resolveProductRoute } from './productRoutes';
+import { mobilePrimaryDestination, productNavigationGroup, readRelatedRoute, resolveProductRoute, secondaryProductDestinations } from './productRoutes';
+import type { VisionView } from './types';
 
 const legacy: Record<string,string> = {
  '#conversation':'home','#learn':'learn','#map':'learn','#lab':'learn',
@@ -9,6 +10,21 @@ const legacy: Record<string,string> = {
 };
 
 describe('Friday product routes',()=>{
+ it('shows each registered workspace exactly once across primary and More navigation',()=>{
+  const destinations=['home','conversation','learn','lab','map','projects','interview','progress','research','memory','objectives','automations','history','perception','system','settings'].map(id=>({id}));
+  const primary=new Set(['home','learn','lab','map','projects','progress','research','automations','settings']);
+  const secondary=secondaryProductDestinations(destinations,primary).map(item=>item.id);
+  expect(secondary).toEqual(['conversation','interview','memory','objectives','history','perception','system']);
+  expect(new Set([...primary,...secondary]).size).toBe(destinations.length);
+ });
+ it('keeps the current primary workspace selected on mobile and marks secondary routes as More',()=>{
+  const expected:Record<VisionView,VisionView|null>={
+   home:'home',conversation:'home',learn:'learn',lab:'lab',map:'learn',projects:'projects',
+   interview:'learn',progress:'learn',research:null,memory:null,objectives:null,automations:null,
+   history:null,perception:null,system:null,settings:null,
+  };
+  for(const [route,selected] of Object.entries(expected)) expect(mobilePrimaryDestination(route as VisionView)).toBe(selected);
+ });
  it('keeps existing bookmarks in the appropriate workspace',()=>{
   for(const [hash,group] of Object.entries(legacy)) expect(productNavigationGroup(resolveProductRoute(hash))).toBe(group);
  });

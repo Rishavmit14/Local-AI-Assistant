@@ -93,7 +93,7 @@ describe("Astra System canonical projection", () => {
 
     await mount();
 
-    expect(container?.textContent).toContain("Capability registry");
+    expect(container?.textContent).toContain("Friday’s features");
     expect(container?.textContent).toContain("Integration maturity");
     expect(container?.textContent).toContain("Permissioned registry flag");
     expect(container?.textContent).toContain("integrated");
@@ -148,9 +148,9 @@ describe("Astra System canonical projection", () => {
 
     await mount();
 
-    expect(container?.textContent).toContain("Canonical capability registry request failed");
+    expect(container?.textContent).toContain("capability registry information couldn’t be loaded");
     expect(container?.textContent).toContain("503");
-    expect(container?.textContent).toContain("No value is assumed");
+    expect(container?.textContent).toContain("No status is assumed");
     expect(container?.textContent).not.toContain("private route detail");
     expect(container?.querySelector(".system-capability-list")).toBeNull();
     expect(container?.textContent).not.toContain("Speech recognition</strong>");
@@ -167,8 +167,8 @@ describe("Astra System canonical projection", () => {
     expect(container?.textContent).toContain("implemented");
     expect(container?.textContent).toContain("Configured");
     expect(container?.textContent).toContain("Permissioned registry flag");
-    expect(container?.textContent).toContain("a permissioned flag is not an action grant");
-    expect(container?.textContent).toContain("This fixed read-only query does not establish GNOME screenshot permission");
+    expect(container?.textContent).toContain("A permission flag does not grant access");
+    expect(container?.textContent).toContain("Friday did not request a screenshot");
     expect(container?.textContent).toContain("Active-window query");
     expect(fetchMock.mock.calls.every(([url]) => !url.includes("/desktop/") && !url.includes("/objectives/") && !url.includes("/career-forge/"))).toBe(true);
   });

@@ -5,6 +5,7 @@
 export type PresentationLoadState = "loading" | "ready" | "unavailable";
 
 export interface CareerForgeSummaryView {
+  dueReview?: { title: string; reviewId: string } | null;
   target: string;
   mission: {
     missionId: string;

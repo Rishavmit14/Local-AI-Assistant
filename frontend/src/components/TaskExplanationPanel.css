@@ -15,3 +15,7 @@
 .task-explanation-timeline li{padding:.25rem 0;overflow-wrap:anywhere}
 .task-explanation-timeline time{display:block;color:var(--muted,#999);font-size:.72rem}
 .task-explanation-sources,.task-explanation-limitations{color:var(--muted,#999);font-size:.78rem;line-height:1.5}
+.task-explanation-recovery{margin:.75rem 0;padding:.8rem;border-left:2px solid var(--accent,#9187ff);background:rgba(255,255,255,.025)}
+.task-explanation-recovery h4{margin:.1rem 0 .4rem}.task-explanation-recovery p{margin:.25rem 0;line-height:1.5}
+.task-explanation-advanced{margin-top:.85rem;padding-top:.7rem;border-top:1px solid rgba(255,255,255,.1)}
+.task-explanation-advanced>summary{color:var(--accent,#9187ff);cursor:pointer}
