@@ -1,6 +1,6 @@
 import { DesignAtelier } from "./DesignAtelier";
 import { ArrowRight, ArrowUpRight, Check, Code2, GitBranch, Link2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CareerForgeMissionObjective, CareerForgePublicEvidenceCandidate, CareerForgePublicationPlan } from "../runtime";
 import type { FridayTaskRecovery, LearningProject, LearningProjectTemplate } from "../runtime/types";
@@ -14,7 +14,7 @@ import "./CanonicalProjects.css";
 import "./DaybreakCareer.css";
 import { statusLabel } from "../vision/presentationStatus";
 
-export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { openLearn: (templateId?: string) => void; onAttach?: (kind: "learning_path" | "project", id: string) => void; routeQuery?: string }) {
+export function CanonicalProjects({ openLearn, onAttach, routeQuery = "", ownerCsrf, onOwnerCsrfChange }: { openLearn: (templateId?: string) => void; onAttach?: (kind: "learning_path" | "project", id: string) => void; routeQuery?: string; ownerCsrf?: string | null; onOwnerCsrfChange?: (csrf: string | null) => void }) {
   const view = useCareerForgeJourney();
   const presentation = useRef(new FridayPresentation());
   const [busy, setBusy] = useState(false);
@@ -40,7 +40,12 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
   const routedTemplateId = projectsLoaded && templateHint && "templateId" in templateHint && templates.some((template) => template.template_id === templateHint.templateId) ? templateHint.templateId : null;
   const exploring = exploringOverride?.routeQuery === routeQuery ? exploringOverride.templateId : routedTemplateId;
   const [ownerCredential, setOwnerCredential] = useState("");
-  const [projectCsrf, setProjectCsrf] = useState<string | null>(null);
+  const [localProjectCsrf, setLocalProjectCsrf] = useState<string | null>(null);
+  const projectCsrf = ownerCsrf === undefined ? localProjectCsrf : ownerCsrf;
+  const rememberProjectCsrf = useCallback((csrf: string | null) => {
+    setLocalProjectCsrf(csrf);
+    onOwnerCsrfChange?.(csrf);
+  }, [onOwnerCsrfChange]);
   const [localOwnerMode, setLocalOwnerMode] = useState(false);
   const restorationPaused = useRef(false);
   const [planReview, setPlanReview] = useState<{ objectiveId: string; summary: string; risk: string; planHash: string } | null>(null);
@@ -97,14 +102,14 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
     const restore = () => {
       if (restorationPaused.current) return;
       void new FridayRuntimeClient().restoreProjectExecution()
-        .then((csrf) => { if (active && csrf && !restorationPaused.current) { setProjectCsrf(csrf); setLocalOwnerMode(true); } })
+        .then((csrf) => { if (active && csrf && !restorationPaused.current) { rememberProjectCsrf(csrf); setLocalOwnerMode(true); } })
         .catch(() => { /* Interactive mode remains available when restoration is unavailable. */ });
     };
     restore();
     const timer = window.setInterval(restore, 240_000);
     window.addEventListener("focus", restore);
     return () => { active = false; window.clearInterval(timer); window.removeEventListener("focus", restore); };
-  }, []);
+  }, [rememberProjectCsrf]);
   const activeMissionId = view.state === "ready" ? view.journey?.current_mission?.mission_id ?? null : null;
   useEffect(() => {
     let active = true;
@@ -216,7 +221,7 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
     setBusy(true);
     try {
       const csrf = await new FridayRuntimeClient().restoreProjectExecution();
-      if (csrf) { restorationPaused.current = false; setProjectCsrf(csrf); }
+      if (csrf) { restorationPaused.current = false; rememberProjectCsrf(csrf); }
     } catch { setMessage("The trusted local session is unavailable. Existing task state is preserved."); }
     finally { setBusy(false); }
   };
@@ -225,7 +230,7 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
     setBusy(true); setMessage("");
     try {
       const csrf = await new FridayRuntimeClient().unlockProjectExecution(ownerCredential);
-      setProjectCsrf(csrf); setOwnerCredential("");
+      rememberProjectCsrf(csrf); setOwnerCredential("");
       setMessage("Authenticated browser session established. The session cookie is HttpOnly and expires after ten minutes.");
     } catch { setMessage("Friday could not establish the owner session. The private service credential was not sent to the browser."); }
     finally { setBusy(false); }
@@ -289,9 +294,10 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
     finally { setBusy(false); }
   };
   const submitTaskArtifacts = async (project: LearningProject) => {
+    if (!projectCsrf) { setMessage("Restore Friday's Owner session before submitting project artifacts."); return; }
     setBusy(true); setMessage("");
     try {
-      await new FridayRuntimeClient().submitProjectArtifacts(project.project_id);
+      await new FridayRuntimeClient().submitProjectArtifacts(project.project_id, projectCsrf);
       await refreshProjects();
       setMessage("Friday linked the reviewed task commit and validated files to this Project.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Project artifact submission failed."); }
@@ -300,13 +306,13 @@ export function CanonicalProjects({ openLearn, onAttach, routeQuery = "" }: { op
   const reviewTaskArtifacts = async (project: LearningProject) => {
     const explanation = projectExplanations[project.project_id]?.trim();
     const competency = project.career_forge_missions[0]?.competency_id;
-    if (!explanation || !competency || !project.task_id) return;
+    if (!explanation || !competency || !project.task_id || !projectCsrf) return;
     const pending = project.career_forge_reviews.find((review) => review.evaluation === "pending" && review.competency_id === competency);
     const submissionId = pending?.submission_id ?? `task:${project.task_id}:r${project.career_forge_reviews.length + 1}`;
     setBusy(true); setMessage("");
     try {
       const result = await new FridayRuntimeClient().reviewProject(
-        project.project_id, competency, submissionId, explanation,
+        project.project_id, competency, submissionId, explanation, projectCsrf,
       );
       await refreshProjects();
       setMessage(`Independent Project assessment: ${result.evaluation}. ${result.feedback ?? ""}`);
@@ -387,7 +393,7 @@ const retryProjectTask = async (project: LearningProject, csrf: string) => {
     if (!projectCsrf) return;
     restorationPaused.current = true;
     try { await new FridayRuntimeClient().lockProjectExecution(projectCsrf); } catch { /* expiry also revokes the session */ }
-    setProjectCsrf(null); setPlanReview(null); setMessage("Project execution session locked.");
+    rememberProjectCsrf(null); setPlanReview(null); setMessage("Project execution session locked.");
   };
 
   const relatedHint=readRelatedRoute(`#projects${routeQuery}`,'projects');
@@ -413,7 +419,7 @@ const retryProjectTask = async (project: LearningProject, csrf: string) => {
       {exploring === project.templateId && <div className="db-pathway-expanded"><p>{project.focus} Follow the learning path to develop the skills, then build and review a real artifact with Friday.</p>{project.canLinkActiveMission && project.activeMissionId ? <button className="db-action" disabled={busy} onClick={() => { if (project.activeMissionId) void connect(project.activeMissionId); }}><Link2 size={14} />Connect active mission</button> : <button className="db-action" onClick={() => openLearn(project.templateId)}>Explore the learning path <ArrowRight size={15}/></button>}{project.activeMissionId && !project.canLinkActiveMission && <small>Active mission already connected</small>}{(project.linkedMissionIds.length > 0 || project.linkedCompetencyIds.length > 0) && <details><summary>Connection details</summary><dl><div><dt>Mission references</dt><dd>{project.linkedMissionIds.join(", ") || "None"}</dd></div><div><dt>Skill references</dt><dd>{project.linkedCompetencyIds.join(", ") || "None"}</dd></div></dl></details>}</div>}
     </article>)}</div>
     {!projects.length && !projectsUnavailable && <div className="db-project-empty"><Code2 size={28}/><div><h3>Your next chapter starts with a skill.</h3><p>Friday connects projects to your learning path. Start learning to discover the work you can build.</p></div><button className="db-text-action" onClick={() => openLearn()}>Open learning <ArrowRight size={16}/></button></div>}
-    {(assignedProjects.length > 0 || activeMissionLinked) && <details className="canonical-review-response db-owner-access" aria-label="Owner authorization"><summary>Project permissions &amp; owner session</summary>
+    {(assignedProjects.length > 0 || activeMissionLinked || templates.length > 0) && <details className="canonical-review-response db-owner-access" aria-label="Owner authorization"><summary>Project permissions &amp; owner session</summary>
       <span className="eyebrow">OWNER AUTHORIZATION</span><h3>Governed Project and publication actions</h3>
       {!projectCsrf && localOwnerMode ? <button className="text-link" disabled={busy} onClick={() => void resumeLocalSession()}>Resume local owner session</button> : !projectCsrf ? <div><label>Owner session credential<input type="password" autoComplete="current-password" value={ownerCredential} onChange={(event) => setOwnerCredential(event.target.value)} /></label><button className="text-link" disabled={busy || !ownerCredential} onClick={() => void unlockProjectSession()}>Unlock owner actions</button></div> : <button className="text-link" disabled={busy} onClick={() => void lockProjectSession()}>Lock owner session</button>}
     </details>}

@@ -303,6 +303,7 @@ export interface LearningProjectArtifact { artifact_id: string; project_id: stri
 export interface LearningProjectReview {
   project_id: string; submission_id: string; competency_id: string; mission_id: string; attempt_id: string;
   assessment_contract_version: string; assessment_contract_fingerprint: string; evaluator: string;
+  submission_kind: "validated_task" | "owner_artifact"; artifact_name: string | null; artifact_sha256: string | null;
   evaluation: "pending" | "correct" | "incorrect" | "uncertain"; feedback: string;
   created_at: string; evaluated_at: string | null; evidence_id: string | null;
 }

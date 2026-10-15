@@ -1,3 +1,62 @@
+## 2026-10-16 — Stage 30 connected FraudShield learning journey qualified
+
+Stage 30 connects Projects → explicit Owner-authenticated Learning Path Create
+→ explicit project assignment/start → Career Forge lesson → source-artifact
+assessment → evidence/progress → reload and isolated API restart recovery. It
+reuses DLP, Projects, Career Forge, the local Reviewer, Objective, and the
+existing Owner/CSRF boundary. The new bounded source-submission path records the
+artifact hash, assessment contract, Career Forge attempt, and outcome; Friday
+never executes the submitted source. Incorrect work persists for revision
+without qualifying evidence. Correct work records one project-milestone
+evidence record and completes this one-competency project without changing
+Career Forge mastery. The next recommendation changes from artifact revision
+after an incorrect result to continuing from the DLP sequence after accepted
+milestone evidence.
+
+Real Google Chrome, an isolated FastAPI app, and temporary SQLite stores proved
+that Project navigation and Owner unlock alone create no learner records;
+unauthenticated path Create and project assignment both return 401 without
+writes; explicit Create returns 200 with CSRF and persists one DLP draft; and
+the project milestone must be explicitly assigned and started. Repeating the
+same authenticated assignment returns the same project ID. Incorrect and
+correct source assessments were both exercised. Exactly one evidence record
+survived reload and API-process restart; no task was executed, no computer
+action ran, and no GitHub operation occurred. Deterministic fixture Teacher and
+Reviewer clients made no Qwen call. The journey used no production credentials
+or learner state.
+
+Frontend qualification passed 184 tests across 37 files and four Node
+bridge/local-server checks; ESLint, TypeScript, and the production build passed.
+The Python 3.11 repository verifier passed 1,866 tests with 6 skipped, compile
+and CLI checks, and package consistency. An initial fallback run used Python
+3.14 with editable metadata for a different checkout and failed 21 cases; it
+also exposed the exact API-path allowlist that needed the new Stage 30 route.
+After correcting that expectation and binding a disposable Python 3.11
+environment to this worktree, the canonical verifier passed. During that run,
+the test process tree peaked at 1.71 GiB RSS and host-available RAM stayed at
+or above 22.29 GiB; the memory-pressure guard did not stop the run. The
+browser/API/restart phases were separately guarded and sequential.
+
+MicroTurn remains research-only and NO-GO at the live 600 ms voice deadline.
+The owner-provided benchmark result remains 28 ticks, 18 missed deadlines
+(about 64.3%), uneven quality, and runner exit 120 during Python shutdown. A
+cleanup correction followed, but the full model benchmark was not rerun; no
+audio, microphone, barge-in, or physical Stop qualification occurred. Stage 30
+did not reload/run Qwen, alter voice/vision configuration, or add MicroTurn
+integration.
+
+The qualified code is published only on
+`stage-30/career-forge-connected-journey`. `main`, production services/models,
+and the protected live application were not changed. Read-only source and HTTP
+checks confirmed the existing live API/UI release is the immutable Stage 29
+commit `464f5002574a2f00b13db597f04772984939a189`; both API health and UI
+returned HTTP 200. The twelve prior `in_doubt` computer actions remained
+preserved. Career Forge roadmap rows 60 and 61 remain PARTIAL; this single
+source-artifact journey does not qualify the full Career Forge ecosystem or
+Friday V1. See ADR 0053, the Stage 30 sections in `ROADMAP.md`, `ARCHITECTURE.md`,
+`docs/architecture/projects.md`, and
+`docs/architecture/dynamic-learning-paths.md`.
+
 ## 2026-10-15 — Stage 29 Project-to-Learn, Owner security, and SSE code published
 
 The accepted Stage 29 code is published from the Stage 28 baseline

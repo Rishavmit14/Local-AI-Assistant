@@ -15,6 +15,7 @@ from local_ai_assistant.history.store import TaskHistoryStore
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.runtime import FridayRuntime
+from local_ai_assistant.isolation.owner_rollback import OwnerBrowserSessions
 from local_ai_assistant.learning_paths import (
     CurriculumValidationError,
     CurriculumValidator,
@@ -24,6 +25,20 @@ from local_ai_assistant.learning_paths.evidence import CompetencyEvidence
 from local_ai_assistant.projects import ProjectService
 from local_ai_assistant.projects.assessment import ordered_amount_tier_interpretation
 from tests.fixtures.learning_path_curricula import curriculum
+
+OWNER_ORIGIN = "http://127.0.0.1:5193"
+OWNER_CREDENTIAL = "isolated-stage30-project-owner-test-credential"
+
+
+def _owner_sessions():
+    return OwnerBrowserSessions(hashlib.sha256(OWNER_CREDENTIAL.encode()).hexdigest())
+
+
+def _owner_headers(client, sessions):
+    session, csrf = sessions.unlock(OWNER_CREDENTIAL)
+    assert session and csrf
+    client.cookies.set("friday_project_session", session)
+    return {"Origin": OWNER_ORIGIN, "X-Friday-CSRF": csrf}
 
 
 class SatisfiedEvidence:
@@ -71,6 +86,17 @@ class ProjectEvaluator:
     def chat(self, *args, **_kwargs):
         self.prompts.append(args[0])
         return self.response
+
+
+class ArtifactProjectEvaluator:
+    def __init__(self):
+        self.prompts = []
+
+    def chat(self, prompt, **_kwargs):
+        self.prompts.append(prompt)
+        if "return -1" in prompt:
+            return "EVIDENCE: The source assigns a negative score to every row instead of evaluating the fraud flag.\nASSESSMENT: incorrect"
+        return "EVIDENCE: The source maps the fraud flag to a stable binary score and explains the limitation.\nASSESSMENT: correct"
 
 
 def test_ordered_project_tiers_and_final_verdict_are_unambiguous():
@@ -124,7 +150,11 @@ def test_project_service_is_durable_idempotent_and_fail_closed(tmp_path):
                                                     assessment_contract_fingerprint=fingerprint)
     assert projects.reserve_review_submission(first.project_id, "submission_1", "se.python", "mission-1",
                                               assessment_contract_fingerprint=fingerprint) == submission
-    assert projects.review_submissions(first.project_id) == (submission,)
+    stored_submission = projects.review_submissions(first.project_id)[0]
+    assert stored_submission["attempt_id"] == submission["attempt_id"]
+    assert stored_submission["submission_kind"] == "validated_task"
+    assert stored_submission["artifact_name"] is None
+    assert stored_submission["artifact_sha256"] is None
     with pytest.raises(ValueError, match="different assessment contract"):
         projects.reserve_review_submission(first.project_id, "submission_1", "se.python", "mission-1",
                                            assessment_contract_fingerprint="1" * 64)
@@ -159,8 +189,41 @@ def test_project_service_migrates_review_provenance_from_schema_v1(tmp_path):
     with sqlite3.connect(db_path) as db:
         version = db.execute("SELECT version FROM project_schema_version WHERE singleton=1").fetchone()[0]
         columns = {row[1] for row in db.execute("PRAGMA table_info(project_review_submissions)")}
-    assert version == ProjectService.SCHEMA_VERSION == 2
-    assert {"assessment_contract_version", "assessment_contract_fingerprint", "evaluator"} <= columns
+    assert version == ProjectService.SCHEMA_VERSION == 3
+    assert {
+        "assessment_contract_version", "assessment_contract_fingerprint", "evaluator",
+        "submission_kind", "artifact_name", "artifact_sha256",
+    } <= columns
+
+
+def test_project_service_migrates_schema_v2_owner_artifact_provenance(tmp_path):
+    import sqlite3
+
+    db_path = tmp_path / "projects-v2.sqlite3"
+    with sqlite3.connect(db_path) as db:
+        db.executescript("""
+            CREATE TABLE projects (project_id TEXT PRIMARY KEY);
+            CREATE TABLE project_review_submissions (
+                project_id TEXT NOT NULL REFERENCES projects(project_id),
+                submission_id TEXT NOT NULL, competency_id TEXT NOT NULL,
+                mission_id TEXT NOT NULL, attempt_id TEXT NOT NULL UNIQUE,
+                assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1',
+                assessment_contract_fingerprint TEXT NOT NULL DEFAULT '',
+                evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer',
+                PRIMARY KEY(project_id,submission_id)
+            );
+            CREATE TABLE project_schema_version (
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1), version INTEGER NOT NULL
+            );
+            INSERT INTO project_schema_version VALUES(1,2);
+        """)
+
+    ProjectService(db_path)
+    with sqlite3.connect(db_path) as db:
+        version = db.execute("SELECT version FROM project_schema_version WHERE singleton=1").fetchone()[0]
+        columns = {row[1] for row in db.execute("PRAGMA table_info(project_review_submissions)")}
+    assert version == ProjectService.SCHEMA_VERSION == 3
+    assert {"submission_kind", "artifact_name", "artifact_sha256"} <= columns
 
 
 def test_learning_project_assignment_requires_valid_dlp_and_keeps_objectives_canonical(tmp_path):
@@ -175,29 +238,165 @@ def test_learning_project_assignment_requires_valid_dlp_and_keeps_objectives_can
     autonomy = ObjectiveService(tmp_path / "objectives.sqlite3")
     history = TaskHistoryService(TaskHistoryStore(tmp_path / "history.sqlite3"))
     runtime = FridayRuntime("project-lifecycle")
+    sessions = _owner_sessions()
     app = create_presentation_app(runtime, FridayConversationService(object(), runtime),
-                                  learning_paths=paths, career_forge=forge, projects=projects, autonomy=autonomy, task_history=history)
-    with TestClient(app) as client:
+                                  learning_paths=paths, career_forge=forge, projects=projects, autonomy=autonomy,
+                                  task_history=history, project_execution_sessions=sessions,
+                                  project_execution_allowed_origins=(OWNER_ORIGIN,))
+    with TestClient(app, base_url=OWNER_ORIGIN) as client:
         milestone_id = "capstone"
         projection = client.get(f"/api/v1/learning-paths/{path.path_id}/milestones/{milestone_id}")
         assert projection.status_code == 200
         assert projection.json()["can_assign"] is True
+        owner_headers = _owner_headers(client, sessions)
         assigned = client.post(f"/api/v1/learning-paths/{path.path_id}/milestones/{milestone_id}/assign",
-                               json={"path_version": 1})
+                               json={"path_version": 1}, headers=owner_headers)
         assert assigned.status_code == 200, assigned.text
         project = assigned.json()
         assert project["state"] == "assigned"
         assert project["learning"]["path_version"] == 1
         assert client.post(f"/api/v1/learning-paths/{path.path_id}/milestones/{milestone_id}/assign",
-                           json={"path_version": 1}).json()["project_id"] == project["project_id"]
-        created = client.post(f"/api/v1/projects/{project['project_id']}/objective", json={})
+                           json={"path_version": 1}, headers=owner_headers).json()["project_id"] == project["project_id"]
+        created = client.post(f"/api/v1/projects/{project['project_id']}/objective", json={}, headers=owner_headers)
         assert created.status_code == 200, created.text
         objective = created.json()["objective"]
         assert objective["state"] == "planning"
         assert created.json()["project"]["objective_id"] == objective["objective_id"]
         assert forge.mission_objective(project["mission_id"]).objective_id == objective["objective_id"]
-        assert client.post(f"/api/v1/projects/{project['project_id']}/submit-artifacts").status_code == 409
+        assert client.post(f"/api/v1/projects/{project['project_id']}/submit-artifacts", headers=owner_headers).status_code == 409
         assert client.get(f"/api/v1/projects/{project['project_id']}").json()["state"] == "active"
+
+
+def test_owner_project_learning_artifact_review_is_authorized_idempotent_and_durable(tmp_path):
+    from local_ai_assistant.career_forge.models import TutorMode
+    from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
+
+    proposal = project_curriculum()
+    paths = LearningPathService(tmp_path / "paths.sqlite3")
+    path = paths.create(proposal)
+    paths.activate(path.path_id)
+    paths.evidence_provider = SatisfiedEvidence()
+    forge = CareerForgeService(tmp_path / "career.sqlite3")
+    projects = ProjectService(tmp_path / "projects.sqlite3")
+    autonomy = ObjectiveService(tmp_path / "objectives.sqlite3")
+    sessions = _owner_sessions()
+    evaluator = ArtifactProjectEvaluator()
+    runtime = FridayRuntime("project-artifact-review")
+    app = create_presentation_app(
+        runtime, FridayConversationService(object(), runtime), learning_paths=paths,
+        career_forge=forge, projects=projects, autonomy=autonomy,
+        project_execution_sessions=sessions, project_execution_allowed_origins=(OWNER_ORIGIN,),
+        career_tutor_clients={TutorMode.REVIEW: evaluator},
+    )
+    project_id = None
+    with TestClient(app, base_url=OWNER_ORIGIN) as client:
+        headers = _owner_headers(client, sessions)
+        assigned = client.post(
+            f"/api/v1/learning-paths/{path.path_id}/milestones/capstone/assign",
+            json={"path_version": 1}, headers=headers,
+        )
+        assert assigned.status_code == 200, assigned.text
+        project_id = assigned.json()["project_id"]
+        started = client.post(f"/api/v1/projects/{project_id}/objective", json={}, headers=headers)
+        assert started.status_code == 200, started.text
+        assert started.json()["project"]["state"] == "active"
+        assert started.json()["objective"]["task_id"] is None
+
+        body = {
+            "competency_key": "se.python", "submission_id": "stage30_wrong_artifact",
+            "artifact_name": "fraudshield.py",
+            "content": "def fraud_score(row):\n    return -1\n",
+            "explanation": "Every record receives a negative score.",
+        }
+        before = (len(forge.evidence_history(limit=100)), projects.review_submissions(project_id))
+        denied = client.post(
+            f"/api/v1/projects/{project_id}/submit-learning-artifact", json=body,
+            headers={"Origin": OWNER_ORIGIN},
+        )
+        assert denied.status_code == 401
+        assert (len(forge.evidence_history(limit=100)), projects.review_submissions(project_id)) == before
+
+        incorrect = client.post(
+            f"/api/v1/projects/{project_id}/submit-learning-artifact", json=body, headers=headers,
+        )
+        assert incorrect.status_code == 200, incorrect.text
+        assert incorrect.json()["evaluation"] == "incorrect"
+        assert incorrect.json()["evidence_id"] is None
+        assert incorrect.json()["mastery_changed"] is False
+        assert incorrect.json()["project"]["state"] == "needs_revision"
+        assert incorrect.json()["project"]["career_forge_evidence"] == []
+
+        corrected = {
+            **body,
+            "submission_id": "stage30_correct_artifact",
+            "content": "def fraud_score(row):\n    return 1 if row.get('is_fraud') else 0\n",
+            "explanation": "The function maps the fraud flag to a binary score. It has not been executed; a validation test should cover both flag values.",
+        }
+        accepted = client.post(
+            f"/api/v1/projects/{project_id}/submit-learning-artifact", json=corrected, headers=headers,
+        )
+        assert accepted.status_code == 200, accepted.text
+        result = accepted.json()
+        assert result["evaluation"] == "correct"
+        assert result["mastery_changed"] is False
+        assert result["evidence_id"]
+        assert result["project"]["state"] == "completed"
+        assert len(result["project"]["career_forge_evidence"]) == 1
+        saved_review = next(
+            item for item in result["project"]["career_forge_reviews"]
+            if item["submission_id"] == "stage30_correct_artifact"
+        )
+        assert saved_review["submission_kind"] == "owner_artifact"
+        assert saved_review["artifact_name"] == "fraudshield.py"
+        assert saved_review["artifact_sha256"] == hashlib.sha256(corrected["content"].encode()).hexdigest()
+        assert projects.get(project_id).task_id is None
+        assert len(evaluator.prompts) == 2
+        assert "not executed by Friday" in evaluator.prompts[-1]
+        assert next(item for item in forge.competencies() if item.competency.competency_id == "se.python").mastery is MasteryLevel.UNVERIFIED
+
+        replay = client.post(
+            f"/api/v1/projects/{project_id}/submit-learning-artifact", json=corrected, headers=headers,
+        )
+        assert replay.status_code == 200, replay.text
+        assert replay.json()["attempt"]["attempt_id"] == result["attempt"]["attempt_id"]
+        assert replay.json()["evidence_id"] == result["evidence_id"]
+        assert len(evaluator.prompts) == 2
+        assert len(projects.review_submissions(project_id)) == 2
+        assert len(forge.project_evidence(project_id)) == 1
+        old_incorrect_replay = client.post(
+            f"/api/v1/projects/{project_id}/submit-learning-artifact", json=body, headers=headers,
+        )
+        assert old_incorrect_replay.status_code == 200, old_incorrect_replay.text
+        assert old_incorrect_replay.json()["evaluation"] == "incorrect"
+        assert old_incorrect_replay.json()["project"]["state"] == "completed"
+        assert len(evaluator.prompts) == 2
+
+    # Recreate every persistence authority and the API app to prove restart recovery.
+    recovered_forge = CareerForgeService(tmp_path / "career.sqlite3")
+    recovered_paths = LearningPathService(
+        tmp_path / "paths.sqlite3", evidence_provider=CareerForgeEvidenceProjection(recovered_forge),
+    )
+    recovered_projects = ProjectService(tmp_path / "projects.sqlite3")
+    recovered_autonomy = ObjectiveService(tmp_path / "objectives.sqlite3")
+    recovered_sessions = _owner_sessions()
+    recovered_runtime = FridayRuntime("project-artifact-review-restarted")
+    recovered_app = create_presentation_app(
+        recovered_runtime,
+        FridayConversationService(object(), recovered_runtime),
+        learning_paths=recovered_paths, career_forge=recovered_forge, projects=recovered_projects,
+        autonomy=recovered_autonomy, project_execution_sessions=recovered_sessions,
+        project_execution_allowed_origins=(OWNER_ORIGIN,),
+        career_tutor_clients={TutorMode.REVIEW: ArtifactProjectEvaluator()},
+    )
+    with TestClient(recovered_app, base_url=OWNER_ORIGIN) as recovered_client:
+        _owner_headers(recovered_client, recovered_sessions)
+        recovered = recovered_client.get(f"/api/v1/projects/{project_id}")
+        assert recovered.status_code == 200
+        assert recovered.json()["state"] == "completed"
+        assert recovered.json()["career_forge_reviews"][-1]["artifact_sha256"] == saved_review["artifact_sha256"]
+        assert recovered.json()["career_forge_evidence"][-1]["evidence_id"] == result["evidence_id"]
+        sequence = recovered_client.get(f"/api/v1/learning-paths/{path.path_id}/sequence")
+        assert sequence.status_code == 200 and sequence.json()["evidence_available"] is True
 
 
 def test_project_milestone_prerequisite_declaration_must_match_dag():
@@ -226,20 +425,24 @@ def test_project_review_records_only_qualified_provenance_without_mastery_inflat
     autonomy = ObjectiveService(tmp_path / "objectives.sqlite3")
     history = SuccessfulProjectTaskHistory(tmp_path)
     runtime = FridayRuntime("project-evidence")
+    sessions = _owner_sessions()
     evaluator = ProjectEvaluator(assessment)
     app = create_presentation_app(runtime, FridayConversationService(object(), runtime),
                                   learning_paths=paths, career_forge=forge, projects=projects,
                                   autonomy=autonomy, task_history=history,
+                                  project_execution_sessions=sessions,
+                                  project_execution_allowed_origins=(OWNER_ORIGIN,),
                                   career_tutor_clients={TutorMode.REVIEW: evaluator})
-    with TestClient(app) as client:
+    with TestClient(app, base_url=OWNER_ORIGIN) as client:
+        owner_headers = _owner_headers(client, sessions)
         assigned = client.post(f"/api/v1/learning-paths/{path.path_id}/milestones/capstone/assign",
-                               json={"path_version": 1})
+                               json={"path_version": 1}, headers=owner_headers)
         assert assigned.status_code == 200, assigned.text
         project = assigned.json()
-        objective = client.post(f"/api/v1/projects/{project['project_id']}/objective", json={}).json()["objective"]
+        objective = client.post(f"/api/v1/projects/{project['project_id']}/objective", json={}, headers=owner_headers).json()["objective"]
         with autonomy._db() as db:
             db.execute("UPDATE objectives SET task_id=? WHERE objective_id=?", (history.task.task_id, objective["objective_id"]))
-        submitted = client.post(f"/api/v1/projects/{project['project_id']}/submit-artifacts")
+        submitted = client.post(f"/api/v1/projects/{project['project_id']}/submit-artifacts", headers=owner_headers)
         assert submitted.status_code == 200, submitted.text
         assert {item["artifact_ref"].rsplit(":file:", 1)[-1] for item in submitted.json()["artifacts"]} == {
             "src/main.py", "MODEL_CARD.md",
@@ -247,7 +450,7 @@ def test_project_review_records_only_qualified_provenance_without_mastery_inflat
         response = client.post(f"/api/v1/projects/{project['project_id']}/review", json={
             "competency_key": "se.python", "submission_id": "submission_capstone_1",
             "explanation": "The tests cover expected behavior and the implementation satisfies the project outcome.",
-        })
+        }, headers=owner_headers)
         assert response.status_code == 200, response.text
         result = response.json()
         assert result["evaluation"] == assessment.rsplit(":", 1)[1].strip()
@@ -276,7 +479,7 @@ def test_project_review_records_only_qualified_provenance_without_mastery_inflat
         replay = client.post(f"/api/v1/projects/{project['project_id']}/review", json={
             "competency_key": "se.python", "submission_id": "submission_capstone_1",
             "explanation": "The tests cover expected behavior and the implementation satisfies the project outcome.",
-        })
+        }, headers=owner_headers)
         assert replay.status_code == 200
         assert replay.json()["attempt"]["attempt_id"] == result["attempt"]["attempt_id"]
         recovered = client.get(f"/api/v1/projects/{project['project_id']}").json()

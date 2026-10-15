@@ -48,6 +48,7 @@ describe("Projects pathway template context", () => {
     root = createRoot(container);
     await act(async () => { root?.render(createElement(CanonicalProjects, { openLearn })); });
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(container.querySelector('[aria-label="Owner authorization"]')).toBeTruthy();
     for (const template of templates) {
       const opener = container.querySelector<HTMLButtonElement>(`button[aria-label="Explore ${template.name}"]`);
       await act(async () => { opener?.click(); });
@@ -59,6 +60,30 @@ describe("Projects pathway template context", () => {
 
     expect(FridayRuntimeClient.prototype.getProjects).toHaveBeenCalledOnce();
     expect(FridayRuntimeClient.prototype.getProjectTemplates).toHaveBeenCalledOnce();
+  });
+
+  it("exposes first-project authorization and shares its CSRF token with the app shell", async () => {
+    const onOwnerCsrfChange = vi.fn();
+    vi.spyOn(FridayRuntimeClient.prototype, "unlockProjectExecution").mockResolvedValue("stage30-owner-csrf");
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => { root?.render(createElement(CanonicalProjects, { openLearn: vi.fn(), onOwnerCsrfChange })); });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+
+    const authorization = container.querySelector<HTMLDetailsElement>('[aria-label="Owner authorization"]');
+    expect(authorization).toBeTruthy();
+    authorization!.open = true;
+    const input = container.querySelector<HTMLInputElement>('input[autocomplete="current-password"]');
+    expect(input).toBeTruthy();
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "fixture-credential");
+    await act(async () => { input!.dispatchEvent(new Event("input", { bubbles: true })); });
+    const unlock = [...container.querySelectorAll("button")].find((button) => button.textContent === "Unlock owner actions");
+    expect(unlock).toBeTruthy();
+    await act(async () => { unlock!.click(); await new Promise((resolve) => setTimeout(resolve, 0)); });
+
+    expect(FridayRuntimeClient.prototype.unlockProjectExecution).toHaveBeenCalledWith("fixture-credential");
+    expect(onOwnerCsrfChange).toHaveBeenCalledWith("stage30-owner-csrf");
   });
 
   it("restores the selected pathway from a direct Projects route", async () => {

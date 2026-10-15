@@ -1798,6 +1798,66 @@ are implemented and qualified. Rows 60 and 61 remain PARTIAL; this release does
 not qualify the full Career Forge product. See CODEX_HANDOFF.md and
 docs/operations/stage29-release-plan.md.
 
+### Stage 30 connected Project → Learning Journey — qualified bounded slice (2026-10-16)
+
+Stage 30 adds one connected FraudShield journey using the existing Projects,
+Dynamic Learning Paths, Career Forge, Reviewer, and Owner-session authorities.
+Opening the project pathway is read-only. In an isolated real-browser flow, an
+unauthenticated Create returned 401 without writes; Owner unlock alone created
+nothing; explicit CSRF-authenticated Create persisted one DLP draft; explicit
+Start activated it; and an authenticated milestone assignment created exactly
+one canonical FraudShield project. Replaying the same assignment returned the
+same project instance.
+
+Learn presented the assigned milestone's prerequisites, objectives, evidence
+requirements, and a contextual Career Forge lesson. The Owner submitted an
+unexecuted source artifact and explanation to the existing local Reviewer. An
+incorrect result persisted the attempt, created no project evidence, set
+`needs_revision`, and recommended revision. A correct result created one
+milestone evidence record, completed this one-competency project, and updated
+the recommendation to continue from the DLP sequence. Career Forge mastery
+remained unchanged; no task execution, computer action, or GitHub publication
+occurred. Browser reload and a separate isolated API process recovered the
+same path, project, review, evidence, and progress from temporary SQLite stores.
+
+The isolated Chrome/FastAPI/SQLite journey also proved navigation-only reads,
+rejected unauthenticated path creation and project assignment, CSRF persistence
+across Learn/Projects navigation, and no duplicate project after assignment
+replay or reload. The deterministic fixture Reviewer and Teacher made no Qwen
+call. The test did not use production credentials, learner data, services, or
+computer actions.
+
+Qualification passed: frontend 184 tests across 37 files and four Node
+bridge/local-server checks, full ESLint, TypeScript, and production build; the
+Python 3.11 repository verifier passed 1,866 tests with 6 skipped, compilation,
+CLI checks, and package consistency. The first fallback verifier attempt used
+Python 3.14 with an editable package pointing at another checkout and failed
+21 cases; its log also exposed the API exact-route assertion that needed the
+new endpoint. Rebinding a disposable Python 3.11 environment to this exact
+worktree and correcting that endpoint expectation produced the passing final
+gate. The Python verifier used 1.71 GiB peak process-tree RSS, with 22.29 GiB
+minimum host-available RAM; its memory-pressure stop guard did not trigger.
+TypeScript, lint, build, browser, and full Python phases were run sequentially.
+
+MicroTurn remains research-only and NO-GO for the live 600 ms voice target:
+the supplied benchmark records 28 ticks, 18 deadline misses (about 64.3%),
+uneven response quality, and runner exit 120 during Python shutdown. Cleanup was
+corrected afterward, but the full model benchmark was not rerun and no audio,
+microphone, barge-in, or physical Stop qualification was performed. Stage 30
+did not load or run Qwen, change voice/vision configuration, or add MicroTurn
+integration.
+
+This branch-only code slice does not qualify the full Career Forge learner
+journey or Friday V1. Roadmap rows 60 and 61 remain PARTIAL; broader multi-topic
+learning, retention/adaptive progression, voice operation, validated project
+execution, approval-gated publication, and final visual acceptance remain open.
+No deployment, service/model restart, or `main` update is part of this stage.
+The Stage 29 publication entry above recorded its state at publication. During
+Stage 30 recovery, the read-only live API and UI checks confirmed both were
+serving the immutable Stage 29 release `464f5002574a2f00b13db597f04772984939a189`
+(API health and UI both HTTP 200). The twelve previously recorded `in_doubt`
+computer actions remain preserved. No production store or action was touched.
+
 ## Dynamic Learning Paths — DLP-1–4 accepted and published (row 61, PARTIAL)
 
 DLP-1 establishes a separate local SQLite authority for versioned learning-path

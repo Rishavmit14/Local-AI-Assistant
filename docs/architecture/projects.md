@@ -36,10 +36,11 @@ that immutable milestone and version through DLP's
    `SUCCEEDED`, have a final commit, and have canonical validation and review
    records. Project stores bounded repository-relative file references joined
    to task ID and commit. Repeated submission is idempotent.
-5. Career Forge review requires an explicit learner explanation and one of the
+5. The existing validated-task Career Forge review requires an explicit learner explanation and one of the
    milestone's linked competencies. The local evaluator sees the immutable
    milestone criteria, bounded task outcome/validation summaries, artifact
-   references, and learner explanation. It does not receive raw source files.
+   references, and learner explanation. This validated-task path does not
+   receive raw source files.
    Only a correct parsed assessment creates `project_milestone_assessment`
    evidence in Career Forge. The evidence points to the exact attempt, task,
    final commit, and Project artifact IDs. Incorrect/uncertain evaluations
@@ -51,6 +52,36 @@ that immutable milestone and version through DLP's
    The review endpoint reports `mastery_changed: false`.
 7. Learn and Projects both read the persisted relation after refresh/restart;
    Projects provides the return-to-learning path/version/milestone reference.
+
+## Stage 30 Owner-submitted learning artifact
+
+The connected FraudShield journey adds a separate source-submission path for a
+project that is explicitly assigned to a canonical DLP path version and
+milestone. The Owner starts that project from Learn before submitting an
+artifact. The `submit-learning-artifact` mutation requires the existing loopback
+Owner session, configured Origin, and matching CSRF token. It verifies the
+path/milestone assignment, linked competency, and open project state before
+recording anything.
+
+The source and explanation are bounded and bound to an idempotent submission
+identity. Projects schema v3 stores the submission kind, artifact name, SHA-256,
+assessment-contract version/fingerprint, and Career Forge attempt identity. The
+existing Career Forge attempt/evidence store retains the submitted response.
+The local Reviewer receives the exact source and explanation with immutable
+milestone criteria, all treated as untrusted data. Friday does not execute the
+source or claim test/runtime validation. A correct assessment creates one
+project-milestone evidence record; incorrect or uncertain assessments create no
+qualifying evidence and keep the project in `needs_revision`. Replaying a
+completed submission does not regress project state.
+
+This evidence can complete the assigned project milestone when every linked
+competency has accepted evidence. It does not advance Career Forge mastery or
+publish learner work. Learn reads canonical Project, DLP, and Career Forge
+projections after reload and API restart. Its next recommendation responds to
+the saved assessment state: revise and resubmit after an incorrect result, or
+continue from the current DLP sequence after accepted milestone evidence. DLP
+curriculum versions and Career Forge mastery remain unchanged by page
+navigation, lesson display, or project completion.
 
 ## Publication boundary
 
@@ -69,10 +100,10 @@ records remain the source of truth when projections are rebuilt.
 
 This integration does not provide manual curriculum editing, cross-path
 competency equivalence, broad adaptive replanning, or whole-product owner
-qualification. The project evaluator reviews the explicit explanation against
-canonical task outcomes and artifact references; it does not inspect repository
-source code itself. These limits keep the first integration bounded and are
-part of the remaining roadmap audit.
+qualification. Stage 30 qualifies one explicitly submitted source artifact and
+milestone assessment; it does not qualify isolated execution, validated task
+artifacts, GitHub publication, the full Career Forge journey, or final visual
+acceptance. Rows 60 and 61 remain PARTIAL.
 
 ## Stage 24 contextual Conversation boundary
 

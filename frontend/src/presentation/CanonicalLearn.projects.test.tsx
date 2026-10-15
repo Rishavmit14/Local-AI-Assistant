@@ -21,6 +21,7 @@ describe("Learn project milestone flow",()=>{
     vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(detail);
     vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue(sequence);
     vi.spyOn(FridayRuntimeClient.prototype,"getCareerJourney").mockResolvedValue({progress:{retention_reviews:[]}} as never);
+    vi.spyOn(FridayRuntimeClient.prototype,"restoreProjectExecution").mockResolvedValue("owner-csrf");
     const read=vi.spyOn(FridayRuntimeClient.prototype,"getProjectMilestone").mockResolvedValueOnce(projection(false)).mockResolvedValue(projection(true));
     const assign=vi.spyOn(FridayRuntimeClient.prototype,"assignProjectMilestone").mockResolvedValue(project);
     const objective=vi.spyOn(FridayRuntimeClient.prototype,"createProjectObjective").mockResolvedValue({project,objective:{objective_id:"objective_1"} as never});
@@ -30,12 +31,58 @@ describe("Learn project milestone flow",()=>{
     expect(container.textContent).toContain("Explain design and tests");
     const assignButton=[...container.querySelectorAll("button")].find(button=>button.textContent==="Assign learning project");
     await act(async()=>{assignButton?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(assign).toHaveBeenCalledWith("path-1","capstone",1);
+    expect(assign).toHaveBeenCalledWith("path-1","capstone",1,"owner-csrf");
     expect(container.textContent).toContain("Project state: Ready");
     const start=[...container.querySelectorAll("button")].find(button=>button.textContent==="Start project in Objectives");
     await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(objective).toHaveBeenCalledWith("proj_1");
+    expect(objective).toHaveBeenCalledWith("proj_1","owner-csrf");
     expect(navigate).toHaveBeenCalledWith("objectives");
     expect(read).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the integrated project lesson and submits a source artifact with Owner CSRF",async()=>{
+    const activeProject={...project,state:"active"} as LearningProject;
+    vi.spyOn(globalThis.crypto.subtle,"digest").mockResolvedValue(new ArrayBuffer(32));
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPaths").mockResolvedValue([path]);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPath").mockResolvedValue(detail);
+    vi.spyOn(FridayRuntimeClient.prototype,"getLearningPathSequence").mockResolvedValue(sequence);
+    vi.spyOn(FridayRuntimeClient.prototype,"getCareerJourney").mockResolvedValue({progress:{retention_reviews:[]}} as never);
+    vi.spyOn(FridayRuntimeClient.prototype,"getProjectMilestone").mockResolvedValueOnce({...projection(true),project:activeProject}).mockResolvedValue({...projection(true),project:{...activeProject,state:"completed",career_forge_evidence:[{evidence_id:"evidence-1",competency_id:"se.python"}],career_forge_reviews:[{submission_id:"submission-1",evaluation:"correct",feedback:"The source meets the lesson objective.",evidence_id:"evidence-1"}]} as unknown as LearningProject});
+    const teach=vi.spyOn(FridayRuntimeClient.prototype,"careerTutor").mockResolvedValue({response:"A fraud score maps one input label to an output; for example, a flagged row maps to 1. Practice by explaining what a false positive costs."} as never);
+    const submit=vi.spyOn(FridayRuntimeClient.prototype,"submitProjectLearningArtifact").mockResolvedValue({project:activeProject,evaluation:"correct",feedback:"The source meets the lesson objective.",evidence_id:"evidence-1",mastery_changed:false});
+    container=document.createElement("div");document.body.append(container);root=createRoot(container);
+    await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff:vi.fn(),activeMission:null,ownerCsrf:"owner-csrf"}));await new Promise(r=>setTimeout(r,0));});
+    expect(container.textContent).toContain("CONNECTED PROJECT LEARNING");
+    expect(container.textContent).toContain("Learning objectives:");
+    expect(container.textContent).toContain("Required evidence:");
+    expect(container.textContent).toContain("Combine prior lessons.");
+    expect(container.querySelector('form[aria-label="Submit FraudShield source artifact"]')).not.toBeNull();
+
+    const teachButton=[...container.querySelectorAll("button")].find(button=>button.textContent==="Teach this lesson with Friday");
+    await act(async()=>{teachButton?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(teach).toHaveBeenCalledWith("mission_1",expect.stringContaining("Build it"),"explain",null);
+    expect(container.textContent).toContain("Explanation, example, and practice");
+
+    const form=container.querySelector<HTMLFormElement>('form[aria-label="Submit FraudShield source artifact"]');
+    const textareas=form?.querySelectorAll("textarea");
+    const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")?.set;
+    await act(async()=>{
+      if(textareas?.[0]&&textareas[1]){
+        setter?.call(textareas[0],"def fraud_score(row):\\n    return 1 if row.get('is_fraud') else 0\\n");
+        textareas[0].dispatchEvent(new Event("input",{bubbles:true}));
+        setter?.call(textareas[1],"The fraud flag maps to a binary score; I would test both values.");
+        textareas[1].dispatchEvent(new Event("input",{bubbles:true}));
+      }
+      await new Promise(r=>setTimeout(r,0));
+    });
+    const submitButton=form?.querySelector<HTMLButtonElement>("button");
+    await act(async()=>{submitButton?.click();await new Promise(r=>setTimeout(r,0));});
+    expect(submit).toHaveBeenCalledWith("proj_1",expect.objectContaining({
+      competency_key:"se.python",artifact_name:"fraudshield.py",
+      content:expect.stringContaining("def fraud_score"),
+      explanation:expect.stringContaining("binary score"),
+    }),"owner-csrf");
+    expect(container.textContent).toContain("Project artifact correct.");
+    expect(container.textContent).toContain("Next recommendation: The milestone evidence is saved. Review the current DLP sequence for eligible next work; Career Forge's existing evidence-backed rules still govern mastery.");
   });
 });

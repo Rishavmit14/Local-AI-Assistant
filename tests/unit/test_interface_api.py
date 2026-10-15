@@ -2621,6 +2621,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
     assert schema["paths"]["/api/v1/objectives/{objective_id}/progress"].keys() == {"get"}
     assert schema["paths"]["/api/v1/projects/{project_id}/objective"].keys() == {"post"}
     assert schema["paths"]["/api/v1/projects/{project_id}/submit-artifacts"].keys() == {"post"}
+    assert schema["paths"]["/api/v1/projects/{project_id}/submit-learning-artifact"].keys() == {"post"}
     assert schema["paths"]["/api/v1/projects/{project_id}/review"].keys() == {"post"}
     assert schema["paths"]["/api/v1/project-execution/unlock"].keys() == {"post"}
     assert schema["paths"]["/api/v1/project-execution/lock"].keys() == {"post"}
@@ -2659,6 +2660,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/projects/{project_id}",
         "/api/v1/projects/{project_id}/objective",
         "/api/v1/projects/{project_id}/submit-artifacts",
+        "/api/v1/projects/{project_id}/submit-learning-artifact",
         "/api/v1/projects/{project_id}/review",
         "/api/v1/knowledge/documents",
         "/api/v1/knowledge/ask",

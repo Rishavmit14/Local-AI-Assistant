@@ -1334,6 +1334,28 @@ alone creates no learning evidence, and project completion never advances
 mastery. The durable data model and evaluator boundary are specified in
 `docs/architecture/projects.md` and ADR 0034.
 
+### Stage 30 Owner-connected project learning
+
+Stage 30 adds one bounded owner journey on the existing FraudShield template:
+read-only Projects-to-Learn navigation, explicit Owner-authenticated DLP path
+creation, explicit path activation and milestone assignment, project start,
+lesson delivery, source-artifact assessment, progress, and restart recovery.
+The separate `submit-learning-artifact` route binds the exact submitted source
+hash and assessment contract to a Career Forge attempt. The existing local
+Reviewer sees the source as untrusted data; Friday never executes it. Incorrect
+or uncertain work creates no milestone evidence and recommends revision. A
+correct result may complete the project milestone but cannot change Career Forge
+mastery or DLP curriculum state. Existing task execution, validation,
+approval-gated publication, and Career Forge rules remain authoritative.
+
+Project mutations in this journey use the existing Owner session, loopback
+Host, allowed Origin, and CSRF boundary. Learn and Projects share the restored
+Owner CSRF state across navigation. The exact browser/API/SQLite journey,
+including rejected Create, assignment idempotency, incorrect/correct
+assessment, changed next action, and API restart recovery, is recorded in
+`docs/architecture/projects.md` and ADR 0053. This does not qualify all of
+Career Forge; roadmap rows 60 and 61 remain PARTIAL.
+
 ### Stage 25 cross-path owner relationships
 
 Friday's owner relationship resolver reads canonical Learn/DLP, Projects,

@@ -252,9 +252,11 @@ assessment submission and page refresh do not silently rewrite the path. There
 is no arbitrary JSON editor, drag and drop, module authoring/deletion,
 optionality flag (the canonical node model has none), project-record editing,
 or multi-user merge workflow. Row 61 remains PARTIAL pending broader production
-owner qualification, project task execution/artifact submission/assessment
-browser qualification, and final owner visual acceptance. The final
-NeetCode-style redesign remains deferred.
+owner qualification, governed project-task execution and validated-task artifact
+browser qualification, and final owner visual acceptance. Stage 30 separately
+qualifies one Owner-submitted source artifact; it does not execute project code
+or claim validated-task evidence. The final NeetCode-style redesign remains
+deferred.
 
 
 ## DLP-3 owner integration (accepted; remotely recoverable)
@@ -358,3 +360,33 @@ PARTIAL for whole-product qualification and remaining learning capabilities.
 ## Stage 24 contextual Conversation boundary
 
 Stage 24 exposes the current Learn path as an explicit Conversation attachment. The adapter reads the canonical version and bounded curriculum projection, hashes the full current path, and treats changes as stale. It does not alter path selection, eligibility, replanning, evidence, or mastery. See `context-attachments.md`.
+
+## Stage 30 connected Project → Learn journey
+
+The Owner can open the FraudShield project pathway from Projects without
+creating a learning path or project instance. Path creation still requires an
+explicit Owner-authenticated Create action; authentication alone creates
+nothing. The generated path is a durable DLP draft and must be explicitly
+started before its canonical FraudShield project milestone can be assigned.
+Assignment, project start, and source-artifact submission use the existing
+Projects, Objective, and Career Forge authorities with Owner/CSRF protection.
+
+Learn presents the assigned milestone's objectives, prerequisites, evidence
+requirements, and a contextual Career Forge lesson. A bounded owner-submitted
+source artifact and explanation are evaluated against the immutable milestone
+contract by the existing local Reviewer. The source is never executed. Incorrect
+work remains a persisted attempt without project evidence and recommends
+revision; accepted work creates milestone evidence, completes the milestone
+when all linked competencies are supported, and recommends continuing from the
+current DLP sequence. This project progress does not advance mastery or rewrite
+the DLP version. A navigation-only visit and a rejected unauthenticated Create
+or assignment leave learner state unchanged. Repeated milestone assignment
+returns the same project instance.
+
+An isolated Google Chrome/FastAPI/SQLite journey covered explicit path Create,
+Owner authorization, project assignment/start, lesson delivery, incorrect and
+correct artifact assessments, the changing next recommendation, unchanged
+mastery, reload, and API-process restart. No task execution, computer action,
+GitHub publication, production learner state, or Qwen inference was used. This
+qualifies one connected vertical slice only; Rows 60 and 61 remain PARTIAL and
+the broader adaptive learner journey and final visual acceptance remain open.

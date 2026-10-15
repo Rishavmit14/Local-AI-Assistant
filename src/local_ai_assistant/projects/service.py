@@ -88,7 +88,7 @@ class ProjectService:
         ProjectTemplate("production-ai-platform", "Production AI Platform", "Serving, CI/CD, observability, and MLOps systems."),
     )
     STATES = {"assigned", "active", "under_review", "needs_revision", "completed", "archived"}
-    SCHEMA_VERSION = 2
+    SCHEMA_VERSION = 3
 
     def __init__(self, database: Path):
         self.database = Path(database).resolve()
@@ -144,6 +144,9 @@ class ProjectService:
                     assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1',
                     assessment_contract_fingerprint TEXT NOT NULL DEFAULT '',
                     evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer',
+                    submission_kind TEXT NOT NULL DEFAULT 'validated_task',
+                    artifact_name TEXT,
+                    artifact_sha256 TEXT,
                     PRIMARY KEY(project_id,submission_id)
                 );
                 CREATE TABLE IF NOT EXISTS project_learning_evidence (
@@ -159,13 +162,22 @@ class ProjectService:
             row = db.execute("SELECT version FROM project_schema_version WHERE singleton=1").fetchone()
             if row is None:
                 db.execute("INSERT INTO project_schema_version VALUES(1, ?)", (self.SCHEMA_VERSION,))
-            elif row[0] == 1:
-                db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1'")
-                db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_fingerprint TEXT NOT NULL DEFAULT ''")
-                db.execute("ALTER TABLE project_review_submissions ADD COLUMN evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer'")
-                db.execute("UPDATE project_schema_version SET version=? WHERE singleton=1", (self.SCHEMA_VERSION,))
-            elif row[0] != self.SCHEMA_VERSION:
-                raise RuntimeError("unsupported Projects schema version")
+            else:
+                version = row[0]
+                if version == 1:
+                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1'")
+                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_fingerprint TEXT NOT NULL DEFAULT ''")
+                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer'")
+                    version = 2
+                    db.execute("UPDATE project_schema_version SET version=? WHERE singleton=1", (version,))
+                if version == 2:
+                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN submission_kind TEXT NOT NULL DEFAULT 'validated_task'")
+                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN artifact_name TEXT")
+                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN artifact_sha256 TEXT")
+                    version = 3
+                    db.execute("UPDATE project_schema_version SET version=? WHERE singleton=1", (version,))
+                if version != self.SCHEMA_VERSION:
+                    raise RuntimeError("unsupported Projects schema version")
 
     @classmethod
     def template(cls, template_id: str) -> ProjectTemplate:
@@ -328,6 +340,93 @@ class ProjectService:
                 raise
         return dict(row)
 
+    def reserve_owner_artifact_submission(
+        self, project_id: str, submission_id: str, competency_id: str, mission_id: str,
+        *, artifact_name: str, artifact_sha256: str,
+        assessment_contract_fingerprint: str,
+        assessment_contract_version: str = "project_milestone_assessment_v1",
+        evaluator: str = "local_qwen_reviewer",
+    ) -> dict:
+        """Persist a learner artifact reference before Career Forge review.
+
+        The artifact body remains in the canonical Career Forge attempt. Projects
+        stores only its stable name and digest alongside the review link.
+        """
+        if (not isinstance(submission_id, str) or not 1 <= len(submission_id) <= 80
+                or not isinstance(competency_id, str) or not competency_id
+                or not isinstance(mission_id, str) or not mission_id
+                or not isinstance(artifact_name, str) or not 1 <= len(artifact_name) <= 160
+                or artifact_name in {".", ".."} or "/" in artifact_name or "\\" in artifact_name
+                or any(not char.isprintable() for char in artifact_name)
+                or not isinstance(artifact_sha256, str) or len(artifact_sha256) != 64
+                or any(char not in "0123456789abcdef" for char in artifact_sha256)
+                or not isinstance(assessment_contract_fingerprint, str)
+                or len(assessment_contract_fingerprint) != 64
+                or any(char not in "0123456789abcdef" for char in assessment_contract_fingerprint)
+                or not isinstance(assessment_contract_version, str)
+                or not 1 <= len(assessment_contract_version) <= 80
+                or evaluator != "local_qwen_reviewer"):
+            raise ValueError("bounded learner artifact submission identity is required")
+        with self._lock, self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                project = db.execute(
+                    "SELECT state FROM projects WHERE project_id=?", (project_id,),
+                ).fetchone()
+                if project is None:
+                    raise KeyError(project_id)
+                link = db.execute(
+                    "SELECT mission_id FROM project_learning_missions "
+                    "WHERE project_id=? AND competency_id=?", (project_id, competency_id),
+                ).fetchone()
+                if link is None or link[0] != mission_id:
+                    raise ValueError("artifact competency is not bound to this project mission")
+                row = db.execute(
+                    "SELECT project_id,submission_id,competency_id,mission_id,attempt_id,"
+                    "assessment_contract_version,assessment_contract_fingerprint,evaluator,"
+                    "submission_kind,artifact_name,artifact_sha256 "
+                    "FROM project_review_submissions WHERE project_id=? AND submission_id=?",
+                    (project_id, submission_id),
+                ).fetchone()
+                expected = (
+                    competency_id, mission_id, assessment_contract_version,
+                    assessment_contract_fingerprint, evaluator, "owner_artifact",
+                    artifact_name, artifact_sha256,
+                )
+                if row is None:
+                    if project[0] not in {"assigned", "active", "needs_revision", "under_review"}:
+                        raise ValueError("project cannot accept a new artifact in its current state")
+                    attempt_id = "attempt_" + uuid4().hex
+                    db.execute(
+                        "INSERT INTO project_review_submissions "
+                        "(project_id,submission_id,competency_id,mission_id,attempt_id,"
+                        "assessment_contract_version,assessment_contract_fingerprint,evaluator,"
+                        "submission_kind,artifact_name,artifact_sha256) "
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        (project_id, submission_id, competency_id, mission_id, attempt_id,
+                         assessment_contract_version, assessment_contract_fingerprint, evaluator,
+                         "owner_artifact", artifact_name, artifact_sha256),
+                    )
+                    db.execute(
+                        "UPDATE projects SET state='under_review',updated_at=? WHERE project_id=?",
+                        (_now(), project_id),
+                    )
+                    row = db.execute(
+                        "SELECT project_id,submission_id,competency_id,mission_id,attempt_id,"
+                        "assessment_contract_version,assessment_contract_fingerprint,evaluator,"
+                        "submission_kind,artifact_name,artifact_sha256 "
+                        "FROM project_review_submissions WHERE project_id=? AND submission_id=?",
+                        (project_id, submission_id),
+                    ).fetchone()
+                actual = (row[2], row[3], row[5], row[6], row[7], row[8], row[9], row[10])
+                if actual != expected:
+                    raise ValueError("submission ID is already bound to different project evidence")
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
+        return dict(row)
+
     def project_review_submission(self, project_id: str, submission_id: str) -> dict | None:
         with self._connect() as db:
             row = db.execute(
@@ -342,7 +441,8 @@ class ProjectService:
         with self._connect() as db:
             rows = db.execute(
                 "SELECT project_id,submission_id,competency_id,mission_id,attempt_id,"
-                "assessment_contract_version,assessment_contract_fingerprint,evaluator "
+                "assessment_contract_version,assessment_contract_fingerprint,evaluator,"
+                "submission_kind,artifact_name,artifact_sha256 "
                 "FROM project_review_submissions WHERE project_id=? ORDER BY rowid",
                 (project_id,),
             ).fetchall()
