@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -39,6 +40,7 @@ from local_ai_assistant.gateway.service import IntegrationGatewayService
 from local_ai_assistant.history.models import TaskFilter, TaskStatus
 from local_ai_assistant.history.service import TaskHistoryService
 from local_ai_assistant.history.store import TaskHistoryStore
+from local_ai_assistant.interface.runtime import FridayRuntime
 from local_ai_assistant.interface.task_explanation import TaskExplanationService
 from local_ai_assistant.isolation.checkpoints import CheckpointManager
 from local_ai_assistant.isolation.owner_rollback import OwnerBrowserSessions, OwnerRollbackService
@@ -70,9 +72,11 @@ from .conversation import FridayConversationService
 from .events import FridayEventType
 from .interaction import FridayInteractionCoordinator
 from .local_owner import LocalOwnerTrust
-from .runtime import FridayRuntime
 from .voice_actions import VoiceComputerActionService
 from .wake_bootstrap import build_managed_wake_voice
+
+_RUNTIME_EVENT_STREAM_PATH = "/api/v1/runtime/events/stream"
+_SSE_SHUTDOWN_DRAIN_SECONDS = 1.0
 
 
 def _repository_mappings(code_repo_dir: Path, profiles: tuple[object, ...]) -> tuple[RepositoryMapping, ...]:
@@ -118,12 +122,23 @@ def _career_retention_observer(career_forge: CareerForgeService):
 
 
 class FridayUvicornServer(uvicorn.Server):
-    """Release voice ownership at Uvicorn's first shutdown signal."""
+    """Close runtime streams and release voice ownership at the first signal."""
 
     def __init__(self, config: uvicorn.Config, *, before_exit: Callable[[], None]):
         super().__init__(config)
         self._before_exit = before_exit
         self._voice_exit_started = False
+
+    def _abort_stalled_runtime_event_streams(self) -> None:
+        """Drop only SSE transports that did not drain after the close marker."""
+        for connection in tuple(self.server_state.connections):
+            cycle = getattr(connection, "cycle", None)
+            scope = getattr(cycle, "scope", {})
+            if scope.get("path") != _RUNTIME_EVENT_STREAM_PATH:
+                continue
+            transport = getattr(connection, "transport", None)
+            if transport is not None and not transport.is_closing():
+                transport.abort()
 
     def handle_exit(self, sig: int, frame: FrameType | None) -> None:
         if not self._voice_exit_started:
@@ -131,9 +146,24 @@ class FridayUvicornServer(uvicorn.Server):
             try:
                 self._before_exit()
             finally:
+                try:
+                    asyncio.get_running_loop().call_later(
+                        _SSE_SHUTDOWN_DRAIN_SECONDS,
+                        self._abort_stalled_runtime_event_streams,
+                    )
+                except RuntimeError:
+                    # Direct non-server construction has no loop to schedule on.
+                    pass
                 super().handle_exit(sig, frame)
             return
         super().handle_exit(sig, frame)
+
+
+def _begin_presentation_shutdown(runtime: FridayRuntime, wake_voice) -> None:
+    """Unblock event streams before Uvicorn waits for active connections."""
+    runtime.begin_shutdown()
+    if wake_voice is not None:
+        wake_voice.close()
 
 
 def build_presentation_components(
@@ -141,7 +171,7 @@ def build_presentation_components(
     *,
     session_id: str | None = None,
     presentation_port: int = 8765,
-):
+) -> tuple[object, object | None, FridayRuntime]:
     resolved_config = config or get_config()
 
     runtime = FridayRuntime(
@@ -640,10 +670,7 @@ def build_presentation_components(
         ),
     )
 
-    return (
-        app,
-        wake_voice,
-    )
+    return app, wake_voice, runtime
 
 
 def build_presentation_app(
@@ -651,7 +678,7 @@ def build_presentation_app(
     *,
     session_id: str | None = None,
 ):
-    app, _wake_voice = build_presentation_components(
+    app, _wake_voice, _runtime = build_presentation_components(
         config,
         session_id=session_id,
     )
@@ -678,6 +705,7 @@ def main() -> int:
     (
         app,
         wake_voice,
+        runtime,
     ) = build_presentation_components(config, presentation_port=args.port)
 
     try:
@@ -693,7 +721,7 @@ def main() -> int:
                 log_level="info",
                 access_log=False,
             ),
-            before_exit=(wake_voice.close if wake_voice is not None else lambda: None),
+            before_exit=lambda: _begin_presentation_shutdown(runtime, wake_voice),
         )
         server.run()
 

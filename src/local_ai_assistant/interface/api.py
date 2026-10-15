@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import math
@@ -12,7 +13,6 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
-from queue import Empty
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, StrictBool
@@ -83,7 +83,7 @@ from .context_attachments import MAX_ATTACHMENTS, ContextAttachmentStore
 from .conversation import FridayConversationService
 from .cross_path import CrossPathResolver
 from .interaction import FridayInteractionCoordinator
-from .runtime import FridayRuntime
+from .runtime import FridayRuntime, RuntimeShuttingDown
 from .task_explanation import TaskExplanationNotFound, TaskExplanationService
 from .task_recovery import TaskRecoveryProjectionService
 
@@ -552,6 +552,7 @@ def create_presentation_app(
         TaskRecoveryProjectionService(task_history, isolation_root, autonomy, task_worker_status)
         if task_history is not None else None
     )
+    app.router.on_shutdown.insert(0, runtime.begin_shutdown)
     if on_shutdown is not None:
         app.router.on_shutdown.append(on_shutdown)
     if on_startup is not None:
@@ -3141,7 +3142,7 @@ def create_presentation_app(
         return [event.to_dict() for event in events]
 
     @app.get("/api/v1/runtime/events/stream")
-    def runtime_event_stream(cursor: int = 0):
+    async def runtime_event_stream(request: Request, cursor: int = 0):
         if cursor < 0:
             raise HTTPException(
                 status_code=400,
@@ -3149,26 +3150,63 @@ def create_presentation_app(
             )
 
         replay = runtime.events_since(cursor, 1000)
-        subscriber = runtime.subscribe(max_pending=256)
+        try:
+            subscriber = runtime.subscribe_async(max_pending=256)
+        except RuntimeShuttingDown as exc:
+            raise HTTPException(status_code=503, detail="Friday is shutting down") from exc
 
-        def lines():
+        asgi_spec = request.scope.get("asgi", {}).get("spec_version", "2.0")
+        try:
+            supports_server_disconnect_monitor = tuple(
+                int(part) for part in asgi_spec.split(".")
+            ) >= (2, 4)
+        except (AttributeError, TypeError, ValueError):
+            supports_server_disconnect_monitor = False
+
+        async def wait_for_disconnect():
+            while True:
+                message = await request.receive()
+                if message.get("type") == "http.disconnect":
+                    return
+
+        async def lines():
+            disconnect_task = (
+                asyncio.create_task(wait_for_disconnect())
+                if supports_server_disconnect_monitor else None
+            )
             try:
                 for event in replay:
                     yield _sse(event.sequence, event.to_dict())
 
                 while True:
-                    try:
-                        event = subscriber.get(timeout=30)
-                    except Empty:
+                    event_task = asyncio.create_task(subscriber.queue.get())
+                    waiters = {event_task}
+                    if disconnect_task is not None:
+                        waiters.add(disconnect_task)
+                    done, _ = await asyncio.wait(
+                        waiters,
+                        timeout=30,
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    if disconnect_task is not None and disconnect_task in done:
+                        event_task.cancel()
+                        await asyncio.gather(event_task, return_exceptions=True)
+                        return
+                    if event_task not in done:
+                        event_task.cancel()
+                        await asyncio.gather(event_task, return_exceptions=True)
                         yield ": heartbeat\n\n"
                         continue
 
+                    event = event_task.result()
+                    if event is None:
+                        return
                     yield _sse(event.sequence, event.to_dict())
-
-            except GeneratorExit:
-                return
             finally:
-                runtime.unsubscribe(subscriber)
+                if disconnect_task is not None:
+                    disconnect_task.cancel()
+                    await asyncio.gather(disconnect_task, return_exceptions=True)
+                runtime.unsubscribe_async(subscriber)
 
         return StreamingResponse(
             lines(),
@@ -3234,6 +3272,16 @@ def create_presentation_app(
                 status_code=400,
                 detail="max_tokens must be a positive integer",
             )
+
+        capability_router = getattr(conversation, "capability_router", None)
+        requires_learning_path_owner = getattr(
+            capability_router, "requires_owner_for_request", None,
+        )
+        if callable(requires_learning_path_owner) and requires_learning_path_owner(prompt):
+            # Normal Conversation stays available without an Owner session, but
+            # its deterministic DLP creation intent writes the same path store
+            # as /learning-paths/generate and must use the same Owner boundary.
+            context_owner(request, mutation=True)
 
         lease = interaction_coordinator.try_acquire("presentation")
         if lease is None:
@@ -3444,7 +3492,8 @@ def create_presentation_app(
             raise HTTPException(status_code=404, detail="project not found") from exc
 
     @app.post("/api/v1/learning-paths", response_model=LearningPathCreatedView)
-    def create_learning_path(request: LearningPathCurriculumRequest):
+    def create_learning_path(request: LearningPathCurriculumRequest, http_request: Request):
+        context_owner(http_request, mutation=True)
         service = learning_path_service()
         try:
             payload = request.model_dump() if hasattr(request, "model_dump") else request.dict()
@@ -3455,7 +3504,8 @@ def create_presentation_app(
             learning_path_error(exc)
 
     @app.post("/api/v1/learning-paths/generate", response_model=LearningPathCreatedView)
-    def generate_learning_path(request: LearningPathGenerateRequest):
+    def generate_learning_path(request: LearningPathGenerateRequest, http_request: Request):
+        context_owner(http_request, mutation=True)
         service = learning_path_service()
         try:
             path = service.generate(

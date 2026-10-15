@@ -103,6 +103,24 @@ detail, history, and validated revision. Typed request and response models are
 published in OpenAPI. Generation persists only after proposal parsing and
 validation. No browser state is canonical.
 
+Stage 29 publishes this bounded Owner boundary in canonical code; the live GCA
+API remains on its prior implementation until separately deployed.
+
+HTTP path creation is an Owner mutation. The direct curriculum-create and
+local-generation routes, plus deterministic learning-path creation intents on
+HTTP Conversation, require the existing local Owner session, an exact
+configured loopback Origin with loopback Host, and matching `X-Friday-CSRF`
+proof before calling DLP or the local curriculum model. This reuses the
+presentation API's `context_owner` guard and the Owner session lifecycle in ADR
+0039; it adds no credential or gateway execution scope. Learn restores the
+existing session or uses its existing interactive unlock, keeps CSRF only in
+memory, and calls generation only after an explicit Create selection. A rejected
+request performs no model call or DLP write. In-process trusted service callers
+continue to call `LearningPathService` directly; there is no supported
+unauthenticated CLI creation route. Other DLP mutation endpoints that operate on
+an existing path are outside this bounded creation change and retain their
+existing route contracts.
+
 ## DLP-2 evidence projection and sequencing
 
 `CareerForgeEvidenceProjection` is the only DLP evidence boundary. It delegates

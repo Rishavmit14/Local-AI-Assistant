@@ -37,15 +37,38 @@ export function resolveProductRoute(hash:string):VisionView {
 
 export type RelatedRoute = {id:string;nodeId?:string;version?:number}|{error:string}|null;
 
+export type ProjectTemplateRoute = {templateId:string}|{error:string}|null;
+
+export function projectTemplateQuery(templateId:string):string {
+ const params=new URLSearchParams();
+ params.set('projectTemplate',templateId);
+ return `?${params.toString()}`;
+}
+
+/** A template identifier is a navigation hint; callers must still resolve it against the registry. */
+export function readProjectTemplateRoute(hash:string,view:'learn'|'projects'):ProjectTemplateRoute {
+ const [route,query]=hash.replace(/^#/,'').split('?',2);
+ if(route!==view||query===undefined) return null;
+ const params=new URLSearchParams(query);
+ const ids=params.getAll('projectTemplate');
+ if(!ids.length) return null;
+ const allowed=view==='learn'?new Set(['projectTemplate','path','node','version']):new Set(['projectTemplate','project']);
+ if([...params.keys()].some(key=>!allowed.has(key))||[...params.keys()].some(key=>params.getAll(key).length!==1)) return {error:'Invalid project pathway link.'};
+ const templateId=ids[0];
+ if(!/^[a-z0-9][a-z0-9-]{0,127}$/.test(templateId)) return {error:'Invalid project pathway link.'};
+ return {templateId};
+}
+
 /** Read a navigation hint only. Canonical entities are still fetched by the target surface. */
 export function readRelatedRoute(hash:string,view:'learn'|'projects'):RelatedRoute {
  const [route,query]=hash.replace(/^#/,'').split('?',2);
  if(route!==view||query===undefined) return null;
  const params=new URLSearchParams(query);
  const idKey=view==='learn'?'path':'project';
- const allowed=view==='learn'?new Set(['path','node','version']):new Set(['project']);
+ const allowed=view==='learn'?new Set(['path','node','version','projectTemplate']):new Set(['project','projectTemplate']);
  if([...params.keys()].some(key=>!allowed.has(key))||[...params.keys()].some(key=>params.getAll(key).length!==1)) return {error:'Invalid related-item link.'};
  const id=params.get(idKey);
+ if(!id&&params.has('projectTemplate')) return null;
  const validId=view==='learn'?/^[0-9a-f]{32}$/:/^proj_[0-9a-f]{32}$/;
  if(!id||!validId.test(id)) return {error:'Invalid related-item link.'};
  const nodeId=params.get('node')??undefined;

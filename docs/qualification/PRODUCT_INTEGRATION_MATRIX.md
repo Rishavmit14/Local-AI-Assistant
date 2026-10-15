@@ -1,7 +1,8 @@
 # Friday Product Integration Matrix
 
-**Audit date:** 2026-10-15; Career Forge rows reconciled 2026-09-21; Astra
-frontend audit and Phases 1–2 source trace/owner qualification reconciled 2026-09-27;
+**Audit date:** 2026-10-15; Stage 29 code publication and qualification
+reconciled 2026-10-15; Career Forge rows reconciled 2026-09-21; Astra frontend
+audit and Phases 1–2 source trace/owner qualification reconciled 2026-09-27;
 voice-action and live-vision candidate qualification reconciled 2026-10-07
 **Repository baseline:** Stage 21 accepted at `3770151bbf146ff580b8cafa0b4f73a0865c55c5`
 **Scope:** owner-facing product reality, not a historical-stage scorecard.
@@ -53,6 +54,70 @@ This bounded Stage 28 publication does not close product capability rows 60
 or 61. They remain **PARTIAL** pending broader integrated and populated
 Career Forge owner flows. See the current Stage 28 product audit and
 `CODEX_HANDOFF.md` for the service limitation and rollback path.
+
+## Stage 29 Project-to-Learn, Owner path-creation security, and SSE shutdown — code qualified/published; production not deployed (2026-10-15)
+
+From published baseline `989b98b1b22d6e031a1fcc5f09a84601a88a47d9`, the
+published code carries canonical Project template IDs through Projects →
+Learn, resolves canonical name/focus, presents an editable goal, and preserves
+context through refresh, return, Back, and Forward. Invalid/stale template
+context fails gracefully. Navigation does not create a path, project,
+assessment, evidence, review, or mastery; no template-to-path association is
+persisted. Career Forge Rows 60 and 61 remain **PARTIAL**.
+
+HTTP path creation uses `context_owner(request, mutation=True)` for
+`POST /api/v1/learning-paths`, `POST /api/v1/learning-paths/generate`, and
+explicit path-creation intents through HTTP Conversation. The boundary requires
+the existing Owner session, loopback Host, exact configured Origin, and matching
+`X-Friday-CSRF` before model/DLP work. Learn restores or unlocks the existing
+session and keeps Create explicit. The prior isolated browser/FastAPI/SQLite
+journey passed with a synthetic Owner session and temporary store: rejected
+requests left database state unchanged; one authorized Create persisted a
+version-1 draft; a fresh FastAPI process and browser reload restored it. Project
+instances and path assignments stayed at zero, and all 16 mastery rows plus
+evidence/review rows were unchanged. Its complete logs and browser/database
+artifacts remain in the private `stage29-security-final-20261015-qual2`
+snapshot. This browser journey was retained as prior evidence; the new shutdown
+qualification used its own isolated API and temporary DLP store.
+
+The old runtime stream used a synchronous generator blocked in
+`subscriber.get(timeout=30)` on an AnyIO worker. Captured Python stacks showed
+the worker in `queue.get`; client disconnect did not end the wait, and Uvicorn
+waited for active connections before application lifespan shutdown. The
+published code uses bounded async subscriber queues, rejects new stream clients
+with 503 after shutdown begins, queues a prioritized end marker, cleans up
+disconnects, and after one second aborts only a still-open SSE transport. It
+does not cancel tasks, model work, or computer actions. The real FastAPI/Uvicorn
+process test passed three start/stop cycles on the exact live dependency stack
+(FastAPI 0.142.4, Starlette 1.7.0, Uvicorn 0.54.0): 0.265, 0.264, and 1.268
+seconds. Concurrent readers closed, the slow/backpressured stream was released,
+ASGI lifespan completed, subscribers and child processes were zero, no blocked
+SSE reader remained, and temporary DLP version/state was unchanged. Uvicorn
+re-raised SIGTERM after orderly cleanup (`-15` return code); no SIGKILL was
+observed. One earlier cold test process missed the 10-second API health window;
+the diagnostic rerun passed, and that startup anomaly remains unexplained.
+
+Current validation: full repository verifier **1,864 passed, 6 skipped**;
+frontend **182 passed across 37 files**; all **4** Node bridge/local-server
+checks; ESLint; TypeScript and production build; dependency check; changed-file
+Ruff; Python compilation; and diff checks. Vite retains its existing ~1.29 MB
+chunk-size advisory. A broad `ruff check src tests` reports 11 findings in
+unchanged files; no unrelated lint files were modified. Two earlier MCP stdio
+pipe-EOF timeouts remain unexplained even though the latest full verifier
+passed; this change does not claim to fix that intermittent risk.
+
+Live API reconciliation found the protected GCA process on port 8765 at
+`09842e7eefcdda6df34d5f4163078fb6cca29e06` with 68 dirty paths. All 202 live Python files matched the published Stage 28 baseline used for
+this release; Stage 29 changes four Python files that have not been deployed:
+`api.py`, `capability_routing.py`, `cli.py`, and `runtime.py`. Production
+configuration/data paths and voice/control dependencies are understood and
+must be preserved. The live API does not enforce Stage 29 creation authorization; code publication
+did not activate the boundary. Production task clearance
+and atomic new-work admission during cutover remain unproven, so no API restart
+or frontend activation is qualified or authorized. See
+`CODEX_HANDOFF.md` and `docs/operations/stage29-release-plan.md`. No production
+service, database, Owner session, or process was modified; no computer action
+or physical voice experiment occurred.
 
 ## Milestone C acceptance and publication — QUALIFIED (2026-10-11)
 

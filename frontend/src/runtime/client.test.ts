@@ -5,6 +5,20 @@ import { FridayRuntimeClient } from "./client";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("FridayRuntimeClient canonical conversation boundary", () => {
+  it("creates a DLP path only with the existing same-origin Owner CSRF session", async () => {
+    const detail = { path: { path_id: "p".repeat(32) }, current: { version: 1 } };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(detail), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new FridayRuntimeClient().generateLearningPath("Build FraudShield", "owner-csrf"))
+      .resolves.toEqual(detail);
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/learning-paths/generate", expect.objectContaining({
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Friday-CSRF": "owner-csrf" },
+      body: JSON.stringify({ goal: "Build FraudShield" }),
+    }));
+  });
+
   it("binds explicit context using the restored Owner CSRF token", async () => {
     const item = { attachment_id: "ctx_test", kind: "project", source_id: "project-one", status: "current" };
     const fetchMock = vi.fn()
@@ -46,6 +60,13 @@ describe("FridayRuntimeClient canonical conversation boundary", () => {
 
     await expect(new FridayRuntimeClient().streamConversation({ prompt: "Hello" }, () => undefined))
       .rejects.toThrow("conversation request failed: 503");
+  });
+
+  it("preserves the Owner auth reason so Learn can offer the existing recovery path", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ detail: "CSRF token required" }), { status: 401 })));
+
+    await expect(new FridayRuntimeClient().streamConversation({ prompt: "Create a learning path for DSA." }, () => undefined))
+      .rejects.toThrow("conversation request failed: CSRF token required");
   });
 });
 

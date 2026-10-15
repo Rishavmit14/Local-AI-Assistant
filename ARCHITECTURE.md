@@ -478,6 +478,23 @@ service state remained unchanged. Phase 1 qualifies only this text/session
 path; Astra voice, durable thread history, and other prototype or missing
 surfaces remain outside this accepted boundary.
 
+The published Stage 29 API code changes `/api/v1/runtime/events/stream`
+from a synchronous generator blocked in `Queue.get(timeout=30)` to an async
+generator backed by a bounded, event-loop-owned queue. A client disconnect
+removes its subscription; a graceful shutdown rejects new subscriptions with
+503, places an end marker ahead of stale backlog, and closes the wake voice
+owner only after stream shutdown begins. If a slow reader still holds an SSE
+transport after a one-second drain, only that SSE transport is aborted. This
+does not cancel a task, model request, computer action, or project-generation
+operation. The actual Uvicorn process test completed three repeated cycles in
+0.265, 0.264, and 1.268 seconds with the live service's FastAPI/Starlette/Uvicorn
+versions; its application lifespan completed and no child or blocked SSE
+reader remained. Uvicorn then re-raised the captured SIGTERM (`-15` process
+return code); no SIGKILL was used. This quiescent stream test is not a task-drain
+or production-restart qualification. See
+`docs/architecture/proactive-events.md` and
+`docs/operations/stage29-release-plan.md`.
+
 Astra Memory now projects only Friday's canonical durable-memory records through
 the typed presentation client. Owner remember, correction/supersession,
 conflict-resolution, and forget actions are explicit and pass through governed
@@ -531,6 +548,17 @@ Learn remains a functional integration shell; final visual acceptance is
 explicitly deferred. Matrix rows 60 and 61 remain PARTIAL for broader product
 qualification and remaining DLP capabilities. See ADR 0036 and
 `docs/architecture/dynamic-learning-paths.md`.
+
+The published Stage 29 code requires Owner authorization for
+HTTP path creation: direct curriculum creation, local-model generation, and
+explicit path-creation intents on HTTP Conversation use the established local
+Owner session, exact configured loopback Origin/Host, and CSRF proof. The
+existing API `context_owner` helper rejects before model or DLP writes. This
+does not add gateway scope, change trusted in-process service callers, or claim
+that other mutations on an existing path are authenticated. Learn restores or
+unlocks the existing session and still requires an explicit Create action. See
+ADR 0052 and the DLP route contract. These changes are not active in the live
+API until separate deployment. Career Forge rows 60 and 61 remain PARTIAL.
 
 ### Astra Research / Knowledge presentation boundary
 

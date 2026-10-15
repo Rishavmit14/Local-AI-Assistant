@@ -364,6 +364,36 @@ class LearningPathConversationAdapter:
         self.service = service
         self.generalized = GeneralizedLearningService(career_forge) if career_forge else None
 
+    @staticmethod
+    def _explicit_creation_request(text: str) -> tuple[str, str] | None:
+        normalized = " ".join(text.strip().lower().split())
+        normalized = re.sub(r"^(?:hey\s+)?friday[, ]+", "", normalized)
+        create_prefixes = ("create a learning path for ", "create a learning path to learn ",
+                           "build me a roadmap to learn ", "teach me ", "i want to learn ")
+        for prefix in create_prefixes:
+            if not normalized.startswith(prefix):
+                continue
+            suffix = normalized[len(prefix):]
+            if prefix == "teach me " and "machine learning" in suffix:
+                continue
+            goal = re.sub(r"\s+from beginner to advanced.*$", "", suffix)
+            goal = re.sub(r"\s+(?:in|over)\s+(?:\d{1,2}|one|two|three|four|five|six)\s+(?:weeks?|months?).*$", "", goal)
+            goal = goal.strip(" .?!")
+            return (normalized, goal) if goal else None
+
+        match = re.match(r"create a (\d{1,2})-week (.+?) path[.!?]*$", normalized)
+        if not match:
+            return None
+        weeks = int(match.group(1))
+        goal = re.sub(r"\s+interview preparation$", " interview preparation", match.group(2)).strip()
+        if not goal:
+            return None
+        return f"{normalized} in {weeks} weeks", goal
+
+    def is_explicit_creation_request(self, text: str) -> bool:
+        """Classify DLP path-creation intent without invoking its generator."""
+        return self._explicit_creation_request(text) is not None
+
     def route(self, text: str) -> CapabilityRoute | None:
         normalized = " ".join(text.strip().lower().split())
         normalized = re.sub(r"^(?:hey\s+)?friday[, ]+", "", normalized)
@@ -418,29 +448,9 @@ class LearningPathConversationAdapter:
             )
             return CapabilityRoute(ConversationIntent.INVOCATION, "learning_paths",
                 system_context=context, mode=f"career_forge:dynamic:{mission.mission_id}")
-        create_prefixes = ("create a learning path for ", "create a learning path to learn ",
-                           "build me a roadmap to learn ", "teach me ", "i want to learn ")
-        goal = None
-        explicit = False
-        for prefix in create_prefixes:
-            if normalized.startswith(prefix):
-                suffix = normalized[len(prefix):]
-                if prefix == "teach me " and "machine learning" in suffix:
-                    continue
-                explicit = True
-                goal = suffix
-                goal = re.sub(r"\s+from beginner to advanced.*$", "", goal)
-                goal = re.sub(r"\s+(?:in|over)\s+(?:\d{1,2}|one|two|three|four|five|six)\s+(?:weeks?|months?).*$", "", goal)
-                goal = goal.strip(" .?!")
-                break
-        if not explicit:
-            match = re.match(r"create a (\d{1,2})-week (.+?) path[.!?]*$", normalized)
-            if match:
-                explicit = True
-                weeks = int(match.group(1))
-                goal = re.sub(r"\s+interview preparation$", " interview preparation", match.group(2)).strip()
-                normalized += f" in {weeks} weeks"
-        if explicit and goal:
+        creation_request = self._explicit_creation_request(text)
+        if creation_request is not None:
+            normalized, goal = creation_request
             try:
                 timeframe = re.search(r"\b(?:in|over)\s+(\d{1,2}|one|two|three|four|five|six)\s+(weeks?|months?)\b", normalized)
                 time_value = timeframe.group(1) if timeframe else None
@@ -522,6 +532,11 @@ class FridayConversationCapabilityRouter:
                     f"{route.capability_key.replace('_', ' ').title()} is not available through Friday right now.")
             return route
         return None
+
+    def requires_owner_for_request(self, prompt: str) -> bool:
+        """Return whether this request can create a durable DLP path."""
+        adapter = self.adapters.get("learning_paths")
+        return bool(adapter and adapter.is_explicit_creation_request(prompt))
 
 
 __all__ = ["CapabilityRoute", "ConversationIntent", "FridayConversationCapabilityRouter"]

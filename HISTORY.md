@@ -1,3 +1,41 @@
+## 2026-10-15 — Stage 29 Project-to-Learn, Owner security, and SSE code published
+
+The accepted Stage 29 code is published from the Stage 28 baseline
+989b98b1b22d6e031a1fcc5f09a84601a88a47d9 on
+stage-29/project-to-learn-security-sse and canonical main. It carries canonical
+Project template context through Projects → Learn,
+preserves editable-goal and return/reload/back-forward navigation, and keeps
+path creation behind an explicit Owner Create action. It adds the existing
+context_owner guard to direct and generated HTTP path creation and
+deterministic DLP creation intents on HTTP Conversation. The guard requires a
+valid Owner session, loopback Host, exact configured Origin, and matching CSRF
+proof before model or DLP work. Other DLP mutation routes retain their existing
+contracts. It also replaces the blocking synchronous runtime-event subscriber
+with bounded async queues and a graceful SSE shutdown path. No schema,
+assessment/review rule, mastery authority, project lifecycle automation, or
+approved Stage 28 Astra visual changed.
+
+Qualification for the exact source included the full repository verifier
+(1,864 passed, 6 skipped); 182 frontend tests across 37 files; four Node
+bridge/local-server checks; ESLint, TypeScript, production build, dependency
+check, changed-file Ruff, Python compilation, and diff checks. The isolated
+browser/FastAPI/SQLite journey passed: rejected Owner requests left durable
+state unchanged, one authorized explicit Create persisted a draft, and a fresh
+API process plus browser reload recovered it. No project assignment or mastery
+evidence was created. Actual FastAPI/Uvicorn shutdown passed three cycles on the
+live dependency versions in 0.265, 0.264, and 1.268 seconds; Uvicorn returned
+-15 after orderly SIGTERM cleanup and used no SIGKILL. This tests idle SSE
+shutdown only, not production active-task clearance or restart safety.
+
+Known limits remain: two historical MCP stdio EOF timeouts have an unresolved
+root cause; whole-tree Ruff reports 11 findings in unchanged files; one cold
+isolated test start missed its 10-second readiness window before an
+instrumented pass. The live GCA API remains unhardened, and no production
+service, Owner session, learner/project data, task, or computer action changed.
+Deployment was not performed. Career Forge Rows 60 and 61 remain PARTIAL;
+this release does not qualify the full product. See the current handoff,
+integration matrix, ADR 0052, and Stage 29 release plan.
+
 ## 2026-10-15 — Stage 28 Astra UI approved, qualified, and published
 
 The Owner approved the exact Astra UI on 2026-10-14 and authorized publication

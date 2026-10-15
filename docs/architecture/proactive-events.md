@@ -30,6 +30,32 @@ watch label while omitting arbitrary event metadata. The watch-status route
 reports persisted enabled state, whether an observer is attached, and whether
 the polling worker is running; there are no owner watch-management routes.
 
+## Runtime SSE shutdown
+
+The runtime stream is a transient projection; it does not own task execution or
+durable event history. The published Stage 29 code uses a bounded
+`asyncio.Queue` per
+SSE subscriber, so the ASGI loop never waits inside the old synchronous
+`Queue.get(timeout=30)` call. Disconnect cleanup removes the subscriber. At the
+first graceful exit signal, the runtime rejects new stream subscriptions,
+places an end marker ahead of any buffered events, and lets existing readers
+finish. After a one-second drain, the CLI aborts only still-open transports
+whose ASGI path is `/api/v1/runtime/events/stream`; a slow reader cannot hold
+Uvicorn's connection-drain phase indefinitely. Voice capture is closed after
+the runtime stream signal. No task, approval, model request, desktop action, or
+project-generation operation is cancelled or replayed by this mechanism. Git
+publication did not deploy this code; the live API remains unchanged.
+
+An isolated actual-FastAPI/Uvicorn process test passed three start/stop cycles
+on both the candidate dependencies and the protected live service's
+FastAPI 0.142.4, Starlette 1.7.0, and Uvicorn 0.54.0 stack. The latter exited
+after 0.265, 0.264, and 1.268 seconds; ASGI lifespan cleanup completed, the
+subscriber count was zero, there was no blocked SSE reader or child process,
+and the temporary DLP version/state was unchanged. These are idle-server
+measurements only. Production restart still requires separate Owner task
+clearance and an atomic gate against new work; this test does not qualify that
+gate or any active computer task.
+
 The runtime event stream and the Notifications workspace refer to the same
 canonical notification ID. Runtime events are session-bounded and are not
 inserted into durable Memory or injected into conversational prompt history.

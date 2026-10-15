@@ -1,3 +1,4 @@
+import asyncio
 from queue import Empty
 
 import pytest
@@ -142,14 +143,49 @@ def test_slow_subscriber_is_disconnected_instead_of_blocking_runtime():
     runtime.emit(FridayEventType.SYSTEM_HEALTH)
 
     assert subscriber.qsize() == 1
-
-    first = subscriber.get_nowait()
-    assert first.sequence == 1
+    assert subscriber.get_nowait() is None
+    assert runtime.subscriber_count == 0
 
     runtime.emit(FridayEventType.SYSTEM_HEALTH)
-
     with pytest.raises(Empty):
         subscriber.get_nowait()
+
+
+def test_begin_shutdown_wakes_sync_readers_and_rejects_new_subscribers():
+    runtime = FridayRuntime("session-shutdown")
+    subscriber = runtime.subscribe()
+    runtime.begin_shutdown()
+
+    assert subscriber.get_nowait() is None
+    assert runtime.shutting_down is True
+    assert runtime.subscriber_count == 0
+    with pytest.raises(RuntimeError, match="shutting down"):
+        runtime.subscribe()
+
+
+def test_async_subscriber_receives_threaded_events_and_clean_shutdown():
+    async def exercise():
+        runtime = FridayRuntime("session-async-events")
+        first = runtime.subscribe_async(max_pending=4)
+        second = runtime.subscribe_async(max_pending=4)
+
+        published = await asyncio.to_thread(
+            runtime.emit,
+            FridayEventType.SYSTEM_HEALTH,
+            metadata={"sample": "worker"},
+        )
+        assert await asyncio.wait_for(first.queue.get(), timeout=1) == published
+        assert await asyncio.wait_for(second.queue.get(), timeout=1) == published
+
+        blocked_read = asyncio.create_task(first.queue.get())
+        runtime.begin_shutdown()
+        assert await asyncio.wait_for(blocked_read, timeout=1) is None
+        assert await asyncio.wait_for(second.queue.get(), timeout=1) is None
+        assert runtime.subscriber_count == 0
+        with pytest.raises(RuntimeError, match="shutting down"):
+            runtime.subscribe_async()
+
+    asyncio.run(exercise())
 
 
 def test_terminal_states_can_recover_to_idle():

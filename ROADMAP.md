@@ -1743,6 +1743,61 @@ reduced-motion capture remain limitations. See
 `docs/product/FINAL_NEETCODE_PARITY_AND_PRODUCT_AUDIT.md`, the integration
 matrix, and `CODEX_HANDOFF.md`.
 
+### Stage 29 Project-to-Learn, Owner creation security, and SSE — code qualified and published; production not deployed (2026-10-15)
+
+Published from Stage 28 baseline
+989b98b1b22d6e031a1fcc5f09a84601a88a47d9 on
+stage-29/project-to-learn-security-sse and canonical main. The release commit
+is the current shared branch tip; resolve the exact SHA from Git HEAD.
+
+Projects carries a canonical project-template ID into Learn. Learn resolves the
+registry name/focus, keeps the proposed goal editable, and preserves route
+context across reload, Back/Forward, and return to Projects. Stale or malformed
+context fails safely. Navigation and Owner-session restore do not create a
+learning path, project, evidence, review, assessment, or mastery record. Path
+creation still requires an explicit Owner Create action; no template-to-path
+lifecycle or schema was added.
+
+Direct curriculum-create, local-model generate, and explicit DLP creation
+intents through HTTP Conversation now use
+context_owner(request, mutation=True). A valid Owner session, loopback Host,
+exact configured Origin, and matching X-Friday-CSRF proof are required before
+model or DLP writes. Existing trusted
+in-process calls and the route contracts for other DLP mutations are unchanged.
+The approved Stage 28 visual and existing assessment/review/mastery rules are
+unchanged. See ADR 0052 and
+docs/architecture/dynamic-learning-paths.md.
+
+The former synchronous SSE subscriber blocked an AnyIO worker during server
+shutdown. The API now uses bounded async subscriber queues, rejects new
+subscriptions during shutdown, prioritizes a close marker, cleans up
+disconnects, and after a one-second drain aborts only remaining SSE transports.
+It does not cancel model work, tasks, project generation, or computer actions.
+Three real FastAPI/Uvicorn stop cycles on the live dependency versions completed
+in 0.265, 0.264, and 1.268 seconds; ASGI lifespan completed, no blocked reader
+or child remained, and SIGKILL was not used. Uvicorn re-raised SIGTERM after
+cleanup (return code -15). This is idle SSE evidence, not production task-drain
+or restart qualification.
+
+The exact source passed the full repository verifier (1,864 passed, 6 skipped),
+frontend tests (182 across 37 files), four bridge/local-server checks, ESLint,
+TypeScript, production build, dependency checks, changed-file Ruff, Python
+compilation, and diff checks. The isolated browser/FastAPI/SQLite Owner journey
+passed with a temporary store: unauthorized attempts made no writes, explicit
+authorized Create persisted a draft, and a fresh API process plus browser
+reload recovered it. Mastery/evidence and Project records remained unchanged.
+
+Known limitations: two historical MCP stdio EOF timeouts remain unexplained;
+whole-tree Ruff reports 11 findings in unchanged files; one cold isolated test
+start missed its 10-second readiness window before an instrumented pass. The
+live API remains on the protected GCA checkout and does not yet enforce the
+Stage 29 creation boundary. No production service, Qwen process, Owner session,
+learner/project data, or task was modified; no deployment occurred. API-first
+deployment remains blocked until task clearance and atomic new-work admission
+are implemented and qualified. Rows 60 and 61 remain PARTIAL; this release does
+not qualify the full Career Forge product. See CODEX_HANDOFF.md and
+docs/operations/stage29-release-plan.md.
+
 ## Dynamic Learning Paths — DLP-1–4 accepted and published (row 61, PARTIAL)
 
 DLP-1 establishes a separate local SQLite authority for versioned learning-path

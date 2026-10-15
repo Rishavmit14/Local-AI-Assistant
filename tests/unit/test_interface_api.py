@@ -2776,3 +2776,13 @@ def test_sse_route_is_exposed_without_execution_authority():
 
     assert schema.status_code == 200
     assert "/api/v1/runtime/events/stream" in schema.json()["paths"]
+
+
+def test_runtime_event_stream_rejects_new_subscriber_after_shutdown():
+    client, runtime = make_client()
+    runtime.begin_shutdown()
+
+    response = client.get("/api/v1/runtime/events/stream")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Friday is shutting down"

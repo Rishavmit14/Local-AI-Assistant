@@ -16,7 +16,10 @@ Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 describe("Learn Dynamic Learning Paths integration", () => {
   let root: Root | undefined;
   let container: HTMLDivElement;
-  beforeEach(() => { vi.spyOn(FridayRuntimeClient.prototype,"getCareerJourney").mockResolvedValue({progress:{retention_reviews:[]}} as never); });
+  beforeEach(() => {
+    vi.spyOn(FridayRuntimeClient.prototype,"getCareerJourney").mockResolvedValue({progress:{retention_reviews:[]}} as never);
+    vi.spyOn(FridayRuntimeClient.prototype,"restoreProjectExecution").mockResolvedValue("test-owner-csrf");
+  });
   afterEach(() => { act(() => root?.unmount()); root=undefined; container?.remove(); vi.restoreAllMocks(); });
 
   it("does not claim a path list is empty when the path service is unavailable", async () => {

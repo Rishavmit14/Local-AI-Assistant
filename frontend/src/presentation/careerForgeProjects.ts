@@ -2,6 +2,7 @@ import type { CareerForgeJourney } from "../runtime";
 import type { LearningProjectTemplate } from "../runtime/types";
 
 export interface CareerForgeProjectView {
+  templateId: string;
   name: string;
   focus: string;
   linkedMissionIds: string[];
@@ -22,6 +23,7 @@ export function presentCareerForgeProjects(journey: CareerForgeJourney, projectF
   return projectFamilies.map((family) => {
     const links = journey.project_links.filter(({ project_name }) => project_name === family.name);
     return {
+      templateId: family.template_id,
       name: family.name,
       focus: family.focus,
       linkedMissionIds: links.map(({ mission_id }) => mission_id),
@@ -30,4 +32,8 @@ export function presentCareerForgeProjects(journey: CareerForgeJourney, projectF
       canLinkActiveMission: activeFamily === family.name && !activeAlreadyLinked,
     };
   });
+}
+
+export function projectTemplateLearningGoal(template: LearningProjectTemplate): string {
+  return `Build a learning path for ${template.name}: ${template.focus}`;
 }

@@ -1,33 +1,99 @@
-# Current Friday handoff — Stage 28 Astra UI
+# Friday handoff — Stage 29 code published; production unchanged
 
-Updated 2026-10-15. Reconstruct from this file, the canonical docs, and Git;
-chat history is not required.
+Updated 2026-10-15 after code-only publication. Stage 29 is published on
+stage-29/project-to-learn-security-sse and canonical main at the same release
+tip; resolve its exact SHA directly from both remote refs. Production
+deployment was not authorized or performed. Career Forge Rows 60 and 61 remain PARTIAL.
 
 ## Recovery state
 
-- Stage candidate: `/home/kumar-rishav/.codex/worktrees/friday-stage28-final-visual/Local-AI-Assistant-terra-integration`, branch `stage-28/final-product-visual-acceptance`.
-- Live UI worktree: `/home/kumar-rishav/.codex/worktrees/friday-stage28-live-main/Local-AI-Assistant-terra-integration`, branch `main`.
-- Prior Stage 28 documentation checkpoint: `b0f48cd150277981a920bb28b3c397979d0ee548`; Stage 28 branch and `main` were pushed and direct `git ls-remote` plus fetch verified both at this exact SHA. The current handoff adds the owner-facing Learn/Projects route observation and remains documentation-only relative to implementation/dependency-audit checkpoint `018dc4bb7b609d23111060b0112e630cfa852b3d`.
-- The enabled `friday-ui.service` is active on loopback port 5193. At the final service check, `/` and `/health` both returned HTTP 200; UI PID was 156835 and the existing Friday API PID was 7350. The UI process has `NoNewPrivileges=1`. The browser showed Home with Friday ready and the authorized local Qwen smoke turn returned `READY`.
-- Friday API, Qwen, Pocket/Anna, voice, and computer-control processes were not restarted. No microphone, computer action, restore, or learner-state write was exercised.
-- Original checkout `/AI/projects/Local-AI-Assistant-terra-integration` remains attached to `recovery/local-main-before-stage28-20261015` at `47ae92bba1c3b50d9dd6f2264d95b6cfaf275e75`; its pre-existing dirty `ROADMAP.md` is preserved (SHA-256 `c804f92177ddbe033d81904aee3d59a6b5af748bca5d655ee6bb632c3bede897`). Private recovery patches and snapshots are under `/home/kumar-rishav/.local/state/friday-stage28-publication/`. Do not reset or replace that checkout.
+- Stage 29 release worktree: /tmp/friday-stage29-project-learn-989b98b,
+  branch stage-29/project-to-learn-security-sse, clean after publication.
+  The source baseline was 989b98b1b22d6e031a1fcc5f09a84601a88a47d9. The
+  direct remote refs were verified at publication; the final result records
+  their exact full SHA.
+- origin/main and origin/stage-29/project-to-learn-security-sse resolve to the
+  same Stage 29 release checkpoint. The historical Stage 28 branch remains
+  intact at its Stage 28 checkpoint.
+- Stage 29 implementation and test files match the preserved qualification
+  candidate; release documentation was reconciled for publication. The original
+candidate patch SHA-256 was
+  173b80bfde48676419f940f0cdc06278d3755b9b68327e2ffb735e17deb6b7c0.
+  Candidate file and preservation archive checksums verified before release.
+- The live UI service worktree is
+  /home/kumar-rishav/.codex/worktrees/friday-stage28-live-main/Local-AI-Assistant-terra-integration,
+  with canonical main at the shared release tip. Its built Stage 28 UI remains
+  active through friday-ui.service at
+http://127.0.0.1:5193/#home. Git publication did not restart or replace it.
+  No configured repository Git hook or GitHub Actions workflow deploys on push.
+- The canonical owner checkout at /AI/projects/Local-AI-Assistant-terra-integration
+  remains on recovery/local-main-before-stage28-20261015 with its pre-existing
+  dirty ROADMAP.md preserved. Do not reset, clean, stash, or overwrite it.
+- Live API remains in protected GCA worktree
+  /home/kumar-rishav/.codex/worktrees/friday-general-computer-agency/Local-AI-Assistant-terra-integration,
+  branch stabilization/general-computer-agency, at published-base HEAD
+  09842e7eefcdda6df34d5f4163078fb6cca29e06 with 68 pre-existing dirty paths.
+  The live API still has the older, unauthenticated learning-path creation
+  behavior. Do not edit or migrate this worktree as part of publication.
+- Qwen, Pocket/Anna, wake, AEC, voice and computer-control processes were not
+  restarted or changed. No production learner/project store, Owner session,
+  task, or computer action was touched.
 
-## Qualification and limitations
+## Published Stage 29 behavior
 
-- All 16 UI routes passed at five viewport sizes (80 route/viewport checks). Frontend: 168 tests across 35 files, four Node Owner-bridge/local-server checks, lint, TypeScript, and production build passed. Full and production npm audits report zero vulnerabilities.
-- Repository verifier passed on Python 3.11: 1,839 passed, 6 skipped; `pip check` passed. `systemd-analyze --user verify` passed with an unrelated installed `spice-vdagent.service` warning.
-- Existing Vite large-chunk advisory remains (~1.29 MB). Host browser cannot emulate native reduced motion, so no reduced-motion screenshot is claimed. Populated owner-state visuals and broader integrated Career Forge flows remain open.
-- Career Forge roadmap rows 60 and 61 remain **PARTIAL**; this publication does not qualify the full product. Friday API PID 7350 runs from `/home/kumar-rishav/.codex/worktrees/friday-general-computer-agency/Local-AI-Assistant-terra-integration`, branch `stabilization/general-computer-agency`, HEAD `09842e7eefcdda6df34d5f4163078fb6cca29e06`, with extensive pre-existing uncommitted changes. Preserve this active runtime worktree; do not clean, reset, or edit it. Its OpenAPI listed 136 paths; read-only GETs to learning-path, Projects, and watch list endpoints returned HTTP 200. The earlier 404 observation was not reproduced, so no current missing route is confirmed.
-- Read-only browser review found the current Learn mission and a valid 0/16 skill roadmap, but no saved dynamic learning paths or assigned projects. Projects lists four canonical project pathways. Expanding FraudShield and selecting “Explore the learning path” navigated to generic Learn; it did not carry project identity/focus or select/create a project-specific learning path. The path-creation form was only expanded and left empty; no learner state was written. The static frontend/API path comparison found no confirmed missing route after accounting for query suffixes and the allowlisted Practice Lab action parameter.
-- The rollback unit and original GCA checkout remain available. See `docs/operations/friday-ui.md`; rollback affects only the UI service and must not restart Friday API, Qwen, Pocket/Anna, voice, or computer services.
+Projects carries a canonical project-template ID into Learn. Learn resolves the
+template name/focus, preserves an editable goal and return/reload/history
+context, and fails safely for invalid or stale context. Navigation and Owner
+session restore do not create records. Learning-path creation remains behind an
+explicit authenticated Owner Create action. No template-to-path lifecycle or
+schema change was introduced.
 
-## Active dependency
+HTTP direct curriculum creation, generated creation, and deterministic DLP
+creation intents through HTTP Conversation use context_owner(request,
+mutation=True): valid Owner session, loopback Host, exact configured Origin,
+and matching X-Friday-CSRF proof are required before generator or DLP writes.
+Trusted in-process callers and other DLP mutation route contracts remain
+unchanged. ADR 0052 records the decision.
 
-Continue Row 60/61 Career Forge integration. The first concrete slice is the
-project-template-to-learning handoff: preserve selected project identity and
-focus when opening Learn, and offer an owner-controlled, prefilled path goal
-without creating a path, project, evidence, or mastery state automatically.
-Confirm the intended behavior against the product baseline before changing
-code; retain the current empty state and owner choice. Keep this Stage 28
-worktree and the dirty live GCA runtime worktree unchanged. Use a fresh
-roadmap-stage branch/worktree for implementation and qualification.
+The runtime event stream now uses bounded async subscribers. Shutdown rejects
+new streams, prioritizes closure for current streams, removes disconnected
+readers, and after a one-second drain aborts only lingering SSE transports. It
+does not cancel tasks, model work, project generation, or computer actions.
+
+## Qualification and known limits
+
+- Full repository verifier: 1,864 passed, 6 skipped. Frontend: 182 tests across
+  37 files; all 4 Node bridge/local-server checks; ESLint, TypeScript,
+  production build, dependency check, changed-file Ruff, Python compilation,
+  and diff checks passed.
+- Isolated browser/FastAPI/SQLite Owner journey passed with disposable state:
+  rejected requests wrote nothing; explicit authorized Create persisted a
+  draft; a fresh API process and browser reload recovered it. Project
+  assignments and mastery/evidence state were unchanged.
+- Actual FastAPI/Uvicorn shutdown passed three cycles on the live dependency
+  versions in 0.265, 0.264, and 1.268 seconds. Lifespan completed and no
+  blocked SSE reader, subscriber, child process, or SIGKILL remained. Uvicorn
+  re-raised SIGTERM after cleanup (process return code -15). This is idle SSE
+  evidence; production active-task drain and restart safety are unqualified.
+- Two historical MCP stdio pipe-EOF timeouts remain unexplained despite the
+  latest full verifier pass. Whole-tree Ruff has 11 findings in unchanged files.
+  One cold isolated test start missed its 10-second readiness window before an
+  instrumented pass; the cause is unknown.
+- The live API has not received the Stage 29 Owner guard. The hardened API and
+  Stage 29 UI have not been deployed. The Stage 28 UI / old API remains the
+  active production pairing.
+- Rows 60 and 61 remain PARTIAL. Publication does not qualify the full Career
+  Forge product.
+
+## Next dependency: separately qualify safe operational rollout
+
+Do not deploy or restart Friday as part of this publication. The next
+operational task is to establish a supported Owner-facing maintenance control
+that atomically closes new work admission and proves there are no active,
+recovering, approval-pending, in-flight, or uncertain model/computer operations.
+Preserve task recovery state. Then build an immutable release from the published
+Stage 29 SHA and follow the API-first sequence and security-preserving rollback
+in docs/operations/stage29-release-plan.md. Keep Stage 28 UI active during API
+qualification; activate the Stage 29 UI only after the hardened API is verified.
+No routine rollback may restore the vulnerable API. Do not begin Stage 30 until
+the operational release boundary is complete.

@@ -330,8 +330,9 @@ AEC/Piper/model supervision or complete long-running voice stability.
 
 A final restart gate found that Uvicorn previously began HTTP shutdown before
 the CLI's `finally` closed voice capture, allowing recorder unwind to schedule a
-false recovery. Friday now closes voice ownership at Uvicorn's first exit signal;
-cleanup is idempotent, and the requalified restart emitted no error or retry.
+false recovery. The published Stage 29 code's first exit signal now begins runtime
+SSE shutdown, then closes voice ownership; cleanup is idempotent. The isolated
+SSE process qualification does not restart voice capture or qualify task drain.
 
 ## Stage 12F — voice/presentation concurrency
 

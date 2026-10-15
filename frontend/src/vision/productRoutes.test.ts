@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mobilePrimaryDestination, productNavigationGroup, readRelatedRoute, resolveProductRoute, secondaryProductDestinations } from './productRoutes';
+import { mobilePrimaryDestination, productNavigationGroup, projectTemplateQuery, readProjectTemplateRoute, readRelatedRoute, resolveProductRoute, secondaryProductDestinations } from './productRoutes';
 import type { VisionView } from './types';
 
 const legacy: Record<string,string> = {
@@ -36,6 +36,7 @@ describe('Friday product routes',()=>{
   expect(resolveProductRoute('#unrecognized')).toBe('home');
   expect(resolveProductRoute('#learn?path=path_1&node=node_1')).toBe('learn');
   expect(resolveProductRoute('#projects?project=proj_1')).toBe('projects');
+  expect(resolveProductRoute('#learn?projectTemplate=fraudshield')).toBe('learn');
  });
 });
 
@@ -50,5 +51,32 @@ describe('canonical related-item routes',()=>{
    `#learn?path=${path}&version=0`,`#learn?path=${path}&version=2&project=${project}`]) expect(readRelatedRoute(hash,'learn')).toEqual({error:'Invalid related-item link.'});
   expect(readRelatedRoute(`#projects?project=${path}`,'projects')).toEqual({error:'Invalid related-item link.'});
   expect(readRelatedRoute('#learn','learn')).toBeNull();
+ });
+
+ it('carries a syntactically safe project-template hint through Learn and Projects routes',()=>{
+  const templateIds=['fraudshield','neural-systems-lab','local-knowledge-assistant','production-ai-platform'];
+  for(const id of templateIds){
+   const query=projectTemplateQuery(id);
+   expect(query).toBe(`?projectTemplate=${id}`);
+   expect(readProjectTemplateRoute(`#learn${query}`,'learn')).toEqual({templateId:id});
+   expect(readProjectTemplateRoute(`#projects${query}`,'projects')).toEqual({templateId:id});
+   expect(readRelatedRoute(`#learn${query}`,'learn')).toBeNull();
+   expect(readRelatedRoute(`#projects${query}`,'projects')).toBeNull();
+  }
+ });
+
+ it('rejects malformed, duplicate, and mixed project-template context safely',()=>{
+  for(const hash of [
+   '#learn?projectTemplate=../fraudshield',
+   '#learn?projectTemplate=%2Fetc%2Fpasswd',
+   '#learn?projectTemplate=fraudshield&projectTemplate=neural-systems-lab',
+   '#learn?projectTemplate=fraudshield&unknown=value',
+   '#projects?projectTemplate=fraudshield&path=wrong-kind',
+  ]){
+   const view=hash.startsWith('#projects')?'projects':'learn';
+   expect(readProjectTemplateRoute(hash,view)).toEqual({error:'Invalid project pathway link.'});
+  }
+  expect(readProjectTemplateRoute('#learn?projectTemplate=removed-template','learn')).toEqual({templateId:'removed-template'});
+  expect(readProjectTemplateRoute('#learn','learn')).toBeNull();
  });
 });

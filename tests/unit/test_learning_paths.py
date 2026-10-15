@@ -1,3 +1,4 @@
+import hashlib
 import json
 import stat
 
@@ -10,6 +11,7 @@ from local_ai_assistant.career_forge.service import CareerForgeService
 from local_ai_assistant.interface.api import create_presentation_app
 from local_ai_assistant.interface.conversation import FridayConversationService
 from local_ai_assistant.interface.runtime import FridayRuntime
+from local_ai_assistant.isolation.owner_rollback import OwnerBrowserSessions
 from local_ai_assistant.learning_paths import (
     CurriculumValidationError,
     CurriculumValidator,
@@ -25,6 +27,22 @@ from local_ai_assistant.learning_paths.service import (
     LocalCurriculumGenerator,
 )
 from tests.fixtures.learning_path_curricula import curriculum
+
+OWNER_ORIGIN = "http://127.0.0.1:5193"
+
+
+def owner_client(runtime, conversation, **services):
+    credential = "isolated-learning-path-owner-test-credential"
+    sessions = OwnerBrowserSessions(hashlib.sha256(credential.encode()).hexdigest())
+    app = create_presentation_app(
+        runtime, conversation, project_execution_sessions=sessions,
+        project_execution_allowed_origins=(OWNER_ORIGIN,), **services,
+    )
+    client = TestClient(app, base_url=OWNER_ORIGIN)
+    session, csrf = sessions.unlock(credential)
+    assert session and csrf
+    client.cookies.set("friday_project_session", session)
+    return client, {"Origin": OWNER_ORIGIN, "X-Friday-CSRF": csrf}
 
 
 @pytest.mark.parametrize("kind", ["dsa", "genai", "nlp_deadline"])
@@ -305,16 +323,15 @@ def test_generator_is_local_proposal_contract_and_rejects_malformed_output(tmp_p
 def test_api_create_read_list_version_and_reject_invalid_model_proposal(tmp_path):
     service = LearningPathService(tmp_path / "candidate.sqlite3")
     runtime = FridayRuntime("learning-path-test")
-    app = create_presentation_app(
-        runtime, FridayConversationService(object(), runtime), learning_paths=service
-    )
+    conversation = FridayConversationService(object(), runtime)
     payload = curriculum()
-    with TestClient(app) as client:
+    client, owner_headers = owner_client(runtime, conversation, learning_paths=service)
+    with client:
         openapi = client.get("/openapi.json").json()
         assert openapi["paths"]["/api/v1/learning-paths"]["post"]["responses"]["200"]["content"][
             "application/json"
         ]["schema"]["$ref"].endswith("LearningPathCreatedView")
-        created = client.post("/api/v1/learning-paths", json=payload)
+        created = client.post("/api/v1/learning-paths", json=payload, headers=owner_headers)
         path_id = created.json()["path"]["path_id"]
         assert created.status_code == 200
         assert client.get("/api/v1/learning-paths").json()["paths"][0]["current_version"] == 1
@@ -328,7 +345,7 @@ def test_api_create_read_list_version_and_reject_invalid_model_proposal(tmp_path
         assert len(client.get(f"/api/v1/learning-paths/{path_id}/versions").json()["versions"]) == 2
         broken = curriculum()
         broken["prerequisites"].append({"prerequisite_node_id": "arrays", "node_id": "arrays"})
-        assert client.post("/api/v1/learning-paths", json=broken).status_code == 422
+        assert client.post("/api/v1/learning-paths", json=broken, headers=owner_headers).status_code == 422
     assert len(service.repository.list()) == 1
 
 
@@ -342,26 +359,58 @@ def test_api_generation_failure_does_not_create_path_or_touch_career_forge(tmp_p
         tmp_path / "candidate.sqlite3", generator=LocalCurriculumGenerator(model)
     )
     runtime = FridayRuntime("learning-path-failure")
-    app = create_presentation_app(
-        runtime,
-        FridayConversationService(object(), runtime),
-        learning_paths=service,
+    conversation = FridayConversationService(object(), runtime)
+    client, owner_headers = owner_client(
+        runtime, conversation, learning_paths=service,
         career_forge=UntouchableCareerForge(),
     )
-    with TestClient(app) as client:
-        response = client.post("/api/v1/learning-paths/generate", json={"goal": "Synthetic goal"})
+    with client:
+        response = client.post("/api/v1/learning-paths/generate", json={"goal": "Synthetic goal"}, headers=owner_headers)
     assert response.status_code == 502
     assert service.repository.list() == ()
+
+
+def test_api_owner_generation_persists_only_in_dlp_and_recovers_after_reconstruction(tmp_path):
+    class UntouchableCareerForge:
+        def __getattr__(self, name):
+            raise AssertionError(f"DLP generation attempted Career Forge access: {name}")
+
+    database = tmp_path / "candidate" / "paths.sqlite3"
+    model = ProposalModel(json.dumps(curriculum()))
+    service = LearningPathService(database, generator=LocalCurriculumGenerator(model))
+    runtime = FridayRuntime("learning-path-owner-generation")
+    conversation = FridayConversationService(object(), runtime)
+    client, owner_headers = owner_client(
+        runtime, conversation, learning_paths=service,
+        career_forge=UntouchableCareerForge(),
+    )
+
+    with client:
+        assert client.get("/api/v1/learning-paths").json()["paths"] == []
+        created = client.post(
+            "/api/v1/learning-paths/generate",
+            json={"goal": "Build a FraudShield learning path"},
+            headers=owner_headers,
+        )
+        assert created.status_code == 200
+        path_id = created.json()["path"]["path_id"]
+        assert created.json()["path"]["goal"] == "Build a FraudShield learning path"
+        assert client.get("/api/v1/learning-paths").json()["paths"][0]["path_id"] == path_id
+        assert client.get(f"/api/v1/learning-paths/{path_id}").json()["path"]["path_id"] == path_id
+
+    recovered = LearningPathService(database, generator=LocalCurriculumGenerator(ProposalModel("{}")))
+    assert recovered.repository.get(path_id).goal == "Build a FraudShield learning path"
+    assert recovered.repository.get(path_id).state == "draft"
+    assert len(recovered.repository.list()) == 1
+    assert len(model.calls) == 1
 
 
 def test_typed_sequence_and_adaptation_api(tmp_path):
     service = LearningPathService(tmp_path / "candidate.sqlite3")
     runtime = FridayRuntime("learning-path-sequence-api")
-    app = create_presentation_app(
-        runtime, FridayConversationService(object(), runtime), learning_paths=service,
-    )
-    with TestClient(app) as client:
-        created = client.post("/api/v1/learning-paths", json=curriculum()).json()
+    client, owner_headers = owner_client(runtime, FridayConversationService(object(), runtime), learning_paths=service)
+    with client:
+        created = client.post("/api/v1/learning-paths", json=curriculum(), headers=owner_headers).json()
         path_id = created["path"]["path_id"]
         sequence = client.get(f"/api/v1/learning-paths/{path_id}/sequence")
         assert sequence.status_code == 200
@@ -384,9 +433,9 @@ def test_learning_path_api_persists_replan_and_replays_without_version_churn(tmp
     proposal["nodes"][0]["competency_key"] = "se.python"
     service = LearningPathService(tmp_path / "paths.sqlite3", evidence_provider=Provider())
     runtime = FridayRuntime("learning-path-api-replan")
-    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=service)
-    with TestClient(app) as client:
-        created = client.post("/api/v1/learning-paths", json=proposal).json()
+    client, owner_headers = owner_client(runtime, FridayConversationService(object(), runtime), learning_paths=service)
+    with client:
+        created = client.post("/api/v1/learning-paths", json=proposal, headers=owner_headers).json()
         path_id = created["path"]["path_id"]
         client.post(f"/api/v1/learning-paths/{path_id}/activate")
         first = client.post(f"/api/v1/learning-paths/{path_id}/adapt")
@@ -757,9 +806,9 @@ def test_owner_selection_activation_and_restart_are_canonical(tmp_path):
 def test_selection_and_lifecycle_api(tmp_path):
     service = LearningPathService(tmp_path / "paths.sqlite3")
     runtime = FridayRuntime("learning-path-selection")
-    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=service)
-    with TestClient(app) as client:
-        created = client.post("/api/v1/learning-paths", json=curriculum()).json()["path"]
+    client, owner_headers = owner_client(runtime, FridayConversationService(object(), runtime), learning_paths=service)
+    with client:
+        created = client.post("/api/v1/learning-paths", json=curriculum(), headers=owner_headers).json()["path"]
         path_id = created["path_id"]
         assert client.get("/api/v1/learning-paths/current").json() is None
         assert client.post(f"/api/v1/learning-paths/{path_id}/select").json()["selected"]
@@ -771,9 +820,9 @@ def test_selection_and_lifecycle_api(tmp_path):
 def test_manual_edit_api_persists_and_rejects_stale_or_invalid_graphs(tmp_path):
     service = LearningPathService(tmp_path / "paths.sqlite3")
     runtime = FridayRuntime("learning-path-manual-edit")
-    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=service)
-    with TestClient(app) as client:
-        created = client.post("/api/v1/learning-paths", json=curriculum()).json()
+    client, owner_headers = owner_client(runtime, FridayConversationService(object(), runtime), learning_paths=service)
+    with client:
+        created = client.post("/api/v1/learning-paths", json=curriculum(), headers=owner_headers).json()
         path_id = created["path"]["path_id"]
         node = {"node_id":"owner-extra", "module_id":"foundations", "title":"Owner lesson", "type":"lesson",
                 "objectives":["Explain the idea"], "evidence_requirements":[], "competency_key":None, "estimated_hours":1}

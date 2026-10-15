@@ -16,6 +16,16 @@ Presentation API to revoke already-issued volatile sessions. Approval binds
 the current Objective/task and plan hash; execution checks that binding again
 before the isolated Gateway dispatcher admits work.
 
+The published Stage 29 code reuses these same
+`LOCAL_AI_PROJECT_EXECUTION_ALLOWED_ORIGINS` and Owner-session settings also
+authorize the DLP HTTP create and generate routes and explicit DLP creation
+through HTTP Conversation. Each request needs the Owner session cookie and
+matching `X-Friday-CSRF`; missing or disallowed proof fails closed before model
+generation or DLP persistence. This Owner identity does not grant Gateway
+approval or execution scope. The running API does not yet enforce this DLP creation boundary. Code
+publication alone is not a production fix; the hardened backend must be safely
+deployed before the boundary is active.
+
 The optional gateway is disabled by default. Install the `gateway` extra before serving the FastAPI adapter. Run `local-ai-gateway config-check` to inspect non-secret configuration and `local-ai-gateway auth-token-check` to verify a token digest without printing a token.
 
 `local-ai-gateway mcp-stdio` starts the local MCP server boundary. MCP server support is stdio-only; Friday does not implement an MCP client. Stdio has no remote bearer authentication: the launching local process/user is trusted, while every operation still passes through the typed gateway service and configured repository/scope policy. Diagnostics go to stderr and stdout is reserved for JSON-RPC.

@@ -68,8 +68,8 @@ export class FridayPresentation implements FridayPresentationActions {
     await this.runtime.openPracticeLab();
   }
 
-  async continueLearn(message: string, onChunk: (chunk: string) => void): Promise<void> {
-    await this.runtime.streamConversation({ prompt: message }, onChunk);
+  async continueLearn(message: string, onChunk: (chunk: string) => void, csrf?: string): Promise<void> {
+    await this.runtime.streamConversation({ prompt: message }, onChunk, undefined, csrf);
   }
 
   openCanonicalPracticeLab() { return this.runtime.openPracticeLab(); }

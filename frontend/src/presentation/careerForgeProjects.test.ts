@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CareerForgeJourney } from "../runtime";
 import type { LearningProjectTemplate } from "../runtime/types";
-import { presentCareerForgeProjects } from "./careerForgeProjects";
+import { presentCareerForgeProjects, projectTemplateLearningGoal } from "./careerForgeProjects";
 
 const templates: LearningProjectTemplate[] = [
   { template_id: "fraudshield", name: "FraudShield", focus: "Classical ML, evaluation, APIs, and production reliability." },
@@ -28,6 +28,7 @@ describe("canonical Career Forge project presentation", () => {
     const projects = presentCareerForgeProjects(journey(), templates);
 
     expect(projects).toHaveLength(4);
+    expect(projects.map(({ templateId }) => templateId)).toEqual(templates.map(({ template_id }) => template_id));
     expect(projects.find(({ name }) => name === "FraudShield")).toMatchObject({
       activeMissionId: "m1", canLinkActiveMission: true, linkedMissionIds: [],
     });
@@ -40,5 +41,11 @@ describe("canonical Career Forge project presentation", () => {
       linkedMissionIds: ["m1"],
       linkedCompetencyIds: ["ml.classical"],
     });
+  });
+
+  it("derives an editable learning goal only from canonical template metadata", () => {
+    expect(projectTemplateLearningGoal(templates[1])).toBe(
+      "Build a learning path for Neural Systems Lab: PyTorch, autograd, optimization, and model debugging.",
+    );
   });
 });

@@ -214,6 +214,10 @@ def test_explicit_learning_path_intent_is_deterministic_and_does_not_capture_gen
 
     service = LearningPathService(tmp_path / "paths.sqlite3", generator=LocalCurriculumGenerator(Model()))
     adapter = LearningPathConversationAdapter(service)
+    assert adapter.is_explicit_creation_request("Friday, create a learning path for DSA.")
+    assert adapter.is_explicit_creation_request("Create a 12-week NLP interview preparation path.")
+    assert not adapter.is_explicit_creation_request("Teach me machine learning")
+    assert not adapter.is_explicit_creation_request("What is DSA?")
     created = adapter.route("Friday, create a learning path for DSA.")
     assert created and "Created" in created.response and "draft" in created.response
     assert len(service.repository.list()) == 1
