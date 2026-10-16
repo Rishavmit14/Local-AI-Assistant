@@ -1966,7 +1966,9 @@ primary wake-worker response timeout and bounded retries before the current
 service start; no new wake-engine defect was reproduced or changed. Career
 Forge rows 60 and 61 remain PARTIAL. The scoped branch is
 `stage-32/voice-first-learning-reliability`; no deployment or `main`
-fast-forward is permitted for this stage.
+fast-forward is permitted for this stage. The source checkpoint
+`807432a662f09294a78fd79aa5dfafa06394214c` is published on the scoped remote
+branch; Stage 31 remains the current `main` and deployed runtime state.
 
 ## Dynamic Learning Paths — DLP-1–4 accepted and published (row 61, PARTIAL)
 

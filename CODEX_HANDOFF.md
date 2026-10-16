@@ -11,10 +11,13 @@ qualification. Do not deploy or fast-forward `main` for this checkpoint.
 - Worktree: `/home/kumar-rishav/.codex/worktrees/friday-stage32-voice-learning/Local-AI-Assistant-terra-integration`
 - Branch: `stage-32/voice-first-learning-reliability`, created from verified
   `origin/main` at `67a44833844787c7fe5e81603e160aaa92a0a07f`.
-- Resolve the published Stage 32 source commit and final branch tip with
-  `git rev-parse HEAD`; verify the branch remote ref after publication. The
-  current `main` remains at the Stage 31 accepted base above.
-- Recovery bundle path and SHA-256 will be recorded after publication.
+- Source implementation commit `807432a662f09294a78fd79aa5dfafa06394214c` is pushed to
+  `origin/stage-32/voice-first-learning-reliability`. The final branch tip is
+  its documentation follow-up; resolve it with `git rev-parse HEAD` and verify
+  it matches the remote branch. `main` remains at the Stage 31 accepted base.
+- Recovery snapshot: `/tmp/friday-stage32-recovery.bundle`, created from the
+  final pushed branch tip and verified with `git bundle verify`; its SHA-256 is
+  recorded in the task closeout.
 - The protected Stage 31 runtime remains at
   `/home/kumar-rishav/.local/share/friday/api/current`; its immutable release
   source is `075645a3198a37a9ff101a18614065ff8cc5c9e9`. Its release, database,
@@ -63,8 +66,9 @@ No isolated audio path was found and no microphone test was performed.
 
 ## Active dependency and exact next action
 
-The code-only checkpoint is committed and pushed on the scoped Stage 32 branch;
-`main`, the deployed Stage 31 release, and production services remain unchanged.
+The code-only checkpoint and its handoff update are committed and pushed on the
+scoped Stage 32 branch; `main`, the deployed Stage 31 release, and production
+services remain unchanged.
 The only next Stage 32 dependency is owner-approved physical voice
 qualification. Ask the owner to reply exactly `APPROVE STAGE32 LOCAL VOICE TEST`
 and specify whether to use the built-in ALC898 microphone with the expected

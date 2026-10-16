@@ -27,10 +27,11 @@ Pocket/Anna audibility, hardware latency, and physical interruption are not
 qualified. Read-only Stage 31 voice health was running/listening with no active
 turn/error; earlier journaled wake-worker timeouts/retries had recovered before
 this observation. No production service was restarted or modified. The
-separately approved physical test remains pending. The Stage 32 source commit
-and recovery bundle will be recorded after publication on
-`stage-32/voice-first-learning-reliability`; `main` and the deployed Stage 31
-release remain unchanged.
+separately approved physical test remains pending. Source checkpoint
+`807432a662f09294a78fd79aa5dfafa06394214c` was published to
+`origin/stage-32/voice-first-learning-reliability`.
+`main` and the deployed Stage 31 release remain unchanged. Final recovery
+snapshot details are recorded in `CODEX_HANDOFF.md`.
 
 # 2026-10-16 — Stage 31 three-node ML engineering journey qualified and published
 
