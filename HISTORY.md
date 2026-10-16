@@ -57,6 +57,58 @@ The corrected cutover and post-release checks completed successfully. This
 bounded Stage 30 journey does not qualify the full Career Forge scope; roadmap
 rows 60 and 61 remain PARTIAL. Stage 31 was not started as part of this release.
 
+## 2026-10-16 — Stage 31 owner-approved release deployed
+
+After the owner replied `APPROVE STAGE31 RELEASE`, immutable release source
+`075645a3198a37a9ff101a18614065ff8cc5c9e9` was deployed at
+`/home/kumar-rishav/.local/share/friday/api/current`. `main` was fast-forwarded
+without force from `b939874e89fb695360425bfe8ca4dd82dee05769`; the deployment
+source and `stage-31/ml-engineering-learning-journey` remote were verified at
+`075645a3198a37a9ff101a18614065ff8cc5c9e9` before the documentation follow-up.
+The immutable release manifest SHA-256 is
+`874abb7f4a5b1d170cf0338fcd1d9d47877a0b7f6fbb81bc9505a92a9293f5d1`.
+
+The deployment reused the Stage 30 Python 3.11 environment and lock; no service
+unit/drop-in changes or database migration were needed. Restricted pre-cutover
+and post-API-stop SQLite online backups each contain all 15 stores and pass
+integrity checks; their manifest SHA-256 values are
+`fc8d843f60f7a79866e619475a34e7fe0acb8717e5d9b3264366dc3b4005293d` and
+`0836db23282afc0402e628a8061e70e49c481b1607bb69a86c0ab6078756c457`. The
+12-file owner-only service/environment snapshot manifest is
+`0867dd5db1b8163262ccd59dfe449a0dc634ea0a719af70ea2f4e63e838c792d`.
+Post-release integrity and table counts match the post-stop backup. Existing
+Career Forge mission and Practice Lab draft were recovered; no production
+learning or project rows were added. All 12 historical `in_doubt` and three
+`result_present` actions remain preserved, with no replay.
+
+The API and UI returned HTTP 200; all 13 frontend assets matched the immutable
+manifest; Projects, Learn, and Progress navigation plus API proxy reads worked.
+Owner-only requests without a session returned 401 and a wrong Origin returned
+403. Voice capture and wake are armed, Pocket/Anna and speech workers are
+running, and there is no active voice turn or current WakeRuntimeError.
+Computer-agency health is true. Qwen and vision PIDs 1780 and 3419 remained
+unchanged; neither model was restarted or called. No systemd configuration,
+swap setting, or model service was changed.
+
+The UI outage was approximately 6m02s; API and voice were unavailable for
+approximately 1m56s. API worker initialization took about 56 seconds. The first
+readiness checker incorrectly assumed `/proc/PID/exe` would resolve inside the
+venv; the configured venv launcher correctly resolves through the shared
+uv-managed Python. A `samefile` check then verified the launcher, and cwd,
+`LOCAL_AI_SOURCE_ROOT`, `PYTHONPATH`, data root, health, UI identity, and assets
+all passed. The UI remained stopped until API identity was verified. Host memory
+pressure PSI stayed near zero and no OOM event occurred.
+
+No schema migration is needed. Stage 30 can read Stage 31 stored mastery rows,
+but does not project new Stage 31 mastery/progression in its owner-facing DLP
+view. After Stage 31 learner writes, preserve the Stage 31 database and recover
+forward; do not restore the pre-cutover backup over newer data or call Stage 30
+a semantically safe rollback. This release does not complete Career Forge or
+Friday V1; roadmap rows 60 and 61 remain PARTIAL. Stage 32 was not started.
+The exact as-run plan and verification record are in
+`docs/operations/stage31-release-plan.md` and the restricted Stage 31
+maintenance directory.
+
 ## 2026-10-16 — Stage 30 transactional migration and rollback qualification
 
 Release review found that the Projects schema v2→v3 migration could leave

@@ -1864,7 +1864,7 @@ pre-existing mission and Practice Lab draft remain intact, and all 12
 historical `in_doubt` actions remain untouched. See the deployment record in
 `docs/operations/stage30-release-plan.md` and the current `CODEX_HANDOFF.md`.
 
-### Stage 31 qualified and published — Multi-topic ML Engineering Learner Journey
+### Stage 31 qualified, published, and deployed — Multi-topic ML Engineering Learner Journey
 
 Stage 31 adds one connected three-node fraud-detection learning journey on the
 existing DLP, Career Forge, Projects, Owner-session, and Reviewer authorities.
@@ -1889,23 +1889,40 @@ durable reviews and one accepted project evidence record; browser reload and
 isolated API restart recovered the path and project. No task, computer action,
 or task execution occurred in the qualification run.
 
-The qualified Stage 31 source commit
-`c1b1fee95e9d651d4caf3cd5184296170636f450` is published on
-`stage-31/ml-engineering-learning-journey` and its remote ref was verified at
-that commit. Full qualification passed: 1,873 Python tests passed, 6 skipped;
-repository verification passed; 187 frontend tests and four Node checks passed;
-ESLint, TypeScript, and production build passed. The final
-real-Chrome/FastAPI/SQLite result is under
-`var/stage31-qualification/20261016-final-acceptance/`; it proves reload and API
-restart recovery with no production writes or task execution. `main` remains at
-Stage 30; no deployment or Stage 32 work is included. Rows 60 and 61 remain
-PARTIAL; this three-node journey does not establish Senior ML/AI Engineer
-readiness or complete Career Forge. The qualification run itself created no
-task, computer action, or publication.
+The qualified application commit is
+`c1b1fee95e9d651d4caf3cd5184296170636f450`. Release source
+`075645a3198a37a9ff101a18614065ff8cc5c9e9` (tree
+`a0337a2b277e57c046e5eba45fc3a2a661cd3e04`) is deployed through the immutable
+`/home/kumar-rishav/.local/share/friday/api/current` pointer. The approved
+fast-forward advanced `main` from `b939874e89fb695360425bfe8ca4dd82dee05769`
+to the exact release source; the post-deployment documentation checkpoint is
+published on both `main` and `stage-31/ml-engineering-learning-journey`.
+Release manifest SHA-256 is
+`874abb7f4a5b1d170cf0338fcd1d9d47877a0b7f6fbb81bc9505a92a9293f5d1`.
 
-The Stage 29 publication entry above records its state at publication. The
-Stage 30 preparation checks also confirmed the old Stage 29 API and UI were
-healthy before cutover; Stage 29 was not the post-release runtime.
+The release adds no database migration: Learning Paths remains schema v2 and
+Projects schema v3. All 15 production stores pass integrity checks and table
+counts match the verified post-stop backup. The pre-existing active mission
+and Practice Lab draft remain intact; no production learner attempt, evidence,
+path version, or project was created. The Stage 30 contract can read Stage 31
+stored mastery rows but does not project the new Stage 31 progression in its
+owner-facing DLP view. Preserve Stage 31 data and recover forward after any
+Stage 31 learning writes; Stage 30 is not a semantically safe rollback after
+such writes. Backup manifests, service configuration snapshots, checks, and
+recovery details are recorded in `docs/operations/stage31-release-plan.md` and
+under the owner-only Stage 31 maintenance directory.
+
+Post-cutover checks passed: API and UI health, Projects/Learn/Progress routes,
+all 13 frontend asset hashes, mission and draft recovery, unauthenticated
+Owner rejection (401), wrong-Origin rejection (403), and integrity/count checks
+for all 15 stores. Pocket/Anna, capture, wake path, and computer-agency health
+are ready; there is no active voice turn. Qwen and vision were not restarted.
+The UI interruption was about 6 minutes and 2 seconds; API and voice were
+unavailable for about 1 minute and 56 seconds. The longer UI window included
+sequential local voice-worker startup and correction of a release-checker
+symlink predicate; no application or data fault occurred. Rows 60 and 61 remain
+PARTIAL; this three-node journey does not establish Senior ML/AI Engineer
+readiness or complete Career Forge. Stage 32 was not started in this session.
 
 ## Dynamic Learning Paths — DLP-1–4 accepted and published (row 61, PARTIAL)
 
