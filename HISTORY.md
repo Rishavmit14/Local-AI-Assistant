@@ -1,3 +1,24 @@
+## 2026-10-16 — Stage 30 transactional migration and rollback qualification
+
+Release review found that the Projects schema v2→v3 migration could leave
+partial columns behind if the version-marker update failed, and Stage 29
+rejects a schema marker newer than v2. Stage 30 now applies column creation
+and marker changes atomically, validates compatible pre-existing v3 columns
+when reopening a v2 rollback marker, and has deterministic tests for both
+interrupted rollback and Stage 29 re-upgrade reconciliation. An isolated
+SQLite online-backup copy seeded with a synthetic Project, owner-artifact
+submission, and evidence was upgraded to v3, reopened by the Stage 29
+ProjectService at marker 2, then re-opened by Stage 30 at marker 3; integrity,
+submission/attempt visibility, and all three record counts were preserved.
+Production was not migrated or written. The complete Python repository
+verifier passed **1,868 tests, 6 skipped**, plus compilation, CLI checks, and
+dependency consistency. Targeted Ruff, the bounded SSE shutdown regression,
+and the validation rollback regression passed. Qualification was constrained
+to a 4 GiB test cgroup with no guard intervention and about 1.8 GiB peak
+test-tree RSS. The Stage 30 branch remains the only code publication target;
+main and the live Stage 29 runtime are unchanged pending the exact owner
+approval gate in `docs/operations/stage30-release-plan.md`.
+
 ## 2026-10-16 — Stage 30 connected FraudShield learning journey qualified
 
 Stage 30 connects Projects → explicit Owner-authenticated Learning Path Create

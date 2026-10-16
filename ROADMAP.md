@@ -1743,7 +1743,7 @@ reduced-motion capture remain limitations. See
 `docs/product/FINAL_NEETCODE_PARITY_AND_PRODUCT_AUDIT.md`, the integration
 matrix, and `CODEX_HANDOFF.md`.
 
-### Stage 29 Project-to-Learn, Owner creation security, and SSE — code qualified and published; production not deployed (2026-10-15)
+### Stage 29 Project-to-Learn, Owner creation security, and SSE — code qualified and published (2026-10-15; deployed afterward)
 
 Published from Stage 28 baseline
 989b98b1b22d6e031a1fcc5f09a84601a88a47d9 on
@@ -1798,7 +1798,7 @@ are implemented and qualified. Rows 60 and 61 remain PARTIAL; this release does
 not qualify the full Career Forge product. See CODEX_HANDOFF.md and
 docs/operations/stage29-release-plan.md.
 
-### Stage 30 connected Project → Learning Journey — qualified bounded slice (2026-10-16)
+### Stage 30 connected Project → Learning Journey — qualified bounded slice; release awaits owner approval (2026-10-16)
 
 Stage 30 adds one connected FraudShield journey using the existing Projects,
 Dynamic Learning Paths, Career Forge, Reviewer, and Owner-session authorities.

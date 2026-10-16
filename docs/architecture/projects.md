@@ -105,6 +105,20 @@ milestone assessment; it does not qualify isolated execution, validated task
 artifacts, GitHub publication, the full Career Forge journey, or final visual
 acceptance. Rows 60 and 61 remain PARTIAL.
 
+Stage 30 Projects schema v3 is an additive extension of schema v2. Its three
+owner-artifact columns are migrated in one `BEGIN IMMEDIATE` transaction with
+the schema-version update; an interrupted migration rolls back both columns
+and marker. Reopening a v2 marker with the exact compatible v3 columns is
+supported so a verified Stage 29 rollback can read the existing named v2
+fields without deleting Stage 30 provenance. Before that rollback, take and
+verify a consistent database backup, stop the API, and transactionally set the
+Projects schema marker from 3 to 2. Stage 29 can list the Project and its
+submission/attempt links, but its UI/API do not expose the Stage 30 artifact
+metadata or submission route. A later Stage 30 start validates the existing
+column definitions and restores marker 3. The isolated rollback qualification
+uses a synthetic Project, submission, and evidence record on an online-backup
+copy of the production database; production was not migrated.
+
 ## Stage 24 contextual Conversation boundary
 
 Stage 24 exposes an owner-selected Project as an explicit Conversation attachment. Its snapshot includes canonical Project/Objective/task references, bounded artifact references, and the DLP assignment when present. Re-resolution and a full-state digest detect Project transitions without granting plan approval, REQUEST_EXECUTION, review, publication, or evidence authority. See `context-attachments.md`.

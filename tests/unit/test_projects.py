@@ -226,6 +226,72 @@ def test_project_service_migrates_schema_v2_owner_artifact_provenance(tmp_path):
     assert {"submission_kind", "artifact_name", "artifact_sha256"} <= columns
 
 
+def test_project_service_reconciles_v2_marker_after_compatible_rollback(tmp_path):
+    import sqlite3
+
+    db_path = tmp_path / "projects-v2-rollback.sqlite3"
+    with sqlite3.connect(db_path) as db:
+        db.executescript("""
+            CREATE TABLE projects (project_id TEXT PRIMARY KEY);
+            CREATE TABLE project_review_submissions (
+                project_id TEXT NOT NULL REFERENCES projects(project_id),
+                submission_id TEXT NOT NULL, competency_id TEXT NOT NULL,
+                mission_id TEXT NOT NULL, attempt_id TEXT NOT NULL UNIQUE,
+                assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1',
+                assessment_contract_fingerprint TEXT NOT NULL DEFAULT '',
+                evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer',
+                submission_kind TEXT NOT NULL DEFAULT 'validated_task',
+                artifact_name TEXT,
+                artifact_sha256 TEXT,
+                PRIMARY KEY(project_id,submission_id)
+            );
+            CREATE TABLE project_schema_version (
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1), version INTEGER NOT NULL
+            );
+            INSERT INTO project_schema_version VALUES(1,2);
+        """)
+
+    ProjectService(db_path)
+    with sqlite3.connect(db_path) as db:
+        version = db.execute("SELECT version FROM project_schema_version WHERE singleton=1").fetchone()[0]
+        columns = {row[1] for row in db.execute("PRAGMA table_info(project_review_submissions)")}
+    assert version == ProjectService.SCHEMA_VERSION == 3
+    assert {"submission_kind", "artifact_name", "artifact_sha256"} <= columns
+
+
+def test_project_v2_migration_rolls_back_all_columns_on_failure(tmp_path):
+    import sqlite3
+
+    db_path = tmp_path / "projects-v2-interrupted.sqlite3"
+    with sqlite3.connect(db_path) as db:
+        db.executescript("""
+            CREATE TABLE projects (project_id TEXT PRIMARY KEY);
+            CREATE TABLE project_review_submissions (
+                project_id TEXT NOT NULL REFERENCES projects(project_id),
+                submission_id TEXT NOT NULL, competency_id TEXT NOT NULL,
+                mission_id TEXT NOT NULL, attempt_id TEXT NOT NULL UNIQUE,
+                assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1',
+                assessment_contract_fingerprint TEXT NOT NULL DEFAULT '',
+                evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer',
+                PRIMARY KEY(project_id,submission_id)
+            );
+            CREATE TABLE project_schema_version (
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1), version INTEGER NOT NULL
+            );
+            INSERT INTO project_schema_version VALUES(1,2);
+            CREATE TRIGGER reject_version_bump BEFORE UPDATE ON project_schema_version
+                BEGIN SELECT RAISE(ABORT, 'injected migration failure'); END;
+        """)
+
+    with pytest.raises(sqlite3.IntegrityError, match="injected migration failure"):
+        ProjectService(db_path)
+    with sqlite3.connect(db_path) as db:
+        version = db.execute("SELECT version FROM project_schema_version WHERE singleton=1").fetchone()[0]
+        columns = {row[1] for row in db.execute("PRAGMA table_info(project_review_submissions)")}
+    assert version == 2
+    assert not {"submission_kind", "artifact_name", "artifact_sha256"} & columns
+
+
 def test_learning_project_assignment_requires_valid_dlp_and_keeps_objectives_canonical(tmp_path):
     proposal = project_curriculum()
     CurriculumValidator().validate(proposal)

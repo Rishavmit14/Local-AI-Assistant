@@ -78,3 +78,19 @@ This decision qualifies only one FraudShield milestone slice. It does not
 qualify all Career Forge owner journeys, validated task execution, the full
 adaptive learner progression, GitHub publication, final visual acceptance,
 rows 60/61, or Friday V1. Deployment remains outside this ADR.
+
+## Additive Projects schema recovery
+
+Stage 30 adds three nullable/defaulted provenance columns as schema v3. Column
+creation and the version-marker update run inside one SQLite write transaction.
+An interrupted migration leaves the schema at v2 with no partial v3 columns.
+The migrator also accepts a v2 marker when all three columns already exist
+with the expected type, nullability, and default; this is the rollback state
+used by the retained Stage 29 ProjectService, which rejects a newer version
+marker but continues reading its named v2 fields. The marker downgrade must be
+performed only after a restricted consistent backup is verified and the API
+is stopped. Stage 30 revalidates those columns and restores marker 3 on the
+next start. The rollback test covers a seeded synthetic project, submission,
+and evidence record in an isolated online-backup copy; no production row was
+created or migrated. Stage 29 can preserve/list the submission and attempt
+identity but does not expose Stage 30 artifact metadata or submission routes.

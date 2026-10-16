@@ -1,9 +1,16 @@
 # Stage 29 API release and rollback plan
 
-**State:** Stage 29 code published on its release branch and canonical main;
-production unchanged. Publication made no service change, restart, database
-migration, or deployment. Operational clearance remains blocked. Verify the
-exact code SHA directly from both remote refs before a deployment build.
+**State at Stage 29 publication:** the code was published on its release
+branch and canonical main, before deployment. It was subsequently deployed
+from immutable release
+`464f5002574a2f00b13db597f04772984939a189`; the as-run service, asset, backup,
+database-integrity, voice, and computer-agency evidence is recorded in
+`/home/kumar-rishav/.local/share/friday/api/maintenance/stage29-20261015T162921Z/`.
+The remaining sections preserve the Stage 29 qualification and proposed
+cutover procedure as recorded at that earlier checkpoint. For current live
+state and this Stage 30 release proposal, use
+`docs/operations/stage30-release-plan.md` and re-read live state immediately
+before any authorized stop.
 
 ## Recovery identity and current backend
 
@@ -161,11 +168,14 @@ authorization.
   publication history. Preserve the Stage 28 frontend and the protected GCA
   checkout as evidence/recovery material.
 
-## Current stop boundary
+## Original stop boundary at Stage 29 code publication
 
-The authorized code publication advanced only the Stage 29 release branch and
-canonical main. No API/UI service, Qwen process, Owner database/session, task,
-or production checkout was modified. The API remains active in the protected
-GCA worktree with its older learning-path creation behavior. Do not restart or
-deploy production until Owner task clearance and atomic new-work admission are
-implemented and qualified. This runbook does not authorize deployment.
+At the Stage 29 code-publication checkpoint, only the Stage 29 branch and
+canonical main had advanced; no service or production data had yet changed.
+The later deployment and exact run-time/backup observations are preserved in
+the maintenance evidence referenced above. The as-run evidence records
+point-in-time idle/claim checks; it does not claim an atomic global admission
+lock. Stage 30 reuses the observed bounded cutover and repeats active-work
+clearance immediately before stopping services, with this limitation disclosed
+in its approval proposal. This historical runbook does not itself authorize a
+Stage 30 deployment.

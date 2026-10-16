@@ -159,25 +159,47 @@ class ProjectService:
                     singleton INTEGER PRIMARY KEY CHECK(singleton=1), version INTEGER NOT NULL
                 );
             """)
-            row = db.execute("SELECT version FROM project_schema_version WHERE singleton=1").fetchone()
-            if row is None:
-                db.execute("INSERT INTO project_schema_version VALUES(1, ?)", (self.SCHEMA_VERSION,))
-            else:
-                version = row[0]
-                if version == 1:
-                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1'")
-                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_fingerprint TEXT NOT NULL DEFAULT ''")
-                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer'")
-                    version = 2
-                    db.execute("UPDATE project_schema_version SET version=? WHERE singleton=1", (version,))
-                if version == 2:
-                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN submission_kind TEXT NOT NULL DEFAULT 'validated_task'")
-                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN artifact_name TEXT")
-                    db.execute("ALTER TABLE project_review_submissions ADD COLUMN artifact_sha256 TEXT")
-                    version = 3
-                    db.execute("UPDATE project_schema_version SET version=? WHERE singleton=1", (version,))
-                if version != self.SCHEMA_VERSION:
-                    raise RuntimeError("unsupported Projects schema version")
+            db.execute("BEGIN IMMEDIATE")
+            try:
+                row = db.execute("SELECT version FROM project_schema_version WHERE singleton=1").fetchone()
+                if row is None:
+                    db.execute("INSERT INTO project_schema_version VALUES(1, ?)", (self.SCHEMA_VERSION,))
+                else:
+                    version = row[0]
+                    if version == 1:
+                        db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_version TEXT NOT NULL DEFAULT 'project_milestone_assessment_v1'")
+                        db.execute("ALTER TABLE project_review_submissions ADD COLUMN assessment_contract_fingerprint TEXT NOT NULL DEFAULT ''")
+                        db.execute("ALTER TABLE project_review_submissions ADD COLUMN evaluator TEXT NOT NULL DEFAULT 'local_qwen_reviewer'")
+                        version = 2
+                        db.execute("UPDATE project_schema_version SET version=? WHERE singleton=1", (version,))
+                    if version == 2:
+                        expected_columns = {
+                            "submission_kind": ("TEXT", 1, "'validated_task'", "TEXT NOT NULL DEFAULT 'validated_task'"),
+                            "artifact_name": ("TEXT", 0, None, "TEXT"),
+                            "artifact_sha256": ("TEXT", 0, None, "TEXT"),
+                        }
+                        columns = {
+                            item["name"]: item
+                            for item in db.execute("PRAGMA table_info(project_review_submissions)")
+                        }
+                        for name, (column_type, not_null, default, declaration) in expected_columns.items():
+                            column = columns.get(name)
+                            if column is None:
+                                db.execute(
+                                    f"ALTER TABLE project_review_submissions ADD COLUMN {name} {declaration}"
+                                )
+                            elif (column["type"].upper(), column["notnull"], column["dflt_value"]) != (
+                                column_type, not_null, default,
+                            ):
+                                raise RuntimeError(f"incompatible Projects schema column: {name}")
+                        version = 3
+                        db.execute("UPDATE project_schema_version SET version=? WHERE singleton=1", (version,))
+                    if version != self.SCHEMA_VERSION:
+                        raise RuntimeError("unsupported Projects schema version")
+                db.commit()
+            except BaseException:
+                db.rollback()
+                raise
 
     @classmethod
     def template(cls, template_id: str) -> ProjectTemplate:

@@ -1356,6 +1356,13 @@ assessment, changed next action, and API restart recovery, is recorded in
 `docs/architecture/projects.md` and ADR 0053. This does not qualify all of
 Career Forge; roadmap rows 60 and 61 remain PARTIAL.
 
+Projects schema v3 adds artifact provenance transactionally to the existing
+Projects database. Interrupted upgrades roll back atomically; the verified
+Stage 29 compatibility path keeps the schema marker at v2 while retaining
+additive v3 columns, allowing the older service to read its named fields and
+Stage 30 to reconcile the marker on a later restart. See ADR 0053 for the
+backup, rollback, and metadata-visibility limits.
+
 ### Stage 25 cross-path owner relationships
 
 Friday's owner relationship resolver reads canonical Learn/DLP, Projects,
