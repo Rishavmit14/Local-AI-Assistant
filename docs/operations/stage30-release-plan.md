@@ -48,6 +48,12 @@ production build. The release package records the source-tree identity and
 SHA-256 for every frontend asset. Stage 30 adds no Python or frontend runtime
 dependency or lockfile change.
 
+The exact Stage 30 frontend source has also been built for release: TypeScript
+and Vite 8.2.2 completed, transforming 1,980 modules and emitting 13 files.
+Vite retains its known size advisory: the main JavaScript bundle is about
+1.29 MB, above the 500 kB warning threshold. This build passed; the advisory
+is a disclosed optimization risk, not a qualification failure.
+
 ## Projects schema v3, backup, and rollback
 
 Stage 29 production currently has Projects schema v2 and Learning Paths schema

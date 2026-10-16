@@ -67,8 +67,11 @@ the owner-source route; the rollback procedure and limit are in
   were not changed.
 - Previously accepted frontend qualification remains applicable because no
   frontend source changed: 184 tests/37 files, four Node checks, ESLint,
-  TypeScript, and production build passed. Reuse its result; do not repeat the
-  frontend suite absent changed frontend code or contradictory evidence.
+  TypeScript, and production build passed. The release build on this candidate
+  also passed TypeScript/Vite 8.2.2 and emitted 13 assets; Vite's existing
+  main-bundle size advisory (about 1.29 MB versus its 500 kB threshold) remains
+  disclosed. Reuse the frontend test result; do not repeat its suite absent
+  changed frontend code or contradictory evidence.
 
 ## Live Stage 29 baseline and approval gate
 
