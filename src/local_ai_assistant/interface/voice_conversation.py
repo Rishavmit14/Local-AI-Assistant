@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import inspect
 import threading
 import time
 from collections.abc import Callable, Generator, Iterator
 from dataclasses import replace
 from typing import Protocol
+from uuid import uuid4
 
 from local_ai_assistant.voice import (
     BargeInResult,
@@ -89,6 +91,10 @@ class VoiceBargeInMonitor(Protocol):
 
     def capture_interruption(
         self,
+        *,
+        max_wait_seconds: float | None = None,
+        allow_idle: bool = False,
+        stop_event: threading.Event | None = None,
     ) -> BargeInResult:
         ...
 
@@ -188,6 +194,9 @@ class FridayVoiceConversationService:
             cancelled = False
         if not cancelled:
             return False
+        cancel_learning = getattr(self.conversation, "cancel_pending_voice_learning", None)
+        if callable(cancel_learning):
+            cancel_learning()
         self.runtime.emit(
             FridayEventType.VOICE_LISTENING_STOPPED,
             task_id=task_id,
@@ -301,6 +310,9 @@ class FridayVoiceConversationService:
             reason="voice_explicit_stop",
         )
         try:
+            cancel_learning = getattr(self.conversation, "cancel_pending_voice_learning", None)
+            if callable(cancel_learning):
+                cancel_learning()
             if self.on_explicit_stop is not None:
                 self.on_explicit_stop()
         finally:
@@ -583,19 +595,118 @@ class FridayVoiceConversationService:
         temperature: float,
         max_tokens: int,
     ) -> Generator[str, None, VoiceUtterance | None]:
+        turn_id = uuid4().hex
+        cancel_event = threading.Event()
+        begin_turn = getattr(self.conversation, "begin_voice_turn", None)
+        finish_turn = getattr(self.conversation, "finish_voice_turn", None)
+        if callable(begin_turn):
+            begin_turn(turn_id, cancel_event)
+
+        monitor_done = threading.Event()
+        monitor_results: list[BargeInResult] = []
+        monitor_thread: threading.Thread | None = None
+        monitor = self.barge_in_monitor
+        capture = getattr(monitor, "capture_interruption", None)
+        if (callable(capture)
+                and _supports_keyword(capture, "allow_idle")
+                and _supports_keyword(capture, "stop_event")
+                and not self._active_stop_listener_running()):
+            def watch_full_voice_turn() -> None:
+                try:
+                    while not monitor_done.is_set():
+                        result = capture(
+                            max_wait_seconds=120.0,
+                            allow_idle=True,
+                            stop_event=monitor_done,
+                        )
+                        if result.triggered:
+                            monitor_results.append(result)
+                            cancel_event.set()
+                            cancel = getattr(self.conversation, "cancel_voice_turn", None)
+                            if callable(cancel):
+                                cancel(turn_id)
+                            return
+                        if result.outcome == "monitor_stopped":
+                            return
+                except BaseException:
+                    # If the idle stream cannot start, the established
+                    # playback-only monitor remains the fallback.
+                    return
+
+            monitor_thread = threading.Thread(
+                target=watch_full_voice_turn,
+                daemon=True,
+                name="friday-voice-turn-monitor",
+            )
+            monitor_thread.start()
+
+        try:
+            interruption = yield from self._stream_response_with_speech_turn(
+                prompt,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                turn_id=turn_id,
+                cancel_event=cancel_event,
+                monitor_thread=monitor_thread,
+            )
+        finally:
+            monitor_done.set()
+            if monitor_thread is not None:
+                monitor_thread.join(timeout=2.0)
+                if monitor_thread.is_alive():
+                    raise RuntimeError("voice-turn AEC monitor did not stop after the turn")
+            if callable(finish_turn):
+                finish_turn(turn_id)
+
+        if monitor_results:
+            result = monitor_results[0]
+            if result.stop_result is not None and not result.stop_result.stopped:
+                raise RuntimeError("AEC detected owner speech but Friday audio did not stop")
+            if result.utterance is not None:
+                self._resume_listening_after_interruption(turn_id)
+                return result.utterance
+        return interruption
+
+    def _stream_response_with_speech_turn(
+        self,
+        prompt: str,
+        *,
+        system_prompt: str,
+        temperature: float,
+        max_tokens: int,
+        turn_id: str,
+        cancel_event: threading.Event,
+        monitor_thread: threading.Thread | None,
+    ) -> Generator[str, None, VoiceUtterance | None]:
         """Yield model text while a completed sentence unlocks local speech."""
         synthesizer = self.speech_synthesizer
         player = self.speech_player
+        stream_response = self.conversation.stream_response
+        turn_kwargs = {
+            key: value
+            for key, value in (
+                ("voice_turn_id", turn_id),
+                ("voice_cancel_event", cancel_event),
+            )
+            if _supports_keyword(stream_response, key)
+        }
         response = self.conversation.stream_response(
             prompt,
             system_prompt=system_prompt,
             temperature=temperature,
             max_tokens=max_tokens,
             voice_origin=True,
+            **turn_kwargs,
         )
 
         if synthesizer is None or player is None:
-            yield from response
+            try:
+                yield from response
+            finally:
+                close = getattr(response, "close", None)
+                if callable(close):
+                    close()
             if getattr(self.conversation, "last_voice_action_selected", False):
                 self._finish_voice_action_playback(succeeded=False)
             return None
@@ -626,6 +737,7 @@ class FridayVoiceConversationService:
                         chunks=synthesize_queued_sentences(),
                         streaming=True,
                         cancel_event=speech_cancelled,
+                        external_monitor_active=bool(monitor_thread and monitor_thread.is_alive()),
                         event_text=lambda: " ".join(spoken_segments),
                         event_metadata=lambda: self._stream_speech_metadata(
                             len(spoken_segments),
@@ -693,7 +805,9 @@ class FridayVoiceConversationService:
                 if speech_errors:
                     raise speech_errors[0]
 
-                if speech_cancelled.is_set():
+                if speech_cancelled.is_set() or cancel_event.is_set():
+                    speech_cancelled.set()
+                    queue.close()
                     cancelled = True
                     break
 
@@ -711,7 +825,7 @@ class FridayVoiceConversationService:
                 # the current one.
                 yield chunk
 
-                if speech_cancelled.is_set():
+                if speech_cancelled.is_set() or cancel_event.is_set():
                     cancelled = True
                     break
 
@@ -720,6 +834,10 @@ class FridayVoiceConversationService:
                     if not enqueue(sentence):
                         cancelled = True
                         break
+
+            if cancel_event.is_set():
+                speech_cancelled.set()
+                cancelled = True
 
             completed = not cancelled
 
@@ -765,6 +883,29 @@ class FridayVoiceConversationService:
             self._mark_latency("VOICE_TURN_COMPLETE")
         return speech_results[0]
 
+    def _active_stop_listener_running(self) -> bool:
+        conversation = getattr(self.conversation, "inner", self.conversation)
+        action_service = getattr(conversation, "voice_computer_actions", None)
+        return bool(getattr(action_service, "active_task_stop_listener_running", False))
+
+    def _resume_listening_after_interruption(self, turn_id: str) -> None:
+        state = self.runtime.state
+        if state in {FridayRuntimeState.THINKING, FridayRuntimeState.TRANSCRIBING}:
+            self.runtime.transition(FridayRuntimeState.CANCELLED, reason="voice_interrupted_turn_released")
+            state = self.runtime.state
+        if state in {FridayRuntimeState.CANCELLED, FridayRuntimeState.COMPLETED, FridayRuntimeState.ERROR}:
+            self.runtime.transition(FridayRuntimeState.IDLE, reason="voice_interrupted_turn_released")
+            state = self.runtime.state
+        if state is FridayRuntimeState.IDLE:
+            self.runtime.transition(FridayRuntimeState.LISTENING, reason="voice_barge_in")
+        elif state is not FridayRuntimeState.LISTENING:
+            self.runtime.transition(FridayRuntimeState.LISTENING, reason="voice_barge_in")
+        self.runtime.emit(
+            FridayEventType.VOICE_LISTENING_STARTED,
+            state=FridayRuntimeState.LISTENING,
+            metadata={"reason": "barge_in", "voice_turn_id": turn_id},
+        )
+
     def _stream_speech_metadata(self, segment_count: int) -> dict[str, object]:
         conversation = getattr(self.conversation, "inner", self.conversation)
         action_service = getattr(conversation, "voice_computer_actions", None)
@@ -804,6 +945,7 @@ class FridayVoiceConversationService:
         chunks: Iterator[PiperAudioChunk] | None = None,
         streaming: bool = False,
         cancel_event: threading.Event | None = None,
+        external_monitor_active: bool = False,
         event_text: Callable[[], str] | None = None,
         event_metadata: Callable[[], dict[str, object]] | None = None,
     ) -> VoiceUtterance | None:
@@ -875,6 +1017,7 @@ class FridayVoiceConversationService:
                     if chunks is not None
                     else synthesizer.stream(spoken_text),
                     cancel_event=cancel_event,
+                    external_monitor_active=external_monitor_active,
                 )
             )
 
@@ -1104,6 +1247,7 @@ class FridayVoiceConversationService:
         ],
         *,
         cancel_event: threading.Event | None = None,
+        external_monitor_active: bool = False,
     ) -> tuple[
         SpeechPlaybackResult,
         BargeInResult | None,
@@ -1128,7 +1272,7 @@ class FridayVoiceConversationService:
             getattr(action_service, "active_task_stop_listener_running", False)
         )
 
-        if monitor is None or active_stop_listener:
+        if monitor is None or active_stop_listener or external_monitor_active:
             return (
                 player.play(
                     chunks
@@ -1380,6 +1524,14 @@ class FridayVoiceConversationService:
                 "playback did not report "
                 "interruption"
             )
+
+
+def _supports_keyword(method, name: str) -> bool:
+    try:
+        parameters = inspect.signature(method).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(item.name == name or item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters)
 
 
 __all__ = [

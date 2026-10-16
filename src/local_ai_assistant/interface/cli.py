@@ -73,6 +73,7 @@ from .events import FridayEventType
 from .interaction import FridayInteractionCoordinator
 from .local_owner import LocalOwnerTrust
 from .voice_actions import VoiceComputerActionService
+from .voice_learning import VoiceLearningCoordinator
 from .wake_bootstrap import build_managed_wake_voice
 
 _RUNTIME_EVENT_STREAM_PATH = "/api/v1/runtime/events/stream"
@@ -328,6 +329,14 @@ def build_presentation_components(
         runtime,
         owner_principal=(local_owner_trust.local_voice_principal
                          if local_owner_trust is not None else lambda: None),
+    )
+    voice_learning = VoiceLearningCoordinator(
+        learning_paths,
+        career_forge,
+        runtime,
+        owner_principal=(local_owner_trust.local_voice_principal
+                         if local_owner_trust is not None else None),
+        reviewer=career_tutor_clients[TutorMode.TEACH_BACK],
     )
     rollback_gateway_auth = (
         GatewayAuth(rollback_gateway_hash, frozenset({GatewayScope.REQUEST_ROLLBACK}))
@@ -595,6 +604,7 @@ def build_presentation_components(
         voice_computer_actions=voice_computer_actions,
         screen_context_provider=screen_context,
         research_llm=roles.client(Role.REASONING),
+        voice_learning=voice_learning,
     )
 
     interactions = FridayInteractionCoordinator()

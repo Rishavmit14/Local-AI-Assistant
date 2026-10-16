@@ -114,6 +114,25 @@ describe("Stage 31 learner experience", () => {
     expect(container.textContent).toContain("Incorrect evidence recommends targeted reinforcement.");
   });
 
+  it("shows a voice answer as an unsubmitted draft without creating an assessment", async () => {
+    const submit = vi.spyOn(FridayRuntimeClient.prototype, "recordDynamicLearningAttempt");
+    container = document.createElement("div"); document.body.append(container); root = createRoot(container);
+    await act(async () => {
+      root?.render(createElement(LearningPathsPanel, {
+        navigate: vi.fn(), onHandoff: vi.fn(), activeMission: null,
+        voiceLearningDraft: {
+          pathId: activePath.path_id, nodeId: lessonNode.node_id,
+          interactionId: "voice-interaction-stage31", text: "I fit preprocessing on training data only.",
+        },
+      }));
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(container.querySelector('[aria-label="Voice answer awaiting confirmation"]')?.textContent)
+      .toContain("No assessment has been recorded.");
+    expect(container.textContent).toContain("I fit preprocessing on training data only.");
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it("offers only the contract's fixed question IDs and posts with Owner CSRF", async () => {
     const record = vi.spyOn(FridayRuntimeClient.prototype, "recordDynamicLearningAttempt")
       .mockResolvedValue({ attempt_id: "attempt-new", evaluation: "pending", assessment_status: "attempted", evidence_created: false, evidence_persisted: false, mastery: "unverified", replayed: false });

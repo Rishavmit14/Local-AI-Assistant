@@ -2,23 +2,31 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import math
 from collections.abc import Callable, Iterator, Mapping
+from threading import Event, RLock
 from typing import Protocol
+from uuid import uuid4
 
 from local_ai_assistant.career_forge import CareerForgeLearningLoop
 from local_ai_assistant.cognition import CognitiveController
 from local_ai_assistant.desktop.screen_context import ScreenContext
 from local_ai_assistant.desktop.targets import OpenCommand
 
-from .capability_routing import FridayConversationCapabilityRouter
+from .capability_routing import (
+    CapabilityRoute,
+    ConversationIntent,
+    FridayConversationCapabilityRouter,
+)
 from .events import FridayEventType
 from .runtime import FridayRuntime
 from .session import FridayConversationSession
 from .states import FridayRuntimeState
 from .voice_actions import VoiceComputerActionService
 from .voice_intents import FridayVoiceIntentRouter, FridayVoiceIntentType, ScreenQuestionMode
+from .voice_learning import VoiceLearningCoordinator
 
 _CONTEXT_EVIDENCE_POLICY = """Conversation evidence policy:
 - The current owner prompt is the immediate request.
@@ -76,6 +84,7 @@ class FridayConversationService:
         voice_computer_actions: VoiceComputerActionService | None = None,
         voice_intent_router: FridayVoiceIntentRouter | None = None,
         screen_context_provider=None,
+        voice_learning: VoiceLearningCoordinator | None = None,
     ) -> None:
         self.llm = llm
         self.research_llm = research_llm or llm
@@ -92,9 +101,22 @@ class FridayConversationService:
         self.voice_computer_actions = voice_computer_actions
         self.voice_intent_router = voice_intent_router or FridayVoiceIntentRouter()
         self.screen_context_provider = screen_context_provider
+        self.voice_learning = voice_learning
         self.last_voice_action_selected = False
         self.last_voice_screen_context_id: str | None = None
+        self._voice_turn_lock = RLock()
+        self._active_voice_turn: tuple[str, Event] | None = None
         self.learning_loop = CareerForgeLearningLoop(capability_router.career_forge) if capability_router else None
+
+    def begin_voice_turn(self, turn_id: str, cancel_event: Event) -> None:
+        """Expose one active voice turn to the trusted wake Stop listener."""
+        with self._voice_turn_lock:
+            self._active_voice_turn = (turn_id, cancel_event)
+
+    def finish_voice_turn(self, turn_id: str) -> None:
+        with self._voice_turn_lock:
+            if self._active_voice_turn is not None and self._active_voice_turn[0] == turn_id:
+                self._active_voice_turn = None
 
     def answer_from_local_research(self, question: str, evidence_json: str) -> tuple[str, bool]:
         """Use the shared local conversation model without normal-turn hooks or persistence."""
@@ -145,6 +167,8 @@ class FridayConversationService:
         attachments: list[dict] | None = None,
         canonical_response: str | None = None,
         voice_origin: bool = False,
+        voice_turn_id: str | None = None,
+        voice_cancel_event: Event | None = None,
     ) -> Iterator[str]:
         if not prompt or not prompt.strip():
             raise ValueError("prompt must be a non-empty string")
@@ -161,12 +185,71 @@ class FridayConversationService:
                 reason="conversation_ready",
             )
 
+        if voice_origin and voice_turn_id is None:
+            voice_turn_id = uuid4().hex
         self._mark("PROMPT_ASSEMBLY_BEGIN")
         self._mark("CONVERSATION_ROUTING_BEGIN")
-        # An explicit attached turn is answered by the local model with the
-        # attached record. Intent shortcuts must not answer without seeing it.
-        route = self.capability_router.route(prompt) if self.capability_router and not attachments else None
+        pending_voice_answer = bool(self.voice_learning and self.voice_learning.has_pending_answer)
+        voice_intent = (
+            self.voice_intent_router.classify(
+                prompt,
+                pending_voice_answer=pending_voice_answer,
+            )
+            if voice_origin else None
+        )
+        route = None
+        voice_learning_turn = False
+        if voice_origin and voice_intent is not None and voice_intent.learning_action is not None:
+            voice_learning_turn = True
+            if self.voice_learning is None:
+                decision = None
+                response = "Voice learning is unavailable in this Friday session; no learner record was changed."
+                route = CapabilityRoute(ConversationIntent.INFORMATION, "learning_paths", response=response)
+            else:
+                decision = self.voice_learning.handle(
+                    voice_intent,
+                    owner_turn_id=voice_turn_id or "voice-turn-unavailable",
+                    cancel_event=voice_cancel_event or Event(),
+                )
+                if decision is not None and decision.response is not None:
+                    route = CapabilityRoute(
+                        ConversationIntent.INFORMATION,
+                        "learning_paths",
+                        response=decision.response,
+                    )
+                elif decision is not None and decision.system_context is not None:
+                    route = CapabilityRoute(
+                        ConversationIntent.INVOCATION,
+                        "career_forge",
+                        system_context=decision.system_context,
+                    )
+                elif decision is None:
+                    route = CapabilityRoute(
+                        ConversationIntent.INFORMATION,
+                        "learning_paths",
+                        response="I couldn't safely resolve that learning request. Please name the course or lesson again.",
+                    )
+        # An explicit attached turn is answered from the selected record. Voice
+        # learning commands are resolved first so generic route adapters cannot
+        # create paths, select another path, or submit a learner answer.
+        if route is None:
+            route = self.capability_router.route(prompt) if self.capability_router and not attachments else None
         self._mark("CONVERSATION_ROUTING_COMPLETE")
+        if voice_cancel_event is not None and voice_cancel_event.is_set():
+            if self.runtime.state in {FridayRuntimeState.TRANSCRIBING, FridayRuntimeState.THINKING}:
+                self.runtime.transition(FridayRuntimeState.CANCELLED, reason="voice_turn_cancelled")
+            self.runtime.emit(
+                FridayEventType.VOICE_TURN_CANCELLED,
+                state=self.runtime.state,
+                metadata={"voice_turn_id": voice_turn_id, "reason": "owner_interruption"},
+            )
+            self.runtime.emit(
+                FridayEventType.CONVERSATION_ASSISTANT_COMPLETED,
+                state=FridayRuntimeState.CANCELLED,
+                text="",
+                metadata={"voice_turn_id": voice_turn_id, "cancelled": True},
+            )
+            return
         pending_clarification = False
         if voice_origin and self.voice_computer_actions is not None:
             pending_check = getattr(self.voice_computer_actions, "has_pending_clarification", None)
@@ -178,10 +261,8 @@ class FridayConversationService:
                 prompt, None, clarification_response=True,
             )
             return
-        voice_intent = (
-            self.voice_intent_router.classify(prompt, capability_route=route)
-            if voice_origin else None
-        )
+        if voice_origin and (voice_intent is None or voice_intent.learning_action is None):
+            voice_intent = self.voice_intent_router.classify(prompt, capability_route=route)
         screen_turn = bool(
             voice_origin and voice_intent is not None
             and voice_intent.kind is FridayVoiceIntentType.SCREEN_CONTEXT_QUESTION
@@ -257,7 +338,7 @@ class FridayConversationService:
         self._mark("CAREER_FORGE_PROJECTION_BEGIN")
         learning_directive = self.learning_loop.prepare(
             prompt, mode=self.session.snapshot().get("capability_mode")  # type: ignore[arg-type]
-        ) if self.learning_loop and not screen_turn and not attachments and (route is None or route.mode is None) else None
+        ) if self.learning_loop and not voice_learning_turn and not screen_turn and not attachments and (route is None or route.mode is None) else None
         active_capability_context = "" if screen_turn else self.session.capability_context()
         normal_conversation = (
             apply_owner_preferences
@@ -385,7 +466,10 @@ class FridayConversationService:
             self.runtime.emit(
                 FridayEventType.CONVERSATION_USER_TEXT,
                 text=prompt,
-                metadata={"attachment_ids": [item["attachment_id"] for item in attachments or []]},
+                metadata={
+                    "attachment_ids": [item["attachment_id"] for item in attachments or []],
+                    **({"voice_turn_id": voice_turn_id} if voice_origin and voice_turn_id else {}),
+                },
             )
 
             self.runtime.transition(
@@ -396,6 +480,7 @@ class FridayConversationService:
             self.runtime.emit(
                 FridayEventType.CONVERSATION_ASSISTANT_STARTED,
                 state=FridayRuntimeState.THINKING,
+                metadata={"voice_turn_id": voice_turn_id} if voice_origin and voice_turn_id else {},
             )
 
         parts: list[str] = []
@@ -420,9 +505,14 @@ class FridayConversationService:
                     system_prompt=system_prompt,
                     temperature=temperature,
                     max_tokens=effective_max_tokens,
+                    **({"cancel_event": voice_cancel_event}
+                       if voice_cancel_event is not None and _supports_keyword(self.llm.stream_chat, "cancel_event")
+                       else {}),
                 )
             )
             for chunk in source:
+                if voice_cancel_event is not None and voice_cancel_event.is_set():
+                    break
                 if not chunk:
                     continue
 
@@ -436,6 +526,7 @@ class FridayConversationService:
                     state=FridayRuntimeState.THINKING,
                     text=chunk,
                     transient=True,
+                    metadata={"voice_turn_id": voice_turn_id} if voice_origin and voice_turn_id else {},
                 )
 
                 yield chunk
@@ -445,10 +536,27 @@ class FridayConversationService:
                 self.runtime.transition(
                     FridayRuntimeState.CANCELLED,
                     reason="conversation_stream_closed",
-                )
+            )
             raise
 
         except Exception as exc:
+            if voice_cancel_event is not None and voice_cancel_event.is_set():
+                # The trusted local Stop/barge-in path closed the active model
+                # request. Preserve no stale completion or learner transition.
+                if self.runtime.state is FridayRuntimeState.THINKING:
+                    self.runtime.transition(FridayRuntimeState.CANCELLED, reason="voice_turn_cancelled")
+                self.runtime.emit(
+                    FridayEventType.CONVERSATION_ASSISTANT_COMPLETED,
+                    state=FridayRuntimeState.CANCELLED,
+                    text="".join(parts),
+                    metadata={"voice_turn_id": voice_turn_id, "cancelled": True},
+                )
+                self.runtime.emit(
+                    FridayEventType.VOICE_TURN_CANCELLED,
+                    state=FridayRuntimeState.CANCELLED,
+                    metadata={"voice_turn_id": voice_turn_id, "reason": "owner_interruption"},
+                )
+                return
             self.runtime.emit(
                 FridayEventType.RUNTIME_ERROR,
                 text="conversation generation failed",
@@ -463,6 +571,22 @@ class FridayConversationService:
 
             raise
 
+        if voice_cancel_event is not None and voice_cancel_event.is_set():
+            if self.runtime.state is FridayRuntimeState.THINKING:
+                self.runtime.transition(FridayRuntimeState.CANCELLED, reason="voice_turn_cancelled")
+            self.runtime.emit(
+                FridayEventType.CONVERSATION_ASSISTANT_COMPLETED,
+                state=FridayRuntimeState.CANCELLED,
+                text="".join(parts),
+                metadata={"voice_turn_id": voice_turn_id, "cancelled": True},
+            )
+            self.runtime.emit(
+                FridayEventType.VOICE_TURN_CANCELLED,
+                state=FridayRuntimeState.CANCELLED,
+                metadata={"voice_turn_id": voice_turn_id, "reason": "owner_interruption"},
+            )
+            return
+
         completed_text = "".join(parts)
 
         if screen_turn:
@@ -476,7 +600,10 @@ class FridayConversationService:
         self.runtime.emit(
             FridayEventType.CONVERSATION_ASSISTANT_COMPLETED,
             text=completed_text,
-            metadata={"screen_context_id": screen_context.context_id} if screen_context else {},
+            metadata={
+                **({"screen_context_id": screen_context.context_id} if screen_context else {}),
+                **({"voice_turn_id": voice_turn_id} if voice_origin and voice_turn_id else {}),
+            },
         )
 
         if self.runtime.state is FridayRuntimeState.THINKING:
@@ -531,9 +658,32 @@ class FridayConversationService:
 
     def cancel_active_voice_action(self) -> bool:
         """Propagate a closed response stream to an in-flight computer task."""
-        if self.voice_computer_actions is None:
-            return False
-        return self.voice_computer_actions.cancel_active()
+        cancelled = bool(self.voice_computer_actions and self.voice_computer_actions.cancel_active())
+        with self._voice_turn_lock:
+            active = self._active_voice_turn
+        if active is not None:
+            turn_id, cancel_event = active
+            cancel_event.set()
+            cancelled = self.cancel_voice_turn(turn_id) or cancelled
+        return cancelled
+
+    def cancel_voice_turn(self, turn_id: str) -> bool:
+        """Stop the active local model/reviewer request for this explicit voice turn."""
+        cancelled = False
+        for client in (self.llm,):
+            method = getattr(client, "cancel_active_stream", None)
+            if callable(method):
+                try:
+                    cancelled = bool(method()) or cancelled
+                except (OSError, RuntimeError, ValueError):
+                    pass
+        if self.voice_learning is not None:
+            cancelled = self.voice_learning.cancel_active_review(turn_id) or cancelled
+        return cancelled
+
+    def cancel_pending_voice_learning(self) -> bool:
+        """Discard an unsubmitted speech draft while retaining committed attempts."""
+        return bool(self.voice_learning and self.voice_learning.cancel_pending_answer())
 
     def complete_voice_action_after_playback(self) -> bool:
         """Finalize task success only after the owner heard Friday's result."""
@@ -579,3 +729,11 @@ __all__ = [
     "FridayConversationService",
     "StreamingLLM",
 ]
+
+
+def _supports_keyword(method, name: str) -> bool:
+    try:
+        parameters = inspect.signature(method).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(item.name == name or item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters)

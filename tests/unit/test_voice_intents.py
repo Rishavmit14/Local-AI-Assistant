@@ -4,6 +4,7 @@ from local_ai_assistant.interface.voice_intents import (
     FridayVoiceIntentRouter,
     FridayVoiceIntentType,
     ScreenQuestionMode,
+    VoiceLearningAction,
 )
 
 
@@ -69,3 +70,30 @@ def test_historical_probe_transcript_routes_raw_text_without_asr_replacement():
 
     assert intent.kind is FridayVoiceIntentType.COMPUTER_ACTION
     assert intent.computer_goal == transcript
+
+
+@pytest.mark.parametrize(
+    ("prompt", "pending", "action"),
+    [
+        ("Friday, continue my course", False, VoiceLearningAction.CONTINUE),
+        ("Explain logistic regression", False, VoiceLearningAction.EXPLAIN),
+        ("My answer is a linear boundary", False, VoiceLearningAction.ANSWER),
+        ("My answer is a linear boundary", True, VoiceLearningAction.CORRECT),
+        ("yes, submit it", True, VoiceLearningAction.CONFIRM),
+        ("cancel my answer", True, VoiceLearningAction.CANCEL),
+        ("show my learning progress", False, VoiceLearningAction.PROGRESS),
+        ("check my answer", False, VoiceLearningAction.CHECK),
+    ],
+)
+def test_voice_learning_commands_are_typed_and_confirmation_requires_affirmation(prompt, pending, action):
+    intent = FridayVoiceIntentRouter().classify(prompt, pending_voice_answer=pending)
+
+    assert intent.kind is FridayVoiceIntentType.LEARNING_CAREER_PROJECT
+    assert intent.learning_action is action
+
+
+@pytest.mark.parametrize("prompt", ["", " ", "maybe", "not sure", "no"])
+def test_ambiguous_or_negative_confirmation_does_not_submit_learning_answer(prompt):
+    intent = FridayVoiceIntentRouter().classify(prompt, pending_voice_answer=True)
+
+    assert intent.learning_action is (VoiceLearningAction.CANCEL if prompt == "no" else None)

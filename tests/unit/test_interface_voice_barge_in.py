@@ -1332,3 +1332,77 @@ def test_barge_in_exact_stop_or_normal_continuation(
         is FridayEventType.CONVERSATION_USER_TEXT
         for event in events
     ) == (1 if stops else 2)
+
+
+def test_aec_interrupts_model_wait_and_routes_captured_owner_speech_as_next_turn() -> None:
+    initial = make_utterance(21)
+    interruption = make_utterance(22)
+    runtime = FridayRuntime("session-pre-speech-interruption")
+    model_started = threading.Event()
+
+    class BlockingLLM:
+        def __init__(self):
+            self.calls = []
+            self.cancel_calls = 0
+
+        def stream_chat(self, prompt, *, system_prompt, temperature, max_tokens, cancel_event=None):
+            self.calls.append(prompt)
+            if len(self.calls) == 1:
+                model_started.set()
+                assert cancel_event.wait(2.0)
+                return
+            yield "I heard the new request."
+
+        def cancel_active_stream(self):
+            self.cancel_calls += 1
+            return True
+
+    llm = BlockingLLM()
+
+    class FullTurnMonitor:
+        def __init__(self):
+            self.calls = 0
+
+        def capture_interruption(self, *, max_wait_seconds=None, allow_idle=False, stop_event=None):
+            self.calls += 1
+            assert allow_idle is True
+            if self.calls == 1:
+                assert model_started.wait(2.0)
+                return BargeInResult(
+                    triggered=True,
+                    detection_elapsed_seconds=0.2,
+                    stop_result=None,
+                    utterance=interruption,
+                    max_speech_probability=0.98,
+                    outcome="triggered",
+                )
+            stop_event.wait(2.0)
+            return BargeInResult(
+                triggered=False,
+                detection_elapsed_seconds=None,
+                stop_result=None,
+                utterance=None,
+                max_speech_probability=0.0,
+                outcome="monitor_stopped",
+            )
+
+    transcriber = FakeTranscriber(["first request", "new request"])
+    conversation = FridayConversationService(llm, runtime)
+    service = FridayVoiceConversationService(
+        transcriber,
+        conversation,
+        runtime,
+        speech_synthesizer=FakeSpeechSynthesizer(),
+        speech_player=BlockingSpeechPlayer(first_play_waits_for_stop=False),
+        barge_in_monitor=FullTurnMonitor(),
+    )
+    service.start_listening()
+
+    response = "".join(service.stream_utterance(initial))
+
+    assert response == "I heard the new request."
+    assert llm.calls == ["first request", "new request"]
+    assert llm.cancel_calls == 1
+    assert transcriber.calls == [initial, interruption]
+    assert any(event.event_type is FridayEventType.VOICE_TURN_CANCELLED for event in runtime.events_since())
+    assert runtime.state is FridayRuntimeState.IDLE

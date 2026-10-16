@@ -89,3 +89,31 @@ def test_role_invocations_are_serialized_over_one_model():
     first.join(2)
     second.join(2)
     assert [call[0] for call in model.calls] == ["one", "two"]
+
+
+def test_role_scoped_cancel_interrupts_only_the_matching_active_stream():
+    entered = Event()
+
+    class CancellableModel(FakeModel):
+        def stream_chat(self, prompt, **kwargs):
+            event = kwargs["cancel_event"]
+            entered.set()
+            while not event.wait(0.01):
+                yield "pending"
+
+    orchestrator = RoleOrchestrator(CancellableModel())
+    reviewer = orchestrator.client(Role.REVIEWER)
+    other_role = orchestrator.client(Role.CONVERSATION)
+    output = []
+    worker = Thread(target=lambda: output.extend(reviewer.stream_chat("review")))
+    worker.start()
+
+    assert entered.wait(1)
+    assert other_role.cancel_active_stream() is False
+    assert reviewer.cancel_active_stream() is True
+    worker.join(2)
+
+    assert not worker.is_alive()
+    assert output == []
+    assert orchestrator.recent()[-1].role is Role.REVIEWER
+    assert orchestrator.recent()[-1].success is False

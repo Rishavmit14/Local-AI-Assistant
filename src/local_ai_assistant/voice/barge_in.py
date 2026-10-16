@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from threading import Event
 from typing import Protocol
 
 from .aec import PipeWirePcmCapture
@@ -238,8 +239,10 @@ class FridayBargeInMonitor:
             float
             | None
         ) = None,
+        allow_idle: bool = False,
+        stop_event: Event | None = None,
     ) -> BargeInResult:
-        if not (
+        if not allow_idle and not (
             self.speech_player
             .is_playing
         ):
@@ -289,15 +292,10 @@ class FridayBargeInMonitor:
             )
         )
 
-        started = (
-            time.monotonic()
-        )
-
-        armed = (
-            self.policy
-            .aec_arm_delay_seconds
-            == 0
-        )
+        started = time.monotonic()
+        last_playing = bool(self.speech_player.is_playing)
+        arm_started = started
+        armed = self.policy.aec_arm_delay_seconds == 0 or not last_playing
 
         triggered = False
 
@@ -316,12 +314,22 @@ class FridayBargeInMonitor:
                 - started
                 < timeout
             ):
+                if stop_event is not None and stop_event.is_set():
+                    return BargeInResult(
+                        triggered=False,
+                        detection_elapsed_seconds=None,
+                        stop_result=None,
+                        utterance=None,
+                        max_speech_probability=max_probability,
+                        outcome="monitor_stopped",
+                    )
                 if (
                     not triggered
                     and not (
                         self.speech_player
                         .is_playing
                     )
+                    and not allow_idle
                 ):
                     return BargeInResult(
                         triggered=False,
@@ -333,6 +341,15 @@ class FridayBargeInMonitor:
                         ),
                         outcome="playback_completed",
                     )
+
+                playing = bool(self.speech_player.is_playing)
+                if playing != last_playing:
+                    if not triggered:
+                        detector.reset()
+                        segmenter.reset()
+                    last_playing = playing
+                    arm_started = time.monotonic()
+                    armed = self.policy.aec_arm_delay_seconds == 0 or not playing
 
                 pcm = (
                     stream.read_chunk()
@@ -351,7 +368,7 @@ class FridayBargeInMonitor:
 
                 if not armed:
                     if (
-                        elapsed
+                        time.monotonic() - arm_started
                         < self.policy
                         .aec_arm_delay_seconds
                     ):
@@ -388,30 +405,35 @@ class FridayBargeInMonitor:
                     result.speech_started
                     and not triggered
                 ):
-                    stop = (
-                        self.speech_player
-                        .stop()
+                    triggered = True
+                    detection_elapsed = (
+                        elapsed
                     )
+                    if self.speech_player.is_playing:
+                        stop = self.speech_player.stop()
+                        if not stop.stopped:
+                            return BargeInResult(
+                                triggered=False,
+                                detection_elapsed_seconds=None,
+                                stop_result=stop,
+                                utterance=None,
+                                max_speech_probability=max_probability,
+                                outcome="stop_failed",
+                            )
+                        stop_result = stop
 
+                if triggered and stop_result is None and self.speech_player.is_playing:
+                    stop = self.speech_player.stop()
                     if not stop.stopped:
                         return BargeInResult(
                             triggered=False,
                             detection_elapsed_seconds=None,
                             stop_result=stop,
                             utterance=None,
-                            max_speech_probability=(
-                                max_probability
-                            ),
+                            max_speech_probability=max_probability,
                             outcome="stop_failed",
                         )
-
-                    triggered = True
-
                     stop_result = stop
-
-                    detection_elapsed = (
-                        elapsed
-                    )
 
                 if (
                     triggered

@@ -43,14 +43,27 @@ export type FridayEventType =
   | "voice.speech.started"
   | "voice.speech.completed"
   | "voice.speech.interrupted"
+  | "voice.turn.cancelled"
+  | "voice.learning.context"
+  | "voice.learning.state"
   | "system.health"
   | "runtime.error";
 
 export type FridayVoicePresentationSignal =
   | "none"
+  | "listening"
+  | "transcribing"
+  | "thinking"
   | "speaking"
   | "completed"
   | "interrupted";
+
+export interface FridayVoiceLearningDraft {
+  pathId: string;
+  nodeId: string;
+  interactionId: string;
+  text: string;
+}
 
 export interface FridayRuntimeSnapshot {
   session_id: string;

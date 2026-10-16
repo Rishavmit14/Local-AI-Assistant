@@ -1402,3 +1402,49 @@ open-ended attached discussion uses local Qwen with structured untrusted
 context. No relationship read writes Memory, mastery, evidence, permission,
 approval, execution or publication state. See ADR 0043 and
 `docs/architecture/context-attachments.md`.
+
+## Stage 32 — voice-first learning and reliable interruption
+
+`FridayWakeVoiceOrchestrator` and `FridayVoiceConversationService` remain the
+only owners of wake, final transcript, turn, AEC, playback, and stop lifecycle.
+For `voice_origin` turns, `FridayConversationService` classifies the bounded
+learning intent before generic routes and passes it to
+`VoiceLearningCoordinator`. The coordinator reads the selected active DLP
+version and current Career Forge session; it may start the matching dynamic
+lesson but cannot create/select a DLP path or create a Project. Lesson prompts
+are grounded in authored content and the immutable node assessment contract.
+The existing local Qwen reasoning model teaches; the existing TEACH_BACK
+Reviewer evaluates a confirmed answer through `GeneralizedLearningService`.
+
+Final answer transcripts are retained as a single bounded process-memory draft
+(12,000 characters maximum). Corrections replace that draft. Only explicit
+Owner confirmation creates a Career Forge attempt with a stable interaction
+`submission_id`; duplicate confirmation cannot create another attempt. A
+cancelled Reviewer leaves an already confirmed attempt pending and creates no
+assessment evidence. Reviewer completion and assessment persistence have a
+turn-scoped commit boundary: Stop before it prevents evaluation, while Stop
+after it preserves the completed assessment. The next question and spoken
+recommendation derive from fixed question IDs and current canonical DLP/Career
+Forge evidence, including reinforcement, review, diagnostic, and prerequisite
+state.
+
+`VOICE_LEARNING_CONTEXT` sends path/version/node identity over the existing
+runtime event stream; the Astra Learn view navigates to that exact node. Draft,
+listening, thinking, speaking, feedback, and evidence presentation remain
+event-derived UI state. Only durable Career Forge/DLP state survives restart;
+an unsubmitted voice draft is discarded and never reconstructed as a submitted
+assessment. No browser cookie, CSRF proof, second learner database, or new
+conversation authority is introduced. Local voice mutations require
+`LocalOwnerTrust.local_voice_principal()` to return the existing `local-owner`
+principal.
+
+The existing AEC capture path may arm before Qwen or Reviewer returns, allowing
+the Owner's interruption to set the voice-turn cancellation event while the
+model is still waiting. The same turn id reaches Conversation and the current
+model/Reviewer cancellation boundary. The established wake engine and its
+bounded worker recovery policy are unchanged. Stage 32 code-only fixtures prove
+voice routing, confirmation, idempotency, race cancellation, UI projection,
+authorization denial, and SQLite reconstruction; no physical microphone,
+live Qwen teaching quality, audible playback latency, or deployed Stage 32
+behavior is claimed. See ADR 0055 and
+`docs/architecture/voice-and-wake.md`.

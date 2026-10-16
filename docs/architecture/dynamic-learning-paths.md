@@ -428,3 +428,40 @@ mastery, reload, and API-process restart. No task execution, computer action,
 GitHub publication, production learner state, or Qwen inference was used. This
 qualifies one connected vertical slice only; Rows 60 and 61 remain PARTIAL and
 the broader adaptive learner journey and final visual acceptance remain open.
+
+## Stage 32 — voice access to the canonical learner journey
+
+Voice reads the selected active DLP path/version and its deterministic sequence.
+Continue selects the current supported Career Forge session or first eligible
+candidate; explain must match exactly one lesson in the current path. The
+coordinator refuses an inactive/ambiguous path, authored content without fixed
+assessment questions, or a conflicting active mission. It does not create or
+select a DLP path, project, or parallel progress record. The same immutable
+lesson explanation, examples, exercise, objectives, and fixed question contract
+go to the existing local Qwen teaching role. Repeat changes the phrasing
+instruction, not the curriculum authority.
+
+Only a finalized voice transcript can become a draft. A bounded single answer
+draft remains in coordinator memory and the frontend runtime store; corrections
+replace it, and cancel/Stop discards it. Confirmation is the only voice action
+that calls `GeneralizedLearningService.record_attempt`, using one random
+interaction id as the idempotent submission id. Career Forge records the
+attempt and bounded Reviewer feedback/evidence. Incorrect or uncertain answers
+stay visible in canonical assessment history and use the DLP sequence's
+reinforcement/diagnostic/review recommendation; a correct first question does
+not bypass the distinct-question mastery requirement. After API reconstruction,
+committed attempts/evidence and DLP progression return from SQLite; unsubmitted
+drafts do not.
+
+`VOICE_LEARNING_CONTEXT` carries only the selected path, version, node, and
+session identities through the existing runtime event stream. Astra follows
+that identity into Learn; a transient answer draft is shown only when its path
+matches the loaded canonical path. The existing API's Owner session,
+loopback-host, Origin, and CSRF protections remain unchanged. Trusted local
+voice mutations use the existing `LocalOwnerTrust.local_voice_principal()`
+boundary and fail closed without the `local-owner` identity. An isolated
+synthetic-ASR/fixture-Qwen/fixture-Reviewer/playback-sink integration test
+covers voice-to-Learn context, explicit confirmation, API denial, canonical
+SQLite evidence, and reconstruction. It does not prove real microphone, live
+Qwen teaching quality, audible TTS, physical UI behavior, or production writes.
+See ADR 0055 and the Stage 32 entry in `ROADMAP.md`.

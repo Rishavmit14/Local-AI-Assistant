@@ -441,7 +441,7 @@ describe("FridayRuntimeStore", () => {
       }),
     );
 
-    expect(store.getSnapshot().voiceSignal).toBe("interrupted");
+    expect(store.getSnapshot().voiceSignal).toBe("listening");
 
     client.liveHandler?.(
       event(6, {
@@ -451,6 +451,35 @@ describe("FridayRuntimeStore", () => {
     );
 
     expect(store.getSnapshot().voiceSignal).toBe("none");
+  });
+
+  it("keeps only an unsubmitted voice-learning draft in presentation memory", async () => {
+    const client = new FakeRuntimeClient();
+    const store = new FridayRuntimeStore(client as never);
+    await store.start();
+
+    client.liveHandler?.(event(1, {
+      event_type: "voice.learning.state",
+      text: "owner answer draft",
+      metadata: {
+        state: "pending_confirmation",
+        path_id: "path-local",
+        node_id: "lesson-one",
+        interaction_id: "interaction-one",
+      },
+    }));
+    expect(store.getSnapshot().voiceLearningDraft).toEqual({
+      pathId: "path-local",
+      nodeId: "lesson-one",
+      interactionId: "interaction-one",
+      text: "owner answer draft",
+    });
+
+    client.liveHandler?.(event(2, {
+      event_type: "voice.learning.state",
+      metadata: { state: "discarded", path_id: "path-local", node_id: "lesson-one" },
+    }));
+    expect(store.getSnapshot().voiceLearningDraft).toBeNull();
   });
 
   it("accumulates assistant delta events", async () => {

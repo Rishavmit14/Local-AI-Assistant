@@ -522,3 +522,56 @@ The closure candidate is ready for Owner publication approval. The project
 status remains PARTIAL until the separately authorized commit and remote
 recovery gates are complete. No reboot occurred; full cold-boot qualification
 remains PENDING.
+
+## Stage 32 — learning turns and interruption while the model waits
+
+The accepted wake orchestrator and `FridayVoiceConversationService` still own
+capture, final ASR, runtime transitions, speech playback, and return to wake.
+`FridayConversationService` forwards only voice-origin learning intents to the
+canonical `VoiceLearningCoordinator`; it uses the existing local Qwen role for
+teaching and the existing TEACH_BACK Reviewer for assessment. There is no new
+voice process, endpoint, general-purpose model, wake detector, or audio
+configuration.
+
+The AEC interruption reader can arm while the voice turn is waiting for the
+model or Reviewer, before TTS has started. The reader is bounded by the active
+turn's stop event and is not started when the trusted active-task Stop listener
+already owns capture. On owner speech it cancels the exact voice turn, closes
+the supported model/Reviewer stream, stops active playback through the
+established capture/stopper path, and forwards the completed utterance as the
+next listening turn. The legacy playback-only monitor remains the fallback
+when the reader does not support idle capture or fails to start. Stale chunks
+are not queued after cancellation; the current turn cannot publish a late
+completion that restarts speech.
+
+The local-only race tests block Qwen before its first response chunk, interrupt
+the turn, then verify no stale first-turn speech appears and the captured owner
+utterance enters a fresh turn. Reviewer tests prove a cancellation before its
+assessment commit leaves a confirmed attempt pending without evidence; a
+post-commit Stop does not reverse persisted feedback/evidence. Synthetic ASR
+and playback fixtures do not qualify real wake recognition, physical audio,
+Pocket/Anna audibility, latency, or device recovery.
+
+### Read-only production wake evidence reviewed for Stage 32
+
+On 2026-10-16, the current Stage 31 API reported voice `running`, capture
+`listening`, wake armed, no active turn, no last error, and recovery count zero;
+Pocket/Anna and all three voice workers were running. The user service had
+started at 16:34 local time. Journal evidence from earlier processes records a
+primary `WakeRuntimeError` at startup on 2026-10-15 09:22:49 with the explicit
+cause `wake worker response timed out`, followed by systemd recovery. A
+pre-current process also logged five bounded retry events between 14:12 and
+16:16 local time on 2026-10-16; those entries contain only the exception type,
+not a more specific cause. No matching kernel OOM entry appeared for that
+window. The later healthy process has not reproduced the error in this
+read-only observation. Stage 32 therefore leaves the wake engine unchanged;
+actual wake-after-response/Stop and worker-recovery behavior remains part of
+the separately approved physical qualification.
+
+The observed host audio endpoints were the built-in `HDA Intel PCH / ALC898
+Analog` capture (`alsa_input.pci-0000_00_1f.3.analog-stereo`) and current
+analog-stereo output (`alsa_output.pci-0000_00_1f.3.analog-stereo`). The
+existing PipeWire AEC source `friday_aec_source` was present and shared with
+the active Friday service. No physical voice test or audio setting change was
+made. Stage 32 code-only qualification and the physical approval boundary are
+recorded in `ROADMAP.md` and ADR 0055.

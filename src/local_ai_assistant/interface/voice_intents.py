@@ -29,6 +29,18 @@ class ScreenQuestionMode(StrEnum):
     VISUAL = "visual"
 
 
+class VoiceLearningAction(StrEnum):
+    CONTINUE = "continue"
+    EXPLAIN = "explain"
+    REPEAT = "repeat"
+    ANSWER = "answer"
+    CORRECT = "correct"
+    CONFIRM = "confirm"
+    CANCEL = "cancel"
+    CHECK = "check"
+    PROGRESS = "progress"
+
+
 @dataclass(frozen=True, slots=True)
 class FridayVoiceIntent:
     kind: FridayVoiceIntentType
@@ -36,6 +48,8 @@ class FridayVoiceIntent:
     computer_goal: str | None = None
     capability_key: str | None = None
     screen_mode: ScreenQuestionMode | None = None
+    learning_action: VoiceLearningAction | None = None
+    learning_topic: str | None = None
 
 
 _SCREEN_QUESTION = re.compile(
@@ -78,12 +92,56 @@ _COMPUTER_GOAL = re.compile(
 )
 _RESEARCH_MEMORY_OBJECTIVE = re.compile(r"\b(?:research|memory|remember|objective|automate|automation)\b", re.I)
 _LEARNING = re.compile(r"\b(?:learn|learning|career forge|practice lab|competenc|mission|tutor|project)\b", re.I)
+_WAKE_PREFIX = re.compile(r"^\s*(?:(?:hey\s+)?friday[,:]?\s+)+", re.I)
+_CONTINUE_LEARNING = re.compile(
+    r"\b(?:continue|resume|pick up|keep going with)\b.{0,72}"
+    r"\b(?:course|learning|path|lesson|topic|machine learning|\bml\b)\b",
+    re.I,
+)
+_REPEAT_LEARNING = re.compile(
+    r"\b(?:explain|say|go over|teach)\b.{0,40}\b(?:that|it|the lesson|again|once more)\b"
+    r"|\b(?:repeat|revisit)\b.{0,35}\b(?:lesson|topic|that|it)\b"
+    r"|\b(?:explain that again|explain it again|say that again)\b",
+    re.I,
+)
+_PROGRESS_LEARNING = re.compile(
+    r"\b(?:how much|what|show me|tell me)\b.{0,56}\b(?:learned|learning progress|progress|mastered)\b"
+    r"|\b(?:show|check|tell me about)\b.{0,32}\b(?:my )?(?:learning )?progress\b",
+    re.I,
+)
+_ANSWER_LEARNING = re.compile(r"^(?:my answer is|my answer:|the answer is)\s*(.+)$", re.I | re.S)
+_CORRECTION_LEARNING = re.compile(
+    r"^(?:correction(?: is)?[: ,]+|i meant[: ,]+|replace (?:that|my answer)(?: with)?[: ,]+|"
+    r"no[, ]+my answer is[: ,]+)(.+)$",
+    re.I | re.S,
+)
+_CONFIRM_LEARNING = re.compile(
+    r"^(?:yes|yeah|yep|correct|confirm|submit(?: it)?|go ahead|that's right|that is right|"
+    r"yes[, ]+(?:submit|confirm)(?: it)?)[.! ]*$",
+    re.I,
+)
+_CANCEL_LEARNING = re.compile(
+    r"^(?:cancel(?: that| it| my answer)?|discard(?: that| it)?|no(?:[, ]+don't submit)?|"
+    r"forget it|never mind|nevermind)[.! ]*$",
+    re.I,
+)
+_CHECK_LEARNING = re.compile(r"\b(?:check|review|evaluate)\s+my answer\b", re.I)
+_EXPLAIN_LEARNING = re.compile(
+    r"^(?:please )?(?:explain|teach me|help me understand|clarify)\b\s*(.*)$",
+    re.I | re.S,
+)
 
 
 class FridayVoiceIntentRouter:
     """Classify broad request families while leaving target resolution to capabilities."""
 
-    def classify(self, prompt: str, *, capability_route=None) -> FridayVoiceIntent:
+    def classify(
+        self,
+        prompt: str,
+        *,
+        capability_route=None,
+        pending_voice_answer: bool = False,
+    ) -> FridayVoiceIntent:
         command = parse_open_command(prompt)
         if command is not None:
             if is_friday_ui_target(command.target) or is_friday_internal_route(command.target):
@@ -101,6 +159,76 @@ class FridayVoiceIntentRouter:
         if _COMPUTER_GOAL.search(prompt):
             return FridayVoiceIntent(FridayVoiceIntentType.COMPUTER_ACTION,
                                      computer_goal=prompt)
+
+        learning_text = _WAKE_PREFIX.sub("", prompt).strip()
+        answer_match = _ANSWER_LEARNING.match(learning_text)
+        correction_match = _CORRECTION_LEARNING.match(learning_text)
+        if pending_voice_answer and correction_match and correction_match.group(1).strip():
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.CORRECT,
+                learning_topic=correction_match.group(1).strip(),
+            )
+        if pending_voice_answer and answer_match and answer_match.group(1).strip():
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.CORRECT,
+                learning_topic=answer_match.group(1).strip(),
+            )
+        if pending_voice_answer and _CONFIRM_LEARNING.fullmatch(learning_text):
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.CONFIRM,
+            )
+        if pending_voice_answer and _CANCEL_LEARNING.fullmatch(learning_text):
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.CANCEL,
+            )
+        if answer_match and answer_match.group(1).strip():
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.ANSWER,
+                learning_topic=answer_match.group(1).strip(),
+            )
+        if _CHECK_LEARNING.search(learning_text):
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.CHECK,
+            )
+        if _PROGRESS_LEARNING.search(learning_text):
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.PROGRESS,
+            )
+        if _CONTINUE_LEARNING.search(learning_text):
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.CONTINUE,
+            )
+        if _REPEAT_LEARNING.search(learning_text):
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.REPEAT,
+            )
+        if _EXPLAIN_LEARNING.search(learning_text):
+            match = _EXPLAIN_LEARNING.match(learning_text)
+            topic = match.group(1).strip(" .?!,") if match else ""
+            return FridayVoiceIntent(
+                FridayVoiceIntentType.LEARNING_CAREER_PROJECT,
+                capability_key="learning_paths",
+                learning_action=VoiceLearningAction.EXPLAIN,
+                learning_topic=topic or None,
+            )
 
         capability_key = getattr(capability_route, "capability_key", None)
         if capability_key in {"career_forge", "learning_paths", "practice_lab"}:
@@ -124,5 +252,5 @@ class FridayVoiceIntentRouter:
 
 __all__ = [
     "FridayVoiceIntent", "FridayVoiceIntentRouter", "FridayVoiceIntentType",
-    "ScreenQuestionMode",
+    "ScreenQuestionMode", "VoiceLearningAction",
 ]

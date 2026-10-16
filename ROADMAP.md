@@ -1924,6 +1924,50 @@ symlink predicate; no application or data fault occurred. Rows 60 and 61 remain
 PARTIAL; this three-node journey does not establish Senior ML/AI Engineer
 readiness or complete Career Forge. Stage 32 was not started in this session.
 
+### Stage 32 — Voice-first learning and reliable interruption (**PARTIAL — code-only integrations qualified; physical voice pending Owner approval**)
+
+Stage 32 binds finalized local voice turns to the selected active DLP path and
+Career Forge's existing dynamic lesson, fixed assessment contract, Reviewer,
+evidence, mastery, and prerequisite projections. Continue, explain, repeat,
+progress, answer, correction, confirmation, and cancellation intents route
+before generic capability adapters. Voice cannot create or select a path or
+project. Local mutations require Friday's existing trusted `local-owner`
+principal. Spoken answers remain bounded in-memory drafts until explicit
+confirmation; retries use one interaction id, and incorrect or uncertain
+reviews preserve canonical remediation without granting mastery.
+
+The existing wake, ASR, Qwen, Pocket/Anna, AEC, and event-stream interfaces are
+reused. AEC monitoring now starts before model/reviewer wait so speech can
+cancel generation before first playback. Turn ids and cancellation events close
+the active model or Reviewer stream; cancellation before the assessment commit
+leaves a confirmed attempt pending, while a completed durable assessment is
+never rolled back by Stop. The Learn workspace follows the runtime context
+event, renders the same selected path/node, shows only an unsubmitted voice
+draft, and refreshes canonical feedback/progress events. No voice database,
+daemon, model, wake engine, or production service change was added.
+
+Code-only evidence: synthetic final ASR, deterministic Qwen/Reviewer fixtures,
+and a test playback sink traverse the actual voice and conversation services,
+isolated FastAPI endpoints, and temporary Career Forge/DLP SQLite stores. The
+journey proves lesson selection and spoken delivery, draft-only behavior,
+explicit one-attempt confirmation, unauthorized browser-write rejection,
+non-mastery after one correct question, API reconstruction, and runtime/UI
+projection tests. Final code-only gates passed: repository verification
+reported 1,897 Python tests passed and 6 skipped; the frontend reported 189
+tests across 38 files, four Node checks, ESLint, TypeScript, and production
+build passed. The isolated real-Chrome Stage 31 regression also passed its
+three-topic Learn journey, authorization negatives, browser reload, and API
+restart recovery (`/tmp/friday-stage32-stage31-browser-regression-20261016`).
+That regression does not constitute a Stage 32 physical voice test. The actual
+microphone, wake, live Qwen teaching quality, audible Pocket/Anna latency, and
+physical interruption remain **not qualified**. Current read-only Stage 31
+health is listening with no active turn/error. The journal records an older
+primary wake-worker response timeout and bounded retries before the current
+service start; no new wake-engine defect was reproduced or changed. Career
+Forge rows 60 and 61 remain PARTIAL. The scoped branch is
+`stage-32/voice-first-learning-reliability`; no deployment or `main`
+fast-forward is permitted for this stage.
+
 ## Dynamic Learning Paths — DLP-1–4 accepted and published (row 61, PARTIAL)
 
 DLP-1 establishes a separate local SQLite authority for versioned learning-path

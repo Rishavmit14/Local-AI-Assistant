@@ -1,4 +1,5 @@
 import re
+import threading
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from pathlib import PurePosixPath
@@ -57,6 +58,8 @@ class LocalLLM:
         )
         self._latency_observer: Callable[[str, Mapping[str, int | float]], None] | None = None
         self.last_response_metadata: dict[str, object] = {}
+        self._active_stream_lock = threading.Lock()
+        self._active_stream = None
         logger.info(
             "llm_client_initialized",
             extra={"event": "llm.client.initialized", "base_url": self.config.llama.base_url},
@@ -164,6 +167,7 @@ class LocalLLM:
         ),
         temperature: float = 0.2,
         max_tokens: int = 1024,
+        cancel_event: threading.Event | None = None,
     ) -> Iterator[str]:
         if max_tokens < 1 or max_tokens > self.config.llama.context_size:
             raise ConfigurationError(
@@ -174,6 +178,8 @@ class LocalLLM:
             "llm_stream_started",
             extra={"event": "llm.stream.started", "model": self.model_display_id},
         )
+        if cancel_event is not None and cancel_event.is_set():
+            return
         try:
             self._observe("LOCAL_LLM_REQUEST_DISPATCHED")
             stream = self.client.chat.completions.create(
@@ -186,6 +192,8 @@ class LocalLLM:
                 max_tokens=max_tokens,
                 stream=True,
             )
+            with self._active_stream_lock:
+                self._active_stream = stream
             self._observe("LOCAL_LLM_REQUEST_ACCEPTED")
         except Exception as exc:
             logger.warning(
@@ -199,6 +207,8 @@ class LocalLLM:
         first_token = True
         try:
             for chunk in stream:
+                if cancel_event is not None and cancel_event.is_set():
+                    break
                 usage = getattr(chunk, "usage", None)
                 if usage is not None:
                     prompt_details = getattr(usage, "prompt_tokens_details", None)
@@ -237,9 +247,27 @@ class LocalLLM:
             close = getattr(stream, "close", None)
             if callable(close):
                 close()
+            with self._active_stream_lock:
+                if self._active_stream is stream:
+                    self._active_stream = None
+        if cancel_event is not None and cancel_event.is_set():
+            return
         if first_token:
             raise LLMError("Local model stream ended without text content")
         logger.info("llm_stream_completed", extra={"event": "llm.stream.completed"})
+
+    def cancel_active_stream(self) -> bool:
+        """Close the active local HTTP stream without waiting for another token."""
+        with self._active_stream_lock:
+            stream = self._active_stream
+        close = getattr(stream, "close", None)
+        if not callable(close):
+            return False
+        try:
+            close()
+            return True
+        except Exception:
+            return False
 
 
 def main() -> int:

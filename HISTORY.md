@@ -1,3 +1,37 @@
+# 2026-10-16 — Stage 32 voice-first learning code-only checkpoint (PARTIAL)
+
+Stage 32 connects the existing local voice runtime to Stage 31's selected
+active DLP path and Career Forge lesson contract. Voice Continue/Explain/Repeat,
+answer/correction, confirmation, progress, and cancel intents route before
+generic capability handlers. Lesson context follows the existing runtime event
+stream into Astra Learn. Final answer text stays a bounded in-memory draft
+until explicit confirmation; idempotent submissions, Reviewer feedback,
+evidence, mastery, and next actions remain Career Forge/DLP-owned. Stop and
+barge-in carry explicit turn cancellation through Qwen/Reviewer work, including
+the pre-speech model wait. No new voice daemon, LLM, database, or production
+service configuration was introduced.
+
+The isolated voice journey uses synthetic final ASR, deterministic local
+reasoning/Reviewer fixtures, a test playback sink, actual voice/conversation
+services, FastAPI, and temporary SQLite stores. It verifies lesson selection,
+unsubmitted-answer safety, one confirmed attempt, authorization denial, and
+canonical state reconstruction. Final repository verification passed 1,897
+tests (6 skipped) and dependency checks. The frontend passed 189 tests across
+38 files, four Node checks, ESLint, TypeScript, and production build. An
+isolated real-Chrome Stage 31 regression also passed its three-topic journey,
+authorization negatives, browser reload, and API restart recovery; evidence is
+under `/tmp/friday-stage32-stage31-browser-regression-20261016/`.
+
+Stage 32 remains PARTIAL. Live Qwen teaching, physical microphone/wake, actual
+Pocket/Anna audibility, hardware latency, and physical interruption are not
+qualified. Read-only Stage 31 voice health was running/listening with no active
+turn/error; earlier journaled wake-worker timeouts/retries had recovered before
+this observation. No production service was restarted or modified. The
+separately approved physical test remains pending. The Stage 32 source commit
+and recovery bundle will be recorded after publication on
+`stage-32/voice-first-learning-reliability`; `main` and the deployed Stage 31
+release remain unchanged.
+
 # 2026-10-16 — Stage 31 three-node ML engineering journey qualified and published
 
 Stage 31 connects an owner-authenticated three-node fraud-detection curriculum

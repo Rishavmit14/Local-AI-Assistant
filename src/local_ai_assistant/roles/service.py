@@ -1,11 +1,12 @@
 """Prompt-only role routing over one local general-purpose model."""
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
-from threading import Lock
+from threading import Event, Lock
 
 
 class Role(StrEnum):
@@ -76,8 +77,15 @@ class RoleClient:
             response_format=response_format,
         )
 
-    def stream_chat(self, prompt: str, system_prompt: str = "", temperature: float = 0.2, max_tokens: int = 1024) -> Iterator[str]:
-        return self._orchestrator.stream_chat(self.role, prompt, system_prompt, temperature, max_tokens)
+    def stream_chat(self, prompt: str, system_prompt: str = "", temperature: float = 0.2,
+                    max_tokens: int = 1024, *, cancel_event: Event | None = None) -> Iterator[str]:
+        return self._orchestrator.stream_chat(
+            self.role, prompt, system_prompt, temperature, max_tokens,
+            cancel_event=cancel_event,
+        )
+
+    def cancel_active_stream(self) -> bool:
+        return self._orchestrator.cancel_active_stream(self.role)
 
     def set_latency_observer(self, observer: Callable[[str, Mapping[str, int | float]], None] | None) -> None:
         setter = getattr(self._orchestrator.model, "set_latency_observer", None)
@@ -94,6 +102,9 @@ class RoleOrchestrator:
         self.model, self.max_history = model, max_history
         self._lock = Lock()
         self._invocation_lock = Lock()
+        self._active_lock = Lock()
+        self._active_role: Role | None = None
+        self._active_cancel_event: Event | None = None
         self._history: list[RoleInvocation] = []
 
     def client(self, role: Role) -> RoleClient:
@@ -133,15 +144,47 @@ class RoleOrchestrator:
             self._finish(started, True)
             return value
 
-    def stream_chat(self, role: Role, prompt: str, system_prompt: str, temperature: float, max_tokens: int) -> Iterator[str]:
+    def stream_chat(self, role: Role, prompt: str, system_prompt: str, temperature: float,
+                    max_tokens: int, *, cancel_event: Event | None = None) -> Iterator[str]:
         with self._invocation_lock:
             started = self._start(role)
+            active_event = cancel_event or Event()
+            with self._active_lock:
+                self._active_role = Role(role)
+                self._active_cancel_event = active_event
             try:
-                yield from self.model.stream_chat(prompt, system_prompt=self._prompt(role, system_prompt), temperature=temperature, max_tokens=max_tokens)
+                kwargs: dict[str, object] = {
+                    "system_prompt": self._prompt(role, system_prompt),
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                }
+                if _supports_keyword(self.model.stream_chat, "cancel_event"):
+                    kwargs["cancel_event"] = active_event
+                yield from self.model.stream_chat(prompt, **kwargs)
             except BaseException:
                 self._finish(started, False)
                 raise
-            self._finish(started, True)
+            else:
+                self._finish(started, not active_event.is_set())
+            finally:
+                with self._active_lock:
+                    if self._active_cancel_event is active_event:
+                        self._active_role = None
+                        self._active_cancel_event = None
+
+    def cancel_active_stream(self, role: Role) -> bool:
+        """Cancel only the active stream for this role-scoped client."""
+        with self._active_lock:
+            if self._active_role is not Role(role) or self._active_cancel_event is None:
+                return False
+            self._active_cancel_event.set()
+        cancel = getattr(self.model, "cancel_active_stream", None)
+        if callable(cancel):
+            try:
+                cancel()
+            except (OSError, RuntimeError, ValueError):
+                pass
+        return True
 
     def _start(self, role: Role) -> RoleInvocation:
         return RoleInvocation(Role(role), datetime.now(UTC).isoformat(), None, False)
@@ -156,3 +199,11 @@ class RoleOrchestrator:
     def _prompt(role: Role, supplied: str) -> str:
         base = _ROLE_INSTRUCTIONS[Role(role)]
         return base if not supplied else f"{base}\n\n{supplied}"
+
+
+def _supports_keyword(method, name: str) -> bool:
+    try:
+        parameters = inspect.signature(method).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(item.name == name or item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters)

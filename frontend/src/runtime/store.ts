@@ -5,6 +5,7 @@ import type {
   FridayRuntimeEvent,
   FridayRuntimeSnapshot,
   FridayRuntimeState,
+  FridayVoiceLearningDraft,
   FridayVoicePresentationSignal,
 } from "./types";
 
@@ -26,6 +27,7 @@ export interface FridayRuntimeViewState {
   assistantText: string;
   error: string | null;
   voiceSignal: FridayVoicePresentationSignal;
+  voiceLearningDraft: FridayVoiceLearningDraft | null;
 }
 
 type Listener = (state: FridayRuntimeViewState) => void;
@@ -41,6 +43,7 @@ const DEFAULT_STATE: FridayRuntimeViewState = {
   assistantText: "",
   error: null,
   voiceSignal: "none",
+  voiceLearningDraft: null,
 };
 
 export class FridayRuntimeStore {
@@ -174,6 +177,7 @@ export class FridayRuntimeStore {
             assistantText: "",
             error: null,
             voiceSignal: "none" as const,
+            voiceLearningDraft: null,
           }
         : {}),
     });
@@ -276,14 +280,49 @@ export class FridayRuntimeStore {
       patch.voiceSignal = "interrupted";
     }
 
-    if (event.event_type === "conversation.user_text") {
-      patch.voiceSignal = "none";
+    if (event.event_type === "voice.listening.started") {
+      patch.voiceSignal = "listening";
     }
 
-    if (
-      event.event_type === "voice.listening.started" &&
-      event.metadata.reason !== "barge_in"
-    ) {
+    if (event.event_type === "voice.listening.stopped") {
+      patch.voiceSignal = event.metadata.reason === "utterance_complete"
+        || event.metadata.reason === "inline_wake_command"
+        ? "transcribing"
+        : "none";
+    }
+
+    if (event.event_type === "voice.transcription") {
+      patch.voiceSignal = "thinking";
+    }
+
+    if (event.event_type === "conversation.assistant.started"
+        && typeof event.metadata.voice_turn_id === "string") {
+      patch.voiceSignal = "thinking";
+    }
+
+    if (event.event_type === "voice.turn.cancelled") {
+      patch.voiceSignal = "interrupted";
+    }
+
+    if (event.event_type === "voice.learning.state") {
+      const learningState = event.metadata.state;
+      if (learningState === "pending_confirmation"
+          && typeof event.metadata.path_id === "string"
+          && typeof event.metadata.node_id === "string"
+          && typeof event.metadata.interaction_id === "string"
+          && typeof event.text === "string") {
+        patch.voiceLearningDraft = {
+          pathId: event.metadata.path_id,
+          nodeId: event.metadata.node_id,
+          interactionId: event.metadata.interaction_id,
+          text: event.text,
+        };
+      } else if (["discarded", "submitted_pending_review", "assessment_complete"].includes(String(learningState))) {
+        patch.voiceLearningDraft = null;
+      }
+    }
+
+    if (event.event_type === "conversation.user_text") {
       patch.voiceSignal = "none";
     }
 
