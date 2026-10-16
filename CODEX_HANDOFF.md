@@ -24,6 +24,10 @@ owner replies exactly `APPROVE STAGE30 RELEASE` to the prepared proposal.
   `/AI/recovery/friday-stage30-20261016T002913IST/`; they represent the
   pre-migration-fix candidate. Current qualification logs and rollback proof
   are in its `qualification/` directory.
+- An earlier unactivated release/environment draft exists at SHA
+  `928cbd95f7e089ee91df6ab2ea4fe7b6f4ba7e85`. It used the insufficient
+  30-second cold-start bound and is superseded. Never activate it. Build the
+  final immutable release and environment from the exact current branch tip.
 - The main checkout `/AI/projects/Local-AI-Assistant-terra-integration`
   remains on `recovery/local-main-before-stage28-20261015` with its existing
   dirty documentation untouched. The protected GCA worktree remains at
@@ -61,8 +65,9 @@ the owner-source route; the rollback procedure and limit are in
   dependency lock took 33.6 seconds to import the API; integration and
   deployment readiness bounds now allow 60 seconds.
   The exact-lock SSE shutdown test passed in 33.3 seconds; migration and
-  validation rollback regressions also passed. The final full verifier is
-  rerunning against this updated bound.
+  validation rollback regressions also passed. The final full verifier then
+  passed against this updated bound: **1,868 passed, 6 skipped**, compile/CLI
+  checks and package consistency included.
 - Full verifier used a transient user cgroup capped at 4 GiB memory and 1 GiB
   swap; peak test-tree RSS was about 1.8 GiB, available RAM remained above
   22.7 GiB, memory PSI full avg10 remained 0%, and the guard did not intervene.
@@ -86,6 +91,17 @@ records Stage 29 health, UI asset hashes, 14 SQLite integrity checks, no
 active tasks/actions/claims at capture, and preservation of 12 historical
 `in_doubt` computer actions. Recheck live service, voice, task, and database
 state immediately before any approved stop.
+
+The latest read-only preapproval check still found the Stage 29 API and UI
+active with HTTP 200 and source SHA `464f5002574a2f00b13db597f04772984939a189`.
+All 15 production SQLite databases passed integrity checks; Projects and
+Learning Paths remain at schema v2 with no project, submission, evidence, or
+learning-path rows. Computer Agency has no active task/action states and
+TaskHistory has no task or execution/planning claims. The 12 historical
+`in_doubt` actions remain present. Voice has no active turn; capture is
+listening, its stream is open, and wake detectors are armed. Health retains a
+recovered `WakeRuntimeError` from 10:46 IST (recovery count 1); current capture
+health is running. Recheck every item immediately before any approved stop.
 
 The immutable candidate must be built from the exact current branch `HEAD`.
 Its source, dependency, frontend asset, service configuration, and release
