@@ -1864,7 +1864,7 @@ pre-existing mission and Practice Lab draft remain intact, and all 12
 historical `in_doubt` actions remain untouched. See the deployment record in
 `docs/operations/stage30-release-plan.md` and the current `CODEX_HANDOFF.md`.
 
-### Stage 31 candidate — Multi-topic ML Engineering Learner Journey
+### Stage 31 qualified and published — Multi-topic ML Engineering Learner Journey
 
 Stage 31 adds one connected three-node fraud-detection learning journey on the
 existing DLP, Career Forge, Projects, Owner-session, and Reviewer authorities.
@@ -1887,16 +1887,21 @@ nodes reached `apply_independently`; Node 1's failed answer recommended
 `REINFORCE_FIRST`; rejected and corrected project artifacts produced two
 durable reviews and one accepted project evidence record; browser reload and
 isolated API restart recovered the path and project. No task, computer action,
-or publication was created.
+or task execution occurred in the qualification run.
 
-The candidate is on `stage-31/ml-engineering-learning-journey`. Full qualification
-passed: 1,873 Python tests passed, 6 skipped, repository verification passed,
-187 frontend tests passed, four Node checks passed, and ESLint, TypeScript, and
-production build passed. The final real-Chrome/FastAPI/SQLite result is under
+The qualified Stage 31 source commit
+`c1b1fee95e9d651d4caf3cd5184296170636f450` is published on
+`stage-31/ml-engineering-learning-journey` and its remote ref was verified at
+that commit. Full qualification passed: 1,873 Python tests passed, 6 skipped;
+repository verification passed; 187 frontend tests and four Node checks passed;
+ESLint, TypeScript, and production build passed. The final
+real-Chrome/FastAPI/SQLite result is under
 `var/stage31-qualification/20261016-final-acceptance/`; it proves reload and API
-restart recovery with no production writes or task execution. Scoped branch
-publication remains. Rows 60 and 61 remain PARTIAL; this three-node journey does
-not establish Senior ML/AI Engineer readiness or complete Career Forge.
+restart recovery with no production writes or task execution. `main` remains at
+Stage 30; no deployment or Stage 32 work is included. Rows 60 and 61 remain
+PARTIAL; this three-node journey does not establish Senior ML/AI Engineer
+readiness or complete Career Forge. The qualification run itself created no
+task, computer action, or publication.
 
 The Stage 29 publication entry above records its state at publication. The
 Stage 30 preparation checks also confirmed the old Stage 29 API and UI were

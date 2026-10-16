@@ -1,4 +1,4 @@
-# 2026-10-16 — Stage 31 three-node ML engineering journey candidate
+# 2026-10-16 — Stage 31 three-node ML engineering journey qualified and published
 
 Stage 31 connects an owner-authenticated three-node fraud-detection curriculum
 to existing Dynamic Learning Paths, Career Forge mastery, Projects, and the
@@ -13,15 +13,17 @@ Artifact review did not change DLP mastery or fixed-assessment evidence. The
 qualification created no task or computer action and did not use live Qwen or
 production Friday. This bounded journey does not establish whole-product Career
 Forge qualification or Senior ML/AI Engineer readiness; roadmap rows 60 and 61
-remain PARTIAL. Candidate implementation, architecture updates, focused tests,
-and isolated browser evidence are present on
-`stage-31/ml-engineering-learning-journey`. Final acceptance gates passed: the
-repository verifier ran the full Python suite (**1,873 passed, 6 skipped**) and dependency
-consistency checks; frontend **187 tests across 38 files**, four Node checks,
-ESLint, TypeScript, and production build passed. Final browser/API evidence is
-under `var/stage31-qualification/20261016-final-acceptance/`. The Vite main
-bundle size advisory (about 1.29 MB vs 500 kB) remains disclosed. Scoped branch
-publication remains.
+remain PARTIAL. Implementation, architecture updates, focused tests, and
+isolated browser evidence were accepted in source commit
+`c1b1fee95e9d651d4caf3cd5184296170636f450`, published on
+`stage-31/ml-engineering-learning-journey`, and verified at the remote ref.
+Final acceptance gates passed: the repository verifier ran the full Python
+suite (**1,873 passed, 6 skipped**) and dependency consistency checks; frontend
+**187 tests across 38 files**, four Node checks, ESLint, TypeScript, and
+production build passed. Final browser/API evidence is under
+`var/stage31-qualification/20261016-final-acceptance/`. The Vite main
+bundle size advisory (about 1.29 MB vs 500 kB) remains disclosed. `main` remains
+at the Stage 30 base; no deployment or Stage 32 work was performed.
 
 ## 2026-10-16 — Stage 30 owner-approved release deployed
 

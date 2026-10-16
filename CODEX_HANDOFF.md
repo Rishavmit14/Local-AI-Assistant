@@ -1,64 +1,59 @@
-# Friday handoff — Stage 31 qualified candidate
+# Friday handoff — Stage 31 qualified and published
 
-Updated 2026-10-16. Stage 31's bounded three-node fraud-detection ML engineering
-journey passed its full candidate qualification. The implementation is still
-uncommitted on its owning branch; scoped commit/publication and remote recovery
-verification are the remaining acceptance steps. Do not begin Stage 32.
+Updated 2026-10-16. The bounded three-node fraud-detection ML engineering
+journey is qualified and published on its owning Stage 31 branch. Accepted
+source recovery commit: `c1b1fee95e9d651d4caf3cd5184296170636f450`. A
+documentation-only follow-up records publication. No implementation work
+remains for this request. Do not begin Stage 32.
 
 ## Repository and protected runtime
 
 - Worktree: `/home/kumar-rishav/.codex/worktrees/friday-stage31-ml-engineering-learning-journey/Local-AI-Assistant-terra-integration`
-- Branch: `stage-31/ml-engineering-learning-journey`.
-- HEAD: `b939874e89fb695360425bfe8ca4dd82dee05769`; Stage 31 candidate files
-  are uncommitted. Recovery base: `refs/codex/recovery/stage31-base-20261016`.
-- Remote: `origin` at `https://github.com/Rishavmit14/Local-AI-Assistant.git`.
-  Publish only this Stage 31 branch. Leave `main` unchanged.
+- Branch: `stage-31/ml-engineering-learning-journey`; the source recovery SHA
+  above is on the verified remote ref. The current documentation-only tip is a
+  descendant of that source commit; use `git rev-parse HEAD` for its exact SHA.
+- `origin` is `https://github.com/Rishavmit14/Local-AI-Assistant.git`.
+  `origin/main` remains at Stage 30 base
+  `b939874e89fb695360425bfe8ca4dd82dee05769`; it was not advanced.
 - Protected production remains on immutable Stage 30 release
   `2c200bf798e195f2fff4908b147304d46a49d795`. `friday-local-ai.service` and
-  `friday-ui.service` are active. Stage 31 has not restarted Friday, Qwen, or
-  vision; it has not deployed or written production learner/project data.
+  `friday-ui.service` are active. Stage 31 did not restart Friday, Qwen, or
+  vision, deploy, or write production learner/project data.
 
-## Candidate and qualification evidence
+## Qualified capability and evidence
 
-The candidate connects bounded DLP lesson content and exact conceptual/practical
+The journey connects bounded DLP lesson content and exact conceptual/practical
 question contracts to Career Forge's durable answer history, evidence, mastery,
-and prerequisite progression. Project Reviewer submissions preserve their own
-assessment fingerprint and remain distinct from DLP question evidence. Owner,
-Origin, and CSRF checks protect path, dynamic assessment, project, and dynamic
-tutor mutations. No project artifact is executed and project review cannot
-directly grant lesson mastery.
+and prerequisite progression. Project Reviewer submissions keep their own
+assessment fingerprint and remain separate from DLP lesson evidence. Owner,
+Origin, and CSRF checks protect path, assessment, project, and dynamic tutor
+mutations. Project artifacts are not executed and do not directly grant lesson
+mastery.
 
 Final isolated browser/API artifacts:
 `var/stage31-qualification/20261016-final-acceptance/`. Real Chrome against
-isolated FastAPI/SQLite reached `apply_independently` on all three nodes, retained
-failed answers with `REINFORCE_FIRST`, enforced prerequisites, rejected
+isolated FastAPI/SQLite reached `apply_independently` on all three nodes,
+retained failed answers with `REINFORCE_FIRST`, enforced prerequisites, rejected
 unauthorized writes with HTTP 401 and unknown questions with HTTP 409, persisted
 two Project reviews and one accepted Project evidence record, and recovered the
 same learner/project state after browser reload and API restart. Project review
-left DLP mastery unchanged. The run used deterministic Teacher/Assessor/Reviewer
-fixtures; it did not use live Qwen, production, objectives, or computer/task
-execution.
+left DLP mastery unchanged. Deterministic Teacher/Assessor/Reviewer fixtures
+were used; no live Qwen, production, objective task, or computer/task execution
+was involved.
 
-Full gates passed after the final security change:
-`scripts/maintenance/verify-repository.sh` reported **1,873 passed, 6 skipped**,
-clean dependency consistency, compilation, CLI checks, and repository artifact
-checks. Frontend reported **187 tests across 38 files**, four Node checks,
-ESLint, TypeScript, and production build passed. The Vite main bundle remains
-about 1.29 MB against its 500 kB advisory. The worktree `.venv` has the
-project's declared tree-sitter language grammars installed for the full
-regression.
-
-Rows 60 and 61 remain PARTIAL. This bounded journey does not qualify complete
-Career Forge, Senior ML/AI Engineer readiness, live Qwen teaching quality, or
+Final gates: repository verifier and Python suite **1,873 passed, 6 skipped**;
+frontend **187 tests across 38 files**, four Node checks, ESLint, TypeScript,
+production build, dependency consistency, CLI checks, and repository artifact
+checks passed. The Vite main bundle advisory (about 1.29 MB vs 500 kB) remains.
+Rows 60 and 61 remain PARTIAL. This journey does not qualify complete Career
+Forge, Senior ML/AI Engineer readiness, live Qwen teaching quality, or
 production deployment.
 
-## Exact next work
+## Current status and continuation boundary
 
-Review `git diff --check`, the tracked/untracked scope, and the final diff; commit
-the qualified candidate on this branch; push only
-`stage-31/ml-engineering-learning-journey`; fetch and verify the exact remote
-recovery commit. Update this handoff, `ROADMAP.md`, and `HISTORY.md` with the
-accepted SHA and clean remote state, publish any documentation-only follow-up
-on the same Stage 31 branch, and verify the final remote branch SHA and clean
-worktree. Do not fast-forward `main`, deploy, restart production services, or
-begin Stage 32.
+The source commit is remotely recoverable from
+`origin/stage-31/ml-engineering-learning-journey`; the documentation-only
+follow-up on that branch preserves the same source. Verify a clean worktree and
+the current tip with `git status --short` and `git rev-parse HEAD`. There are no
+known Stage 31 blockers or remaining qualification steps. Do not fast-forward
+`main`, deploy, restart production, or begin Stage 32.
