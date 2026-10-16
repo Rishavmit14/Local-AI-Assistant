@@ -81,22 +81,27 @@ active tasks/actions/claims at capture, and preservation of 12 historical
 `in_doubt` computer actions. Recheck live service, voice, task, and database
 state immediately before any approved stop.
 
-The Stage 30 immutable release, release-local Python environment, frontend
-asset hashes, and exact API drop-in are being prepared under the paths in
-`docs/operations/stage30-release-plan.md`. Do not install or activate the
-drop-in before the exact approval. The cutover has a disclosed point-in-time
-clearance race because there is no proven atomic global admission lock; it
-rechecks task/voice/activity immediately before stopping the UI and API and
-aborts before service stop if any check is not clear. Voice capture runs
-inside the API process and shares the bounded outage.
+The immutable candidate must be built from the exact current branch `HEAD`.
+Its source, dependency, frontend asset, service configuration, and release
+identity hashes belong in
+`/home/kumar-rishav/.local/share/friday/api/releases/<full-sha>/release-metadata/stage30-release-manifest.json`.
+The release-local Python environment uses the same full SHA under
+`/home/kumar-rishav/.local/share/friday/api/environments/`. Do not install or
+activate its service drop-in before the exact approval. The cutover has a
+disclosed point-in-time clearance race because there is no proven atomic
+global admission lock; it rechecks task/voice/activity immediately before
+stopping the UI and API and aborts before service stop if any check is not
+clear. Voice capture runs inside the API process and shares the bounded
+outage.
 
-The only remaining action in this task is to finish and verify the immutable
-candidate package, prepare the final backup destination and exact proposal,
-then stop at the exact owner approval gate. After approval, promote the
-qualified commit to `main`, back up, perform the reviewed Stage29-style
-cutover, verify API/UI/Owner/persistence/voice/computer-agency health and the
-12 `in_doubt` rows, and report the deployed source SHA. Do not create
-production learner records or replay any historical actions.
+At the approval boundary, verify the source commit and remote ref, immutable
+release manifest, recovery destination, live service health, and current
+consequential-task clearance. Then stop and wait for the exact owner approval
+phrase. After approval, promote the qualified commit to `main`, create and
+verify backups, perform the reviewed Stage29-style cutover, verify
+API/UI/Owner/persistence/voice/computer-agency health and the 12 `in_doubt`
+rows, and report the deployed source SHA. Do not create production learner
+records or replay any historical actions.
 
 Career Forge roadmap rows 60 and 61 remain PARTIAL. Stage 31's Senior ML/AI
 Engineer learning journey is explicitly out of scope until the approved Stage
