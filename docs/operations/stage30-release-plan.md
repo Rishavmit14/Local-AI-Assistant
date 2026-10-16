@@ -1,24 +1,30 @@
 # Stage 30 immutable release and deployment plan
 
-**State:** Stage 30 source and the Projects migration fix are qualified on
-`stage-30/career-forge-connected-journey`. Production is still Stage 29.
-Do not promote `main`, stop services, or activate this release until the owner
-replies exactly `APPROVE STAGE30 RELEASE` to the final proposal.
+**State:** DEPLOYED AND VERIFIED (2026-10-16). The owner approved
+`APPROVE STAGE30 RELEASE`. Release source
+`2c200bf798e195f2fff4908b147304d46a49d795` is published on `main` and
+`stage-30/career-forge-connected-journey`, and the immutable production pointer
+resolves to that exact release. The procedure below records the completed
+cutover and its evidence; it is no longer an approval gate.
 
 ## Source and production identity
 
-- Release source: the exact published `HEAD` of
-  `stage-30/career-forge-connected-journey`; resolve the final SHA from Git and
-  verify it matches the remote branch before packaging.
-- `origin/main` and live production baseline:
+- Deployed release source:
+  `2c200bf798e195f2fff4908b147304d46a49d795`, the qualified Stage 30 commit.
+  A documentation-only acceptance follow-up may advance Git refs without
+  moving the immutable runtime pointer.
+- Stage 29 production baseline before cutover:
   `464f5002574a2f00b13db597f04772984939a189`.
+- Deployed Stage 30 release and verified `main` / stage branch commit:
+  `2c200bf798e195f2fff4908b147304d46a49d795`.
 - Live API pointer:
   `/home/kumar-rishav/.local/share/friday/api/current`, resolving to the
-  immutable Stage 29 release under
+  immutable Stage 30 release under
   `/home/kumar-rishav/.local/share/friday/api/releases/`.
-- Candidate package paths, once the final SHA is fixed:
-  `/home/kumar-rishav/.local/share/friday/api/releases/<full-sha>/` and
-  `/home/kumar-rishav/.local/share/friday/api/environments/<full-sha>/`.
+- Deployed immutable package:
+  `/home/kumar-rishav/.local/share/friday/api/releases/2c200bf798e195f2fff4908b147304d46a49d795/`.
+- Deployed Python environment:
+  `/home/kumar-rishav/.local/share/friday/api/environments/2c200bf798e195f2fff4908b147304d46a49d795/`.
 - Preserve the installed `friday-local-ai.service` and `friday-ui.service`,
   every drop-in, the same-origin UI/API ports, local model endpoint, Owner
   installation and private capability file, and external `LOCAL_AI_VAR_DIR`.
@@ -56,20 +62,20 @@ is a disclosed optimization risk, not a qualification failure.
 
 ## Projects schema v3, backup, and rollback
 
-Stage 29 production currently has Projects schema v2 and Learning Paths schema
-v2. Stage 30 changes only Projects to v3, adding submission kind, artifact
+Before cutover, Stage 29 production had Projects schema v2 and Learning Paths
+schema v2. Stage 30 changes only Projects to v3, adding submission kind, artifact
 name, and artifact SHA-256. The migration is an explicit SQLite write
 transaction; a failed column or version update rolls back fully. Compatible
 v3 columns under a v2 marker are validated and reconciled, which supports a
 verified binary rollback.
 
-Before activation, preserve and verify consistent, restricted SQLite backups
-of all production databases using the Stage 29 online-backup procedure. The
-new run directory is
-`/home/kumar-rishav/.local/share/friday/api/maintenance/stage30-<full-sha>/`.
-Check the backup manifest and run `PRAGMA integrity_check` on each copy before
-stopping services. No production migration or backup copy is part of this
-preparation.
+Before activation, the deployment preserved and verified consistent,
+restricted SQLite backups of all production databases using the Stage 29
+online-backup procedure. The run directory is
+`/home/kumar-rishav/.local/share/friday/api/maintenance/stage30-2c200bf798e195f2fff4908b147304d46a49d795/`.
+Both backup manifests and copies passed `PRAGMA integrity_check` before the
+service stop. Backup preparation did not mutate production; the Projects
+schema v3 migration occurred only after the approved release started.
 
 The Stage 30→Stage 29 rollback procedure is: stop UI and API; verify the
 Stage 29 immutable release; verify the restricted pre-cutover backup; then
@@ -89,7 +95,7 @@ activation, restoring the verified pre-cutover Projects backup is also safe.
 If new Stage 30 records exist, do not blindly restore that old backup; use the
 verified marker downgrade and preserve all rows for a later Stage 30 return.
 
-## Bounded cutover and explicit gate
+## Approved bounded cutover and completed checks
 
 The actual Stage 29 as-run evidence is in
 `/home/kumar-rishav/.local/share/friday/api/maintenance/stage29-20261015T162921Z/`.
@@ -100,43 +106,52 @@ infrastructure audit or add a maintenance coordinator. It reuses that bounded
 procedure and repeats clearance immediately before stop.
 
 There is no proven atomic global admission lock between a point-in-time
-clearance read and stopping the API. The cutover therefore rechecks for active
-computer tasks/actions/claims, live voice turns, in-flight or pending
-consequential work, task-history recovery, and database integrity immediately
-before the stop; it aborts before stopping if any check is not clear. The UI
-stops first, followed immediately by the API. Voice capture is hosted in the
-API process and will be interrupted for the same bounded outage. The owner
-approval must include this disclosed point-in-time limitation.
+clearance read and stopping the API. The cutover rechecked for active computer
+tasks/actions/claims, live voice turns, in-flight or pending consequential
+work, task-history recovery, and database integrity immediately before the
+stop. The UI stopped first, followed immediately by the API. Voice capture is
+hosted in the API process and shared the same bounded outage. The owner
+approved with this disclosed point-in-time limitation.
 
-After the exact approval, in one controlled window:
+After the exact approval, one controlled window completed:
 
-1. Reverify branch SHA, `origin/main`, live release, services, and active-work
-   clearance. Capture sanitized service configuration and create/verify the
-   restricted database backups.
-2. Stop the UI, recheck API/voice/task clearance, then stop the API gracefully;
-   verify both old process groups have exited.
-3. Point `current` to the immutable Stage 30 release. Keep external data,
-   Owner capability paths, origins, model endpoint, and service identities
-   unchanged. Update only the existing API release drop-in as needed; review
-   its exact content before installation.
-4. Start the API first with an evidence-based cold-start timeout (60 seconds;
-   the exact Stage 29 production dependency lock imported the API in 33.6
-   seconds during this qualification), confirm its source identity and
-   `/health`, then verify Owner rejection and
-   persistence with isolated disposable data.
-5. Start the matching UI and verify the UI, same-origin proxy, compiled asset
-   hashes, Owner session/CSRF behavior, and connected Learn/Projects routes.
-6. Verify voice health, the 12 historical `in_doubt` rows, computer-agency
-   health, and all production database integrity. Resume normal use only after
-   every check passes. Do not create production learning records or replay
-   historical actions.
+1. Reverified the source branch and remote refs, live release, services, and
+   active-work clearance. Captured sanitized service configuration and created
+   restricted, integrity-checked backups of all 15 production databases.
+2. Stopped the UI, repeated API/voice/task clearance, stopped the API
+   gracefully, and created a second restricted backup after API shutdown.
+3. Atomically pointed `current` to the immutable Stage 30 release and updated
+   only the API release drop-in. External data, Owner capability paths,
+   origins, model endpoint, and service identities remained unchanged.
+4. Started the API first within the 60-second bound. Verified the process
+   environment and working directory resolve to the candidate, `/health`
+   returns HTTP 200, an Owner-only request without a session returns 401, and
+   the Projects read path initializes schema v3 without creating a project.
+5. Started the matching UI. Verified HTTP 200, same-origin Projects and Career
+   Forge routes, all 13 manifest asset hashes, voice health, and fail-closed
+   Owner-only identity, mutation, and session-restoration requests. The
+   isolated qualification provides the authenticated Owner/CSRF flow evidence.
+6. Verified integrated computer-agency health, a running and armed Pocket/Anna
+   voice path with no active turn, all 15 live database integrity checks, no
+   TaskHistory tasks or claims, and preservation of all 12 historical
+   `in_doubt` actions. No production learner/project data was created and no
+   historical action was replayed.
 
-Before deployment, fast-forward `main` from the expected Stage 29 ancestor to
-the exact qualified Stage 30 commit, push without force, and verify remote
-`main` and the Stage 30 branch resolve to that commit. No Qwen, vision,
-Pocket/Anna, swap, or NVIDIA operation is included. Expected interruption is
-the short API/UI/voice outage for graceful stop, pointer activation, and the
-bounded health checks.
+Before cutover, `main` was fast-forwarded from the expected Stage 29 ancestor
+to the exact qualified Stage 30 commit. The Stage 30 branch and `main` were
+pushed without force and verified at that commit. No Qwen inference/restart,
+vision restart, Pocket/Anna reconfiguration, swap change, or NVIDIA operation
+occurred. The planned brief API/UI/voice interruption was required for the
+graceful stop, pointer activation, and bounded health checks.
+
+The first UI-stop wrapper attempt interpreted systemd's normal exit code for
+an inactive unit as an error after stopping only the UI. The API remained
+healthy; the UI was restarted and recovered before the corrected clearance
+and cutover. That attempt changed neither the release pointer nor production
+databases. The corrected deployment and verification record is
+`/home/kumar-rishav/.local/share/friday/api/maintenance/stage30-2c200bf798e195f2fff4908b147304d46a49d795/deployment-result.json`;
+pre-cutover and post-API-stop backup manifests are in the same maintenance
+directory.
 
 ## Qualification record and residual scope
 
@@ -152,5 +167,4 @@ was about 1.8 GiB, the guard did not stop work, and host memory PSI stayed at
 
 This release qualifies one FraudShield source-artifact milestone only. Rows 60
 and 61 remain PARTIAL; the broader multi-topic adaptive Senior ML/AI Engineer
-journey is the next roadmap dependency after this release. Do not implement
-Stage 31 as part of this release task.
+journey remains open. Stage 31 was not started as part of this release task.

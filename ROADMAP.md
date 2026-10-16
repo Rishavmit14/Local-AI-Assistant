@@ -1798,7 +1798,7 @@ are implemented and qualified. Rows 60 and 61 remain PARTIAL; this release does
 not qualify the full Career Forge product. See CODEX_HANDOFF.md and
 docs/operations/stage29-release-plan.md.
 
-### Stage 30 connected Project → Learning Journey — qualified bounded slice; release awaits owner approval (2026-10-16)
+### Stage 30 connected Project → Learning Journey — bounded slice deployed and qualified (2026-10-16)
 
 Stage 30 adds one connected FraudShield journey using the existing Projects,
 Dynamic Learning Paths, Career Forge, Reviewer, and Owner-session authorities.
@@ -1847,16 +1847,26 @@ microphone, barge-in, or physical Stop qualification was performed. Stage 30
 did not load or run Qwen, change voice/vision configuration, or add MicroTurn
 integration.
 
-This branch-only code slice does not qualify the full Career Forge learner
-journey or Friday V1. Roadmap rows 60 and 61 remain PARTIAL; broader multi-topic
-learning, retention/adaptive progression, voice operation, validated project
-execution, approval-gated publication, and final visual acceptance remain open.
-No deployment, service/model restart, or `main` update is part of this stage.
-The Stage 29 publication entry above recorded its state at publication. During
-Stage 30 recovery, the read-only live API and UI checks confirmed both were
-serving the immutable Stage 29 release `464f5002574a2f00b13db597f04772984939a189`
-(API health and UI both HTTP 200). The twelve previously recorded `in_doubt`
-computer actions remain preserved. No production store or action was touched.
+This bounded slice does not qualify the full Career Forge learner journey or
+Friday V1. Roadmap rows 60 and 61 remain PARTIAL; broader multi-topic learning,
+retention/adaptive progression, voice operation, validated project execution,
+approval-gated publication, and final visual acceptance remain open.
+
+The owner-approved release source `2c200bf798e195f2fff4908b147304d46a49d795`
+is deployed on `main` and `stage-30/career-forge-connected-journey`. The
+immutable runtime pointer resolves to that exact release. API and UI health,
+same-origin Learn/Projects routes, all 13 frontend asset hashes, fail-closed
+unauthenticated Owner checks, voice readiness, and healthy computer agency were
+verified after cutover. Projects is schema v3; Learning Paths remains v2. All
+15 production databases pass integrity checks and their table counts match the
+post-stop backup. No production project or learner record was created, the
+pre-existing mission and Practice Lab draft remain intact, and all 12
+historical `in_doubt` actions remain untouched. See the deployment record in
+`docs/operations/stage30-release-plan.md` and the current `CODEX_HANDOFF.md`.
+
+The Stage 29 publication entry above records its state at publication. The
+Stage 30 preparation checks also confirmed the old Stage 29 API and UI were
+healthy before cutover; Stage 29 was not the post-release runtime.
 
 ## Dynamic Learning Paths — DLP-1–4 accepted and published (row 61, PARTIAL)
 

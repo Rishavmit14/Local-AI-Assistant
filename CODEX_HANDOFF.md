@@ -1,130 +1,81 @@
-# Friday handoff — Stage 30 release awaiting owner approval
+# Friday handoff — Stage 30 deployed and verified
 
-Updated 2026-10-16. The active task is release preparation only. Stage 30 is
-qualified and published on `stage-30/career-forge-connected-journey`; the
-Projects migration fix is included and the final Python verifier passed.
-Production remains on immutable Stage 29. Do not fast-forward `main`, stop or
-restart Friday, activate the Stage 30 pointer, or begin Stage 31 until the
-owner replies exactly `APPROVE STAGE30 RELEASE` to the prepared proposal.
+Updated 2026-10-16 after owner-approved Stage 30 release and live deployment.
+Production serves immutable release
+`2c200bf798e195f2fff4908b147304d46a49d795` (tree
+`de49e9a55576dafe2bbfe4c3e46133be1789498a`). Stage 30 is accepted and
+recoverable. The handoff/roadmap/history/operations updates are published as a
+documentation-only follow-up on the same Stage 30 branch; runtime code and the
+immutable release are unchanged. Resolve the Git tip with `git rev-parse
+HEAD`; the deployed runtime SHA remains the exact value above.
 
-## Current source and recovery
+## Repository and release state
 
-- Candidate worktree:
+- Stage worktree:
   `/home/kumar-rishav/.codex/worktrees/friday-stage30-connected-journey/Local-AI-Assistant-terra-integration`
-- Owning branch: `stage-30/career-forge-connected-journey`. Resolve exact
-  `HEAD` with Git and verify the same remote branch before release packaging.
-  The preceding published Stage 30 SHA was
-  `0d2b4891d84c4077a0cdd7c661b42efb68ffd1be`; the release candidate adds the
-  qualified transactional migration correction, focused regression coverage,
-  and current release/recovery documentation.
-- `origin/main` remains at Stage 29 SHA
-  `464f5002574a2f00b13db597f04772984939a189`; this is also the live production
-  release. Verify refs and live state again before any approved cutover.
-- The original Stage 30 source snapshot and patch are preserved under
-  `/AI/recovery/friday-stage30-20261016T002913IST/`; they represent the
-  pre-migration-fix candidate. Current qualification logs and rollback proof
-  are in its `qualification/` directory.
-- An earlier unactivated release/environment draft exists at SHA
-  `928cbd95f7e089ee91df6ab2ea4fe7b6f4ba7e85`. It used the insufficient
-  30-second cold-start bound and is superseded. Never activate it. Build the
-  final immutable release and environment from the exact current branch tip.
-- The main checkout `/AI/projects/Local-AI-Assistant-terra-integration`
-  remains on `recovery/local-main-before-stage28-20261015` with its existing
-  dirty documentation untouched. The protected GCA worktree remains at
-  `/home/kumar-rishav/.codex/worktrees/friday-general-computer-agency/Local-AI-Assistant-terra-integration`
-  with its existing dirty state untouched. Neither was modified.
+- Owning branch: `stage-30/career-forge-connected-journey`.
+- Main integration worktree:
+  `/home/kumar-rishav/.codex/worktrees/friday-stage28-live-main/Local-AI-Assistant-terra-integration`.
+- The Stage 30 source commit was fast-forwarded from Stage 29 without force;
+  `origin/main` and `origin/stage-30/career-forge-connected-journey` were
+  verified at `2c200bf798e195f2fff4908b147304d46a49d795` before deployment.
+  Both refs now point to the same documentation-only follow-up commit, which
+  preserves the deployed release source SHA and changes no runtime code.
+- Runtime pointer:
+  `/home/kumar-rishav/.local/share/friday/api/current` resolves to
+  `/home/kumar-rishav/.local/share/friday/api/releases/2c200bf798e195f2fff4908b147304d46a49d795`.
+- Release environment:
+  `/home/kumar-rishav/.local/share/friday/api/environments/2c200bf798e195f2fff4908b147304d46a49d795`.
+- Stage 30 deployment evidence and restricted backups:
+  `/home/kumar-rishav/.local/share/friday/api/maintenance/stage30-2c200bf798e195f2fff4908b147304d46a49d795/`.
+- Protected Terra and GCA worktrees were not modified. Do not reset, clean,
+  or stash them.
 
-## Qualified migration correction
+## Deployment and validation
 
-Release review found that Projects v2→v3 could leave partial columns when the
-schema-version update failed, and Stage 29 rejects a newer schema marker. The
-migrator now wraps column creation and version changes in a transaction,
-rolls back on any failure, validates compatible existing v3 column definitions
-under marker 2, and restores marker 3 on reactivation. Tests prove interruption
-rollback and v2-marker reconciliation.
+- API and UI are active on the immutable Stage 30 release. Their systemd
+  working directories, process directories, API environment, current pointer,
+  and source root resolve to the exact release. Health and same-origin proxy
+  checks return HTTP 200.
+- Projects is schema v3; Learning Paths remains v2. All 15 production SQLite
+  databases pass integrity checks, and all post-deployment table counts match
+  the verified post-API-stop backup. No production project or learner records
+  were created.
+- Owner-only read, mutation, and trusted-session restoration without owner
+  proof return HTTP 401. The isolated Stage 30 browser/API run covers the
+  authenticated Owner/CSRF flow. All 13 live frontend assets match the release
+  manifest; Projects and Career Forge same-origin routes work.
+- Voice is running with capture, stream, and wake path armed, no active turn,
+  and Pocket/Anna selected. The runtime capability endpoint reports healthy
+  voice, computer agency, and perception. Qwen's read-only model listing
+  passed; no inference or Qwen/vision restart occurred. No GPU or swap change
+  occurred.
+- TaskHistory has zero tasks or planning/execution claims. The existing active
+  Career Forge mission, its assistance row, and saved Practice Lab draft were
+  preserved. The 12 historical `in_doubt` computer actions remain untouched.
+- Qualification: Python repository verifier **1,868 passed, 6 skipped**;
+  frontend **184 tests across 37 files**, four Node checks, ESLint, TypeScript,
+  and production build passed. Deployment evidence additionally records exact
+  API/UI health, asset hashes, Owner rejection, capability health, and all
+  database checks. The Vite main-bundle size advisory (about 1.29 MB vs 500 kB)
+  remains disclosed.
+- A first UI-stop wrapper misread systemd's normal inactive exit code after
+  stopping only UI. API remained healthy; UI recovered before the corrected
+  cutover. That attempt changed neither the release pointer nor databases.
+  The incident and recovery are recorded in HISTORY and the operations plan.
 
-The isolated rollback exercise used an SQLite online backup of the actual
-production Projects database, then seeded only its temporary copy with one
-synthetic Project, owner-artifact submission, and evidence record. Stage 30
-upgraded to v3; the exact Stage 29 service opened it at marker 2 and retained
-Project state and submission/attempt links; Stage 30 reopened at marker 3.
-Integrity and all seeded row counts passed. Production data was neither
-migrated nor written. Stage 29 does not surface Stage 30 artifact metadata or
-the owner-source route; the rollback procedure and limit are in
-`docs/operations/stage30-release-plan.md`.
+## Active scope and next path
 
-## Qualification and resource evidence
-
-- Python 3.11.16 repository verifier: **1,868 passed, 6 skipped**; compile,
-  CLI, and dependency checks passed.
-- Targeted Ruff passed for changed Python files. Migration, SSE shutdown, and
-  validation rollback focused checks passed.
-- The first full rerun exposed a stale pytest launcher in the disposable
-  environment and an insufficient SSE cold-start bound. The launcher was
-  repaired only in the disposable recovery environment. The exact production
-  dependency lock took 33.6 seconds to import the API; integration and
-  deployment readiness bounds now allow 60 seconds.
-  The exact-lock SSE shutdown test passed in 33.3 seconds; migration and
-  validation rollback regressions also passed. The final full verifier then
-  passed against this updated bound: **1,868 passed, 6 skipped**, compile/CLI
-  checks and package consistency included.
-- Full verifier used a transient user cgroup capped at 4 GiB memory and 1 GiB
-  swap; peak test-tree RSS was about 1.8 GiB, available RAM remained above
-  22.7 GiB, memory PSI full avg10 remained 0%, and the guard did not intervene.
-  Qwen, vision, voice, UI/API services, NVIDIA settings, and swap configuration
-  were not changed.
-- Previously accepted frontend qualification remains applicable because no
-  frontend source changed: 184 tests/37 files, four Node checks, ESLint,
-  TypeScript, and production build passed. The release build on this candidate
-  also passed TypeScript/Vite 8.2.2 and emitted 13 assets; Vite's existing
-  main-bundle size advisory (about 1.29 MB versus its 500 kB threshold) remains
-  disclosed. Reuse the frontend test result; do not repeat its suite absent
-  changed frontend code or contradictory evidence.
-
-## Live Stage 29 baseline and approval gate
-
-The deployed release is
-`/home/kumar-rishav/.local/share/friday/api/releases/464f5002574a2f00b13db597f04772984939a189`
-through the stable `api/current` pointer. As-run evidence from
-`/home/kumar-rishav/.local/share/friday/api/maintenance/stage29-20261015T162921Z/`
-records Stage 29 health, UI asset hashes, 14 SQLite integrity checks, no
-active tasks/actions/claims at capture, and preservation of 12 historical
-`in_doubt` computer actions. Recheck live service, voice, task, and database
-state immediately before any approved stop.
-
-The latest read-only preapproval check still found the Stage 29 API and UI
-active with HTTP 200 and source SHA `464f5002574a2f00b13db597f04772984939a189`.
-All 15 production SQLite databases passed integrity checks; Projects and
-Learning Paths remain at schema v2 with no project, submission, evidence, or
-learning-path rows. Computer Agency has no active task/action states and
-TaskHistory has no task or execution/planning claims. The 12 historical
-`in_doubt` actions remain present. Voice has no active turn; capture is
-listening, its stream is open, and wake detectors are armed. Health retains a
-recovered `WakeRuntimeError` from 10:46 IST (recovery count 1); current capture
-health is running. Recheck every item immediately before any approved stop.
-
-The immutable candidate must be built from the exact current branch `HEAD`.
-Its source, dependency, frontend asset, service configuration, and release
-identity hashes belong in
-`/home/kumar-rishav/.local/share/friday/api/releases/<full-sha>/release-metadata/stage30-release-manifest.json`.
-The release-local Python environment uses the same full SHA under
-`/home/kumar-rishav/.local/share/friday/api/environments/`. Do not install or
-activate its service drop-in before the exact approval. The cutover has a
-disclosed point-in-time clearance race because there is no proven atomic
-global admission lock; it rechecks task/voice/activity immediately before
-stopping the UI and API and aborts before service stop if any check is not
-clear. Voice capture runs inside the API process and shares the bounded
-outage.
-
-At the approval boundary, verify the source commit and remote ref, immutable
-release manifest, recovery destination, live service health, and current
-consequential-task clearance. Then stop and wait for the exact owner approval
-phrase. After approval, promote the qualified commit to `main`, create and
-verify backups, perform the reviewed Stage29-style cutover, verify
-API/UI/Owner/persistence/voice/computer-agency health and the 12 `in_doubt`
-rows, and report the deployed source SHA. Do not create production learner
-records or replay any historical actions.
-
-Career Forge roadmap rows 60 and 61 remain PARTIAL. Stage 31's Senior ML/AI
-Engineer learning journey is explicitly out of scope until the approved Stage
-30 release is verified.
+- Stage 30's bounded FraudShield source-artifact journey is deployed. It does
+  not qualify the full Career Forge ecosystem; ROADMAP rows 60 and 61 remain
+  PARTIAL. The cutover's point-in-time active-work admission limitation and
+  rollback procedure remain documented in
+  `docs/operations/stage30-release-plan.md`.
+- No Stage 31 work was started in this release task. The next roadmap path is
+  the broader Senior ML/AI Engineer learning journey; start it only on its
+  owning Stage 31 branch and preserve all existing Owner, isolation, rollback,
+  audit, and local-sovereignty controls.
+- No deployment action remains. The exact next roadmap path is the Stage 31
+  Senior ML/AI Engineer learning journey on its own Stage 31 branch; it was not
+  started in this Stage 30 release task. Do not move the production pointer
+  away from release SHA `2c200bf798e195f2fff4908b147304d46a49d795`.

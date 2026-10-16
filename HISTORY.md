@@ -1,3 +1,35 @@
+## 2026-10-16 — Stage 30 owner-approved release deployed
+
+The owner approved and deployed the qualified Stage 30 source
+`2c200bf798e195f2fff4908b147304d46a49d795` to `main` and
+`stage-30/career-forge-connected-journey`; both remote refs were verified at
+the release commit before the deployment-record documentation follow-up. The
+immutable production pointer now resolves to the exact Stage 30 release. The
+API and UI are active, all 13 served frontend assets match the release hashes,
+same-origin Projects and Career Forge routes work, and unauthenticated
+Owner-only reads, writes, and trusted-session restoration reject with HTTP
+401. The isolated browser/API qualification remains the evidence for the
+Owner-authenticated CSRF flow; no production learner or project records were
+created during deployment.
+
+Post-cutover checks confirmed Projects schema v3, Learning Paths schema v2,
+integrity of all 15 production SQLite databases, and table counts matching the
+post-API-stop backup. The existing active Career Forge mission, its assistance
+row, and saved Practice Lab draft were preserved. TaskHistory has no tasks or
+claims; the 12 historical `in_doubt` computer actions were not replayed. Voice
+capture, wake path, Pocket/Anna, and computer-agency health are ready. Qwen and
+vision were not restarted; no inference, GPU, or swap changes were made. The
+deployment evidence and restricted backup manifests are under
+`/home/kumar-rishav/.local/share/friday/api/maintenance/stage30-2c200bf798e195f2fff4908b147304d46a49d795/`.
+
+The first UI-stop wrapper attempt treated systemd's normal inactive exit code
+as an error after stopping only the UI. The API remained healthy; the UI was
+restarted and recovered before the corrected clearance and cutover. The
+release pointer and production databases were not changed by that attempt.
+The corrected cutover and post-release checks completed successfully. This
+bounded Stage 30 journey does not qualify the full Career Forge scope; roadmap
+rows 60 and 61 remain PARTIAL. Stage 31 was not started as part of this release.
+
 ## 2026-10-16 — Stage 30 transactional migration and rollback qualification
 
 Release review found that the Projects schema v2→v3 migration could leave
