@@ -56,10 +56,13 @@ the owner-source route; the rollback procedure and limit are in
 - Targeted Ruff passed for changed Python files. Migration, SSE shutdown, and
   validation rollback focused checks passed.
 - The first full rerun exposed a stale pytest launcher in the disposable
-  environment and a 10-second SSE cold-start bound. The launcher was repaired
-  only in the disposable recovery environment; the integration timeout now
-  allows 30 seconds, matching the observed ~20-second cold-import budget.
-  Both focused regressions and the final full verifier then passed.
+  environment and an insufficient SSE cold-start bound. The launcher was
+  repaired only in the disposable recovery environment. The exact production
+  dependency lock took 33.6 seconds to import the API; integration and
+  deployment readiness bounds now allow 60 seconds.
+  The exact-lock SSE shutdown test passed in 33.3 seconds; migration and
+  validation rollback regressions also passed. The final full verifier is
+  rerunning against this updated bound.
 - Full verifier used a transient user cgroup capped at 4 GiB memory and 1 GiB
   swap; peak test-tree RSS was about 1.8 GiB, available RAM remained above
   22.7 GiB, memory PSI full avg10 remained 0%, and the guard did not intervene.

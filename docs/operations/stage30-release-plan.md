@@ -119,8 +119,10 @@ After the exact approval, in one controlled window:
    Owner capability paths, origins, model endpoint, and service identities
    unchanged. Update only the existing API release drop-in as needed; review
    its exact content before installation.
-4. Start the API first with an evidence-based cold-start timeout (30 seconds),
-   confirm its source identity and `/health`, then verify Owner rejection and
+4. Start the API first with an evidence-based cold-start timeout (60 seconds;
+   the exact Stage 29 production dependency lock imported the API in 33.6
+   seconds during this qualification), confirm its source identity and
+   `/health`, then verify Owner rejection and
    persistence with isolated disposable data.
 5. Start the matching UI and verify the UI, same-origin proxy, compiled asset
    hashes, Owner session/CSRF behavior, and connected Learn/Projects routes.

@@ -177,8 +177,8 @@ def _start_isolated_server(
 
 
 def _wait_for_health(client: httpx.Client, base_url: str, process: subprocess.Popen[str]) -> None:
-    # The isolated CLI cold-import can take about 20 seconds on this hardware.
-    deadline = time.monotonic() + 30
+    # The locked Stage 29 runtime took 33.6 seconds for a cold API import here.
+    deadline = time.monotonic() + 60
     last_observation = "no response received"
     while time.monotonic() < deadline:
         if process.poll() is not None:

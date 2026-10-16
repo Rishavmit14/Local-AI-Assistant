@@ -13,11 +13,16 @@ submission/attempt visibility, and all three record counts were preserved.
 Production was not migrated or written. The complete Python repository
 verifier passed **1,868 tests, 6 skipped**, plus compilation, CLI checks, and
 dependency consistency. Targeted Ruff, the bounded SSE shutdown regression,
-and the validation rollback regression passed. Qualification was constrained
-to a 4 GiB test cgroup with no guard intervention and about 1.8 GiB peak
-test-tree RSS. The Stage 30 branch remains the only code publication target;
-main and the live Stage 29 runtime are unchanged pending the exact owner
-approval gate in `docs/operations/stage30-release-plan.md`.
+and the validation rollback regression passed. The exact Stage 29 runtime lock
+measured a 33.6-second cold API import, so a 30-second SSE startup bound was
+insufficient. The test and deployment readiness bounds are now 60 seconds; the
+exact-lock SSE shutdown regression passed in 33.3 seconds, under 1 GiB peak
+test-process RSS and with no guard intervention. This isolated test did not use
+production databases or services. Qualification was constrained to a 4 GiB
+test cgroup with no guard intervention and about 1.8 GiB peak test-tree RSS.
+The Stage 30 branch remains the only code publication target; main and the
+live Stage 29 runtime are unchanged pending the exact owner approval gate in
+`docs/operations/stage30-release-plan.md`.
 
 ## 2026-10-16 — Stage 30 connected FraudShield learning journey qualified
 
