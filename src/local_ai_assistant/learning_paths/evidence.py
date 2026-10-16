@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -77,18 +78,64 @@ class CareerForgeEvidenceProjection:
                 "AND s.contract_fingerprint=? ORDER BY s.path_version DESC,s.created_at DESC LIMIT 1",
                 (path_id, str(node["node_id"]), fingerprint),
             ).fetchone()
+            if row is None:
+                # A same-path change to the required mastery rung keeps prior
+                # verified knowledge visible as lower-level evidence. The
+                # current node still remains unsatisfied until its stronger
+                # requirement is met; different teaching/assessment content
+                # never passes this semantic comparison.
+                candidates = db.execute(
+                    "SELECT s.competency_id,l.mastery,s.contract_json "
+                    "FROM dynamic_learning_subjects s JOIN learner_competencies l USING(competency_id) "
+                    "WHERE s.path_id=? AND s.node_id=? ORDER BY s.path_version DESC,s.created_at DESC",
+                    (path_id, str(node["node_id"])),
+                ).fetchall()
+                current_semantics = GeneralizedLearningService.contract_fingerprint(
+                    node, include_required_mastery=False,
+                )
+                for candidate in candidates:
+                    saved = json.loads(candidate[2])
+                    saved_node = {
+                        "type": saved.get("node_type"),
+                        "objectives": saved.get("objectives", []),
+                        "evidence_requirements": saved.get("evidence_requirements", []),
+                        "learning_content": saved.get("learning_content"),
+                        "assessment_contract": saved.get("assessment_contract"),
+                        "required_mastery": saved.get("required_mastery"),
+                    }
+                    if GeneralizedLearningService.contract_fingerprint(
+                        saved_node, include_required_mastery=False,
+                    ) == current_semantics:
+                        row = (candidate[0], candidate[1])
+                        break
             source = None
             if row is None and equivalent_sources:
                 candidates = []
+                current_semantics = GeneralizedLearningService.contract_fingerprint(
+                    node, include_required_mastery=False,
+                )
                 for source_path, source_node in sorted(equivalent_sources):
                     candidates.extend(db.execute(
-                        "SELECT s.subject_id,s.competency_id,s.path_id,s.path_version,s.node_id,l.mastery "
+                        "SELECT s.subject_id,s.competency_id,s.path_id,s.path_version,s.node_id,l.mastery,s.contract_json,s.contract_fingerprint "
                         "FROM dynamic_learning_subjects s JOIN learner_competencies l USING(competency_id) "
-                        "WHERE s.path_id=? AND s.node_id=? AND s.contract_fingerprint=? "
+                        "WHERE s.path_id=? AND s.node_id=? "
                         "ORDER BY s.path_version DESC,s.created_at DESC,s.subject_id",
-                        (source_path, source_node, fingerprint),
+                        (source_path, source_node),
                     ).fetchall())
                 for candidate in candidates:
+                    saved = json.loads(candidate[6])
+                    saved_node = {
+                        "type": saved.get("node_type"),
+                        "objectives": saved.get("objectives", []),
+                        "evidence_requirements": saved.get("evidence_requirements", []),
+                        "learning_content": saved.get("learning_content"),
+                        "assessment_contract": saved.get("assessment_contract"),
+                        "required_mastery": saved.get("required_mastery"),
+                    }
+                    if GeneralizedLearningService.contract_fingerprint(
+                        saved_node, include_required_mastery=False,
+                    ) != current_semantics:
+                        continue
                     provenance = db.execute(
                         "SELECT e.evidence_id,e.source_attempt_id,e.artifact_ref,e.created_at "
                         "FROM mission_evidence e JOIN missions m USING(mission_id) "
@@ -96,7 +143,7 @@ class CareerForgeEvidenceProjection:
                         "WHERE m.competency_id=? AND e.contract_fingerprint=? "
                         "AND a.evaluation='correct' "
                         "ORDER BY e.created_at DESC,e.evidence_id LIMIT 1",
-                        (candidate[1], fingerprint),
+                        (candidate[1], candidate[7]),
                     ).fetchone()
                     if provenance is None:
                         continue
@@ -159,6 +206,20 @@ class CareerForgeEvidenceProjection:
              ((canonical.reason,) if canonical is not None and canonical.status == "weak" else ())),
             due, source,
         )
+
+    def dynamic_learning_state(self, path_id: str, path_version: int, node: dict) -> dict | None:
+        """Read the canonical dynamic lesson session and attempt projection, if started."""
+        from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
+
+        with self.career_forge._db() as db:
+            exists = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dynamic_learning_subjects'"
+            ).fetchone()
+        if not exists:
+            return None
+        service = GeneralizedLearningService(self.career_forge)
+        subject = service.by_path_node(path_id, path_version, str(node["node_id"]), node)
+        return service.learning_state(subject.subject_id) if subject else None
 def evidence_state(evidence: CompetencyEvidence | None, required_mastery: str = MasteryLevel.APPLY_INDEPENDENTLY.value) -> str:
     if evidence is None:
         return "unmapped"

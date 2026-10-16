@@ -103,7 +103,16 @@ class CareerForgeLearningLoop:
             return LearningDirective(mission.mission_id, "dynamic_tutor",
                 "Give one bounded hint or example for the active dynamic topic, then ask the learner to try. Do not provide an assessment or claim mastery.")
         if self._looks_like_attempt(text):
-            question_id = str(mission.resume_point.get("question_id", "conversation_topic_check"))
+            question_id = mission.resume_point.get("question_id")
+            if not isinstance(question_id, str) or not question_id or question_id == "conversation_topic_check":
+                contract = generalized.get(subject_id).contract["assessment_contract"]
+                questions = contract.get("questions", [])
+                question = next((item for item in questions if item.get("kind") == "conceptual"), None)
+                if question is None and questions:
+                    question = questions[0]
+                if not isinstance(question, dict) or not isinstance(question.get("question_id"), str):
+                    raise ValueError("dynamic learning subject has no contracted assessment question")
+                question_id = question["question_id"]
             attempt = generalized.record_attempt(subject_id, question_id, prompt, mode=TutorMode.TEACH_BACK)
             return LearningDirective(mission.mission_id, "dynamic_attempt", "", attempt.attempt_id,
                 response="I recorded that as an explicit attempt for this topic. Say ‘check my answer’ for a bounded assessment.")

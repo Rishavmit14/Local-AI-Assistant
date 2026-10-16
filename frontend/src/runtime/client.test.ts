@@ -579,7 +579,7 @@ describe("FridayRuntimeClient learning path boundary", () => {
     const client = new FridayRuntimeClient();
     expect(await client.getLearningPaths()).toEqual([]);
     expect(await client.getCurrentLearningPath()).toBeNull();
-    await client.selectLearningPath("p1");
+    await client.selectLearningPath("p1","csrf-token");
     expect(fetchMock.mock.calls[2][0]).toBe("/api/v1/learning-paths/p1/select");
     expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "POST" });
   });
@@ -590,11 +590,13 @@ describe("FridayRuntimeClient learning path boundary", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({attempt_id:"a1",evaluation:"correct",feedback:"Good.",evidence_id:"e1",mastery:"recognize"}),{status:200}));
     vi.stubGlobal("fetch",fetchMock);
     const client=new FridayRuntimeClient();
-    const attempt=await client.recordDynamicLearningAttempt("dlp:p1:1:n1:hash","Explain the idea","My answer");
-    const result=await client.evaluateDynamicLearningAttempt("dlp:p1:1:n1:hash",attempt.attempt_id);
+    const attempt=await client.recordDynamicLearningAttempt("dlp:p1:1:n1:hash","submission_a1","diagnostic-concept-v1","My answer","csrf-token");
+    const result=await client.evaluateDynamicLearningAttempt("dlp:p1:1:n1:hash",attempt.attempt_id,"csrf-token");
     expect(result.evidence_id).toBe("e1");
     expect(fetchMock.mock.calls[0][0]).toContain("/career-forge/dynamic-learning/dlp%3Ap1%3A1%3An1%3Ahash/attempts");
     expect(fetchMock.mock.calls[0][1]?.method).toBe("POST");
     expect(fetchMock.mock.calls[1][1]?.method).toBe("POST");
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({"X-Friday-CSRF":"csrf-token"});
+    expect(fetchMock.mock.calls[1][1]?.headers).toMatchObject({"X-Friday-CSRF":"csrf-token"});
   });
 });

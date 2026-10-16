@@ -332,6 +332,44 @@ accepted at capability commit `4a420217bcddca42aa2655c3379b196729a43432` and
 published with recovery pointer `7fcb926a2625cf9e30aad0037fd38a5df6d2afcc`.
 No visual redesign or final visual acceptance is included.
 
+## Stage 31 multi-topic ML engineering journey
+
+Stage 31 extends the existing DLP version contract with bounded teaching
+content and fixed conceptual/practical assessment questions on each node. The
+qualified fraud-detection journey contains data preparation/evaluation,
+logistic regression, and trees/model comparison, with explicit sequential
+prerequisites. Curriculum content and assessment contracts are persisted in
+the immutable path version. The local curriculum designer remains proposal
+only; deterministic validation rejects malformed or unbounded content.
+
+Each selected node binds to a Career Forge-owned dynamic subject. Initial
+assessment creates no claimed mastery. Career Forge retains submitted answers,
+assessment results, feedback, evidence, and mastery transitions. A failed
+attempt remains in history and DLP recommends the existing reinforcement path.
+The existing mastery ladder still controls prerequisites; reaching
+`apply_independently` requires two distinct, correct, unassisted question IDs
+from that node's fixed assessment contract. Browser navigation and project
+review do not unlock nodes.
+
+Project artifact and explanation reviews retain the Project Reviewer rubric
+fingerprint in Career Forge evidence. They are not DLP question attempts and do
+not count toward the node's matching assessment evidence or mastery threshold.
+The dynamic history projection filters to the fixed question IDs declared by
+the DLP contract; Project review attempts and feedback remain available from
+the canonical Project projection. `node:<id>` milestone competency references
+resolve to the Career Forge dynamic subject ID created for that path version.
+
+The isolated actual-browser qualification proved unauthorized writes fail
+closed; failed attempts persist and recommend reinforcement; all three nodes
+reach independent application through the existing evidence rules; prerequisites
+constrain the eligible node; the Project Reviewer stores both rejected and
+accepted artifact reviews without changing DLP mastery; and browser reload plus
+API process restart reconstruct path, evidence, mastery, recommendations, and
+project linkage from SQLite. The deterministic Teacher/Reviewer/Assessor
+fixtures do not qualify live Qwen pedagogical quality. Broader Career Forge
+scope, production deployment, and final visual acceptance remain outside this
+stage.
+
 ## Learn review and reinforcement owner flows
 
 Learn uses the existing Career Forge retention-review authority to deliver a

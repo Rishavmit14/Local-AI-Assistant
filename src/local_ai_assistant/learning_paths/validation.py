@@ -120,6 +120,8 @@ class CurriculumValidator:
                     "equivalence_key",
                     "required_mastery",
                     "estimated_hours",
+                    "learning_content",
+                    "assessment_contract",
                 },
                 "node",
             )
@@ -154,6 +156,16 @@ class CurriculumValidator:
             if tuple(MasteryLevel).index(MasteryLevel(required_mastery)) < tuple(MasteryLevel).index(MasteryLevel.APPLY_INDEPENDENTLY):
                 raise CurriculumValidationError("required mastery cannot be below independent application")
             self._number(node.get("estimated_hours"), "estimated_hours", 0, 10000)
+            learning_content = node.get("learning_content")
+            if learning_content is not None:
+                self._validate_learning_content(learning_content)
+            assessment_contract = node.get("assessment_contract")
+            if assessment_contract is not None:
+                self._validate_assessment_contract(assessment_contract)
+            if (learning_content is None) != (assessment_contract is None):
+                raise CurriculumValidationError(
+                    "lesson content and its assessment contract must be supplied together"
+                )
         if not nodes:
             raise CurriculumValidationError("curriculum requires nodes")
         for edge in edges:
@@ -232,6 +244,63 @@ class CurriculumValidator:
         if total > self.MAX_TEXT:
             raise CurriculumValidationError("curriculum text exceeds size limit")
         self.topological_order(nodes, edges)
+
+    @classmethod
+    def _validate_learning_content(cls, value: Any) -> None:
+        if not isinstance(value, dict):
+            raise CurriculumValidationError("learning_content must be an object")
+        cls._fields(value, {"explanation", "examples", "exercise", "remediation"}, "learning content")
+        cls._text(value.get("explanation"), "lesson explanation", 6000)
+        examples = value.get("examples", [])
+        if not isinstance(examples, list) or not 1 <= len(examples) <= 5:
+            raise CurriculumValidationError("lesson examples must be a bounded non-empty list")
+        for example in examples:
+            cls._text(example, "lesson example", 2000)
+        exercise = value.get("exercise")
+        if exercise is not None:
+            if not isinstance(exercise, dict):
+                raise CurriculumValidationError("lesson exercise must be an object")
+            cls._fields(exercise, {"prompt", "starter_code"}, "lesson exercise")
+            cls._text(exercise.get("prompt"), "lesson exercise prompt", 3000)
+            starter_code = exercise.get("starter_code")
+            if starter_code is not None:
+                cls._text(starter_code, "lesson exercise starter code", 8000)
+        remediation = value.get("remediation")
+        if remediation is not None:
+            cls._text(remediation, "lesson remediation", 2000)
+
+    @classmethod
+    def _validate_assessment_contract(cls, value: Any) -> None:
+        if not isinstance(value, dict):
+            raise CurriculumValidationError("assessment_contract must be an object")
+        cls._fields(value, {"contract_id", "version", "criteria", "questions"}, "assessment contract")
+        cls._id(value.get("contract_id"), "assessment contract ID")
+        cls._text(value.get("version"), "assessment contract version", 80)
+        criteria = value.get("criteria")
+        if not isinstance(criteria, list) or not 1 <= len(criteria) <= 12:
+            raise CurriculumValidationError("assessment criteria must be a bounded non-empty list")
+        for item in criteria:
+            cls._text(item, "assessment criterion", 1000)
+        questions = value.get("questions")
+        if not isinstance(questions, list) or not 2 <= len(questions) <= 8:
+            raise CurriculumValidationError("assessment questions must be a bounded list")
+        question_ids: set[str] = set()
+        kinds: set[str] = set()
+        for question in questions:
+            if not isinstance(question, dict):
+                raise CurriculumValidationError("assessment question must be an object")
+            cls._fields(question, {"question_id", "kind", "prompt"}, "assessment question")
+            question_id = cls._id(question.get("question_id"), "assessment question ID")
+            if question_id in question_ids:
+                raise CurriculumValidationError("assessment question IDs must be unique")
+            question_ids.add(question_id)
+            kind = question.get("kind")
+            if kind not in {"conceptual", "practical"}:
+                raise CurriculumValidationError("assessment question kind must be conceptual or practical")
+            kinds.add(kind)
+            cls._text(question.get("prompt"), "assessment question prompt", 2000)
+        if kinds != {"conceptual", "practical"}:
+            raise CurriculumValidationError("assessment contract requires conceptual and practical questions")
 
     @classmethod
     def topological_order(

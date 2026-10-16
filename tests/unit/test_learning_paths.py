@@ -27,6 +27,7 @@ from local_ai_assistant.learning_paths.service import (
     LocalCurriculumGenerator,
 )
 from tests.fixtures.learning_path_curricula import curriculum
+from tests.fixtures.stage31_ml_curriculum import stage31_ml_engineering_curriculum
 
 OWNER_ORIGIN = "http://127.0.0.1:5193"
 
@@ -50,6 +51,50 @@ def test_representative_curricula_validate_with_stable_topological_order(kind):
     proposal = curriculum(kind)
     validator = CurriculumValidator()
     assert validator.validate(proposal) == validator.validate(proposal)
+
+
+def test_stage31_ml_curriculum_persists_three_connected_topics_and_rubrics(tmp_path):
+    proposal = stage31_ml_engineering_curriculum()
+    service = LearningPathService(tmp_path / "stage31-paths.sqlite3")
+    created = service.create(proposal)
+    detail = service.detail(created.path_id)["current"]
+    nodes = {node["node_id"]: node for node in detail.nodes}
+    assert tuple(detail.topological_order) == (
+        "data-evaluation", "logistic-regression", "trees-comparison",
+    )
+    assert set(nodes["data-evaluation"]["learning_content"]) == {
+        "explanation", "examples", "exercise", "remediation",
+    }
+    assert {question["kind"] for question in nodes["logistic-regression"]["assessment_contract"]["questions"]} == {
+        "conceptual", "practical",
+    }
+    assert [(edge["prerequisite_node_id"], edge["node_id"]) for edge in detail.prerequisites] == [
+        ("data-evaluation", "logistic-regression"),
+        ("logistic-regression", "trees-comparison"),
+    ]
+    milestone = detail.milestones[0]
+    assert milestone["project_ref"] == "fraudshield"
+    assert milestone["prerequisite_node_ids"] == ["logistic-regression"]
+    assert service.detail(created.path_id)["current"].nodes == detail.nodes
+
+
+def test_assessment_contract_validation_is_bounded_and_question_ids_are_unique():
+    validator = CurriculumValidator()
+    valid = stage31_ml_engineering_curriculum()
+    assert validator.validate(valid)[0] == "data-evaluation"
+    duplicate = stage31_ml_engineering_curriculum()
+    questions = duplicate["nodes"][0]["assessment_contract"]["questions"]
+    questions[1]["question_id"] = questions[0]["question_id"]
+    with pytest.raises(CurriculumValidationError, match="unique"):
+        validator.validate(duplicate)
+    oversized = stage31_ml_engineering_curriculum()
+    oversized["nodes"][0]["assessment_contract"]["questions"][0]["prompt"] = "x" * 2001
+    with pytest.raises(CurriculumValidationError):
+        validator.validate(oversized)
+    unpaired = stage31_ml_engineering_curriculum()
+    del unpaired["nodes"][0]["learning_content"]
+    with pytest.raises(CurriculumValidationError, match="supplied together"):
+        validator.validate(unpaired)
 
 
 @pytest.mark.parametrize(
@@ -340,6 +385,7 @@ def test_api_create_read_list_version_and_reject_invalid_model_proposal(tmp_path
         revised = client.post(
             f"/api/v1/learning-paths/{path_id}/versions",
             json={"reason": "manual_revision", "curriculum": {**payload, "title": "New title"}},
+            headers=owner_headers,
         )
         assert revised.json()["path"]["current_version"] == 2
         assert len(client.get(f"/api/v1/learning-paths/{path_id}/versions").json()["versions"]) == 2
@@ -416,7 +462,7 @@ def test_typed_sequence_and_adaptation_api(tmp_path):
         assert sequence.status_code == 200
         assert sequence.json()["path_state"] == "draft"
         assert sequence.json()["nodes"][0]["evidence_state"] == "unmapped"
-        adapted = client.post(f"/api/v1/learning-paths/{path_id}/adapt")
+        adapted = client.post(f"/api/v1/learning-paths/{path_id}/adapt", headers=owner_headers)
         assert adapted.status_code == 200
         assert adapted.json()["path"]["current_version"] == 1
         assert adapted.json()["version"]["adaptation"] == {}
@@ -437,14 +483,14 @@ def test_learning_path_api_persists_replan_and_replays_without_version_churn(tmp
     with client:
         created = client.post("/api/v1/learning-paths", json=proposal, headers=owner_headers).json()
         path_id = created["path"]["path_id"]
-        client.post(f"/api/v1/learning-paths/{path_id}/activate")
-        first = client.post(f"/api/v1/learning-paths/{path_id}/adapt")
+        client.post(f"/api/v1/learning-paths/{path_id}/activate", headers=owner_headers)
+        first = client.post(f"/api/v1/learning-paths/{path_id}/adapt", headers=owner_headers)
         assert first.status_code == 200
         assert first.json()["path"]["current_version"] == 2
         assert first.json()["version"]["provenance"] == "adaptive_planner"
         assert first.json()["version"]["adaptation"]["trigger"] == "explicit_replan_from_current_career_forge_evidence"
         assert first.json()["sequence"]["version"] == 2
-        second = client.post(f"/api/v1/learning-paths/{path_id}/adapt")
+        second = client.post(f"/api/v1/learning-paths/{path_id}/adapt", headers=owner_headers)
         assert second.status_code == 200
         assert second.json()["path"]["current_version"] == 2
 
@@ -586,7 +632,7 @@ def test_failed_dynamic_assessment_selects_governed_reinforcement_without_master
     learning = GeneralizedLearningService(forge)
     subject = learning.register(path_id=path.path_id, path_version=1, node=node)
     learning.start_session(subject.subject_id)
-    attempt = learning.record_attempt(subject.subject_id, "first-explanation", "The answer confuses the concept.")
+    attempt = learning.record_attempt(subject.subject_id, "diagnostic-concept-v1", "The answer confuses the concept.")
     assessed = learning.assess_attempt(subject.subject_id, attempt.attempt_id, "ASSESSMENT: incorrect\nThe objective was not demonstrated.")
     assert assessed["evaluation"] == "incorrect"
     assert learning.get(subject.subject_id).mastery == "unverified"
@@ -636,7 +682,7 @@ def test_dynamic_career_forge_evidence_unlocks_dependents_and_is_version_bound(t
         paths.manual_edit(path.path_id, expected_version=1,
                           operation={"type":"remove_node", "node_id":"arrays"})
     for rung in range(4):
-        attempt = learning.record_attempt(subject.subject_id, f"application-{rung}",
+        attempt = learning.record_attempt(subject.subject_id, ("diagnostic-concept-v1" if rung % 2 == 0 else "independent-application-v1"),
                                           f"Owner explanation with distinct application {rung}.")
         result = learning.assess_attempt(
             subject.subject_id, attempt.attempt_id,
@@ -811,10 +857,10 @@ def test_selection_and_lifecycle_api(tmp_path):
         created = client.post("/api/v1/learning-paths", json=curriculum(), headers=owner_headers).json()["path"]
         path_id = created["path_id"]
         assert client.get("/api/v1/learning-paths/current").json() is None
-        assert client.post(f"/api/v1/learning-paths/{path_id}/select").json()["selected"]
+        assert client.post(f"/api/v1/learning-paths/{path_id}/select", headers=owner_headers).json()["selected"]
         assert client.get("/api/v1/learning-paths/current").json()["path"]["path_id"] == path_id
-        assert client.post(f"/api/v1/learning-paths/{path_id}/activate").json()["state"] == "active"
-        assert client.post(f"/api/v1/learning-paths/{path_id}/activate").status_code == 409
+        assert client.post(f"/api/v1/learning-paths/{path_id}/activate", headers=owner_headers).json()["state"] == "active"
+        assert client.post(f"/api/v1/learning-paths/{path_id}/activate", headers=owner_headers).status_code == 409
 
 
 def test_manual_edit_api_persists_and_rejects_stale_or_invalid_graphs(tmp_path):
@@ -826,11 +872,11 @@ def test_manual_edit_api_persists_and_rejects_stale_or_invalid_graphs(tmp_path):
         path_id = created["path"]["path_id"]
         node = {"node_id":"owner-extra", "module_id":"foundations", "title":"Owner lesson", "type":"lesson",
                 "objectives":["Explain the idea"], "evidence_requirements":[], "competency_key":None, "estimated_hours":1}
-        accepted = client.post(f"/api/v1/learning-paths/{path_id}/manual-edits", json={"expected_version":1,"operation":{"type":"add_node","node":node}})
+        accepted = client.post(f"/api/v1/learning-paths/{path_id}/manual-edits", json={"expected_version":1,"operation":{"type":"add_node","node":node}}, headers=owner_headers)
         assert accepted.status_code == 200 and accepted.json()["version"]["version"] == 2
-        stale = client.post(f"/api/v1/learning-paths/{path_id}/manual-edits", json={"expected_version":1,"operation":{"type":"remove_node","node_id":"owner-extra"}})
+        stale = client.post(f"/api/v1/learning-paths/{path_id}/manual-edits", json={"expected_version":1,"operation":{"type":"remove_node","node_id":"owner-extra"}}, headers=owner_headers)
         assert stale.status_code == 409 and "reload" in stale.json()["detail"]
-        invalid = client.post(f"/api/v1/learning-paths/{path_id}/manual-edits", json={"expected_version":2,"operation":{"type":"add_prerequisite","prerequisite_node_id":"window","node_id":"arrays"}})
+        invalid = client.post(f"/api/v1/learning-paths/{path_id}/manual-edits", json={"expected_version":2,"operation":{"type":"add_prerequisite","prerequisite_node_id":"window","node_id":"arrays"}}, headers=owner_headers)
         assert invalid.status_code == 422
         assert client.get(f"/api/v1/learning-paths/{path_id}").json()["current"]["version"] == 2
 
@@ -845,19 +891,19 @@ def test_mapped_diagnostic_handoff_uses_career_forge_without_claiming_mastery(tm
     runtime = FridayRuntime("dlp-handoff")
     from local_ai_assistant.career_forge import PracticeLabService
     lab = PracticeLabService(forge, tmp_path / "lab")
-    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge, practice_lab=lab)
-    with TestClient(app) as client:
-        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"diagnostic"})
+    client, owner_headers = owner_client(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge, practice_lab=lab)
+    with client:
+        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"diagnostic"}, headers=owner_headers)
         assert response.status_code == 200
         assert response.json()["completion_claimed"] is False
         assert forge.resume().competency_id == "se.python"
         assert forge.competencies()[0].mastery.value == "unverified"
-        practice = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"practice"})
+        practice = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"practice"}, headers=owner_headers)
         assert practice.status_code == 200 and practice.json()["completion_claimed"] is False
-        unmapped = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"pointers","action":"diagnostic"})
+        unmapped = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"pointers","action":"diagnostic"}, headers=owner_headers)
         assert unmapped.status_code == 409
         draft = paths.create({**proposal, "title":"Draft mapped path"})
-        not_started = client.post(f"/api/v1/learning-paths/{draft.path_id}/handoff", json={"node_id":"arrays","action":"diagnostic"})
+        not_started = client.post(f"/api/v1/learning-paths/{draft.path_id}/handoff", json={"node_id":"arrays","action":"diagnostic"}, headers=owner_headers)
         assert not_started.status_code == 409 and "Start this learning path" in not_started.json()["detail"]
 
 
@@ -870,9 +916,9 @@ def test_mapped_handoff_refuses_to_replace_an_unrelated_active_mission(tmp_path)
     forge = CareerForgeService(tmp_path / "career.sqlite3")
     current = forge.start_mission("se.python", "Python foundations")
     runtime = FridayRuntime("dlp-handoff-conflict")
-    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge)
-    with TestClient(app) as client:
-        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"diagnostic"})
+    client, owner_headers = owner_client(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge)
+    with client:
+        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"diagnostic"}, headers=owner_headers)
         assert response.status_code == 409
         assert "active mission" in response.json()["detail"]
         assert forge.resume().mission_id == current.mission_id
@@ -894,9 +940,9 @@ def test_review_handoff_delivers_existing_due_review_without_changing_mastery(tm
     with forge._db() as db:
         db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE review_id=?", (review.review_id,))
     runtime = FridayRuntime("dlp-review-handoff")
-    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge)
-    with TestClient(app) as client:
-        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"review"})
+    client, owner_headers = owner_client(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge)
+    with client:
+        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"review"}, headers=owner_headers)
     assert response.status_code == 200
     assert response.json()["review"]["state"] == "delivered"
     assert response.json()["prompt"]
@@ -923,9 +969,9 @@ def test_reinforcement_handoff_reuses_career_forge_interruption_policy(tmp_path)
     forge.deliver_retention_review(review.review_id)
     forge.evaluate_retention_review(review.review_id, "Wrong", AttemptEvaluation.INCORRECT, "Revisit function default lifetime.")
     runtime = FridayRuntime("dlp-reinforce-handoff")
-    app = create_presentation_app(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge)
-    with TestClient(app) as client:
-        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"reinforcement"})
+    client, owner_headers = owner_client(runtime, FridayConversationService(object(), runtime), learning_paths=paths, career_forge=forge)
+    with client:
+        response = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff", json={"node_id":"arrays","action":"reinforcement"}, headers=owner_headers)
     assert response.status_code == 200
     assert response.json()["action"] == "reinforcement"
     assert forge.resume().competency_id == "se.python"
@@ -947,7 +993,7 @@ def test_dynamic_subject_review_failure_and_reinforcement_reuse_career_forge_sta
     subject = generalized.register(path_id=path.path_id, path_version=1, node=node)
     mission = generalized.start_session(subject.subject_id)
     for index in range(4):
-        attempt = generalized.record_attempt(subject.subject_id, f"q{index}",
+        attempt = generalized.record_attempt(subject.subject_id, ("diagnostic-concept-v1" if index % 2 == 0 else "independent-application-v1"),
             "An index can reduce rows visited when its access cost is lower.")
         generalized.assess_attempt(subject.subject_id, attempt.attempt_id,
             "ASSESSMENT: correct\nThe answer compares access cost and scan work.")
@@ -958,26 +1004,34 @@ def test_dynamic_subject_review_failure_and_reinforcement_reuse_career_forge_sta
                    (review.review_id,))
     paths.evidence_provider = CareerForgeEvidenceProjection(forge)
     runtime = FridayRuntime("dlp-dynamic-review-reinforcement")
-    app = create_presentation_app(runtime, FridayConversationService(object(), runtime),
-                                  learning_paths=paths, career_forge=forge)
-    with TestClient(app) as client:
+    client, owner_headers = owner_client(runtime, FridayConversationService(object(), runtime),
+                                         learning_paths=paths, career_forge=forge)
+    with client:
         sequence = client.get(f"/api/v1/learning-paths/{path.path_id}/sequence").json()
         assert sequence["nodes"][0]["decision"] == "REVIEW_FIRST"
         assert "SQL query optimization" in forge.progress().next_action
-        delivered = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff",
-            json={"node_id":node["node_id"],"action":"review","path_version":1})
+        delivered = client.post(
+            f"/api/v1/learning-paths/{path.path_id}/handoff",
+            json={"node_id": node["node_id"], "action": "review", "path_version": 1},
+            headers=owner_headers,
+        )
         assert delivered.status_code == 200
         assert delivered.json()["review"]["review_id"] == review.review_id
         assert "SQL query optimization" in delivered.json()["prompt"]
         assert "SQL query optimization" in forge.progress().next_action
-        forge.evaluate_retention_review(review.review_id, "I cannot explain this yet.",
-                                        AttemptEvaluation.INCORRECT, "Review index selectivity.")
+        forge.evaluate_retention_review(
+            review.review_id, "I cannot explain this yet.", AttemptEvaluation.INCORRECT,
+            "Review index selectivity.",
+        )
         failed_sequence = client.get(f"/api/v1/learning-paths/{path.path_id}/sequence").json()
         assert failed_sequence["nodes"][0]["decision"] == "REINFORCE_FIRST"
         with forge._db() as db:
             mission_count = db.execute("SELECT COUNT(*) FROM missions").fetchone()[0]
-        reinforcement = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff",
-            json={"node_id":node["node_id"],"action":"reinforcement","path_version":1})
+        reinforcement = client.post(
+            f"/api/v1/learning-paths/{path.path_id}/handoff",
+            json={"node_id": node["node_id"], "action": "reinforcement", "path_version": 1},
+            headers=owner_headers,
+        )
         assert reinforcement.status_code == 200
         assert reinforcement.json()["mission"]["mission_id"] == mission.mission_id
         assert reinforcement.json()["resumed"] is True
@@ -986,8 +1040,11 @@ def test_dynamic_subject_review_failure_and_reinforcement_reuse_career_forge_sta
         with forge._db() as db:
             db.execute("UPDATE missions SET state='completed' WHERE mission_id=?", (mission.mission_id,))
         interrupted = forge.start_mission("se.python", "Unrelated active candidate mission")
-        restarted = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff",
-            json={"node_id":node["node_id"],"action":"reinforcement","path_version":1})
+        restarted = client.post(
+            f"/api/v1/learning-paths/{path.path_id}/handoff",
+            json={"node_id": node["node_id"], "action": "reinforcement", "path_version": 1},
+            headers=owner_headers,
+        )
         assert restarted.status_code == 200
         reinforcement_mission = restarted.json()["mission"]
         assert reinforcement_mission["resume_point"]["learning_context"] == "dynamic_dlp"
@@ -996,14 +1053,23 @@ def test_dynamic_subject_review_failure_and_reinforcement_reuse_career_forge_sta
         journey = client.get("/api/v1/career-forge/journey")
         assert journey.status_code == 200
         assert journey.json()["progress"]["active_mission"]["mission_id"] == reinforcement_mission["mission_id"]
-        forge.offer_assistance(reinforcement_mission["mission_id"], TutorMode.HINT,
-                               AssistanceLevel.PROMPT, "Compare the access path costs.")
-        answer = generalized.record_attempt(subject.subject_id, "reinforcement-answer",
-            "An index reduces work only when its lookup cost is below a table scan.")
+        forge.offer_assistance(
+            reinforcement_mission["mission_id"], TutorMode.HINT, AssistanceLevel.PROMPT,
+            "Compare the access path costs.",
+        )
+        answer = generalized.record_attempt(
+            subject.subject_id, "diagnostic-concept-v1",
+            "An index reduces work only when its lookup cost is below a table scan.",
+        )
         assert answer.assistance_level.value == "prompt"
-        assessed = generalized.assess_attempt(subject.subject_id, answer.attempt_id,
-            "ASSESSMENT: correct\nThe response compares index access cost with a table scan.")
+        assessed = generalized.assess_attempt(
+            subject.subject_id, answer.attempt_id,
+            "ASSESSMENT: correct\nThe response compares index access cost with a table scan.",
+        )
         assert assessed["evaluation"] == AttemptEvaluation.CORRECT.value
-        retry_handoff = client.post(f"/api/v1/learning-paths/{path.path_id}/handoff",
-            json={"node_id":node["node_id"],"action":"reinforcement","path_version":1})
+        retry_handoff = client.post(
+            f"/api/v1/learning-paths/{path.path_id}/handoff",
+            json={"node_id": node["node_id"], "action": "reinforcement", "path_version": 1},
+            headers=owner_headers,
+        )
         assert retry_handoff.json()["mission"]["mission_id"] == reinforcement_mission["mission_id"]

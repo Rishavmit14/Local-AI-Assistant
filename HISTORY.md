@@ -1,3 +1,28 @@
+# 2026-10-16 — Stage 31 three-node ML engineering journey candidate
+
+Stage 31 connects an owner-authenticated three-node fraud-detection curriculum
+to existing Dynamic Learning Paths, Career Forge mastery, Projects, and the
+Reviewer. Its exact conceptual/practical assessments and durable answer history
+remain separate from the project artifact review contract. A real Chrome browser
+against isolated FastAPI/SQLite services passed the journey with deterministic
+Teacher, Assessor, and Reviewer fixtures: all three nodes reached
+`apply_independently`; failed work recommended reinforcement; rejected and
+corrected project submissions persisted two reviews and one accepted project
+evidence record; browser reload and API restart recovered the path and project.
+Artifact review did not change DLP mastery or fixed-assessment evidence. The
+qualification created no task or computer action and did not use live Qwen or
+production Friday. This bounded journey does not establish whole-product Career
+Forge qualification or Senior ML/AI Engineer readiness; roadmap rows 60 and 61
+remain PARTIAL. Candidate implementation, architecture updates, focused tests,
+and isolated browser evidence are present on
+`stage-31/ml-engineering-learning-journey`. Final acceptance gates passed: the
+repository verifier ran the full Python suite (**1,873 passed, 6 skipped**) and dependency
+consistency checks; frontend **187 tests across 38 files**, four Node checks,
+ESLint, TypeScript, and production build passed. Final browser/API evidence is
+under `var/stage31-qualification/20261016-final-acceptance/`. The Vite main
+bundle size advisory (about 1.29 MB vs 500 kB) remains disclosed. Scoped branch
+publication remains.
+
 ## 2026-10-16 — Stage 30 owner-approved release deployed
 
 The owner approved and deployed the qualified Stage 30 source

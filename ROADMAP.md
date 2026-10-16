@@ -1864,6 +1864,40 @@ pre-existing mission and Practice Lab draft remain intact, and all 12
 historical `in_doubt` actions remain untouched. See the deployment record in
 `docs/operations/stage30-release-plan.md` and the current `CODEX_HANDOFF.md`.
 
+### Stage 31 candidate — Multi-topic ML Engineering Learner Journey
+
+Stage 31 adds one connected three-node fraud-detection learning journey on the
+existing DLP, Career Forge, Projects, Owner-session, and Reviewer authorities.
+The versioned curriculum teaches data preparation/evaluation, logistic
+regression, and trees/model comparison with explicit sequential prerequisites,
+substantive lesson content, and fixed conceptual/practical question contracts.
+Career Forge retains the answer and feedback history and applies its existing
+mastery ladder; independent application requires two distinct correct,
+unassisted question IDs. Failed answers remain recorded and recommend existing
+reinforcement. The Astra Learn path restores across page and API restart.
+
+Project artifact/explanation review preserves its own assessment-contract
+fingerprint and remains durable in Project/Career Forge evidence. It neither
+becomes a fixed DLP question answer nor directly changes DLP mastery. Unknown
+question IDs and unauthenticated assessment, path, and project mutations fail
+closed. The isolated real-Chrome/FastAPI/SQLite browser journey passed with
+deterministic Teacher, Assessor, and Reviewer fixtures; it does not claim live
+Qwen pedagogical quality or whole-product Career Forge qualification. All three
+nodes reached `apply_independently`; Node 1's failed answer recommended
+`REINFORCE_FIRST`; rejected and corrected project artifacts produced two
+durable reviews and one accepted project evidence record; browser reload and
+isolated API restart recovered the path and project. No task, computer action,
+or publication was created.
+
+The candidate is on `stage-31/ml-engineering-learning-journey`. Full qualification
+passed: 1,873 Python tests passed, 6 skipped, repository verification passed,
+187 frontend tests passed, four Node checks passed, and ESLint, TypeScript, and
+production build passed. The final real-Chrome/FastAPI/SQLite result is under
+`var/stage31-qualification/20261016-final-acceptance/`; it proves reload and API
+restart recovery with no production writes or task execution. Scoped branch
+publication remains. Rows 60 and 61 remain PARTIAL; this three-node journey does
+not establish Senior ML/AI Engineer readiness or complete Career Forge.
+
 The Stage 29 publication entry above records its state at publication. The
 Stage 30 preparation checks also confirmed the old Stage 29 API and UI were
 healthy before cutover; Stage 29 was not the post-release runtime.

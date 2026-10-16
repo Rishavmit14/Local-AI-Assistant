@@ -1356,6 +1356,33 @@ assessment, changed next action, and API restart recovery, is recorded in
 `docs/architecture/projects.md` and ADR 0053. This does not qualify all of
 Career Forge; roadmap rows 60 and 61 remain PARTIAL.
 
+### Stage 31 multi-topic ML engineering journey
+
+Stage 31 persists bounded lesson content and fixed conceptual/practical
+assessment contracts in immutable DLP curriculum versions. The qualified
+fraud-detection journey has three prerequisite-linked nodes: data preparation
+and evaluation, logistic regression, and trees/model comparison. Each node
+uses a Career Forge dynamic subject; existing Career Forge evidence and
+mastery rules determine assessment acceptance and prerequisite progression.
+Independent application requires two distinct correct, unassisted question
+IDs from that node's declared contract.
+
+Project Reviewer submissions retain their own Project assessment-contract
+fingerprint in Career Forge evidence. `GeneralizedLearningService` counts and
+projects only the fixed question IDs bound to the DLP contract, so a project
+artifact cannot appear as a lesson answer or satisfy DLP assessment evidence.
+Project review remains visible through its canonical Project record and never
+advances DLP mastery directly. Milestone keys of the form `node:<id>` resolve
+to the dynamic Career Forge subject for that path version before submission.
+ADR 0054 records this contract boundary.
+
+An isolated real-browser/FastAPI/SQLite qualification proved the three-node
+journey, unauthorized mutation rejection, failed-answer remediation, verified
+mastery progression, project artifact revision/acceptance, and browser/API
+restart recovery. Deterministic fixtures do not establish live local-model
+pedagogical quality. This stage does not qualify full Career Forge scope or
+change the Stage 30 production release.
+
 Projects schema v3 adds artifact provenance transactionally to the existing
 Projects database. Interrupted upgrades roll back atomically; the verified
 Stage 29 compatibility path keeps the schema marker at v2 while retaining

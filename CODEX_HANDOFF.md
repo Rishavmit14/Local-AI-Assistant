@@ -1,81 +1,64 @@
-# Friday handoff — Stage 30 deployed and verified
+# Friday handoff — Stage 31 qualified candidate
 
-Updated 2026-10-16 after owner-approved Stage 30 release and live deployment.
-Production serves immutable release
-`2c200bf798e195f2fff4908b147304d46a49d795` (tree
-`de49e9a55576dafe2bbfe4c3e46133be1789498a`). Stage 30 is accepted and
-recoverable. The handoff/roadmap/history/operations updates are published as a
-documentation-only follow-up on the same Stage 30 branch; runtime code and the
-immutable release are unchanged. Resolve the Git tip with `git rev-parse
-HEAD`; the deployed runtime SHA remains the exact value above.
+Updated 2026-10-16. Stage 31's bounded three-node fraud-detection ML engineering
+journey passed its full candidate qualification. The implementation is still
+uncommitted on its owning branch; scoped commit/publication and remote recovery
+verification are the remaining acceptance steps. Do not begin Stage 32.
 
-## Repository and release state
+## Repository and protected runtime
 
-- Stage worktree:
-  `/home/kumar-rishav/.codex/worktrees/friday-stage30-connected-journey/Local-AI-Assistant-terra-integration`
-- Owning branch: `stage-30/career-forge-connected-journey`.
-- Main integration worktree:
-  `/home/kumar-rishav/.codex/worktrees/friday-stage28-live-main/Local-AI-Assistant-terra-integration`.
-- The Stage 30 source commit was fast-forwarded from Stage 29 without force;
-  `origin/main` and `origin/stage-30/career-forge-connected-journey` were
-  verified at `2c200bf798e195f2fff4908b147304d46a49d795` before deployment.
-  Both refs now point to the same documentation-only follow-up commit, which
-  preserves the deployed release source SHA and changes no runtime code.
-- Runtime pointer:
-  `/home/kumar-rishav/.local/share/friday/api/current` resolves to
-  `/home/kumar-rishav/.local/share/friday/api/releases/2c200bf798e195f2fff4908b147304d46a49d795`.
-- Release environment:
-  `/home/kumar-rishav/.local/share/friday/api/environments/2c200bf798e195f2fff4908b147304d46a49d795`.
-- Stage 30 deployment evidence and restricted backups:
-  `/home/kumar-rishav/.local/share/friday/api/maintenance/stage30-2c200bf798e195f2fff4908b147304d46a49d795/`.
-- Protected Terra and GCA worktrees were not modified. Do not reset, clean,
-  or stash them.
+- Worktree: `/home/kumar-rishav/.codex/worktrees/friday-stage31-ml-engineering-learning-journey/Local-AI-Assistant-terra-integration`
+- Branch: `stage-31/ml-engineering-learning-journey`.
+- HEAD: `b939874e89fb695360425bfe8ca4dd82dee05769`; Stage 31 candidate files
+  are uncommitted. Recovery base: `refs/codex/recovery/stage31-base-20261016`.
+- Remote: `origin` at `https://github.com/Rishavmit14/Local-AI-Assistant.git`.
+  Publish only this Stage 31 branch. Leave `main` unchanged.
+- Protected production remains on immutable Stage 30 release
+  `2c200bf798e195f2fff4908b147304d46a49d795`. `friday-local-ai.service` and
+  `friday-ui.service` are active. Stage 31 has not restarted Friday, Qwen, or
+  vision; it has not deployed or written production learner/project data.
 
-## Deployment and validation
+## Candidate and qualification evidence
 
-- API and UI are active on the immutable Stage 30 release. Their systemd
-  working directories, process directories, API environment, current pointer,
-  and source root resolve to the exact release. Health and same-origin proxy
-  checks return HTTP 200.
-- Projects is schema v3; Learning Paths remains v2. All 15 production SQLite
-  databases pass integrity checks, and all post-deployment table counts match
-  the verified post-API-stop backup. No production project or learner records
-  were created.
-- Owner-only read, mutation, and trusted-session restoration without owner
-  proof return HTTP 401. The isolated Stage 30 browser/API run covers the
-  authenticated Owner/CSRF flow. All 13 live frontend assets match the release
-  manifest; Projects and Career Forge same-origin routes work.
-- Voice is running with capture, stream, and wake path armed, no active turn,
-  and Pocket/Anna selected. The runtime capability endpoint reports healthy
-  voice, computer agency, and perception. Qwen's read-only model listing
-  passed; no inference or Qwen/vision restart occurred. No GPU or swap change
-  occurred.
-- TaskHistory has zero tasks or planning/execution claims. The existing active
-  Career Forge mission, its assistance row, and saved Practice Lab draft were
-  preserved. The 12 historical `in_doubt` computer actions remain untouched.
-- Qualification: Python repository verifier **1,868 passed, 6 skipped**;
-  frontend **184 tests across 37 files**, four Node checks, ESLint, TypeScript,
-  and production build passed. Deployment evidence additionally records exact
-  API/UI health, asset hashes, Owner rejection, capability health, and all
-  database checks. The Vite main-bundle size advisory (about 1.29 MB vs 500 kB)
-  remains disclosed.
-- A first UI-stop wrapper misread systemd's normal inactive exit code after
-  stopping only UI. API remained healthy; UI recovered before the corrected
-  cutover. That attempt changed neither the release pointer nor databases.
-  The incident and recovery are recorded in HISTORY and the operations plan.
+The candidate connects bounded DLP lesson content and exact conceptual/practical
+question contracts to Career Forge's durable answer history, evidence, mastery,
+and prerequisite progression. Project Reviewer submissions preserve their own
+assessment fingerprint and remain distinct from DLP question evidence. Owner,
+Origin, and CSRF checks protect path, dynamic assessment, project, and dynamic
+tutor mutations. No project artifact is executed and project review cannot
+directly grant lesson mastery.
 
-## Active scope and next path
+Final isolated browser/API artifacts:
+`var/stage31-qualification/20261016-final-acceptance/`. Real Chrome against
+isolated FastAPI/SQLite reached `apply_independently` on all three nodes, retained
+failed answers with `REINFORCE_FIRST`, enforced prerequisites, rejected
+unauthorized writes with HTTP 401 and unknown questions with HTTP 409, persisted
+two Project reviews and one accepted Project evidence record, and recovered the
+same learner/project state after browser reload and API restart. Project review
+left DLP mastery unchanged. The run used deterministic Teacher/Assessor/Reviewer
+fixtures; it did not use live Qwen, production, objectives, or computer/task
+execution.
 
-- Stage 30's bounded FraudShield source-artifact journey is deployed. It does
-  not qualify the full Career Forge ecosystem; ROADMAP rows 60 and 61 remain
-  PARTIAL. The cutover's point-in-time active-work admission limitation and
-  rollback procedure remain documented in
-  `docs/operations/stage30-release-plan.md`.
-- No Stage 31 work was started in this release task. The next roadmap path is
-  the broader Senior ML/AI Engineer learning journey; start it only on its
-  owning Stage 31 branch and preserve all existing Owner, isolation, rollback,
-  audit, and local-sovereignty controls.
-- No deployment action remains. The exact next roadmap path is the Stage 31
-  Senior ML/AI Engineer learning journey on its own Stage 31 branch; it was not
-  started in this Stage 30 release task. Do not move the production pointer
-  away from release SHA `2c200bf798e195f2fff4908b147304d46a49d795`.
+Full gates passed after the final security change:
+`scripts/maintenance/verify-repository.sh` reported **1,873 passed, 6 skipped**,
+clean dependency consistency, compilation, CLI checks, and repository artifact
+checks. Frontend reported **187 tests across 38 files**, four Node checks,
+ESLint, TypeScript, and production build passed. The Vite main bundle remains
+about 1.29 MB against its 500 kB advisory. The worktree `.venv` has the
+project's declared tree-sitter language grammars installed for the full
+regression.
+
+Rows 60 and 61 remain PARTIAL. This bounded journey does not qualify complete
+Career Forge, Senior ML/AI Engineer readiness, live Qwen teaching quality, or
+production deployment.
+
+## Exact next work
+
+Review `git diff --check`, the tracked/untracked scope, and the final diff; commit
+the qualified candidate on this branch; push only
+`stage-31/ml-engineering-learning-journey`; fetch and verify the exact remote
+recovery commit. Update this handoff, `ROADMAP.md`, and `HISTORY.md` with the
+accepted SHA and clean remote state, publish any documentation-only follow-up
+on the same Stage 31 branch, and verify the final remote branch SHA and clean
+worktree. Do not fast-forward `main`, deploy, restart production services, or
+begin Stage 32.

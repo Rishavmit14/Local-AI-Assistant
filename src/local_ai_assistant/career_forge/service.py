@@ -1503,7 +1503,8 @@ class CareerForgeService:
         return tuple(areas[:limit])
 
     def evaluate_attempt(self, attempt_id: str, evaluation: AttemptEvaluation, feedback: str, *,
-                         evidence_type: str | None = None, artifact_ref: str | None = None) -> LessonAttempt:
+                         evidence_type: str | None = None, artifact_ref: str | None = None,
+                         evidence_contract_fingerprint: str | None = None) -> LessonAttempt:
         """Store a bounded assessment; this never promotes mastery automatically."""
         if evaluation is AttemptEvaluation.PENDING or not isinstance(feedback, str) or not feedback.strip():
             raise ValueError("a final evaluation and feedback are required")
@@ -1512,6 +1513,9 @@ class CareerForgeService:
             raise ValueError("only a correct assessment may carry evidence")
         if artifact_ref is not None and (not isinstance(artifact_ref, str) or len(artifact_ref) > 4000):
             raise ValueError("artifact reference exceeds the bounded limit")
+        if (evidence_contract_fingerprint is not None
+                and (not re.fullmatch(r"[a-f0-9]{64}", evidence_contract_fingerprint))):
+            raise ValueError("evidence contract fingerprint is invalid")
         retry_needed = evaluation is not AttemptEvaluation.CORRECT
         with self._db() as db:
             changed = db.execute("UPDATE lesson_attempts SET evaluation=?, evidence_type=?, feedback=?, retry_needed=?, evaluated_at=? WHERE attempt_id=? AND evaluation='pending'", (
@@ -1525,6 +1529,9 @@ class CareerForgeService:
             context = json.loads(mission_row[1])
             if evidence_type:
                 evidence_id = "evidence_" + uuid.uuid4().hex
+                fingerprint = evidence_contract_fingerprint
+                if fingerprint is None and context.get("learning_context") == "dynamic_dlp":
+                    fingerprint = context.get("contract_fingerprint")
                 db.execute(
                     "INSERT INTO mission_evidence "
                     "(evidence_id,mission_id,evidence_type,content,assistance_level,artifact_ref,created_at,source_attempt_id,competency_id,contract_fingerprint) "
@@ -1532,7 +1539,7 @@ class CareerForgeService:
                     (evidence_id, attempt.mission_id, evidence_type, attempt.response,
                      attempt.assistance_level.value if attempt.assistance_level else None, artifact_ref,
                      _now(), attempt_id, mission_row[0],
-                     context.get("contract_fingerprint") if context.get("learning_context") == "dynamic_dlp" else None),
+                     fingerprint),
                 )
             context.update({"phase": LessonPhase.TEACH_BACK if evaluation is AttemptEvaluation.CORRECT else LessonPhase.QUESTION,
                             "question_id": attempt.question_id, "attempt_id": attempt_id})

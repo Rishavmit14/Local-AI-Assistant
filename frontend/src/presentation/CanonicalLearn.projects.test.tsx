@@ -76,6 +76,7 @@ describe("Learn project milestone flow",()=>{
       await new Promise(r=>setTimeout(r,0));
     });
     const submitButton=form?.querySelector<HTMLButtonElement>("button");
+    expect(submitButton?.getAttribute("type")).toBe("submit");
     await act(async()=>{submitButton?.click();await new Promise(r=>setTimeout(r,0));});
     expect(submit).toHaveBeenCalledWith("proj_1",expect.objectContaining({
       competency_key:"se.python",artifact_name:"fraudshield.py",

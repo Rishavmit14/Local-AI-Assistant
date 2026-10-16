@@ -83,6 +83,31 @@ continue from the current DLP sequence after accepted milestone evidence. DLP
 curriculum versions and Career Forge mastery remain unchanged by page
 navigation, lesson display, or project completion.
 
+## Stage 31 multi-topic assessment boundary
+
+Stage 31 connects a three-node fraud-detection curriculum to registered Career
+Forge dynamic subjects. Project milestone competency keys such as `node:<id>`
+resolve to the Career Forge subject ID created for that immutable path version;
+artifact review validates against that resolved ID while retaining the original
+milestone key as curriculum provenance.
+
+The project Reviewer uses its own immutable assessment-contract fingerprint.
+That fingerprint is stored with the Project review submission and its accepted
+Career Forge evidence. It does not reuse the DLP lesson-question fingerprint.
+Dynamic lesson projections count only fixed question IDs declared by that
+lesson's assessment contract, so Project source or explanation reviews remain
+durable project evidence without being presented as conceptual/practical lesson
+attempts or satisfying the DLP mastery threshold. Career Forge's existing
+mastery ladder remains authoritative; the Project artifact route reports
+`mastery_changed: false`.
+
+An isolated Chrome/FastAPI/SQLite qualification covers three prerequisites,
+failed and corrected answers, Reviewer revision and acceptance, Owner session
+recovery across Learn/Projects navigation, browser reload, and API restart. The
+Reviewer sees source text as untrusted data; it is not executed. This bounded
+journey does not qualify the full Career Forge roadmap or whole-product
+usability.
+
 ## Publication boundary
 
 Learning project work is not automatically published. Friday repository

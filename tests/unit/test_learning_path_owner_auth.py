@@ -155,6 +155,44 @@ def test_path_creation_routes_reject_invalid_owner_origin_or_csrf_without_writes
     assert hashlib.sha256(db.read_bytes()).hexdigest() == before_hash
 
 
+def test_lifecycle_and_assessment_handoffs_require_owner_csrf_and_exact_origin(tmp_path):
+    app, sessions, paths, _, _, _, _, db = _make_app(tmp_path)
+    with TestClient(app, base_url=OWNER_ORIGIN) as client:
+        authorized = _session_headers(client, sessions)
+        created = client.post("/api/v1/learning-paths", json=curriculum(), headers=authorized)
+        assert created.status_code == 200
+        path_id = created.json()["path"]["path_id"]
+        payloads = [
+            (f"/api/v1/learning-paths/{path_id}/select", {}),
+            (f"/api/v1/learning-paths/{path_id}/activate", {}),
+            (f"/api/v1/learning-paths/{path_id}/archive", {}),
+            (f"/api/v1/learning-paths/{path_id}/adapt", {}),
+            (f"/api/v1/learning-paths/{path_id}/versions", {"reason":"test", "curriculum":curriculum()}),
+            (f"/api/v1/learning-paths/{path_id}/manual-edits", {
+                "expected_version":1,"operation":{"type":"add_node","node":{
+                    "node_id":"unauthorized-node","module_id":"foundations","title":"Extra",
+                    "type":"lesson","objectives":["Demonstrate"],"evidence_requirements":[],
+                    "competency_key":None,"estimated_hours":1,
+                }},
+            }),
+            (f"/api/v1/learning-paths/{path_id}/handoff", {
+                "node_id":"arrays", "action":"diagnostic", "path_version":1,
+            }),
+        ]
+        before_hash = hashlib.sha256(db.read_bytes()).hexdigest()
+        before_counts = _domain_counts(db)
+        for route, body in payloads:
+            missing_csrf = client.post(route, json=body, headers={"Origin":OWNER_ORIGIN})
+            wrong_origin = client.post(route, json=body, headers={
+                "Origin":"https://attacker.invalid", "X-Friday-CSRF":authorized["X-Friday-CSRF"],
+            })
+            assert missing_csrf.status_code == 401, (route, missing_csrf.status_code)
+            assert wrong_origin.status_code == 403, (route, wrong_origin.status_code)
+        assert hashlib.sha256(db.read_bytes()).hexdigest() == before_hash
+        assert _domain_counts(db) == before_counts
+        assert paths.repository.get(path_id).state == "draft"
+
+
 def test_expired_owner_session_rejects_generation_before_model_or_database_write(tmp_path):
     app, sessions, paths, model, _, _, _, db = _make_app(tmp_path, lifetime=0)
     before_hash = hashlib.sha256(db.read_bytes()).hexdigest()

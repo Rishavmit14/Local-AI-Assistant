@@ -14,6 +14,7 @@ from local_ai_assistant.career_forge.service import CareerForgeService
 from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection, evidence_state
 from local_ai_assistant.learning_paths.service import LearningPathService
 from tests.fixtures.learning_path_curricula import curriculum
+from tests.fixtures.stage31_ml_curriculum import stage31_ml_engineering_curriculum
 
 
 def _node(**changes):
@@ -79,7 +80,7 @@ def test_dynamic_correct_assessment_creates_one_contract_bound_evidence_and_one_
     service = GeneralizedLearningService(forge)
     subject = service.register(path_id="path-a", path_version=1, node=_node())
     service.start_session(subject.subject_id)
-    attempt = service.record_attempt(subject.subject_id, "q1", "An index can reduce scanned rows.")
+    attempt = service.record_attempt(subject.subject_id, "diagnostic-concept-v1", "An index can reduce scanned rows.")
 
     prompt = service.assessment_prompt(subject.subject_id, attempt.attempt_id)
     assert subject.contract_fingerprint in prompt or "Explain how an index" in prompt
@@ -90,8 +91,35 @@ def test_dynamic_correct_assessment_creates_one_contract_bound_evidence_and_one_
     assert result["evidence_id"]
     assert result["mastery"] == MasteryLevel.RECOGNIZE
     assert service.matching_evidence_count(subject.subject_id) == 1
-    with pytest.raises(ValueError, match="already been evaluated"):
-        service.assess_attempt(subject.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nReplay")
+    replay = service.assess_attempt(subject.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nReplay")
+    assert replay == result
+
+
+def test_project_rubric_attempt_does_not_count_as_a_dynamic_assessment(tmp_path: Path):
+    forge = CareerForgeService(tmp_path / "learner.sqlite3")
+    service = GeneralizedLearningService(forge)
+    subject = service.register(path_id="path-a", path_version=1, node=_node())
+    mission = service.start_session(subject.subject_id)
+    attempt = forge.record_attempt(
+        mission.mission_id, "project:proj-1:submission:1:sql-plans",
+        "The reviewed source implements the project objective.", mode=TutorMode.TEACH_BACK,
+    )
+    project_rubric = "a" * 64
+    forge.evaluate_attempt(
+        attempt.attempt_id, AttemptEvaluation.CORRECT, "The artifact meets the project rubric.",
+        evidence_type="project_milestone_assessment", artifact_ref="project:proj-1:artifact:1",
+        evidence_contract_fingerprint=project_rubric,
+    )
+
+    state = service.learning_state(subject.subject_id)
+    project_evidence = forge.evidence_for_attempt(attempt.attempt_id)
+    assert project_evidence
+    assert forge.evidence_link(project_evidence)["contract_fingerprint"] == project_rubric
+    assert service.matching_evidence_count(subject.subject_id) == 0
+    assert state["attempts"] == []
+    assert state["assessment_attempted"] is False
+    assert state["assessment_accepted"] is False
+    assert state["mastery"] == MasteryLevel.UNVERIFIED.value
 
 
 def test_explicit_cross_path_equivalence_reuses_only_matching_qualified_evidence(tmp_path: Path):
@@ -102,7 +130,7 @@ def test_explicit_cross_path_equivalence_reuses_only_matching_qualified_evidence
     source = service.register(path_id="path-source", path_version=1, node=source_node)
     service.start_session(source.subject_id)
     for index in range(4):
-        attempt = service.record_attempt(source.subject_id, f"q{index}", f"Independent explanation {index}.")
+        attempt = service.record_attempt(source.subject_id, ("diagnostic-concept-v1" if index % 2 == 0 else "independent-application-v1"), f"Independent explanation {index}.")
         result = service.assess_attempt(source.subject_id, attempt.attempt_id,
                                         "ASSESSMENT: correct\nCorrect independent application.")
         assert result["evidence_id"]
@@ -137,14 +165,14 @@ def test_cross_path_equivalence_rejects_failed_or_lower_level_evidence(tmp_path:
     node = _node(equivalence_key="sql.query-plan.interpretation")
     source = service.register(path_id="path-source", path_version=1, node=node)
     service.start_session(source.subject_id)
-    attempt = service.record_attempt(source.subject_id, "wrong", "Incorrect answer.")
+    attempt = service.record_attempt(source.subject_id, "diagnostic-concept-v1", "Incorrect answer.")
     service.assess_attempt(source.subject_id, attempt.attempt_id, "ASSESSMENT: incorrect\nIncorrect.")
     target = _node(node_id="target", equivalence_key="sql.query-plan.interpretation")
     assert projection.dynamic_node_evidence("path-target", 1, target) is None
 
     # One successful attempt creates evidence, but its recognized-level mastery
     # remains below the independent-application threshold used by DLP.
-    attempt = service.record_attempt(source.subject_id, "right", "A correct basic answer.")
+    attempt = service.record_attempt(source.subject_id, "diagnostic-concept-v1", "A correct basic answer.")
     service.assess_attempt(source.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nCorrect.")
     result = projection.dynamic_node_evidence("path-target", 1, target,
                                               equivalent_sources={("path-source", "sql-plans")})
@@ -162,7 +190,7 @@ def test_cross_path_equivalent_evidence_obeys_canonical_retention_state(tmp_path
     source = service.register(path_id="path-source", path_version=1, node=node)
     service.start_session(source.subject_id)
     for index in range(4):
-        attempt = service.record_attempt(source.subject_id, f"q{index}", f"Independent {index}.")
+        attempt = service.record_attempt(source.subject_id, ("diagnostic-concept-v1" if index % 2 == 0 else "independent-application-v1"), f"Independent {index}.")
         service.assess_attempt(source.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nCorrect.")
     with forge._db() as db:
         db.execute("UPDATE retention_reviews SET due_at='2000-01-01T00:00:00+00:00' WHERE competency_id=?",
@@ -197,7 +225,7 @@ def test_dlp_sequences_cross_path_evidence_with_source_after_reconstruction(tmp_
     subject = generalized.register(path_id=source_path.path_id, path_version=1, node=source_node)
     generalized.start_session(subject.subject_id)
     for index in range(4):
-        attempt = generalized.record_attempt(subject.subject_id, f"q{index}", f"Independent application {index}.")
+        attempt = generalized.record_attempt(subject.subject_id, ("diagnostic-concept-v1" if index % 2 == 0 else "independent-application-v1"), f"Independent application {index}.")
         generalized.assess_attempt(subject.subject_id, attempt.attempt_id,
                                    "ASSESSMENT: correct\nCorrect independent application.")
 
@@ -235,7 +263,7 @@ def test_noncorrect_or_malformed_dynamic_assessment_never_creates_evidence(tmp_p
     service = GeneralizedLearningService(forge)
     subject = service.register(path_id="path-a", path_version=1, node=_node())
     service.start_session(subject.subject_id)
-    attempt = service.record_attempt(subject.subject_id, "q1", "An answer that needs assessment.")
+    attempt = service.record_attempt(subject.subject_id, "diagnostic-concept-v1", "An answer that needs assessment.")
 
     result = service.assess_attempt(subject.subject_id, attempt.attempt_id, model_response)
 
@@ -252,7 +280,7 @@ def test_dynamic_retention_delivery_and_failure_weakens_only_current_subject(tmp
     subject = service.register(path_id="path-a", path_version=1, node=_node())
     service.start_session(subject.subject_id)
     for rung in range(4):
-        attempt = service.record_attempt(subject.subject_id, f"q{rung}", f"Independent response {rung}.")
+        attempt = service.record_attempt(subject.subject_id, ("diagnostic-concept-v1" if rung % 2 == 0 else "independent-application-v1"), f"Independent response {rung}.")
         service.assess_attempt(subject.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nDemonstrated.")
     review = next(item for item in forge.retention_reviews(limit=100) if item.competency_id == subject.competency_id)
     with forge._db() as db:
@@ -274,7 +302,7 @@ def test_dynamic_assistance_provenance_prevents_helped_answer_from_counting_as_i
     mission = service.start_session(subject.subject_id)
     forge.offer_assistance(mission.mission_id, TutorMode.HINT, AssistanceLevel.PROMPT, "Check the access path.")
 
-    attempt = service.record_attempt(subject.subject_id, "assisted-q", "An index can reduce scanned rows.")
+    attempt = service.record_attempt(subject.subject_id, "diagnostic-concept-v1", "An index can reduce scanned rows.")
 
     assert attempt.assistance_level is AssistanceLevel.PROMPT
     result = service.assess_attempt(subject.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nDemonstrated.")
@@ -289,11 +317,11 @@ def test_dynamic_assistance_provenance_expires_after_the_answer_it_helped(tmp_pa
     mission = service.start_session(subject.subject_id)
     forge.offer_assistance(mission.mission_id, TutorMode.HINT, AssistanceLevel.PROMPT, "Check the access path.")
 
-    assisted = service.record_attempt(subject.subject_id, "assisted-q", "An index can reduce scanned rows.")
+    assisted = service.record_attempt(subject.subject_id, "diagnostic-concept-v1", "An index can reduce scanned rows.")
     service.assess_attempt(subject.subject_id, assisted.attempt_id, "ASSESSMENT: correct\nDemonstrated.")
     independent_attempts = []
     for index in range(3):
-        attempt = service.record_attempt(subject.subject_id, f"independent-{index}", "The optimizer compares index access cost with a table scan.")
+        attempt = service.record_attempt(subject.subject_id, ("diagnostic-concept-v1" if index % 2 == 0 else "independent-application-v1"), "The optimizer compares index access cost with a table scan.")
         assert attempt.assistance_level is None
         service.assess_attempt(subject.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nDemonstrated.")
         independent_attempts.append(attempt)
@@ -320,7 +348,7 @@ def test_correct_assisted_evidence_cannot_fail_when_independent_threshold_is_not
 
     for index in range(4):
         forge.offer_assistance(mission.mission_id, TutorMode.HINT, AssistanceLevel.PROMPT, f"Hint {index}.")
-        attempt = service.record_attempt(subject.subject_id, f"helped-{index}", "An index can reduce scanned rows.")
+        attempt = service.record_attempt(subject.subject_id, "diagnostic-concept-v1", "An index can reduce scanned rows.")
         result = service.assess_attempt(subject.subject_id, attempt.attempt_id, "ASSESSMENT: correct\nDemonstrated.")
 
     assert result["evaluation"] == AttemptEvaluation.CORRECT
@@ -334,7 +362,7 @@ def test_concurrent_dynamic_assessment_replay_has_one_evidence_and_transition(tm
     service = GeneralizedLearningService(forge)
     subject = service.register(path_id="path-a", path_version=1, node=_node())
     service.start_session(subject.subject_id)
-    attempt = service.record_attempt(subject.subject_id, "concurrent-q", "An index can reduce rows visited.")
+    attempt = service.record_attempt(subject.subject_id, "diagnostic-concept-v1", "An index can reduce rows visited.")
     barrier = Barrier(3)
     outcomes = []
 
@@ -355,8 +383,69 @@ def test_concurrent_dynamic_assessment_replay_has_one_evidence_and_transition(tm
         worker.join(timeout=5)
         assert not worker.is_alive()
 
-    assert sum(isinstance(item, dict) for item in outcomes) == 1
+    assert sum(isinstance(item, dict) for item in outcomes) == 2
+    assert outcomes[0] == outcomes[1]
     with forge._db() as db:
         assert db.execute("SELECT COUNT(*) FROM mission_evidence WHERE source_attempt_id=?", (attempt.attempt_id,)).fetchone()[0] == 1
         assert db.execute("SELECT COUNT(*) FROM dynamic_mastery_transitions").fetchone()[0] == 1
         assert db.execute("SELECT COUNT(*) FROM retention_reviews WHERE evidence_id IN (SELECT evidence_id FROM mission_evidence WHERE source_attempt_id=?)", (attempt.attempt_id,)).fetchone()[0] == 1
+
+
+def test_stage31_contract_rejects_invented_questions_and_requires_distinct_evidence(tmp_path: Path):
+    forge = CareerForgeService(tmp_path / "stage31-career.sqlite3")
+    service = GeneralizedLearningService(forge)
+    node = stage31_ml_engineering_curriculum()["nodes"][0]
+    subject = service.register(path_id="stage31", path_version=1, node=node)
+    service.start_session(subject.subject_id)
+
+    with pytest.raises(ValueError, match="versioned assessment contract"):
+        service.record_attempt(subject.subject_id, "not-a-contract-question", "Invented prompt")
+
+    failed = service.record_attempt(
+        subject.subject_id, "data-leakage-reasoning-v1", "A short initial answer.",
+        submission_id="stage31-initial-diagnostic",
+    )
+    failed_replay = service.record_attempt(
+        subject.subject_id, "data-leakage-reasoning-v1", "A short initial answer.",
+        submission_id="stage31-initial-diagnostic",
+    )
+    assert failed_replay.attempt_id == failed.attempt_id
+    with pytest.raises(ValueError, match="different owner evidence"):
+        service.record_attempt(
+            subject.subject_id, "data-leakage-reasoning-v1", "Changed answer.",
+            submission_id="stage31-initial-diagnostic",
+        )
+    failed_result = service.assess_attempt(
+        subject.subject_id, failed.attempt_id,
+        "ASSESSMENT: incorrect\nThe answer does not address a time boundary or held-out split.",
+    )
+    assert failed_result["evidence_id"] is None
+    assert service.get(subject.subject_id).mastery is MasteryLevel.UNVERIFIED
+
+    for index in range(3):
+        attempt = service.record_attempt(
+            subject.subject_id, "data-leakage-reasoning-v1",
+            f"A correct conceptual explanation, submission {index}.",
+            submission_id=f"stage31-concept-{index}",
+        )
+        result = service.assess_attempt(
+            subject.subject_id, attempt.attempt_id,
+            "ASSESSMENT: correct\nExplains the temporal cutoff, fitting transforms on train only, and reserving test data.",
+        )
+        assert result["evidence_id"]
+    assert service.get(subject.subject_id).mastery is MasteryLevel.APPLY_WITH_HELP
+
+    practical = service.record_attempt(
+        subject.subject_id, "data-metrics-practical-v1",
+        "Compute TP/(TP+FP) for precision and TP/(TP+FN) for recall; select the cutoff on validation and report once on test.",
+        submission_id="stage31-practical-1",
+    )
+    final = service.assess_attempt(
+        subject.subject_id, practical.attempt_id,
+        "ASSESSMENT: correct\nThe answer defines both metrics and respects the validation/test roles.",
+    )
+    assert final["mastery"] == MasteryLevel.APPLY_INDEPENDENTLY.value
+    assert final["mastery_requirement_satisfied"] is True
+    assert service.matching_evidence_count(subject.subject_id) == 4
+    assert len(service.learning_state(subject.subject_id)["attempts"]) == 5
+    assert all(attempt["feedback"] for attempt in service.learning_state(subject.subject_id)["attempts"])

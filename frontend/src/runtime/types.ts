@@ -291,12 +291,28 @@ export interface LearningPath {
 export interface LearningPathNode {
   node_id: string; module_id: string; title: string; type: string; objectives: string[];
   evidence_requirements: string[]; competency_key: string | null; equivalence_key?: string | null; required_mastery?: string; estimated_hours: number | null;
+  learning_content?: { explanation: string; examples: string[]; exercise?: { prompt: string; starter_code?: string | null } | null; remediation?: string | null } | null;
+  assessment_contract?: { contract_id: string; version: string; criteria: string[]; questions: Array<{ question_id: string; kind: "conceptual" | "practical"; prompt: string }> } | null;
 }
 export interface LearningPathMilestone { milestone_id:string; title:string; node_id:string; project_ref:string|null; description:string; kind?:string; assignment_reason?:string; competency_keys?:string[]; prerequisite_node_ids?:string[]; expected_outcome?:string; evidence_expectations?:string[] }
 export interface LearningPathDetail { path: LearningPath; current: { path_id: string; version: number; summary: string; adaptation?:Record<string,unknown>; modules: Array<{module_id:string;title:string;objective:string;estimated_hours:number|null}>; nodes: LearningPathNode[]; prerequisites?:Array<{prerequisite_node_id:string;node_id:string}>; milestones?:LearningPathMilestone[] } }
 export interface LearningPathSequence {
   path_id: string; version: number; path_state: string; evidence_available: boolean;
-  candidate_next_nodes: string[]; nodes: Array<{node_id:string;competency_id:string|null;evidence_state:string;evidence:(Record<string,unknown>&{equivalent_source?:{path_id:string;path_version:number;node_id:string;evidence_id:string;attempt_id:string|null;artifact_ref:string|null;created_at:string;evaluation:"correct";evaluation_authority:string}|null})|null;decision:string;eligible:boolean;blockers:string[];recommendation:string|null;reason:string}>;
+  candidate_next_nodes: string[]; nodes: Array<{node_id:string;competency_id:string|null;subject_id?:string|null;evidence_state:string;evidence:(Record<string,unknown>&{equivalent_source?:{path_id:string;path_version:number;node_id:string;evidence_id:string;attempt_id:string|null;artifact_ref:string|null;created_at:string;evaluation:"correct";evaluation_authority:string}|null})|null;assessment_status?:string;assessment_attempted?:boolean;assessment_accepted?:boolean;evidence_persisted?:boolean;evidence_count?:number;mastery_requirement?:string;mastery_requirement_satisfied?:boolean;verified_mastery?:boolean;prerequisite_unlocked?:boolean;decision:string;eligible:boolean;blockers:string[];recommendation:string|null;reason:string}>;
+}
+export interface DynamicLearningAttempt {
+  attempt_id:string; mission_id:string; mission_state:string; question_id:string; response:string;
+  evaluation:"pending"|"correct"|"incorrect"|"uncertain"; assessment_status:string; feedback:string|null;
+  evidence_id:string|null; evidence_type:string|null; artifact_ref:string|null; assistance_level:string|null;
+  attempt_order:number; created_at:string; evaluated_at:string|null; retry_needed:boolean;
+}
+export interface DynamicLearningState {
+  subject_id:string; competency_id:string; path_id:string; path_version:number; node_id:string;
+  contract_fingerprint:string; contract:{title:string;objectives:string[];learning_content:LearningPathNode["learning_content"];assessment_contract:NonNullable<LearningPathNode["assessment_contract"]>;required_mastery:string;[key:string]:unknown};
+  mastery:string; mastery_requirement:string; mastery_requirement_satisfied:boolean; mastery_verified:boolean;
+  evidence_count:number; assessment_attempted:boolean; assessment_accepted:boolean; evidence_persisted:boolean;
+  latest_assessment_status:string; latest_feedback:string|null; mission_id:string|null; mission_state:string;
+  prerequisite_unlocked:boolean; next_recommendation:string|null; attempts:DynamicLearningAttempt[]; attempts_truncated:boolean;
 }
 export interface LearningProjectTemplate { template_id: string; name: string; focus: string }
 export interface LearningProjectArtifact { artifact_id: string; project_id: string; task_id: string; artifact_ref: string; created_at: string }
@@ -349,8 +365,8 @@ export type LearningPathHandoff = {
   title?: string;
   completion_claimed: false;
 };
-export interface DynamicLearningAttemptResult { attempt_id: string; evaluation: string; evidence_created: false; mastery: string }
-export interface DynamicLearningEvaluation { attempt_id: string; evaluation: "correct" | "incorrect" | "uncertain"; feedback: string; evidence_id: string | null; mastery: string }
+export interface DynamicLearningAttemptResult { attempt_id: string; evaluation: string; assessment_status:string; evidence_created: false; evidence_persisted:boolean; mastery: string; replayed:boolean }
+export interface DynamicLearningEvaluation { attempt_id: string; evaluation: "correct" | "incorrect" | "uncertain"; assessment_status:string; feedback: string; evidence_id: string | null; evidence_persisted:boolean; mastery: string; mastery_requirement:string; mastery_requirement_satisfied:boolean }
 
 export interface CareerForgeMissionBrief {
   competency_id: string;

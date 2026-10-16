@@ -13,6 +13,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from pydantic import BaseModel, Field, StrictBool
@@ -229,6 +230,8 @@ class LearningPathNodeView(BaseModel):
     equivalence_key: str | None = None
     required_mastery: str = "apply_independently"
     estimated_hours: float | None = None
+    learning_content: dict[str, object] | None = None
+    assessment_contract: dict[str, object] | None = None
 
 
 class LearningPathPrerequisiteView(BaseModel):
@@ -319,8 +322,18 @@ class LearningPathEvidenceView(BaseModel):
 class LearningPathNodeSequenceView(BaseModel):
     node_id: str
     competency_id: str | None
+    subject_id: str | None = None
     evidence_state: str
     evidence: LearningPathEvidenceView | None
+    assessment_status: str = "not_started"
+    assessment_attempted: bool = False
+    assessment_accepted: bool = False
+    evidence_persisted: bool = False
+    evidence_count: int = 0
+    mastery_requirement: str = "apply_independently"
+    mastery_requirement_satisfied: bool = False
+    verified_mastery: bool = False
+    prerequisite_unlocked: bool = False
     decision: str
     eligible: bool
     blockers: list[str]
@@ -336,6 +349,13 @@ class LearningPathSequenceView(BaseModel):
     nodes: list[LearningPathNodeSequenceView]
     candidate_next_nodes: list[str]
     progress: dict[str, int]
+
+
+class DynamicLearningAttemptRequest(BaseModel):
+    submission_id: str = Field(min_length=1, max_length=80, pattern="^[A-Za-z0-9_.:-]+$")
+    question_id: str = Field(min_length=1, max_length=96, pattern="^[A-Za-z0-9][A-Za-z0-9_.:-]*$")
+    response: str = Field(min_length=1, max_length=12000)
+    mode: str = Field(default="teach_back", max_length=40)
 
 
 class LearningPathAdaptationView(BaseModel):
@@ -2272,6 +2292,8 @@ def create_presentation_app(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         if not isinstance(message, str) or not message.strip() or len(message) > max_prompt_chars:
             raise HTTPException(status_code=400, detail="bounded tutor message is required")
+        if level is not None or mission.resume_point.get("learning_context") == "dynamic_dlp":
+            context_owner(request, mutation=True)
         if mission.state != "active":
             raise HTTPException(status_code=409, detail="mission is not currently teachable")
         dynamic_subject = None
@@ -2330,34 +2352,60 @@ def create_presentation_app(
             finally:
                 lease.release()
 
+    @app.get("/api/v1/career-forge/dynamic-learning/{subject_id}")
+    def dynamic_learning_state(subject_id: str, request: Request):
+        """Return the authenticated learner's durable lesson and assessment history."""
+        context_owner(request)
+        from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
+
+        subject = validate_dynamic_learning_subject(subject_id)
+        service = GeneralizedLearningService(owner_career_forge())
+        state = service.learning_state(subject_id)
+        sequence = learning_path_service().sequence(subject.path_id)
+        node_state = next((item for item in sequence["nodes"] if item["node_id"] == subject.node_id), None)
+        state["mastery_verified"] = bool(node_state and node_state["verified_mastery"])
+        state["prerequisite_unlocked"] = bool(node_state and node_state["prerequisite_unlocked"])
+        state["next_recommendation"] = (
+            next(iter(sequence["candidate_next_nodes"]), None)
+        )
+        return state
+
     @app.post("/api/v1/career-forge/dynamic-learning/{subject_id}/attempts")
-    async def dynamic_learning_attempt(subject_id: str, request: Request):
+    async def dynamic_learning_attempt(subject_id: str, body: DynamicLearningAttemptRequest, request: Request):
         """Record an answer only in its explicit Career Forge dynamic session."""
+        context_owner(request, mutation=True)
         from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
         try:
-            body = await request.json()
-            if not isinstance(body.get("question_id"), str) or not isinstance(body.get("response"), str):
-                raise ValueError("question_id and response are required")
             service = GeneralizedLearningService(owner_career_forge())
             validate_dynamic_learning_subject(subject_id)
             attempt = service.record_attempt(
-                subject_id, body["question_id"], body["response"],
-                mode=TutorMode(body.get("mode", TutorMode.TEACH_BACK)),
-                assistance_level=AssistanceLevel(body["assistance_level"]) if body.get("assistance_level") else None,
+                subject_id, body.question_id, body.response,
+                mode=TutorMode(body.mode), submission_id=body.submission_id,
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
-        return {"attempt_id": attempt.attempt_id, "evaluation": attempt.evaluation.value,
-                "evidence_created": False, "mastery": service.get(subject_id).mastery.value}
+        return {
+            "attempt_id": attempt.attempt_id,
+            "evaluation": attempt.evaluation.value,
+            "assessment_status": service._assessment_status(attempt.evaluation),
+            "evidence_created": False,
+            "evidence_persisted": False,
+            "mastery": service.get(subject_id).mastery.value,
+            "replayed": attempt.evaluation is not AttemptEvaluation.PENDING,
+        }
 
     @app.post("/api/v1/career-forge/dynamic-learning/{subject_id}/attempts/{attempt_id}/evaluate")
-    async def evaluate_dynamic_learning_attempt(subject_id: str, attempt_id: str):
+    async def evaluate_dynamic_learning_attempt(subject_id: str, attempt_id: str, request: Request):
         """Assess one pending answer through Friday's configured local Qwen client."""
+        context_owner(request, mutation=True)
         from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
         forge = owner_career_forge()
         service = GeneralizedLearningService(forge)
         validate_dynamic_learning_subject(subject_id)
         try:
+            attempt = forge.attempt(attempt_id)
+            if attempt.evaluation is not AttemptEvaluation.PENDING:
+                return service.attempt_result(subject_id, attempt_id)
             prompt = service.assessment_prompt(subject_id, attempt_id)
         except (KeyError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -3547,14 +3595,16 @@ def create_presentation_app(
                 "current": asdict(service.repository.version(path.path_id, path.current_version))}
 
     @app.post("/api/v1/learning-paths/{path_id}/select", response_model=LearningPathView)
-    def select_learning_path(path_id: str):
+    def select_learning_path(path_id: str, request: Request):
+        context_owner(request, mutation=True)
         try:
             return {**learning_path_projection(learning_path_service().select(path_id)), "selected": True}
         except KeyError as exc:
             learning_path_error(exc)
 
     @app.post("/api/v1/learning-paths/{path_id}/activate", response_model=LearningPathView)
-    def activate_learning_path(path_id: str):
+    def activate_learning_path(path_id: str, request: Request):
+        context_owner(request, mutation=True)
         try:
             return {**learning_path_projection(learning_path_service().activate(path_id)), "selected": learning_path_service().repository.current_path_id() == path_id}
         except KeyError as exc:
@@ -3563,7 +3613,8 @@ def create_presentation_app(
             raise HTTPException(409, detail=str(exc)) from exc
 
     @app.post("/api/v1/learning-paths/{path_id}/archive", response_model=LearningPathView)
-    def archive_learning_path(path_id: str):
+    def archive_learning_path(path_id: str, request: Request):
+        context_owner(request, mutation=True)
         try:
             return {**learning_path_projection(learning_path_service().archive(path_id)), "selected": False}
         except KeyError as exc:
@@ -3583,6 +3634,28 @@ def create_presentation_app(
         if node is None:
             raise HTTPException(status_code=409, detail="project milestone node is unavailable")
         return service, detail["path"], version, milestone, node
+
+    def project_milestone_competency_ids(path_id: str, version: Any, milestone: dict[str, Any]) -> set[str]:
+        """Resolve milestone node references to the Career Forge IDs attached to its project."""
+        if career_forge is None:
+            return set()
+        from local_ai_assistant.career_forge.generalized import GeneralizedLearningService
+
+        generalized = GeneralizedLearningService(career_forge)
+        nodes = {item["node_id"]: item for item in version.nodes}
+        competency_ids: set[str] = set()
+        for declared in milestone.get("competency_keys", []):
+            if not isinstance(declared, str) or not declared:
+                continue
+            if declared.startswith("node:"):
+                node_id = declared.removeprefix("node:")
+                node = nodes.get(node_id)
+                subject = generalized.by_path_node(path_id, version.version, node_id, node) if node else None
+                if subject is not None:
+                    competency_ids.add(subject.competency_id)
+            else:
+                competency_ids.add(declared)
+        return competency_ids
 
     @app.get("/api/v1/learning-paths/{path_id}/milestones/{milestone_id}")
     def get_learning_project_milestone(path_id: str, milestone_id: str):
@@ -3794,7 +3867,8 @@ def create_presentation_app(
             if milestone is None:
                 raise ValueError("project learning criteria are unavailable")
             mission_link = next((item for item in project_service.mission_links(project_id) if item.competency_id == request.competency_key), None)
-            if mission_link is None:
+            allowed_competencies = project_milestone_competency_ids(assignment["path_id"], version, milestone)
+            if mission_link is None or request.competency_key not in allowed_competencies:
                 raise ValueError("selected competency is not part of this project milestone")
             objective = autonomy.get(project.objective_id)
             task = task_history.get(objective.task_id) if objective.task_id else None
@@ -3873,6 +3947,7 @@ def create_presentation_app(
                     attempt_id, evaluation, feedback,
                     evidence_type="project_milestone_assessment" if evaluation is AttemptEvaluation.CORRECT else None,
                     artifact_ref=artifact_ref if evaluation is AttemptEvaluation.CORRECT else None,
+                    evidence_contract_fingerprint=submission["assessment_contract_fingerprint"],
                 )
             evidence_id = career_forge.evidence_for_attempt(attempt_id)
             if evidence_id:
@@ -3928,7 +4003,8 @@ def create_presentation_app(
                  if item.competency_id == request.competency_key),
                 None,
             )
-            if mission_link is None or request.competency_key not in milestone["competency_keys"]:
+            allowed_competencies = project_milestone_competency_ids(assignment["path_id"], version, milestone)
+            if mission_link is None or request.competency_key not in allowed_competencies:
                 raise ValueError("selected competency is not part of this project milestone")
             if (project.state not in {"active", "needs_revision", "under_review"}
                     and existing_submission is None):
@@ -4017,6 +4093,7 @@ def create_presentation_app(
                     attempt_id, evaluation, feedback,
                     evidence_type="project_milestone_assessment" if evaluation is AttemptEvaluation.CORRECT else None,
                     artifact_ref=artifact_ref if evaluation is AttemptEvaluation.CORRECT else None,
+                    evidence_contract_fingerprint=submission["assessment_contract_fingerprint"],
                 )
             evidence_id = career_forge.evidence_for_attempt(attempt_id)
             if evidence_id:
@@ -4046,7 +4123,8 @@ def create_presentation_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/v1/learning-paths/{path_id}/handoff", response_model=LearningPathHandoffView)
-    def handoff_learning_path_node(path_id: str, request: LearningPathHandoffRequest):
+    def handoff_learning_path_node(path_id: str, request: LearningPathHandoffRequest, http_request: Request):
+        context_owner(http_request, mutation=True)
         if career_forge is None:
             raise HTTPException(503, detail="Career Forge handoff is unavailable")
         service = learning_path_service()
@@ -4215,7 +4293,8 @@ def create_presentation_app(
             learning_path_error(exc)
 
     @app.post("/api/v1/learning-paths/{path_id}/adapt", response_model=LearningPathAdaptationView)
-    def adapt_learning_path(path_id: str):
+    def adapt_learning_path(path_id: str, request: Request):
+        context_owner(request, mutation=True)
         service = learning_path_service()
         if service.evidence_provider is None and career_forge is not None:
             from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
@@ -4229,7 +4308,8 @@ def create_presentation_app(
             learning_path_error(exc)
 
     @app.post("/api/v1/learning-paths/{path_id}/versions", response_model=LearningPathCreatedView)
-    def revise_learning_path(path_id: str, request: LearningPathRevisionRequest):
+    def revise_learning_path(path_id: str, request: LearningPathRevisionRequest, http_request: Request):
+        context_owner(http_request, mutation=True)
         service = learning_path_service()
         try:
             path = service.revise(
@@ -4244,7 +4324,8 @@ def create_presentation_app(
             learning_path_error(exc)
 
     @app.post("/api/v1/learning-paths/{path_id}/manual-edits", response_model=LearningPathCreatedView)
-    def manually_edit_learning_path(path_id: str, request: LearningPathManualEditRequest):
+    def manually_edit_learning_path(path_id: str, request: LearningPathManualEditRequest, http_request: Request):
+        context_owner(http_request, mutation=True)
         service = learning_path_service()
         if service.evidence_provider is None and career_forge is not None:
             from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection

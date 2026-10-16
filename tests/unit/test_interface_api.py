@@ -410,30 +410,78 @@ def test_dynamic_learning_handoff_attempt_and_assessment_use_career_forge_author
     client = TestClient(create_presentation_app(
         runtime, conversation, career_forge=forge, learning_paths=paths,
         career_tutor_clients={TutorMode.TEACH_BACK: Assessor()},
-    ))
+        project_execution_sessions=ProjectOwnerSessions(),
+        project_execution_allowed_origins=("http://127.0.0.1",),
+    ), base_url="http://127.0.0.1")
+    client.cookies.set("friday_project_session", "owner-session")
+    owner_headers = {"Origin": "http://127.0.0.1", "X-Friday-CSRF": "owner-csrf"}
 
     stale = client.post(
         f"/api/v1/learning-paths/{draft.path_id}/handoff",
         json={"node_id": "arrays", "action": "diagnostic", "path_version": 2},
+        headers=owner_headers,
     )
     assert stale.status_code == 409
     wrong_node = client.post(
         f"/api/v1/learning-paths/{draft.path_id}/handoff",
         json={"node_id": "missing", "action": "diagnostic", "path_version": 1},
+        headers=owner_headers,
     )
     assert wrong_node.status_code == 404
     handoff = client.post(
         f"/api/v1/learning-paths/{draft.path_id}/handoff",
         json={"node_id": "arrays", "action": "diagnostic", "path_version": 1},
+        headers=owner_headers,
     )
     assert handoff.status_code == 200
     subject_id = handoff.json()["subject_id"]
     mission = handoff.json()["mission"]
     assert mission["resume_point"]["learning_context"] == "dynamic_dlp"
+    state_url = f"/api/v1/career-forge/dynamic-learning/{subject_id}"
+    attempt_url = f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts"
+    with forge._db() as db:
+        before_attempts = db.execute("SELECT COUNT(*) FROM lesson_attempts").fetchone()[0]
+        before_evidence = db.execute("SELECT COUNT(*) FROM mission_evidence").fetchone()[0]
+    client.cookies.delete("friday_project_session")
+    assert client.get(state_url).status_code == 401
+    client.cookies.set("friday_project_session", "owner-session")
+    unauthorized = client.post(
+        attempt_url,
+        json={"submission_id":"unauthorized-stage31","question_id":"diagnostic-concept-v1","response":"Must not persist."},
+        headers={"Origin": "http://127.0.0.1"},
+    )
+    wrong_origin = client.post(
+        attempt_url,
+        json={"submission_id":"wrong-origin-stage31","question_id":"diagnostic-concept-v1","response":"Must not persist."},
+        headers={"Origin": "http://localhost" , "X-Friday-CSRF": "owner-csrf"},
+    )
+    arbitrary_question = client.post(
+        attempt_url,
+        json={"submission_id":"arbitrary-stage31","question_id":"owner-chosen-question","response":"Must not persist."},
+        headers=owner_headers,
+    )
+    assert unauthorized.status_code == 401
+    assert wrong_origin.status_code == 403
+    assert arbitrary_question.status_code == 409
+    with forge._db() as db:
+        assert db.execute("SELECT COUNT(*) FROM lesson_attempts").fetchone()[0] == before_attempts
+        assert db.execute("SELECT COUNT(*) FROM mission_evidence").fetchone()[0] == before_evidence
+
+    tutor_url = f"/api/v1/career-forge/missions/{mission['mission_id']}/tutor"
+    unauthenticated_tutor_attempt = client.post(
+        tutor_url,
+        json={"message": "An array keeps values in order and the first is at index zero.", "mode": "explain"},
+        headers={"Origin": "http://127.0.0.1"},
+    )
+    assert unauthenticated_tutor_attempt.status_code == 401
+    with forge._db() as db:
+        assert db.execute("SELECT COUNT(*) FROM lesson_attempts").fetchone()[0] == before_attempts
+        assert db.execute("SELECT COUNT(*) FROM mission_evidence").fetchone()[0] == before_evidence
 
     tutor = client.post(
-        f"/api/v1/career-forge/missions/{mission['mission_id']}/tutor",
+        tutor_url,
         json={"message": "Teach me this topic and ask one question.", "mode": "explain"},
+        headers=owner_headers,
     )
     assert tutor.status_code == 200
     assert "Arrays" in conversation.llm.calls[-1]["system_prompt"]
@@ -441,16 +489,37 @@ def test_dynamic_learning_handoff_attempt_and_assessment_use_career_forge_author
 
     attempt = client.post(
         f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
-        json={"question_id": "Explain the goal", "response": "A clear owner response."},
+        json={"submission_id":"stage31-assessment-1","question_id": "diagnostic-concept-v1", "response": "A clear owner response."},
+        headers=owner_headers,
     )
     assert attempt.status_code == 200
     assert attempt.json()["evidence_created"] is False
+    replay = client.post(attempt_url, json={
+        "submission_id":"stage31-assessment-1", "question_id":"diagnostic-concept-v1",
+        "response":"A clear owner response.",
+    }, headers=owner_headers)
+    assert replay.status_code == 200
+    assert replay.json()["attempt_id"] == attempt.json()["attempt_id"]
+    conflicting_replay = client.post(attempt_url, json={
+        "submission_id":"stage31-assessment-1", "question_id":"diagnostic-concept-v1",
+        "response":"A different owner response.",
+    }, headers=owner_headers)
+    assert conflicting_replay.status_code == 409
     assessed = client.post(
         f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts/{attempt.json()['attempt_id']}/evaluate",
+        headers=owner_headers,
     )
     assert assessed.status_code == 200
     assert assessed.json()["evaluation"] == "correct"
     assert assessed.json()["mastery"] == "recognize"
+    duplicate_evaluation = client.post(
+        f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts/{attempt.json()['attempt_id']}/evaluate",
+        headers=owner_headers,
+    )
+    assert duplicate_evaluation.status_code == 200
+    assert duplicate_evaluation.json() == assessed.json()
+    with forge._db() as db:
+        assert db.execute("SELECT COUNT(*) FROM mission_evidence").fetchone()[0] == before_evidence + 1
     assert "exact learning contract" in assessor_calls[0][0]
     assert "bounded local learning assessor" in assessor_calls[0][1]["system_prompt"]
     assert conversation.llm.calls[-1]["prompt"] == "Teach me this topic and ask one question."
@@ -460,13 +529,15 @@ def test_dynamic_learning_handoff_attempt_and_assessment_use_career_forge_author
         json={"expected_version":1,"operation":{"type":"add_node","node":{
             "node_id":"extra-owner-node","module_id":"foundations","title":"Extra practice","type":"lesson",
             "objectives":["Practice the idea"],"evidence_requirements":[],"competency_key":None,"estimated_hours":1}}},
+        headers=owner_headers,
     )
     assert unrelated_edit.status_code == 200
     assert unrelated_edit.json()["path"]["state"] == "active"
     assert forge.resume().mission_id == mission["mission_id"]
     continued = client.post(
         f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
-        json={"question_id":"continue-after-unrelated-edit","response":"Continue the unchanged contract."},
+        json={"submission_id":"stage31-assessment-2","question_id":"independent-application-v1","response":"Continue the unchanged contract."},
+        headers=owner_headers,
     )
     assert continued.status_code == 200
 
@@ -479,7 +550,8 @@ def test_dynamic_learning_handoff_attempt_and_assessment_use_career_forge_author
     }, reason="candidate_contract_revision", expected_version=current.version)
     stale_attempt = client.post(
         f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
-        json={"question_id": "stale", "response": "Do not assess old contract."},
+        json={"submission_id":"stage31-assessment-stale","question_id": "diagnostic-concept-v1", "response": "Do not assess old contract."},
+        headers=owner_headers,
     )
     assert stale_attempt.status_code == 409
 
@@ -487,11 +559,13 @@ def test_dynamic_learning_handoff_attempt_and_assessment_use_career_forge_author
     archived = client.post(
         f"/api/v1/learning-paths/{draft.path_id}/handoff",
         json={"node_id": "arrays", "action": "diagnostic", "path_version": 1},
+        headers=owner_headers,
     )
     assert archived.status_code == 409
     archived_attempt = client.post(
         f"/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
-        json={"question_id": "archived", "response": "Do not assess archived path."},
+        json={"submission_id":"stage31-assessment-archived","question_id": "diagnostic-concept-v1", "response": "Do not assess archived path."},
+        headers=owner_headers,
     )
     assert archived_attempt.status_code == 409
 
@@ -1194,8 +1268,11 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
                 "ASSESSMENT: uncertain\nThe answer incorrectly describes object lifetime.",
             ]), runtime),
             career_forge=forge,
-        )
+            project_execution_sessions=ProjectOwnerSessions(),
+            project_execution_allowed_origins=("http://127.0.0.1",),
+        ), base_url="http://127.0.0.1",
     )
+    client.cookies.set("friday_project_session", "owner-session")
     journey = client.get("/api/v1/career-forge/journey").json()
     assert journey["next_competency"]["competency_id"] == "se.python"
     assert journey["recommended_mission"]["title"] == "Verify Python state and functions"
@@ -1236,6 +1313,7 @@ def test_career_journey_starts_only_the_dependency_ready_mission(tmp_path):
     assert resumed.json()["resume_point"] == {"phase": "teach_back"}
     tutor = client.post(
         f"/api/v1/career-forge/missions/{mission_id}/tutor",
+        headers={"Origin": "http://127.0.0.1", "X-Friday-CSRF": "owner-csrf"},
         json={"mode": "hint", "assistance_level": "prompt", "message": "I am stuck."},
     )
     assert tutor.json() == {"response": "Try a prediction first.", "recorded_assistance": True}
@@ -2724,6 +2802,7 @@ def test_presentation_api_has_no_unbounded_execution_routes():
         "/api/v1/career-forge/missions/{mission_id}/assistance",
         "/api/v1/career-forge/missions/{mission_id}/evidence",
             "/api/v1/career-forge/missions/{mission_id}/tutor",
+            "/api/v1/career-forge/dynamic-learning/{subject_id}",
             "/api/v1/career-forge/dynamic-learning/{subject_id}/attempts",
             "/api/v1/career-forge/dynamic-learning/{subject_id}/attempts/{attempt_id}/evaluate",
         "/api/v1/career-forge/missions/{mission_id}/contextual-tutor",

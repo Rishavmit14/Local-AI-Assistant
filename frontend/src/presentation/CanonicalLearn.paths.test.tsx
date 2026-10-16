@@ -49,14 +49,14 @@ describe("Learn Dynamic Learning Paths integration", () => {
     const pathButton=[...container.querySelectorAll("button")].find(b=>b.textContent?.includes("Path p2"));
     expect(pathButton).toBeTruthy();
     await act(async()=>{pathButton?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(select).toHaveBeenCalledWith("p2");
+    expect(select).toHaveBeenCalledWith("p2","test-owner-csrf");
     expect(container.textContent).toContain("Path p2");
     const start=[...container.querySelectorAll("button")].find(b=>b.textContent==="Start path");
     await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(activate).toHaveBeenCalledWith("p2");
+    expect(activate).toHaveBeenCalledWith("p2","test-owner-csrf");
     const diagnostic=[...container.querySelectorAll("button")].find(b=>b.textContent?.includes("Begin Career Forge diagnostic"));
     await act(async()=>{diagnostic?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(handoff).toHaveBeenCalledWith("p2","n1","diagnostic",1);
+    expect(handoff).toHaveBeenCalledWith("p2","n1","diagnostic",1,"test-owner-csrf");
     expect(onHandoff).toHaveBeenCalledOnce();
     expect(navigate).not.toHaveBeenCalled();
   });
@@ -76,7 +76,7 @@ describe("Learn Dynamic Learning Paths integration", () => {
     const button=[...container.querySelectorAll("button")].find(item=>item.textContent==="Update learning plan from new evidence");
     expect(button).toBeTruthy();
     await act(async()=>{button?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(adapt).toHaveBeenCalledWith("adaptive");
+    expect(adapt).toHaveBeenCalledWith("adaptive","test-owner-csrf");
     expect(container.textContent).toContain("Prior evidence cleared a redundant lesson; your project remains required.");
   });
 
@@ -97,9 +97,9 @@ describe("Learn Dynamic Learning Paths integration", () => {
     container=document.createElement("div");document.body.append(container);root=createRoot(container);
     await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff,activeMission:null}));await new Promise(r=>setTimeout(r,0));});
     expect(container.textContent).toContain("contract-bound Career Forge learning subject");
-    const start=[...container.querySelectorAll("button")].find(button=>button.textContent==="Start governed learning session");
+    const start=[...container.querySelectorAll("button")].find(button=>button.textContent==="Start initial knowledge assessment");
     await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(handoff).toHaveBeenCalledWith("p4","n1","diagnostic",1);
+    expect(handoff).toHaveBeenCalledWith("p4","n1","diagnostic",1,"test-owner-csrf");
     expect(onHandoff).toHaveBeenCalledOnce();
   });
 
@@ -120,7 +120,7 @@ describe("Learn Dynamic Learning Paths integration", () => {
     const input=container.querySelector<HTMLInputElement>('input[aria-label="Equivalent competency key for Python foundations"]');
     await act(async()=>{if(input){const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")?.set;setter?.call(input,"python.foundations");input.dispatchEvent(new Event("input",{bubbles:true}));}await new Promise(r=>setTimeout(r,0));});
     await act(async()=>{[...container.querySelectorAll("button")].find(button=>button.textContent==="Save evidence policy")?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(edit).toHaveBeenCalledWith("p-equivalent",1,{type:"set_node_policy",node_id:"n1",equivalence_key:"python.foundations",required_mastery:"apply_independently"});
+    expect(edit).toHaveBeenCalledWith("p-equivalent",1,{type:"set_node_policy",node_id:"n1",equivalence_key:"python.foundations",required_mastery:"apply_independently"},"test-owner-csrf");
     expect(getDetail).toHaveBeenCalled();
     expect(container.textContent).toContain("Prior Career Forge evidence from path p-source / node sql");
   });
@@ -162,7 +162,7 @@ describe("Learn Dynamic Learning Paths integration", () => {
     await act(async()=>{if(input){const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")?.set;setter?.call(input,"Review indexes");input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));}await new Promise(r=>setTimeout(r,0));});
     const add=[...container.querySelectorAll("button")].find(button=>button.textContent==="Add lesson");
     await act(async()=>{add?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(edit).toHaveBeenCalledWith("edit",1,expect.objectContaining({type:"add_node",node:expect.objectContaining({title:"Review indexes",type:"lesson"})}));
+    expect(edit).toHaveBeenCalledWith("edit",1,expect.objectContaining({type:"add_node",node:expect.objectContaining({title:"Review indexes",type:"lesson"})}),"test-owner-csrf");
     expect(container.textContent).toContain("Curriculum saved as a new path version");
   });
 
@@ -212,7 +212,7 @@ describe("Learn Dynamic Learning Paths integration", () => {
     await act(async()=>{root?.render(createElement(LearningPathsPanel,{navigate:vi.fn(),onHandoff,activeMission:null}));await new Promise(r=>setTimeout(r,0));});
     const start=[...container.querySelectorAll("button")].find(b=>b.textContent==="Review this topic");
     expect(start).toBeTruthy();await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(handoff).toHaveBeenCalledWith("p1","n1","review",1);expect(container.textContent).toContain("Explain the behavior of a default argument.");
+    expect(handoff).toHaveBeenCalledWith("p1","n1","review",1,"test-owner-csrf");expect(container.textContent).toContain("Explain the behavior of a default argument.");
     const input=container.querySelector<HTMLTextAreaElement>("#learning-path-review-answer");
     await act(async()=>{if(input){const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")?.set;setter?.call(input,"The default list is created once and shared.");input.dispatchEvent(new Event("input",{bubbles:true}));}await new Promise(r=>setTimeout(r,0));});
     const submit=[...container.querySelectorAll("button")].find(b=>b.textContent==="Submit answer");await act(async()=>{submit?.click();await new Promise(r=>setTimeout(r,0));});
@@ -257,7 +257,7 @@ describe("Learn Dynamic Learning Paths integration", () => {
     expect(container.textContent).toContain("Strengthen this skill");
     const start=[...container.querySelectorAll("button")].find(b=>b.textContent==="Start reinforcement");
     await act(async()=>{start?.click();await new Promise(r=>setTimeout(r,0));});
-    expect(handoff).toHaveBeenCalledWith("p-dynamic","sql","reinforcement",1);expect(onHandoff).toHaveBeenCalledOnce();
+    expect(handoff).toHaveBeenCalledWith("p-dynamic","sql","reinforcement",1,"test-owner-csrf");expect(onHandoff).toHaveBeenCalledOnce();
     expect(container.textContent).toContain("Career Forge saved the active mission while reinforcement is in progress");
   });
 
