@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from threading import Event, Thread
+from time import sleep
 
 import pytest
 
@@ -151,6 +153,19 @@ class FakeCapture:
         )
 
 
+class BlockingDetector(FakeDetector):
+    def __init__(self) -> None:
+        super().__init__("parakeet", "Hey Friday")
+        self.detect_started = Event()
+        self.allow_result = Event()
+
+    def detect(self, utterance: VoiceUtterance) -> WakeDetectionResult:
+        self.detect_started.set()
+        if not self.allow_result.wait(timeout=2):
+            raise TimeoutError("test detector was not released")
+        return super().detect(utterance)
+
+
 def make_segmenter(
 ) -> UtteranceSegmenter:
 
@@ -258,6 +273,9 @@ def test_completed_utterance_reaches_wake_supervisor(
     health = loop.health()
     assert health["stream_open"] is False
     assert health["pcm_chunks_processed"] == len(one_utterance_chunks())
+    assert health["pcm_chunks_received"] == len(one_utterance_chunks())
+    assert health["last_capture_read_completed_monotonic_ns"] is not None
+    assert health["last_vad_frame_inspected_monotonic_ns"] is not None
     assert health["last_pcm_chunk_monotonic_ns"] is not None
     assert health["last_pcm_chunk_age_ms"] >= 0
     assert health["vad_speech_frames"] > 0
@@ -265,12 +283,52 @@ def test_completed_utterance_reaches_wake_supervisor(
     assert health["wake_checks"] == 1
     assert health["wake_rejections"] == 0
     assert health["last_wake_decision"] == "accepted"
+    assert health["last_wake_detection_duration_ms"] is not None
     assert "transcript" not in health
     assert live_health[0]["stream_open"] is True
     assert live_health[0]["stream_running"] is True
     assert live_health[0]["wake_detector_readiness_known"] is True
     assert live_health[0]["wake_detectors_armed"] is True
     assert live_health[0]["wake_path_armed"] is True
+
+
+def test_wake_asr_wait_is_observable_separately_from_pcm_reads() -> None:
+    primary = BlockingDetector()
+    wake = FridayWakeSupervisor(
+        primary,
+        FakeDetector("moonshine", "Hey Friday"),
+        enabled=True,
+    )
+    chunks = one_utterance_chunks()
+    loop = FridayAlwaysOnWakeCapture(
+        wake,
+        capture=FakeCapture([FakeStream(chunks)]),
+        segmenter=make_segmenter(),
+    )
+    runner = Thread(
+        target=lambda: loop.run(max_completed_utterances=1),
+        daemon=True,
+    )
+
+    runner.start()
+    try:
+        assert primary.detect_started.wait(timeout=1)
+        sleep(0.03)
+        health = loop.health()
+
+        assert health["phase"] == "detecting"
+        assert health["wake_detection_in_progress"] is True
+        assert health["wake_detection_elapsed_ms"] >= 20
+        assert health["capture_read_in_progress"] is False
+        assert health["last_capture_read_completed_age_ms"] >= 20
+        assert health["pcm_chunks_received"] == len(chunks)
+        assert health["pcm_chunks_processed"] == len(chunks)
+    finally:
+        primary.allow_result.set()
+        runner.join(timeout=1)
+
+    assert not runner.is_alive()
+    assert loop.health()["last_wake_detection_duration_ms"] >= 20
 
 
 def test_strict_primary_miss_uses_fallback(
@@ -867,6 +925,7 @@ def test_blocked_read_pause_releases_stream_without_capture_error() -> None:
     assert loop.paused
     assert stream.closed
     assert thread.is_alive()
+    assert loop.health()["capture_read_in_progress"] is False
     assert errors == []
 
     loop.stop()
@@ -889,6 +948,7 @@ def test_retired_partial_pcm_never_reaches_segmenter(action):
     loop.stop()
     thread.join(timeout=1)
     assert not thread.is_alive()
+    assert loop.health()["capture_read_in_progress"] is False
     assert errors == []
 
 

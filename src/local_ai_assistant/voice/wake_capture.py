@@ -146,10 +146,17 @@ class FridayAlwaysOnWakeCapture:
         self._wake_count = 0
         self._wake_check_count = 0
         self._wake_rejection_count = 0
+        self._pcm_chunks_received = 0
         self._pcm_chunk_count = 0
         self._vad_speech_frame_count = 0
+        self._capture_read_in_progress = False
+        self._capture_read_started_monotonic_ns: int | None = None
+        self._last_capture_read_completed_monotonic_ns: int | None = None
         self._last_pcm_chunk_monotonic_ns: int | None = None
+        self._last_vad_frame_inspected_monotonic_ns: int | None = None
         self._last_vad_activity_monotonic_ns: int | None = None
+        self._last_wake_asr_handoff_monotonic_ns: int | None = None
+        self._last_wake_detection_duration_ms: float | None = None
         self._last_wake_decision_monotonic_ns: int | None = None
         self._last_wake_decision: str | None = None
 
@@ -202,11 +209,43 @@ class FridayAlwaysOnWakeCapture:
                 "input_device": getattr(
                     getattr(self.capture, "config", None), "device", None,
                 ),
+                "pcm_chunks_received": self._pcm_chunks_received,
+                "capture_read_in_progress": self._capture_read_in_progress,
+                "capture_read_started_monotonic_ns": self._capture_read_started_monotonic_ns,
+                "capture_read_started_age_ms": (
+                    max(
+                        0.0,
+                        (now_ns - self._capture_read_started_monotonic_ns) / 1_000_000,
+                    )
+                    if (
+                        self._capture_read_in_progress
+                        and self._capture_read_started_monotonic_ns is not None
+                    )
+                    else None
+                ),
+                "last_capture_read_completed_monotonic_ns": self._last_capture_read_completed_monotonic_ns,
+                "last_capture_read_completed_age_ms": (
+                    max(
+                        0.0,
+                        (now_ns - self._last_capture_read_completed_monotonic_ns) / 1_000_000,
+                    )
+                    if self._last_capture_read_completed_monotonic_ns is not None
+                    else None
+                ),
                 "pcm_chunks_processed": self._pcm_chunk_count,
                 "last_pcm_chunk_monotonic_ns": self._last_pcm_chunk_monotonic_ns,
                 "last_pcm_chunk_age_ms": (
                     max(0.0, (now_ns - self._last_pcm_chunk_monotonic_ns) / 1_000_000)
                     if self._last_pcm_chunk_monotonic_ns is not None else None
+                ),
+                "last_vad_frame_inspected_monotonic_ns": self._last_vad_frame_inspected_monotonic_ns,
+                "last_vad_frame_inspected_age_ms": (
+                    max(
+                        0.0,
+                        (now_ns - self._last_vad_frame_inspected_monotonic_ns) / 1_000_000,
+                    )
+                    if self._last_vad_frame_inspected_monotonic_ns is not None
+                    else None
                 ),
                 "vad_speech_frames": self._vad_speech_frame_count,
                 "last_vad_activity_monotonic_ns": self._last_vad_activity_monotonic_ns,
@@ -218,6 +257,20 @@ class FridayAlwaysOnWakeCapture:
                 "wake_detector_readiness_known": detector_readiness_known,
                 "wake_detectors_armed": wake_detectors_armed,
                 "wake_path_armed": wake_path_armed,
+                "wake_detection_in_progress": self._phase == "detecting",
+                "last_wake_asr_handoff_monotonic_ns": self._last_wake_asr_handoff_monotonic_ns,
+                "wake_detection_elapsed_ms": (
+                    max(
+                        0.0,
+                        (now_ns - self._last_wake_asr_handoff_monotonic_ns) / 1_000_000,
+                    )
+                    if (
+                        self._phase == "detecting"
+                        and self._last_wake_asr_handoff_monotonic_ns is not None
+                    )
+                    else None
+                ),
+                "last_wake_detection_duration_ms": self._last_wake_detection_duration_ms,
                 "wake_checks": self._wake_check_count,
                 "wake_rejections": self._wake_rejection_count,
                 "last_wake_decision": self._last_wake_decision,
@@ -332,6 +385,17 @@ class FridayAlwaysOnWakeCapture:
                 if stream is None:
                     continue
 
+                read_started_ns = time.monotonic_ns()
+                with self._state_lock:
+                    if (
+                        self._stream is not stream
+                        or self._stop_event.is_set()
+                        or self.paused
+                    ):
+                        continue
+                    self._capture_read_in_progress = True
+                    self._capture_read_started_monotonic_ns = read_started_ns
+
                 try:
 
                     pcm = (
@@ -341,6 +405,8 @@ class FridayAlwaysOnWakeCapture:
                 except (VoiceCaptureError, OSError, ValueError) as exc:
 
                     with self._state_lock:
+                        if self._stream is stream:
+                            self._capture_read_in_progress = False
                         stream_retired = (
                             self._stream
                             is not stream
@@ -361,6 +427,11 @@ class FridayAlwaysOnWakeCapture:
                         "capture failed"
                     ) from exc
 
+                read_completed_ns = time.monotonic_ns()
+                with self._state_lock:
+                    if self._stream is stream:
+                        self._capture_read_in_progress = False
+                        self._last_capture_read_completed_monotonic_ns = read_completed_ns
 
                 if not pcm:
 
@@ -398,10 +469,12 @@ class FridayAlwaysOnWakeCapture:
                             or self.paused
                         ):
                             continue
+                        self._pcm_chunks_received += 1
                         segmentation = self.segmenter.process(pcm)
                         self._pcm_chunk_count += 1
                         frame_at = time.monotonic_ns()
                         self._last_pcm_chunk_monotonic_ns = frame_at
+                        self._last_vad_frame_inspected_monotonic_ns = frame_at
                         vad_frame = getattr(segmentation, "frame", None)
                         if vad_frame is not None and getattr(vad_frame, "speech", False):
                             self._vad_speech_frame_count += 1
@@ -432,14 +505,24 @@ class FridayAlwaysOnWakeCapture:
                 owner_speech_ended_monotonic = time.monotonic()
                 with self._state_lock:
                     self._phase = "detecting"
+                    self._last_wake_asr_handoff_monotonic_ns = time.monotonic_ns()
 
 
-                result = (
-                    self.wake_supervisor
-                    .detect(
-                        utterance
+                detection_started_ns = time.monotonic_ns()
+                try:
+                    result = (
+                        self.wake_supervisor
+                        .detect(
+                            utterance
+                        )
                     )
-                )
+                finally:
+                    detection_completed_ns = time.monotonic_ns()
+                    with self._state_lock:
+                        self._last_wake_detection_duration_ms = max(
+                            0.0,
+                            (detection_completed_ns - detection_started_ns) / 1_000_000,
+                        )
 
                 with self._state_lock:
                     primary_result = getattr(result, "primary", None)
@@ -553,6 +636,7 @@ class FridayAlwaysOnWakeCapture:
         stream = self._stream
 
         self._stream = None
+        self._capture_read_in_progress = False
 
         if stream is None:
             return
