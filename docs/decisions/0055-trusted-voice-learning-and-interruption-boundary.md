@@ -1,6 +1,7 @@
 # ADR 0055: Bind voice learning to canonical learner state
 
-- **Status:** Accepted for Stage 32 code-only qualification
+- **Status:** Accepted for Stage 32 candidate physical qualification; source
+  closure pending
 - **Date:** 2026-10-16
 
 ## Context
@@ -50,6 +51,26 @@ playback, then use the existing stream-cancel and playback-stop contracts.
 When the active-task Stop reader already owns capture, do not start the second
 reader. Preserve the legacy playback-only fallback if idle AEC capture is not
 available.
+
+Use clear deterministic requests through the existing typed learning intent.
+Do not add transcript-specific homophone aliases when the physical recording
+is unavailable and the recognized words are ambiguous. Stage 32 physical
+qualification requires the correlated lesson context, Qwen response, and
+follow-up speech rather than verbatim ASR equality with the displayed cue.
+
+The physical Stop gate correlates the active playback interruption, finalized
+Stop transcript, and explicit stop transition in order. A normal assistant
+response between interruption and Stop fails the gate; an unrelated earlier
+interruption cannot be combined with a later Stop command.
+
+For AEC barge-in, once VAD confirms an utterance and playback is interrupted,
+turn cleanup must allow that same bounded utterance to reach its end boundary
+before shutting down capture. Otherwise playback can stop while the spoken
+command is lost before ASR, leaving the subsequent one-shot capture to time out.
+The Stage 32 monitor drains an already-triggered utterance and the caller waits
+up to the configured utterance limit plus a bounded margin. The 2026-10-27
+physical session exposed this race: playback stopped on interruption, but no
+finalized transcript was retained. A later source-bound physical run finalized `Friday, stop.` through the interrupted playback turn, entered the explicit Stop state, and passed the five-second no-stale-playback gate. The listener-start event carries the interrupted playback turn ID and is followed by the finalized transcript in the same runtime session. Its exact physical speech-onset timestamp was not captured, so onset-to-stop latency is unavailable; interruption-to-final-ASR was 417.669 ms. This closes the physical Stop qualification for that candidate. Full repository/frontend regressions passed on the source snapshot; Stage 32 source publication remains a separate acceptance step. Qwen generation was complete before interruption, so active model cancellation was not applicable; the independent five-second quiet-window gate and no-stale event interval establish externally observable speech cancellation.
 
 ## Consequences
 

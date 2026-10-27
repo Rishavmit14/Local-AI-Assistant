@@ -653,7 +653,12 @@ class FridayVoiceConversationService:
         finally:
             monitor_done.set()
             if monitor_thread is not None:
-                monitor_thread.join(timeout=2.0)
+                # A confirmed barge-in stops playback at speech onset, but the
+                # AEC monitor must finish the same utterance before shutdown or
+                # its transcript is lost. The qualified segmenter bounds an
+                # utterance to 30 seconds; allow it to drain plus a small
+                # scheduling margin.
+                monitor_thread.join(timeout=_BARGE_IN_JOIN_TIMEOUT_SECONDS)
                 if monitor_thread.is_alive():
                     raise RuntimeError("voice-turn AEC monitor did not stop after the turn")
             if callable(finish_turn):
@@ -738,6 +743,7 @@ class FridayVoiceConversationService:
                         streaming=True,
                         cancel_event=speech_cancelled,
                         external_monitor_active=bool(monitor_thread and monitor_thread.is_alive()),
+                        voice_turn_id=turn_id,
                         event_text=lambda: " ".join(spoken_segments),
                         event_metadata=lambda: self._stream_speech_metadata(
                             len(spoken_segments),
@@ -946,6 +952,7 @@ class FridayVoiceConversationService:
         streaming: bool = False,
         cancel_event: threading.Event | None = None,
         external_monitor_active: bool = False,
+        voice_turn_id: str | None = None,
         event_text: Callable[[], str] | None = None,
         event_metadata: Callable[[], dict[str, object]] | None = None,
     ) -> VoiceUtterance | None:
@@ -969,6 +976,12 @@ class FridayVoiceConversationService:
 
         if not spoken_text:
             return None
+
+        def speech_event_metadata() -> dict[str, object]:
+            value = dict(event_metadata() if event_metadata is not None else {})
+            if voice_turn_id:
+                value["voice_turn_id"] = voice_turn_id
+            return value
 
         if self.runtime.state not in {
             FridayRuntimeState.COMPLETED,
@@ -1002,6 +1015,7 @@ class FridayVoiceConversationService:
                     spoken_text
                 ),
                 "streaming": streaming,
+                **speech_event_metadata(),
             },
         )
 
@@ -1042,6 +1056,7 @@ class FridayVoiceConversationService:
                         type(
                             exc
                         ).__name__,
+                    **speech_event_metadata(),
                 },
             )
 
@@ -1069,6 +1084,7 @@ class FridayVoiceConversationService:
                 .pcm_bytes_written,
             "sample_rate":
                 result.sample_rate,
+            **speech_event_metadata(),
         }
 
         if barge_in is not None:
@@ -1185,6 +1201,7 @@ class FridayVoiceConversationService:
                 metadata={
                     "reason":
                         "barge_in",
+                    **speech_event_metadata(),
                 },
             )
 
@@ -1193,6 +1210,8 @@ class FridayVoiceConversationService:
         if result.interrupted:
             if cancel_event is not None:
                 cancel_event.set()
+
+            metadata.update(speech_event_metadata())
 
             self.runtime.emit(
                 FridayEventType
@@ -1215,10 +1234,7 @@ class FridayVoiceConversationService:
 
             return None
 
-        delivery_metadata = {
-            **metadata,
-            **(event_metadata() if event_metadata is not None else {}),
-        }
+        delivery_metadata = {**metadata, **speech_event_metadata()}
         self.runtime.emit(
             FridayEventType
             .VOICE_SPEECH_COMPLETED,

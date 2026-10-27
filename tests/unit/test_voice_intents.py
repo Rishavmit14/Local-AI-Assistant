@@ -76,6 +76,10 @@ def test_historical_probe_transcript_routes_raw_text_without_asr_replacement():
     ("prompt", "pending", "action"),
     [
         ("Friday, continue my course", False, VoiceLearningAction.CONTINUE),
+        ("Friday, explain the lesson again", False, VoiceLearningAction.REPEAT),
+        ("Friday, repeat that", False, VoiceLearningAction.REPEAT),
+        ("Can I repeat that?", False, VoiceLearningAction.REPEAT),
+        ("Repeat that.", False, VoiceLearningAction.REPEAT),
         ("Explain logistic regression", False, VoiceLearningAction.EXPLAIN),
         ("My answer is a linear boundary", False, VoiceLearningAction.ANSWER),
         ("My answer is a linear boundary", True, VoiceLearningAction.CORRECT),
@@ -90,6 +94,20 @@ def test_voice_learning_commands_are_typed_and_confirmation_requires_affirmation
 
     assert intent.kind is FridayVoiceIntentType.LEARNING_CAREER_PROJECT
     assert intent.learning_action is action
+
+
+@pytest.mark.parametrize(
+    "prompt",
+    [
+        "Can I have a beat that?",
+        "Can I have a beat?",
+        "Can I have a beat that is strong?",
+    ],
+)
+def test_ambiguous_asr_homophone_does_not_route_to_lesson_repeat(prompt):
+    router = FridayVoiceIntentRouter()
+
+    assert router.classify(prompt).learning_action is None
 
 
 @pytest.mark.parametrize("prompt", ["", " ", "maybe", "not sure", "no"])

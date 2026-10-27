@@ -314,7 +314,16 @@ class FridayBargeInMonitor:
                 - started
                 < timeout
             ):
-                if stop_event is not None and stop_event.is_set():
+                # Once VAD has confirmed speech, the caller may stop the
+                # playback/model turn and request monitor shutdown while this
+                # same capture is still collecting the end of the utterance.
+                # Finish that utterance so the caller can transcribe it; only
+                # honor shutdown while waiting for a new interruption.
+                if (
+                    stop_event is not None
+                    and stop_event.is_set()
+                    and not triggered
+                ):
                     return BargeInResult(
                         triggered=False,
                         detection_elapsed_seconds=None,

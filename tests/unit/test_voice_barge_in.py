@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
+from threading import Event
 
 from local_ai_assistant.voice import (
     BargeInPolicy,
@@ -299,3 +300,35 @@ def test_monitor_stops_and_preserves_utterance() -> None:
         result.max_speech_probability
         >= 0.95
     )
+
+
+def test_monitor_finishes_confirmed_utterance_after_shutdown_is_requested() -> None:
+    stop_requested = Event()
+
+    class ShutdownPlayer(FakePlayer):
+        def stop(self) -> SpeechStopResult:
+            result = super().stop()
+            stop_requested.set()
+            return result
+
+    probabilities = [0.95] * 8 + [0.05] * 24
+    detector = SequenceDetector(probabilities)
+    player = ShutdownPlayer()
+    monitor = FridayBargeInMonitor(
+        FakeCapture(len(probabilities)),
+        player,
+        policy=BargeInPolicy(aec_arm_delay_seconds=0.0),
+        detector=detector,
+    )
+
+    result = monitor.capture_interruption(
+        max_wait_seconds=2.0,
+        allow_idle=True,
+        stop_event=stop_requested,
+    )
+
+    assert stop_requested.is_set()
+    assert result.triggered is True
+    assert result.stop_result is not None and result.stop_result.stopped is True
+    assert result.utterance is not None
+    assert result.utterance.duration_ms > 0

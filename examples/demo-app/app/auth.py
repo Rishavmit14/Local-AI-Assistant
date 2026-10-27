@@ -1,7 +1,6 @@
 import hashlib
 import hmac
 
-
 SECRET_KEY = "demo-secret-key"
 
 

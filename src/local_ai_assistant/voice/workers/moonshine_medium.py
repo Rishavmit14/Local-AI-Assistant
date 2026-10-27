@@ -6,20 +6,18 @@ qualification helper used by Friday's successful strict cascade.
 
 from __future__ import annotations
 
-from array import array
-from pathlib import Path
-
 import json
 import os
 import sys
 import time
 import wave
+from array import array
+from pathlib import Path
 
 from moonshine_voice import (
     ModelArch,
     Transcriber,
 )
-
 
 DEFAULT_MODEL_PATH = Path(
     "/AI/models/friday/stt/"

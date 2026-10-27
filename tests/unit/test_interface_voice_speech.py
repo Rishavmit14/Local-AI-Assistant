@@ -624,6 +624,18 @@ def test_interrupted_playback_emits_interrupted_and_returns_idle() -> None:
         not in event_types
     )
 
+    events = runtime.events_since()
+    started = next(
+        event for event in events
+        if event.event_type is FridayEventType.VOICE_SPEECH_STARTED
+    )
+    interrupted = next(
+        event for event in events
+        if event.event_type is FridayEventType.VOICE_SPEECH_INTERRUPTED
+    )
+    assert started.metadata["voice_turn_id"]
+    assert interrupted.metadata["voice_turn_id"] == started.metadata["voice_turn_id"]
+
     reasons = [
         event.metadata.get(
             "reason"

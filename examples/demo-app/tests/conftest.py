@@ -1,5 +1,4 @@
 import pytest
-
 from app.database import set_db_path
 
 

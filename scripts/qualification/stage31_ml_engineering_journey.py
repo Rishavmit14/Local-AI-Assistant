@@ -87,9 +87,9 @@ def build_fixture_app(data_dir: Path, ui_origin: str, credential: str):
     from local_ai_assistant.interface.runtime import FridayRuntime
     from local_ai_assistant.isolation.owner_rollback import OwnerBrowserSessions
     from local_ai_assistant.learning_paths import LearningPathService
+    from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
     from local_ai_assistant.learning_paths.service import LocalCurriculumGenerator
     from local_ai_assistant.projects import ProjectService
-    from local_ai_assistant.learning_paths.evidence import CareerForgeEvidenceProjection
     from tests.fixtures.stage31_ml_curriculum import stage31_ml_engineering_curriculum
 
     data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)

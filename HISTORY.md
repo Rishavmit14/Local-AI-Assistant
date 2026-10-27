@@ -1,3 +1,1134 @@
+# 2026-10-27 local — Stage 32 physical acceptance and full regression PASS; source closure pending
+
+Candidate `a99591b3183d45bb83ce30b46372e7c1` completed all ten physical
+operator gates with the current source-bound manifest. Evidence directory:
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261027T125146Z-f61afc463909/`.
+The candidate manifest's source revision matches the tested Stage 32 worktree
+snapshot `uncommitted:277253b8bd17c4f2c72919399a50eee6cc146fe4:worktree-content-sha256:4d58847ff0851cf2176c8b2b06cfdc3a71f0f1d90edb3c31c3dc9a2e1c065ec4`.
+
+The physical gates passed: wake, finalized ASR, machine-learning continuation,
+learner-path retrieval, Qwen lesson generation, Pocket/Anna playback and Owner
+audibility, barge-in, repeat intent and correlated response, Stop, the formal
+five-second no-stale-playback window with Owner confirmation, next wake,
+read-only learning progress, isolated assessment confirmation, Astra UI voice
+synchronization, resource safety, and Stage 31 restoration.
+
+Stop playback turn `a11c4c59a8f04ce8b3f3c97c4ad91550` began at
+12:55:40.455605Z in runtime session `99c79c1de4a0448097c4b6235569d2b6`.
+The Owner reports speaking during active playback, but physical onset has no
+separate timestamp. Interruption sequence 353 was recorded at 12:55:56.998292Z
+after 514,560 PCM bytes. The same session/turn finalized the 2,016 ms ASR
+utterance `Friday, stop.` at sequence 359, 12:55:57.415961Z; explicit Stop
+state followed at sequence 360, 12:55:57.416027Z. Interruption-to-final ASR
+was 417.669 ms and interruption-to-Stop-state was 417.735 ms. Physical-onset
+latency is not measurable. Candidate logs record `TTS_CANCELLED` then
+`PLAYBACK_COMPLETE`; Qwen response generation had already completed before
+interruption. The quiet-window gate passed and no stale speech event occurred
+before recovery wake.
+
+The read-only progress gate returned the current learner state. The isolated
+assessment created exactly one candidate attempt, marked it incorrect, awarded
+no mastery, and made no production write. Astra synchronization was Owner
+confirmed. Resource qualification passed and its guard did not trigger.
+Independent restoration reached `RESTORED_VERIFIED`: Stage 31 release pointer
+`075645a3198a37a9ff101a18614065ff8cc5c9e9` was unchanged; production learner,
+learning-path, computer-agency, and history database fingerprints matched;
+API, UI, Qwen, and vision checks returned 200; ALC898/AEC cleanup and listening
+capture with advancing PCM passed; candidate processes stopped and the
+recovery timer is inactive.
+
+The full final regression passed on the same code snapshot: repository
+verification completed with **2,039 Python tests passed and 6 skipped**; Ruff,
+Python compilation, and dependency checks passed with all 101 installed
+packages compatible; frontend tests passed **189**, ESLint, TypeScript,
+production build, and frontend dependency checks passed. The build emitted its
+existing large-chunk advisory. No frontend source or approved Astra UI change
+is included. Final documentation reconciliation, source review, Stage 32 branch
+commit/publication, and remote verification remain. No deployment, `main`
+advance, or Stage 33 implementation is authorized by this checkpoint.
+
+# Previous 2026-10-27 local — Stage 32 Stop utterance capture race corrected; physical retest pending (PARTIAL)
+
+The latest physical candidate, `217ae63a2d6347d58fe69200058d53b1`, ran with
+the corrected same-turn Stop evaluator. The Owner reports clearly saying
+`Friday, stop.` during repeated lesson playback, hearing Friday stop
+immediately, and hearing no further speech. Preserve this observation as
+genuine. Runtime session `f7fc4e9f05c04a7aa051d1be2b7f8412` records repeat
+playback turn `78a94614739f4616b237b8cbdb6a9d8c` starting at 11:38:14.275Z,
+then `voice.speech.interrupted` at 11:38:27.168Z after 12.893 seconds and
+583,680 PCM bytes. TTS/playback and LLM cancellation are recorded, followed by
+follow-up capture timeout and listener idle at 11:41:27.482Z. There is no
+finalized Stop transcript, explicit Stop transition, distinct physical speech
+onset timestamp, or formal no-stale-playback gate result. Thus the playback
+interruption agrees with the Owner's observation, but the software evidence
+cannot causally attribute it to the Stop command or qualify the quiet gate.
+
+The original operator result was FAIL, `physical_gate_timed_out`, after
+240.496 seconds because no finalized Stop transcript arrived. This was not a
+valid Stop-gate PASS mislabeled as FAIL. Code/event correlation showed an
+additional real capture lifecycle race: once VAD had confirmed speech and
+stopped playback, turn cleanup could set the AEC monitor stop event before its
+segmenter finished that utterance. The one-shot follow-up capture then opened
+after speech had ended and timed out. The monitor now drains a VAD-confirmed
+utterance through its bounded end despite monitor shutdown, and turn cleanup
+waits up to 35 seconds for the configured 30-second maximum utterance plus
+margin. The evaluator binds interruption to the active session/turn and now
+reports `interrupted_utterance_missing_finalized_stop_transcript` when the
+listener idles after that interruption without a Stop transcript.
+
+Replaying the same persisted events changes the diagnostic from the old
+`physical_gate_timed_out` at 240.496 seconds to the more precise
+`interrupted_utterance_missing_finalized_stop_transcript` at listener idle; it
+remains FAIL and creates no speech or Stop evidence. The private focused report
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-engineering-qualification-20261026/stage32-spoken-stop-capture-fix-20261027.xml`
+records 134 passed, zero failures/errors/skips across voice intent, AEC
+barge-in, operator, learning, and integration regressions. Ruff, compilation,
+and diff checks pass. Independent restoration reached `RESTORED_VERIFIED` and
+the Stage 31 release and production data remain unchanged. Stage 32 is still
+PARTIAL; a fresh physical Stop capture, correlated cancellation, and formal
+quiet-window evidence are required.
+
+Evidence directory:
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261027T113522Z-3d61d8b5eac9/`.
+
+# Previous 2026-10-27 local — Stage 32 physical retest and Stop-gate false positive (PARTIAL)
+
+The later physical retest, candidate
+`db4543abee204dc8a5f5550a1d2c4b36`, verified the clear repeat request end to
+end: real Pocket/Anna playback was interrupted, ASR finalized
+`Please explain the lesson again.`, the existing `data-evaluation` lesson was
+retrieved, Qwen produced the repeat explanation, and follow-up speech began.
+The Owner confirmed audibility. The operator marked all ten gates passed, but
+reconciliation found a Stop false positive: playback interruption sequence
+353 corresponded to `Very good, stop.`; Friday generated a normal response,
+which completed at sequence 421. The exact `Friday stop.` transcript and
+explicit Stop transition were sequences 427–428 only after playback ended.
+Thus spoken Stop recognition passed, active-generation/playback cancellation
+failed, and stale-queue evidence remains pending. The gate was repaired to
+bind interruption, exact finalized transcript, and Stop state to the same
+active playback turn in order, and to fail if an assistant response begins
+first. The ambiguous `Can I have a beat that?` alias was removed because the
+unretained physical audio cannot establish it as a repeat request. One hundred
+twenty-one focused voice-intent, operator, and integration tests pass. The
+independent restore recorded `RESTORED_VERIFIED`, preserving Stage 31 and
+production data.
+
+Latest evidence directory:
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261027T104034Z-2e0b35f31718/`.
+Stage 32 remains PARTIAL pending a new physical retest of active-playback Stop
+and the following stale-speech gate.
+
+# Earlier 2026-10-27 local — Stage 32 physical barge-in root cause and correction in progress (PARTIAL)
+
+Physical candidate `9c039bb8599248908b13a9ef8652e805` passed guarded startup,
+candidate ALC898/AEC capture readiness, real wake, learning continuation, Qwen
+lesson generation, and typed Owner confirmation of audible Pocket/Anna output.
+Playback began at 10:19:10.073 UTC. The operator showed its barge-in cue during
+that active playback at about 10:19:34.835 UTC. At 10:19:45.211 UTC the runtime
+emitted `voice.speech.interrupted` after 35.138 seconds, moved to LISTENING,
+and finalized a 1,600 ms speech segment at 10:19:48.010 UTC as
+`Can I have a beat that?`. It then began routing that utterance as a new
+conversation turn.
+
+The first failing transition was transcript-to-learning-intent recognition:
+the operator gate required an exact match for `Can I repeat that?` and aborted
+before the route could produce a lesson-context event. The result proves
+physical speech, VAD/capture activity, duplex interruption, ASR finalization,
+and playback cancellation; it does not prove a correct learning repeat route.
+Raw audio was not retained, so acoustic ground truth is unavailable. Health
+reported Pocket/Anna as the selected backend and the Owner confirmed audibility;
+the Piper worker was present but not selected. Capture readiness verified the
+ALC898-to-AEC input edge, candidate microphone ownership, and advancing PCM.
+
+Independent restoration reached `RESTORED_VERIFIED`, stopped the candidate and
+resource guard, cleaned up the timer, restored Stage 31 listening with
+advancing PCM, and verified the immutable release pointer and production
+databases were unchanged. The candidate's final API snapshot is `PARTIAL`
+because teardown closed its endpoints; the independent restoration report is
+complete. Evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261027T101527Z-aa0f8961e56f/`.
+
+The preserved Stage 32 source now adds this exact observed ASR homophone as a
+narrow `REPEAT` alias. The operator cue is now `Please explain the lesson
+again.`, and its gate uses the production repeat-intent classifier plus
+correlated lesson context, Qwen delta, and follow-up speech evidence instead
+of byte-for-byte transcript equality. Unrelated transcripts and generic
+assistant routes still fail. The existing AEC, wake, VAD and resource
+thresholds are unchanged. The recorded-transcript integration test routes the
+ASR output through the production intent router and `VoiceLearningCoordinator`
+to repeat the same lesson without an assessment mutation. Focused validation:
+120 tests passed, with zero failures or skips; report:
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-engineering-qualification-20261026/stage32-barge-in-intent-fix-final-20261027.xml`.
+Fresh physical retest, all later Stage 32 speech/learning/Astra gates, final
+regression, and Stage 32 publication remain incomplete. Stage 31 stays
+protected; no deployment, `main` advance, or Stage 33 work occurred.
+
+# 2026-10-27 local — Stage 32 no-speech resource requalification PASS; physical acceptance pending
+
+The Owner completed the corrected `resource_requalification_no_speech`
+workflow with one exact START and no speech. Candidate session
+`ecf2fca8919b493e9f6f5efe20ed49c9` reached READY in 81.48 seconds and observed
+180.23 seconds with 177 candidate resource samples and 359 independent guard
+samples. Candidate peak memory was 5.82 GiB; MemAvailable stayed at or above
+22.82 GiB and SwapFree at or above 5.23 GiB. Candidate cumulative full PSI did
+not advance; cumulative system full-PSI intervals above 2% totaled 2.017
+seconds, with no interval longer than 1.009 seconds. The unchanged 2%/10-second
+guard did not trigger, and candidate cgroup high/max/OOM counters remained
+zero. Host reclaim and swap-in occurred (swap-in +37,394 pages; swap-out +138;
+kswapd scan/steal +217,945/+50,326), while the candidate cgroup recorded no
+swap-in/out increase. The no-speech evidence is PASS; the guard stopped on the
+bounded-completion reason, and independent restoration reached
+`RESTORED_VERIFIED`, verified Stage 31 health, capture, wake, advancing PCM,
+unchanged release and learner databases, ALC898/AEC cleanup, candidate stop,
+and timer cleanup. The five-run aggregate is
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-operator-control-root/resource-qualification-after-no-speech-20261027.json`.
+The final candidate API poll reports `PARTIAL` because bounded completion had
+already closed those endpoints; candidate readiness, the full observation,
+independent guard samples, and the restoration report are present.
+This closes the resource requalification gate; Stage 32 remains PARTIAL until
+the Owner completes the remaining physical voice and learning gates.
+
+# 2026-10-27 local — Stage 32 duplicate PSI-duration guard correction (PARTIAL)
+
+Raw replay of the 2026-10-26 trigger identifies why
+`candidate_cgroup_full_memory_psi_sustained` fired. The candidate orchestrator's
+duplicate 10-second duration clock used rolling PSI `avg10`: candidate avg10
+stayed above 2% for 10.544 seconds and was 5.16% at the abort. The independent
+guard's cumulative full-PSI replay did not trigger; actual consecutive
+above-2% intervals peaked at 6.017 seconds system-wide and 4.010 seconds for
+the candidate cgroup. The burst was real but short: over 3.509 seconds,
+system/candidate cumulative PSI increased by 1.761/1.099 seconds of full
+stalls, then barely advanced before the abort. At abort, MemAvailable was
+23.79 GiB, SwapFree 3.56 GiB, candidate memory current/peak 6.27/6.58 GiB,
+candidate `memory.high/max` were unlimited, and OOM/high/max events were zero.
+
+The trigger-time detail sample shortly after the event attributed 9,144 major
+faults and 22.96 GB of reads to Qwen PID 1823, and 4,001 major faults / 525 MB
+of reads to candidate API PID 189837. This supports cold Qwen/application
+page-ins as contributors to the transient stalls; it does not prove the full
+kernel reclaim path. The event was neither physical RAM exhaustion nor a
+cgroup/systemd-oomd kill. The proven defect was the candidate's rolling-window
+sustain accounting.
+
+The adjacent 10.22-second detail interval recorded host major faults +15,592,
+swap-in +36,473 pages, swap-out +7,155, kswapd scan/steal +14,403/+8,295
+pages, and candidate-cgroup major faults +6,215, scan/steal +25,600/+13,591,
+file refaults +467. Candidate `memory.swap.current` was 790,482,944→744,620,032
+bytes across the interval. Reclaim and brief swap activity therefore occurred,
+but this is not evidence of RAM exhaustion given the 23.79 GiB MemAvailable at
+the trigger.
+
+The candidate now preserves `/proc/pressure/memory` cumulative totals and
+delegates interval decisions to the shared full-PSI evaluator. Existing 2%
+and 10-second thresholds are unchanged. If the candidate loop itself misses a
+sample interval, it rebases only after confirming that the independently
+supervised same-session guard is active and has a fresh sample; otherwise the
+local path remains fail-closed. The independent guard still fails closed on
+missing, reset, or invalid cumulative telemetry. Regression coverage exercises
+the actual PSI parser, decaying avg10 after a short burst, sustained cumulative
+pressure, delayed local sampling with/without the independent guard, and
+missing cumulative counters. The focused guard/orchestrator suite passes 35
+tests; the 15-file Stage 32/voice/agency focused suite passes 209 tests, with
+report at
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-engineering-qualification-20261026/stage32-focused-resource-guard-fix-20261027.xml`.
+Targeted Ruff, compileall, and `git diff --check` pass.
+
+After the reboot, the Stage 31 immutable release was restored and verified:
+API/UI/Qwen/vision are healthy, ALC898/AEC capture is listening and wake-armed,
+PCM advances, production databases are unchanged, and candidate services are
+stopped. Current operator state is `PREPARED` with Begin available; the prior
+guard failure remains only as historical session evidence. The operator now
+selects the bounded `resource_requalification_no_speech` mode, with its
+previous physical configuration backed up. No candidate was started in this
+repair turn. The Owner must begin from the operator page, type its exact START
+after the no-speech READY message, and remain silent for the bounded
+observation; after verified restoration, the physical manifest and genuine
+speech/audibility gates follow. No commit, push, deployment, `main`
+advancement, or Stage 33 work occurred. The raw input and
+trigger-context inputs are under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T195053Z-b3fb2e56ca82/`;
+the replay result is
+`/home/kumar-rishav/.local/state/friday-stage32-resource-guard-requalification-20261027/guard-policy-replay.json`.
+
+# 2026-10-27 local — Stage 32 candidate launcher interpreter repair (PARTIAL)
+
+The Owner began a fresh physical test. The persistent control service created
+session `stage32-physical-operator-ready-20261026T193043Z-6fa24e3a53a3`, but
+the candidate orchestrator exited at import because its configured system
+Python lacked `pydantic`. The candidate had not created a session or taken
+capture; Stage 31 remained active and the previous session was
+`RESTORED_VERIFIED`. Invoking the worktree `.venv/bin/python` directly through
+`systemd-run` still selected the system interpreter because systemd resolved
+the symlink. A lightweight systemd probe confirmed a Bash `exec` wrapper
+preserves venv activation and Friday imports. The launcher now uses that
+wrapper. The second launch (`4829583b9140`) exposed systemd symlink resolution
+and also exited before candidate-session creation or capture handoff. A third
+launch (`fbcc669675ab`) still used the old command because the persistent
+operator process had imported the launcher before the source fix; it too exited
+before session creation or capture handoff. The
+directly affected operator-control, physical-control, operator-lifecycle, and
+voice-intent regressions pass (102 tests); the launcher regression verifies
+the wrapper and venv path. This fixes the launcher environment only; Stage 32
+remains PARTIAL pending guarded live startup and physical gates. Evidence for
+the first launch is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T193043Z-6fa24e3a53a3/`.
+The second launch log is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T194556Z-4829583b9140/`.
+The third launch log is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T194922Z-fbcc669675ab/`.
+
+# 2026-10-27 local — Stage 32 Vite bootstrap dependency repair (PARTIAL)
+
+Candidate `aaf4f51968574c84a47fdc97ef58c7ae` received exact typed `START` and
+completed Stage 31 capture shutdown. The reordered Vite process exited before
+the candidate API or voice workers launched: the UI bridge could not find
+`<session>/owner/owner-capability.json`. The candidate API normally provisions
+this private capability during startup, so the new Vite-first order exposed an
+unstated dependency. No speaking cue or physical speech gate was reached.
+Independent restoration returned Stage 31 to listening and verified unchanged
+production learner data and candidate cleanup (`RESTORED_VERIFIED`).
+
+The next repair preprovisions the same candidate-scoped capability through
+Friday's existing `LocalOwnerTrust` implementation before Vite starts, keeping
+the bridge's ownership, private-file checks, and candidate API validation
+unchanged. The focused regression verifies owner-only directory/file modes,
+installation binding, and non-rotation when the API reuses the capability;
+29 orchestrator/resource tests and targeted Ruff pass. Vite-first live startup
+still needs a guarded physical run. Evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T192407Z-913165b550e0/`.
+
+# 2026-10-27 local — Stage 32 startup overlap mitigation (PARTIAL)
+
+The detailed trace for candidate `195123a133b54ef2b5ee6b0fc1a813ea` narrows
+the leading pressure source: the candidate launched Vite/Node while voice
+workers were still loading. In the final detailed interval, host major faults
+rose by 634; the new Vite Node process accounted for 490, Piper for 81, and the
+candidate API for 18. Vite became ready immediately before the PSI trigger.
+This supports cold Vite/Node loading overlapping the final voice-worker startup
+as the strongest identified contributor, but does not establish the sole cause
+or full kernel reclaim path.
+
+The candidate orchestrator now starts Vite and warms its entry module after
+the exact `START` and Stage 31 capture stop, then requires 15 seconds inside
+the existing resource limits before launching voice workers. Independent
+restoration and the unchanged guard remain active. Targeted tests cover this
+ordering; a live candidate run is still required to verify resource-stable
+startup before any speaking cue. No physical speech gate passed in the prior
+attempt; Stage 32 remains PARTIAL and unpublished.
+
+# 2026-10-27 local — Stage 32 worker-start memory-pressure abort (PARTIAL)
+
+Candidate `195123a133b54ef2b5ee6b0fc1a813ea` passed fresh preflight and
+received one exact typed `START`. Candidate logs show Parakeet, Moonshine, and
+Pocket/Anna workers started and the ALC898/AEC capture check reported ready.
+The 15-second resource-stability gate did not complete; the speaking cue,
+physical wake, and all later speech gates were withheld.
+
+At 19:01:41.741 UTC, host full-memory PSI avg10 had exceeded the unchanged 2%
+limit for 10.024 seconds (trigger 2.38%; sampled peak 5.98%). Candidate cgroup
+memory peaked at 5.46 GiB. Candidate cgroup PSI peaked at 2.89% but was 1.42%
+at the trigger. In the final detailed 10-second interval, candidate cgroup
+major faults increased by about 603 of 634 host major faults. The detailed
+per-process trace later attributed 490 major faults to the newly launched
+Vite/Node process, 81 to Piper, and 18 to the candidate API during that same
+interval. This points to overlapping cold Vite and voice-worker loading as the
+strongest identified contributor, but does not prove the sole cause or full
+kernel reclaim path. MemAvailable
+stayed above 23.37 GiB, SwapFree above 4.29 GiB, and candidate OOM counters
+remained zero. Keep the guard unchanged and do not repeat this startup until a
+cause-based safe mitigation is verified.
+
+Independent restoration reached `RESTORED_VERIFIED`, confirmed Stage 31
+listening and unchanged production learner data, stopped the candidate, and
+verified timer cleanup. No physical speech gate passed. Evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T190037Z-9c9fd5233ade/`.
+Stage 32 remains PARTIAL and unpublished.
+
+# 2026-10-27 local — Stage 32 repeated barge-in transcript mismatch (PARTIAL)
+
+Candidate `b4c24cfe7a6647b992fd41baccd2547e` passed guarded preflight, physical
+wake, learning continuation through local Qwen, and owner-confirmed Pocket/Anna
+audibility. Runtime sequence 183 confirms active speech was interrupted. The
+finalized 1,472 ms transcript at sequence 189 was `Can I repeat that?`, while
+the Owner reported speaking the displayed `Friday, repeat that.` cue. The exact
+barge-in transcript gate correctly failed; no repeat-route or later Stop,
+recovery, progress, assessment, or Astra synchronization gate was credited.
+
+The resource guard did not trigger: maximum system full-memory PSI avg10 was
+1.99%, candidate full PSI was 0%, minimum MemAvailable was 23.15 GiB, and
+minimum SwapFree was 4.10 GiB. Live Qwen inference and Pocket/Anna playback
+completed; the prior Qwen page-residency pressure hypothesis is supported but
+not proven as a general mitigation. Stage 31 restoration and timer cleanup
+reached `RESTORED_VERIFIED`. The next exact barge-in cue is `Can I repeat
+that?`, the phrase observed in the finalized transcript without the
+misrecognized wake alias. The existing repeat intent route and exact transcript
+gate remain intact. Evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T184026Z-be08deb5bed0/`.
+Focused physical-control, operator-orchestrator, and voice-intent tests pass:
+81 passed. Stage 32 remains PARTIAL and unpublished.
+
+# 2026-10-27 local — Stage 32 Qwen inference memory-pressure abort (PARTIAL)
+
+Candidate `48b9fc5932924907b55a67bda81f15d2` passed its fresh guarded
+preflight, ALC898/AEC capture, and the physical `Friday` wake. The Owner
+reported speaking the learning continuation; runtime evidence reached local
+Qwen's first token and began Pocket/Anna speech chunks, but the continuation
+gate was not credited because the PSI guard aborted before the response
+completed. No later gate passed.
+
+The repository regression had completed before this candidate. At 18:33:36Z,
+host `llama-server` PID 1823 accumulated 5,980 major faults in ten seconds as
+system full-memory PSI avg10 peaked at 6.45% and candidate-cgroup PSI at 6.02%.
+Its RSS rose from about 0.13 GiB at 18:33:26Z to 17.25 GiB at 18:33:46Z during
+the first live learning inference. At the 18:33:43Z abort, candidate-cgroup
+full PSI was 2.70% for 10.35 seconds against the unchanged 2%/10-second limit;
+MemAvailable was 23.14 GiB, SwapFree 4.07 GiB, candidate memory 5.34 GiB, GPU
+memory 7,502/8,192 MiB, and cgroup OOM counters were zero. This makes Qwen
+model-page reloading/residency the leading explanation, but does not establish
+the complete kernel reclaim cause. No guard threshold or production runtime
+policy changed.
+
+The independent restore reached `RESTORED_VERIFIED`; Stage 31 listening and
+timer cleanup were verified. Evidence is preserved under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T183202Z-62eec9aa8d34/`.
+Stage 32 remains PARTIAL. A later physical candidate completed Qwen inference
+without a guard trigger after the model had already been exercised. This
+supports but does not prove a warm-residency explanation; the resource guard
+remains unchanged.
+
+# 2026-10-26 local — Stage 32 candidate resource guard abort during full regression (PARTIAL)
+
+Candidate `4becbee05de2422fba6ecf96c2bc7364` passed guarded startup and capture
+checks, then the independent resource guard aborted during voice-worker startup
+before any user speech gate. System full-memory PSI reached 2.82% for 10.209
+seconds against the unchanged 2%/10-second threshold. At trigger time,
+MemAvailable was 24.63 GiB, SwapFree 3.89 GiB, candidate memory was 5.56 GiB,
+GPU memory usage was 7,515/8,192 MiB, and cgroup OOM counters remained zero.
+The full repository verifier was running concurrently; this overlap is a
+confounder, not a proven cause. No threshold or resource policy changed.
+
+Automatic cleanup stopped the guard and restoration reached
+`RESTORED_VERIFIED`, with Stage 31 listening and recovery timer cleanup
+verified. The full verifier completed with 2,011 passed, 6 skipped, and all 101
+installed-package checks compatible. Evidence is preserved under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T171101Z-991273537eb1/`.
+Stage 32 remains PARTIAL; no physical wake or later speech gate passed.
+
+# 2026-10-26 local — Stage 32 barge-in interruption transcript mismatch (PARTIAL)
+
+Candidate `e71742e7e2a24e3e82a13280c871cd1c` passed wake, learning
+continuation, and owner-confirmed Pocket/Anna audibility. Runtime event evidence
+records `voice.speech.interrupted` for the active playback, followed 2.76 seconds
+later by finalized ASR text `Dallas and again.` from 1,472 ms of audio. The Owner
+reported speaking the displayed `Friday, explain the lesson again.` prompt.
+The barge-in gate correctly failed because the finalized transcript did not
+match and no routed learning-repeat follow-up was proven. No later gate passed.
+
+This is a physical ASR/phrase-matching failure after a real interruption, not a
+missing interruption event. The bounded qualification prompt is shortened to
+`Friday, repeat that.`, which maps to the existing `REPEAT` learning action;
+exact transcript matching and downstream single-turn/Qwen/Pocket/Anna evidence
+remain mandatory. Production voice intent policy is unchanged. Independent
+restoration reached `RESTORED_VERIFIED`; Stage 31 capture and recovery timer
+were verified, and the candidate resource guard did not trigger. Evidence is
+preserved under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T170149Z-881a2f9b6834/`.
+Stage 32 remains PARTIAL and unpublished.
+
+# 2026-10-26 local — Stage 32 physical barge-in gate failed and restored (PARTIAL)
+
+Fresh physical candidate `e5ddc1278f1b4d7a808749b79a475ad5` completed resource
+preflight, passed the physical wake and learning-continuation gates, routed the
+request through local learning retrieval and Qwen, and started Pocket/Anna
+speech. The Owner clicked `I can hear Friday speaking` during playback, so the
+audibility gate passed. The physical `barge_in` gate failed with
+`Pocket_Anna_playback_finished_before_barge_in`; the Owner confirmed no
+interruption was spoken while Friday was speaking. No Stop, recovery, progress,
+assessment, or Astra synchronization gate passed in this run.
+
+Independent restoration reached `RESTORED_VERIFIED`, verified Stage 31 listening
+capture and timer cleanup, and left `friday-local-ai.service` active. The
+candidate resource guard reported safe with no trigger. Evidence is preserved
+under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T165625Z-69687d4fad8e/`.
+Stage 32 remains PARTIAL. The next physical attempt must interrupt immediately
+with the displayed exact phrase while Pocket/Anna playback is active; the
+remaining Stop, recovery, progress, assessment, and Astra synchronization gates
+are unqualified. No acceptance commit/push, deployment, `main` advance, or Stage
+33 work occurred.
+
+# 2026-10-26 local — Stage 32 inline-wake transcript gate repair (PARTIAL)
+
+Postboot candidate `41cd5e23c1a146549dbc75ce6b52ec90` passed resource preflight
+and the physical wake gate. The Owner spoke the exact learning-continuation
+phrase. The preserved event stream records Stage 31's documented
+`source=wake_remainder` / `transcriber=wake_asr` transcript, the routed
+`conversation.user_text`, learning context, Qwen response, and completed
+Pocket/Anna speech. The Stage 32 continuation gate incorrectly required
+model-path ASR and stayed on gate 2, so no audible-confirmation or later gate
+was claimed. Its general 240-second timeout was also unreachable after the
+gate-specific early returns.
+
+The operator abort restored Stage 31 with `RESTORED_VERIFIED`, unchanged
+production databases and release pointer, listening ALC898/AEC capture, armed
+wake, and advancing PCM. The resource guard recorded 1,806 samples over
+904.288 seconds: no PSI counter reset, maximum sample gap 0.518 seconds, system
+and candidate full-PSI deltas 620,116 and 39,325 microseconds, and final guard
+status `STOPPED`. No 2%-for-10-seconds trigger occurred. The harness now accepts
+only the explicit inline-wake provenance and checks timeout before gate
+dispatch. The 19-test operator-orchestrator file and targeted Ruff pass. Full
+repository verification passed 2,010 tests with 6 skipped and all 101 installed
+packages compatible; a new Owner-present physical run remains pending. Stage
+32 remains PARTIAL; no acceptance commit/push, deployment, `main` advance, or
+Stage 33 work occurred. Evidence is preserved under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026T161719Z-ecf03eebebc5/`.
+
+# 2026-10-26 local — Stage 32 #12 resource abort and operator recovery repair (PARTIAL)
+
+The Owner entered one valid `START` in session
+`8c952603ed4449d99d307fd32069f74e`. The capture handoff began, but the
+resource guard aborted before a speaking cue or physical gate. The final
+evidence contains zero speech events, transcriptions, and turns. The
+preserved session is
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026-12/`.
+Its restoration report verified Stage 31 release, learner database, API,
+Astra UI, Qwen, vision, ALC898/AEC listening capture, wake, fresh PCM,
+candidate cleanup, and timer cleanup. The live API later confirmed Stage 31
+remains listening with Pocket/Anna selected. No production learner data or
+release state changed.
+
+The #12 pressure event was real but did not show host exhaustion or OOM:
+MemAvailable was 23.43 GiB, SwapFree 4.58 GiB, candidate memory peaked near
+6.37 GiB, and host/candidate full PSI avg10 peaked at 5.42%/3.8% before
+decaying. The guard started a 10-second sustain timer on a rolling `avg10`
+value, so the same trailing PSI window could be counted again as sustained
+pressure. The guard now measures cumulative PSI `total` deltas over successive
+sample intervals (maximum 2.5 seconds), retains the existing 2%/10-second
+threshold, fails closed on missing samples, and continues to block the speaking
+cue while the live `avg10` snapshot is above 2%. The underlying reclaim/PSI
+pressure source remains unresolved; no threshold, swap, kernel, or OOM policy
+change was made.
+
+The screenshot's `CONTROL UNAVAILABLE` was a separate lifecycle defect. The
+controller had been launched with `Popen(start_new_session=True)` inside the
+candidate orchestrator's systemd cgroup. The independent restore correctly
+stopped that cgroup and therefore also killed the controller. The controller
+now runs as the independent user service
+`friday-stage32-operator-control.service` with `Restart=on-failure`; restoration
+verifies its unit, cgroup, process identity, and session projection. A live
+SIGKILL recovery restarted the controller under a new PID and preserved #12's
+terminal session identity.
+
+The same page now has a persistent, loopback-only `Begin physical test` action.
+It is enabled only after a complete `RESTORED_VERIFIED` report, checks the
+independent controller before launch, creates a new private session and
+orchestrator service, rotates its single-use CSRF token, and starts fresh
+preflight. It does not authorize capture; the new session still requires its
+own exact `START` acknowledgement after its safeguards pass. The current
+browser page is `PREPARED`; Codex has not clicked Begin or started another
+physical session.
+
+Focused Stage 32, operator, restoration, resource, and voice-routing coverage
+passes 139 tests. Ruff, Python compilation, and `git diff --check` pass. The
+live controller is verified in its independent cgroup, and the browser shows
+the #12 abort reason alongside verified Stage 31 restoration and the Begin
+action. Stage 32 remains PARTIAL pending new physical evidence and final
+acceptance. No commit, push, deployment, `main` advance, or Stage 33 work has
+occurred.
+
+# 2026-10-26 local — Stage 32 physical session #11 START lease expiry (PARTIAL)
+
+Session #11 reached `AWAITING_OWNER_START` but received no typed START before
+its 300-second lease expired at 10:57:18 UTC. Its operator flow records zero
+STARTs and no capture handoff; no physical speech gate ran. Automatic recovery
+reached `RESTORED_VERIFIED` and verified Stage 31 API/UI/Qwen/vision, ALC898/AEC
+listening capture, armed wake, advancing PCM, unchanged learner database
+fingerprints and release pointer, candidate shutdown, and recovery timer
+cleanup. Evidence remains under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026-11/`.
+
+After restoration, a 15-second host-only safety window recorded maximum full
+memory PSI avg10 of 0.00%, minimum MemAvailable of 23.42 GiB, and minimum
+SwapFree of 4.71 GiB. This is host readiness only; it does not replace the
+candidate resource guard. The loopback operator page now supports a no-session
+`PREPARED` state with no START lease, session token, capture handoff, or visible
+session action controls. A fresh candidate and its normal 300-second START
+lease are deferred until the Owner replies `ARM`. The operator control-server
+module passes 14 tests after this change. Stage 32 remains PARTIAL.
+
+# 2026-10-26 local — Stage 32 physical session #10 guarded resource abort (PARTIAL)
+
+Session #10 received one valid typed START. The unchanged resource guard then
+aborted before the capture-ready cue; no physical speech gate was recorded. At
+2026-10-26 10:40:06 UTC, the host full-memory PSI peak was 12.86% and candidate
+cgroup full-memory PSI peaked at 11.86%. The guard's sustained samples were
+5.54% host and 5.33% candidate for 10.30 and 10.24 seconds, exceeding the
+unchanged 2%/10-second limits. Candidate cgroup memory was 5.89 GiB with zero
+swap-out and zero OOM events; host MemAvailable was 23.48 GiB. The cause is not
+isolated. The guard initiated recovery, and Stage 31 reached
+`RESTORED_VERIFIED`, including listening/wake-armed capture, unchanged learner
+data, candidate shutdown, and timer cleanup. Evidence is preserved under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026-10/`.
+
+The #10 page exposed a cross-session UI state defect: the existing browser
+document retained the previous session's confirmation result and START
+submission state. The page now clears its result, START text, and pending flags
+when the session identity changes and clears the result if status becomes
+unavailable. The candidate resource-trigger context output also no longer uses
+the stale hard-coded date in its filename; #10's original artifact is retained.
+91 focused tests, Ruff, Python compilation, and `git diff --check` pass. Stage 32
+remains PARTIAL; the host pressure source remains unisolated and no thresholds
+changed.
+
+# 2026-10-26 local — Stage 32 physical session #09 launcher preflight failure (PARTIAL)
+
+The #09 preparation reused the unchanged three-run guarded resource report,
+which still passed. The transient systemd-run launch did not forward `PATH`,
+so the orchestrator exited when it first needed `systemctl`. No candidate
+session, operator page, recovery timer, capture handoff, or speech gate was
+created. The full failed state and journal evidence remain under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026-09/`.
+Stage 31 was not handed off. A fresh #10 state will forward the allowlisted
+host runtime environment; no resource threshold or source runtime change is
+needed.
+
+# 2026-10-26 local — Stage 32 barge-in routing correction (PARTIAL)
+
+Session #08 passed physical wake, learning continuation, and owner-confirmed
+Pocket/Anna audibility. Physical speech interrupted playback, but Whisper
+finalized `for how to cancel my answer.` The resulting generic conversation did
+not prove the intended learning interaction; the barge-in gate failed and no
+spoken Stop or later gate is claimed. Stage 31 restoration reached
+`RESTORED_VERIFIED`, including service health, listening and wake-armed capture,
+unchanged production learner data, candidate cleanup, and recovery-timer
+cleanup.
+
+The previous cue, `Friday, cancel my answer.`, only routes as a learning answer
+cancellation when an answer is pending. The Stage 32 barge-in test now uses the
+existing repeat intent, `Friday, explain the lesson again.` The gate requires a
+matching finalized transcript, one learning-context follow-up turn, Qwen delta,
+and follow-up playback start; wrong transcripts and generic follow-ups fail
+closed. Focused operator, physical-control, and voice-intent tests pass. A fresh
+Owner START and physical gates remain outstanding; Stage 32 remains PARTIAL.
+No production voice policy or source runtime changed.
+
+# 2026-10-26 local — Stage 32 physical learning and interruption retest (PARTIAL)
+
+Session #08 received one typed START and verified the real capture handoff.
+Physical wake, learning continuation, and learning-output gates passed. The
+Owner confirmed Pocket/Anna audibility during the active response; the
+confirmation is bound to session `cb8986bc137a42168be22c0e25c0b0b5`, voice turn
+`cdffa63e89da4d8094a2b1ac8081caf6`, playback-start sequence 39, and its
+timestamps. Playback later emitted an interruption event after 1,559,040 PCM
+bytes at 24 kHz.
+
+The expected barge-in transcript `Friday, cancel my answer.` was not finalized.
+Whisper instead finalized `for how to cancel my answer.`, which was routed as a
+conversation request and produced a follow-up answer. A later interruption left
+the candidate voice state listening but capture paused, wake disarmed, the PCM
+age stale, and a turn still marked running. The barge-in gate did not pass. The
+candidate was manually aborted through its loopback control, then Stage 31
+restoration reached `RESTORED_VERIFIED`; API/UI/Qwen/vision, listening capture,
+wake, production learner data, candidate cleanup, and timer cleanup passed.
+
+The previous #07 blank-ASR repair remains covered by 25 passing operator tests.
+No spoken Stop, recovery wake, read-only progress, isolated assessment, or UI
+synchronization gate was reached in #08. Stage 32 remains PARTIAL pending
+interruption recovery diagnosis and the remaining physical gates. No commit,
+push, deployment, `main` advancement or Stage 33 work occurred.
+
+# 2026-10-26 local — Stage 32 blank-ASR and interrupted-learning diagnosis (PARTIAL)
+
+Session #07 received one valid typed START and verified a real capture
+handoff. The physical wake gate passed. Whisper finalized
+`Friday continue my machine learning course.` and the runtime retrieved path
+`3a9757f01ec546e8998ffb89bc19d82f`, node `data-evaluation`; Qwen emitted a
+lesson response and Pocket/Anna playback started. The assistant turn was then
+cancelled during playback; a later `[BLANK_AUDIO]` event was incorrectly
+classified as a mismatching spoken command. Learning continuation therefore
+failed before audibility confirmation. The partial playback and interruption
+are event evidence only; there is no Owner audibility confirmation or accepted
+barge-in transcript, and no TTS failure is established.
+
+The gate now excludes Whisper's explicit `[BLANK_AUDIO]` sentinel from
+finalized user commands and records a matching cancelled assistant turn as
+`learning_assistant_response_cancelled_before_output_acceptance`. Regression
+coverage proves a blank result does not supersede the expected command and the
+cancelled turn still fails with a precise reason. All 25 affected operator
+unit tests pass; Ruff, compilation and diff checks pass. Session #07 restored
+Stage 31 with `RESTORED_VERIFIED`, unchanged production learner data, listening
+capture and wake, and verified timer cleanup. Stage 32 remains PARTIAL; no
+commit, push, deployment, `main` advancement or Stage 33 work occurred.
+
+# 2026-10-26 local — Stage 32 physical acknowledgement correction (PARTIAL)
+
+Physical-ready session #06 expired with zero typed STARTs and no capture
+handoff. Its independent recovery completed `RESTORED_VERIFIED`; the report
+confirms timer cleanup, Stage 31 service/capture health, and unchanged
+production learner data. The full session record remains under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026-06/`.
+
+The prior #05 learning response had real assistant, Pocket/Anna start and
+completion events, but no contemporaneous owner audibility confirmation. This
+does not establish an audio-output failure. The loopback page now prominently
+shows `FRIDAY IS SPEAKING`, the exact owner-confirmation button and an explicit
+instruction not to confirm when no speech is heard. The server binds the
+request to the active session, voice turn, speech-start sequence and runtime
+timestamp; the orchestrator accepts it only while the matching playback-start
+event exists and no completion event has arrived. The observation retains
+request and acceptance timestamps. The derived playback identifier is a
+qualification correlation key, not a native audio-device identifier.
+
+The two affected operator unit-test files pass; Ruff, Python compilation and
+`git diff --check` pass. A fresh bounded physical session is required for a new
+Owner START and all outstanding physical gates. Stage 32 remains PARTIAL; no
+commit, push, deployment, `main` advancement or Stage 33 work occurred.
+
+# 2026-10-26 local — Stage 32 concurrent restoration report race repaired (PARTIAL)
+
+Physical-ready session #04 expired before Owner START; it recorded zero STARTs,
+and no candidate capture or speech began. The expiration exposed two independent
+restore services writing the same predictable `.tmp` report/status names. The
+production restoration checks completed, but one writer lost the temporary file
+before rename, leaving contradictory terminal artifacts. The original report
+and logs are preserved as failure evidence.
+
+Restoration service runs now serialize through a private per-session lock, and
+the restoration service, watchdog, candidate orchestrator, operator controller,
+and control page use unique private temporary files for atomic state updates.
+The Stage 32 focused suite passed 78 tests with no failures; Ruff, Python
+compilation, and `git diff --check` passed. A live duplicate-restoration
+qualification using a harmless sleep-only candidate, an armed recovery timer,
+and two concurrent independent restore services reached `RESTORED_VERIFIED`.
+It verified separate cgroups, candidate shutdown, timer cleanup after
+verification, the immutable Stage 31 release, application health, advancing
+capture, and unchanged production learner databases. No production capture
+handoff or speech occurred. Evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-restore-concurrency-live-20261026-01/`.
+
+Stage 32 remains PARTIAL. The three-run resource qualification still passes
+under unchanged thresholds; historical PSI cause remains unresolved. Fresh
+physical Gates A–J and their final Stage 31 restoration remain pending.
+
+# 2026-10-26 local — Stage 32 runtime event-to-gate integration (PARTIAL)
+
+The Stage 32 candidate loop now drains pre-cue runtime events, forwards new
+sequenced candidate events and voice-health snapshots to the operator
+controller, and processes session-bound owner observations. The loopback page
+shows live transcript, assistant response, gate outcome, and the isolated Learn
+view when UI synchronization is requested. Owner confirmation of audible
+Pocket/Anna playback is required while the response is active before the
+barge-in cue; Stop, quiet-after-cancel, read-only progress, and isolated
+assessment have explicit event and database evidence gates. The assessment
+instruction uses the existing `My answer is` voice route and a separate `Yes`
+confirmation. Per-gate runtime events, voice health, typed confirmations,
+candidate attempt fingerprints, and available latency are retained privately.
+
+The focused Stage 32, voice-learning, voice-intent, and runtime-event suite
+passed **119 tests** with zero failures. Ruff, Python compilation, embedded
+operator-page JavaScript syntax, and `git diff --check` passed. The three-run
+resource report remains PASS with thresholds unchanged and the historical PSI
+cause unresolved; the existing independent manual/automatic restoration
+reports remain `RESTORED_VERIFIED`. The prior live physical attempt still has
+no finalized transcript or gate result, so this source change is not physically
+qualified. A fresh typed START and actual Owner speech through Gates A–J remain
+pending. Evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-operator-event-integration-20261026-01/`.
+
+# 2026-10-26 local — Stage 32 bounded resource requalification PASS; physical gates pending
+
+The fresh `resource_requalification_no_speech` session accepted one typed
+START, verified live capture handoff, passed the 15-second resource stability
+gate (16.003 seconds, 16 samples), and completed a 180.402-second silent READY
+observation (177 resource samples; zero wake, VAD or utterance counters; no
+speaking cue or physical gate). Candidate peak memory was 5.95 GiB, system PSI
+avg10 peaked at 0.25% in the qualification window, MemAvailable stayed above
+23.28 GiB, SwapFree above 5.17 GiB, and the unchanged guard recorded no trigger.
+Combined with the two earlier 180-second passes, the three-run report is PASS
+under tested conditions. The historic sustained PSI event and later physical
+handoff abort remain unexplained; no resource threshold changed.
+
+Independent restoration reached `RESTORED_VERIFIED`: Stage 31 release, API/UI,
+Qwen, vision, ALC898/AEC cleanup, wake, PCM/capture, production learner data,
+candidate cleanup, and timer cleanup passed. No speech or physical gate ran.
+The 74-test focused Stage 32/operator suite, Ruff, compilation, and diff checks
+pass. The physical candidate now persists its detailed live capture readiness
+before the stability gate, so the physical-ready run can retain ALC898/AEC/PCM,
+listener and capture-owner evidence. Stage 32 remains PARTIAL pending Gates
+A–J, per-turn evidence, and final Stage 31 restoration.
+
+# 2026-10-26 local — Stage 32 pre-START safety-check abort (PARTIAL)
+
+The corrected no-speech operator page reached `AWAITING_OWNER_START`, but the
+Owner had not acknowledged START when the orchestrator closed. The operator
+recorded `resource_guard_unhealthy`; no candidate voice process or capture
+handoff started. The independent resource sample file contains 59 prepared
+samples with system PSI avg10 at 0%, at least 23.32 GiB MemAvailable, and
+about 90 MiB in the orchestrator cgroup. Stage 31 restoration reached
+`RESTORED_VERIFIED`, production learner data was unchanged, and timer cleanup
+passed.
+
+The resource guard then observed `/proc/<orchestrator-pid>/cgroup` disappear
+after the orchestrator began restoration. This is consistent with teardown and
+does not identify the first failed pre-START safety condition. The callback now
+writes the individual check results and snapshot-read errors before requesting
+restoration, and uses the accurate `pre_start_safety_check_failed` reason. The
+focused Stage 32/operator suite passed 73 tests; the exact failed pre-START
+check remains unobserved until a fresh instrumented run.
+
+# 2026-10-26 local — Stage 32 resource-only operator bootstrap repair (PARTIAL)
+
+The first fresh resource-only preflight exited before starting a candidate
+stack because its generated operator-control child did not receive
+`STAGE32_WORKTREE`. The failure path launched the independent restoration
+service, which reached `RESTORED_VERIFIED`, verified unchanged production
+learner data and released the automatic timer. The operator launcher now passes
+the isolated worktree and state directory to that child; a focused regression
+test covers the launch environment. The focused Stage 32/operator suite passed
+71 tests.
+
+A new `resource_requalification_no_speech` session is now waiting at
+`AWAITING_OWNER_START` on the loopback operator page. The mode says not to
+speak, does not display a physical-ready claim or speaking cue, and has not
+started the candidate stack or capture handoff. Stage 31 retains capture. The
+current 15-second live resource gate, 180-second observation, and final
+restoration remain unqualified pending the fresh typed START. The earlier
+post-START PSI abort remains unresolved and unchanged.
+
+# 2026-10-26 local — Stage 32 live post-START resource abort (PARTIAL)
+
+The typed-START operator accepted one fresh Owner acknowledgement. Real capture
+handoff verified the ALC898 input, AEC edge, advancing PCM, listener readiness,
+and candidate capture ownership. The speaking cue appeared at 06:51:34.854 UTC,
+while system full-memory PSI avg10 was already 3.92%; candidate cgroup PSI was
+0.60%, with 23.42 GiB MemAvailable, 5.24 GiB SwapFree, zero candidate swap,
+and no OOM/high/max events. The unchanged guard restored Stage 31 at
+06:51:38.430 UTC after system PSI remained above 2% for 10.277 seconds; the
+trigger sample was 2.77%. Candidate memory peaked at 6.54 GiB. No physical gate
+result or finalized transcript was recorded.
+
+The first measurable startup correlation was Pocket/Anna worker PID 28795
+reading 82.9 MiB and adding 27 major faults in a 1.139-second sample, followed
+by host reclaim and swap activity. Trigger-time mappings identify the
+Pocket/Anna virtualenv's Torch CPU libraries but do not prove the model file or
+worker as the sole cause. Root cause remains unresolved; no guard threshold,
+model, or production voice behavior changed. Full trigger and restoration
+evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261026-02/`.
+The appended `live-handoff-resource-outcome.json` summarizes this run without
+overwriting earlier qualification records.
+
+The live page had retained the speaking cue after its status endpoint became
+unavailable. The page now removes the cue, READY text and START controls and
+shows `CONTROL UNAVAILABLE — DO NOT SPEAK`. Candidate orchestration now requires
+15 continuous seconds within the existing resource limits after capture
+readiness and before displaying the speaking cue. This fail-closed gate has
+passed focused tests but still needs live qualification. The independent
+restorer completed `RESTORED_VERIFIED`; Stage 31 release, API/UI/Qwen/vision,
+ALC898/AEC cleanup, wake/PCM/capture ownership, and production learner data
+were verified. Stage 32 remains PARTIAL pending a bounded fresh live resource
+run, physical Gates A–J, retained per-turn evidence, and final Stage 31
+restoration. No commit, push, deployment, main advancement, or Stage 33 work.
+
+Focused follow-up passed 55 tests across operator-server, resource-guard,
+operator-orchestrator, and physical-control tests. Ruff, Python compilation,
+embedded-JavaScript `node --check`, and `git diff --check` passed.
+
+# 2026-10-26 local — Stage 32 integrated operator and restoration qualification (PARTIAL)
+
+The typed-START operator is now connected to the real temporary candidate
+orchestrator. The exact READY prompt is displayed only after the two resource
+runs, independent manual restoration, automatic restoration, and focused
+operator controls qualify. START is fresh-session-bound and single-use with a
+300-second lease. Before START, no candidate voice stack or capture is started;
+Stage 31 retains the microphone and the 20-minute restore timer and resource
+guard remain active. No physical speech gate has run.
+
+The first live page exposed invalid JavaScript for its multiline prompt. The
+session was aborted before START; the real independent restore service reached
+RESTORED_VERIFIED and verified Stage 31 API/UI/Qwen/vision, ALC898/AEC, wake,
+PCM, capture ownership, and unchanged production learner data. The prompt is
+now emitted as a JSON-escaped JavaScript string. A fresh run displays the exact
+requested READY text at `http://127.0.0.1:8768/`; the approved Astra UI is
+unchanged.
+
+The real restoration service passed manual abort, automatic timeout with a
+candidate unit active, and automatic fallback after candidate-unit death.
+Reports verified independent user-service cgroups and only cleaned up the
+automatic timer after RESTORED_VERIFIED. Each checked the original Stage 31
+release, API/UI/Qwen/vision, wake/AEC/PCM, candidate cleanup, and unchanged
+production databases. The current integrated pre-START abort also passed the
+manual path.
+
+Two comparable no-speech READY runs each held for 180 seconds with the existing
+guard unchanged. Run one: 47.55-second startup, 6.23 GiB candidate peak, zero
+candidate PSI, 2.12% peak system PSI avg10, MemAvailable minimum 23.39 GiB,
+SwapFree minimum 4.85 GiB, 81 candidate major faults and no refaults. Run two:
+30.85-second startup, 5.15 GiB peak, zero candidate PSI, 0.18% peak system PSI,
+MemAvailable minimum 23.43 GiB, SwapFree minimum 4.83 GiB, one candidate major
+fault and no refaults. Neither triggered the guard. The historical 14.79% PSI
+event, 5,964 major faults, 48,887 refaults, 391,927 reclaim scans, and about
+0.64 GiB swap-out remain unexplained residual risk. No guard or resource
+threshold was weakened; current measured qualification is PASS under tested
+conditions.
+
+After the UI correction, 64 focused tests passed; Ruff, Python compilation,
+`git diff --check`, and `node --check` for the embedded operator script passed.
+The live pre-START state and evidence are under
+`/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/`.
+Stage 32 remains PARTIAL pending Owner START, physical Gates A–J, retained
+per-turn evidence, and final Stage 31 restoration. No commit, push, deployment,
+main advancement, or Stage 33 work occurred.
+
+# 2026-10-26 local — Stage 32 no-speech resource attribution follow-up (PARTIAL)
+
+The earlier 2026-10-25 sustained-PSI candidate failure remains preserved below.
+A fresh no-speech run was started from
+/home/kumar-rishav/.local/state/friday-stage32-physical-20261025t155427z/physical-candidate-attribution-20261025t182345z/
+after 30 seconds of stable production quiescence. The tracked preflight helper
+now distinguishes retained bounded conversation context from work in flight:
+FridayConversationSession keeps session.active true after completed turns, so
+the harness now relies on the interaction lock, runtime idle/completed state,
+and voice_turn_running flag. It still fails closed on a busy/owned interaction,
+any non-quiescent runtime state, or unavailable voice-turn state. Production
+was not cleared or altered.
+
+Production-only baseline evidence at
+/home/kumar-rishav/.local/state/friday-stage32-physical-20261025t155427z/production-only-baseline-followup-20261025T175848Z/
+showed zero PSI, no reclaim or swap activity, stable MemAvailable of
+23.22–23.25 GiB, no /dev/sdb I/O, and healthy Stage 31 capture. Qwen's mapped
+model PSS was about 19.74 billion bytes and GPU memory about 7.49 GiB.
+
+The candidate reached application READY in 46.5 seconds, with one Parakeet,
+Moonshine, and Pocket/Anna worker, ALC898/AEC capture, live Qwen, isolated
+learning fixture, and connected candidate UI. It remained READY for 180 seconds
+without owner speech or a guard trigger. Candidate cgroup memory peaked at
+6.72 billion bytes (6.26 GiB). At the memory.peak sample, memory.stat showed
+about 3.86 GiB anonymous and 2.29 GiB file-backed pages; file-backed memory
+reached 2.58 GiB at a different sample. Candidate cgroup PSI and swap stayed
+zero; there were no OOM/high/max events. Candidate cgroup major faults totaled 8,531 and reclaim
+scans 284,016 pages. System full PSI avg10 peaked at 2.6%, but was above 2%
+for fewer than 10 consecutive seconds. MemAvailable remained at least
+23.39 GiB and SwapFree at least 4.85 GiB. During startup /dev/sdb read about
+2.87 GB in 46.5 seconds, with 25.1 seconds of device busy time; the READY
+window had no /dev/sdb reads. Disk saturation was not demonstrated.
+
+Process deltas attribute about 7,180 candidate major faults to the candidate
+API process, 64 to the Parakeet primary, 1 to the Moonshine fallback, and 203
+to the Pocket/Anna synthesizer worker. During the stable READY window, a host
+process reported as ChatGPT accounted for about 10,206 major faults outside
+the candidate cgroup; Qwen had about 116 and no candidate inference occurred.
+The candidate itself performed substantial reclaim but recorded no cgroup PSI
+stalls or swap. The failed run predates process-level instrumentation, and this
+first no-trigger run did not save model mapping names at READY.
+
+A second no-speech attribution run is preserved at
+/home/kumar-rishav/.local/state/friday-stage32-physical-20261025t155427z/physical-candidate-attribution-20261025t185049z/.
+It reached READY and held for 180 seconds under the unchanged guard. During
+that exact window system PSI avg10 peaked at 0.14%, MemAvailable stayed above
+23.43 GiB, SwapFree at 4.83 GiB, candidate cgroup memory.current peaked at
+5.15 GiB, memory.peak at 5.16 GiB, and candidate PSI stayed at zero. Candidate
+cgroup major faults increased by one and reclaim counters did not move; global
+vmstat recorded 73 major faults, 90 swap-in pages, and 74 swap-out pages.
+
+The READY snapshot records process executable, parent PID, cgroup, PSS, and
+top resident mappings. Parakeet was 2.11 GiB PSS, candidate API 845 MiB,
+Pocket/Anna 799 MiB, Moonshine 685 MiB, and candidate UI 219 MiB. Moonshine's
+named mappings included a 140 MiB decoder KV and 90 MiB encoder ORT file. At
+READY, API and Parakeet had 260 and 58 cumulative major faults respectively.
+This run followed an earlier full model load and does not establish cold-start
+behavior or explain the prior sustained PSI failure. The resource root cause
+remains inconclusive; no resource fix, model move, threshold change, or
+kernel/swap change was made.
+
+In the first no-speech run, the manual restore request's connection closed
+during shutdown and the resource monitor reported that its orchestrator cgroup
+identity had disappeared. In the second run, the manual watchdog ran as a child
+of the candidate systemd service and was killed when it stopped that service,
+before writing its final cleanup report or stopping the restore timer. A
+separate watchdog invocation completed final verification and stopped the
+timer. Stage 31's release pointer and database fingerprints remained unchanged;
+API/UI/Qwen/vision, ALC898/AEC cleanup, listening capture, fresh PCM, wake, and
+one worker per role all verified. This is a harness lifecycle defect, not a
+resource trigger. No physical gate or START prompt ran.
+
+The operator state machine/page now require explicit resource qualification
+and both restore safeguards before showing the exact ready message or accepting
+typed START. START is single-use with a 300-second window; the capture cue is
+withheld until verified listening. The tracked server launches manual restore
+in a uniquely named systemd user service outside the candidate cgroup, returns
+RESTORATION_STARTED, rejects duplicate restore requests, and leaves the timer
+armed if launch fails. A temporary no-op watchdog confirmed that the service
+starts in its own user-service cgroup. This page is not yet wired into the
+temporary candidate orchestrator, and its live restore-service path has not
+been qualified. The
+focused Stage 32 suite passed 50 tests across four files; Ruff, compilation,
+and diff checks passed. Stage 32 remains PARTIAL because the earlier resource
+abort has no cause-specific correction and the operator flow is not integrated.
+No commit, push, deployment, main advancement, or Stage 33 work occurred.
+
+# 2026-10-25 — Stage 32 bounded physical candidate resource-guard abort (PARTIAL)
+
+A fresh isolated candidate armed the independent resource guard, 20-minute
+restore timer, and direct manual-restore control before handing off Stage 31
+capture. Qwen and vision remained active. Sequential Parakeet, Moonshine, and
+Pocket/Anna startup reached candidate READY with the ALC898-backed AEC source,
+isolated learning-path fixture, live Qwen endpoint, and UI. Before any owner
+speech, system full-memory PSI avg10 exceeded the unchanged 2% threshold for
+about 10.2 seconds. At trigger, the sample was 7.74% (14.79% peak), cgroup
+memory current/peak was 6.42/6.53 GiB, cgroup PSI full was 3.57%, major faults
+were 5,964, and swap-out was about 0.64 GiB. MemAvailable was 24.33 GiB and
+OOM counters were zero. The resource guard safely aborted; no threshold or
+kernel/swap setting was changed.
+
+The final event and latency snapshots contain zero events and zero turns; no
+owner speech or physical acceptance gate occurred. The isolated learner store
+had zero lesson attempts and passed read-only integrity checks. Automatic
+restoration verified the original Stage 31 release pointer, API/UI/Qwen/vision,
+listening/wake-armed production capture with advancing PCM, voice workers, and
+unchanged production database fingerprints. Qwen and vision were not
+restarted. The candidate resource-safe readiness gate failed; the voice
+behavior gates remain pending. Evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-physical-20261025t155427z/physical-candidate/`.
+Do not repeat the startup unchanged or weaken the guard. No commit, push,
+deployment, main advancement, or Stage 33 work occurred.
+
+Follow-up resource reconstruction narrowed the startup pressure mechanism.
+At the trigger the candidate cgroup contained 3.13 GiB file-backed pages and
+3.26 GiB anonymous pages, with 48,887 file workingset refaults, 391,927 pages
+scanned (369,335 by kswapd), 223,961 pages stolen, about 0.64 GiB swap-out,
+and about 32 MiB swap-in. The cgroup leaf had `memory.high=max`,
+`memory.max=max`, and no high/max/OOM events; historical swap limits and
+ancestor limits were not retained. The candidate process set had exactly one
+Parakeet, Moonshine, and Pocket/Anna worker, one API, capture, and UI; it made
+no Qwen request. GPU use was about 6.8 GiB with zero utilization at trigger.
+
+A same-day earlier full-stack start used the same sequential worker order and
+reached capture at a 5.23 GiB cgroup peak with 8,719 cumulative cgroup major
+faults and 33,110 scans, while system PSI peaked at 0.18%, candidate PSI stayed
+at zero, and swap counters did not move. The later run therefore indicates
+variable load/reclaim behavior, not a demonstrated startup-order change or
+duplicate worker. The three selected voice model locations are on `/AI`'s
+rotational HGST `/dev/sdb`: Parakeet 2.4 GiB, Moonshine 257 MiB, and Pocket
+cache 272 MiB. The sysstat ten-minute interval containing the abort recorded
+44.48 major faults/s, 19,335 kswapd scans/s, 4,353 steals/s, and
+`pswpout/s=338.16`. The correct `sar -d` fields for `/dev/sdb` are
+6,431 KiB/s read throughput,
+385.11 KiB average request size, 19.88ms average wait, 0.33 average queue, and
+6.18% utilization. These ten-minute aggregates show model-file reads but no
+disk saturation. Together with candidate file-page growth/refaults, they
+support cold model loading as part of candidate reclaim, but cannot name the
+historical faulting PID or mapping. System PSI exceeded candidate PSI, and the
+host process set was not recorded; outside pressure may have contributed.
+Physical RAM exhaustion and a disk bottleneck are not established, so no
+resource mitigation is justified from this capture.
+
+The prior temporary operator page listed phrases but did not gate speech on a
+typed `START` or show the full requested status sequence. It is not to be used
+for owner prompts. The next physical attempt must show each bounded phrase and
+state visibly in the Codex window, wait for explicit `START`, and report the
+final transcript, gate result, and restoration/abort state. No Astra UI change
+was made. The resource guard now has prospective per-process major/minor fault,
+I/O, and PSS sampling; system vmstat; cgroup swap/io settings and limit
+ancestry; and trigger-time mapping summaries. Its focused unit file passes all
+9 tests. This provides future evidence and is not a pass or resource fix.
+
+# 2026-10-24 — Stage 32 post-reboot recovery and physical-test controller repair (PARTIAL)
+
+Recovered the existing Stage 32 worktree and October 18 physical-candidate
+evidence. The candidate had reached READY and logged one accepted `Friday`
+wake, five finalized ASR events, and Pocket/Anna playback markers. The owner
+recorded all six physical observations, but the candidate did not persist its
+runtime event stream or a valid latency snapshot; the exact ASR transcript,
+per-turn latencies, and isolated assessment confirmation remain unverified.
+The 20-minute watchdog restored the Stage 31 release before the October 24
+reboot; the reboot did not interrupt an active test.
+
+Found the manual-stop process-identity defect: the control page searched the
+candidate command line for the worktree path, while the process actually ran
+the isolated state directory's `run_candidate.py`. The stop request therefore
+did not signal the candidate or invoke restoration; the independent timer later
+restored production. Added exact-path process matching, direct locked manual
+restoration, final event/transcript/latency capture, and an independent systemd
+resource monitor. The runner now leaves Qwen and vision active and does not
+restart either. Eight focused helper/guard tests, Ruff, compilation, a transient
+user-service probe, and a read-only resource-sampler smoke check passed.
+
+No fresh physical session has started. Stage 32 remains PARTIAL pending a new
+owner-present physical run, exact transcript and latency evidence, isolated
+spoken assessment confirmation, barge-in/Stop/recovery qualification, and
+verified Stage 31 restoration. No commit, push, deployment, `main` advancement,
+or Stage 33 work occurred.
+
+# 2026-10-18 — Stage 32 root-cause physical retest (PARTIAL; not accepted)
+
+After production capture was gracefully paused, the selected ALC898 microphone
+produced full 15-second raw and PipeWire WebRTC AEC samples. CPU Whisper
+transcribed the spoken “Friday, continue my machine learning course.” from
+both routes (2.62s raw; 2.656s AEC). The AEC route had the expected physical
+mic and built-in analog speaker-monitor reference links. Audio remained
+memory-only and was wiped after transcription.
+
+Diagnosis of the earlier 5.319s PCM-age abort found the qualification guard
+still rejected age above 5 seconds during `detecting`, while the wake reader
+synchronously runs ASR before the next read. Added monotonic read-completion,
+VAD, ASR-handoff, and detector-duration health evidence, with a focused
+blocking-detector regression; the voice-wake unit suite passed (23 tests).
+This explains the guard's false-positive condition but does not prove the
+physical device stalled in the prior run.
+
+A single isolated candidate stack hit the unchanged memory-pressure guard
+during startup: system full PSI avg10 peaked at 19.5% after exceeding 2% for
+10 seconds. MemAvailable was about 24.25 GiB, SwapFree 4.30 GiB, and OOM
+counters were zero. The candidate was stopped before readiness or any owner
+speech, Qwen request, playback, learner mutation, assessment, or computer
+action. Stage 31 was restored and verified listening, wake-armed, and healthy;
+the release pointer and production learner/task databases were unchanged.
+Qwen and vision were not restarted. Stage 32 remains PARTIAL; no commit, push,
+deployment, `main` advancement, or Stage 33 work occurred. Private evidence is
+under `/home/kumar-rishav/.local/state/friday-stage32-root-cause-20261018T063217Z/`.
+
+# 2026-10-18 — Stage 32 lightweight physical qualification (PARTIAL; safety-aborted)
+
+The owner-approved bounded test used the existing ALC898 microphone through
+`friday_aec_source`; two complete 12-second captures reached CPU Whisper, which
+returned `[BLANK_AUDIO]` both times (3.244s and 3.648s). No transcript was
+confirmed or sent to learning. A single bounded Qwen response used typed test
+input, selected the eligible `data-evaluation` lesson context in the isolated
+candidate, and ended mid-sentence at the 256-token cap. The candidate-only DB
+gained one dynamic subject and one `unverified` competency, with no lesson
+attempt; production learner counts remained unchanged. This synthetic-input
+route does not qualify physical ASR or read-only progress.
+
+The Pocket/Anna analog-speaker attempt was terminated by the guard when
+production PCM age reached 5,319ms during VAD `detecting`. Memory thresholds
+were not hit. Production capture was never paused; the API PID and release
+pointer stayed fixed, and listening/armed PCM was stable for 12 seconds after
+abort. API/UI/Qwen/vision stayed healthy and all candidate processes stopped.
+Speaker routing, audibility, cancellation latency, wake, barge-in, and spoken
+Stop remained unqualified at that checkpoint. That earlier physical window
+closed; the later direct root-cause retest is recorded above. No deploy,
+commit, push, `main` advancement, or Stage 33 work occurred. Evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-lightweight-physical-20261018-03/`.
+
+# 2026-10-18 — Stage 32 lightweight synthetic voice readiness (PARTIAL)
+
+The qualification harness no longer starts a duplicate Parakeet/Moonshine
+stack for Gates A–C. A test-only candidate runner disabled candidate wake and
+passed Pocket/Anna generated speech through CPU Whisper, the Stage 32
+voice-origin learning route, one bounded live-Qwen response, and the eligible
+lesson context event using isolated temporary state. The response selected
+the expected current lesson but ended mid-sentence at its 160-token cap.
+Production capture remained active; API/UI/Qwen/vision and learner counts were
+unchanged. No microphone or speaker was opened. System full-memory PSI avg10
+peaked at 1.42% under the existing guard; candidate API/Pocket/Whisper HWM were
+about 845/1,017/390 MiB. The sampled cgroup was shared with the Codex app.
+At this synthetic readiness checkpoint, physical Gates A–C still awaited the
+owner's later approval. Wake, spoken Stop, and barge-in remain separate,
+unqualified Gate D scope. Evidence is under
+`/home/kumar-rishav/.local/state/friday-stage32-lightweight-audio-20261018/`.
+No production service, release pointer, or `main` state changed.
+
 # 2026-10-16 — Stage 32 voice-first learning code-only checkpoint (PARTIAL)
 
 Stage 32 connects the existing local voice runtime to Stage 31's selected

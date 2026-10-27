@@ -1,0 +1,20 @@
+[Unit]
+Description=Friday Stage 32 physical qualification operator
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.codex/worktrees/friday-stage32-voice-learning/Local-AI-Assistant-terra-integration
+ExecStart=%h/.local/share/uv/python/cpython-3.11.16-linux-x86_64-gnu/bin/python3.11 %h/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-operator-control-root/control.py %h/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-operator-control-root
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=5
+UMask=0077
+NoNewPrivileges=yes
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=friday-stage32-operator-control
+
+[Install]
+WantedBy=default.target

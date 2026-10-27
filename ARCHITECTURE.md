@@ -119,6 +119,18 @@ raw physical microphone ----------------------> WebRTC AEC
 
 Live production qualification proved normal wake conversation and natural interruption without repeating the wake phrase.
 
+When AEC confirms speech during playback, stopping the playback worker must not
+discard the utterance already being captured. The AEC monitor completes that
+bounded utterance (up to the configured 30-second maximum) before turn cleanup
+signals monitor shutdown, so Whisper can classify the same speech that stopped
+playback. A 2026-10-27 Stage 32 physical audit found and fixed a shutdown race
+that violated this ordering. A later source-bound physical run finalized
+`Friday, stop.` through the interrupted turn's listener, entered the explicit
+Stop state, and passed the formal five-second no-stale-playback gate. The full
+repository/frontend regressions passed on the same source snapshot; Stage 32
+branch commit/publication remains pending. Physical onset timing was not
+captured, and Qwen had completed generation before interruption.
+
 Wake microphone ownership is also lifecycle-safe under concurrent pause/stop. `FridayAlwaysOnWakeCapture` reads from a stream-local handle while the shared current-stream reference is protected by its state lock. `pause()` and `stop()` retire the shared stream before closing it; therefore EOF or `VoiceCaptureError` produced while a retired stream is unwinding is treated as intentional cancellation. A failure from the still-current stream remains a real capture failure and fails closed. Pause keeps the wake loop alive and quiescent, resume reacquires a fresh stream, and stop terminates the loop cleanly.
 
 Production qualification on Stage 12B proved two controlled restarts with no systemd stop timeout (patched shutdown ~0.18 seconds) and a full live `WAKE_ACCEPTED -> WAKE_PAUSED -> VOICE_THREAD_BEGIN -> VOICE_THREAD_COMPLETE -> WAKE_RESUMED` sequence on the patched process. Stage 12D adds exact explicit-stop semantics: normalized `stop`, `friday stop`, and `hey friday stop` end the active voice turn in IDLE before conversation, LLM, or acknowledgement speech. The same rule applies to trusted AEC interruption transcripts after the existing playback stop primitive has fired. Nonexact phrases remain conversational.
@@ -1442,9 +1454,34 @@ The existing AEC capture path may arm before Qwen or Reviewer returns, allowing
 the Owner's interruption to set the voice-turn cancellation event while the
 model is still waiting. The same turn id reaches Conversation and the current
 model/Reviewer cancellation boundary. The established wake engine and its
-bounded worker recovery policy are unchanged. Stage 32 code-only fixtures prove
-voice routing, confirmation, idempotency, race cancellation, UI projection,
-authorization denial, and SQLite reconstruction; no physical microphone,
-live Qwen teaching quality, audible playback latency, or deployed Stage 32
-behavior is claimed. See ADR 0055 and
-`docs/architecture/voice-and-wake.md`.
+bounded worker recovery policy are unchanged. Stage 32 deterministic fixtures
+prove voice routing, confirmation, idempotency, race cancellation, UI
+projection, authorization denial, and SQLite reconstruction. A later
+source-bound physical candidate passed the learning, Pocket/Anna, repeat,
+barge-in, spoken Stop, quiet-window, read-only progress, isolated assessment,
+UI synchronization, and restoration gates; its complete evidence and latency
+limits are in `ROADMAP.md` and ADR 0055. This qualifies the Stage 32 candidate,
+not a deployment: Stage 31 remains the production release.
+
+The Stage 32 qualification-only operator uses an independently supervised
+loopback systemd user service outside the candidate orchestrator's cgroup. Its
+persistent page may launch fresh preflight from a validated restored state, but
+the page action does not authorize microphone handoff; a fresh exact Owner
+`START`, current resource and capture checks, and independent restoration
+remain required. Full-memory PSI sustain is computed from cumulative `total`
+deltas over bounded monotonic sample intervals, with the existing threshold and
+duration unchanged. A later candidate exposed a second, duplicate in-process
+duration clock that treated rolling PSI `avg10` as continuous pressure. Exact
+sample replay confirmed that false sustained classification: cumulative PSI
+exceeded 2% for at most 6.017 seconds system-wide and 4.010 seconds in the
+candidate cgroup, while the duplicate clock fired after 10.544 seconds of a
+decaying rolling average. The candidate sampler now preserves system cumulative
+PSI totals, uses the shared interval evaluator, and only rebases a delayed local
+sample when the independently supervised same-session guard is active and has
+a fresh sample. The independent guard still fails closed on missing or invalid
+telemetry. The short pressure burst coincided with Qwen and candidate page-ins;
+the exact kernel reclaim path and its physical effect remain unproven. No
+threshold or memory limit changed. That resource-only checkpoint did not claim
+physical voice qualification; the later accepted physical gates and final
+source status are recorded in `ROADMAP.md` and `CODEX_HANDOFF.md`. See ADR 0056
+and `docs/architecture/voice-and-wake.md`.

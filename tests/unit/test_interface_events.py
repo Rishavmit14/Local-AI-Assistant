@@ -3,9 +3,9 @@ import json
 import pytest
 
 from local_ai_assistant.interface.events import (
+    MAX_EVENT_TEXT,
     FridayEventType,
     FridayRuntimeEvent,
-    MAX_EVENT_TEXT,
 )
 from local_ai_assistant.interface.states import FridayRuntimeState
 

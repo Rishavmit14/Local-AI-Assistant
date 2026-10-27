@@ -13,7 +13,6 @@ from typing import Protocol
 
 from .vad import VoiceUtterance
 
-
 DEFAULT_WAKE_PHRASE = "hey friday"
 
 

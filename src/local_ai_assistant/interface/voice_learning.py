@@ -141,7 +141,28 @@ class VoiceLearningCoordinator:
             )
 
         if action is VoiceLearningAction.PROGRESS:
-            return VoiceLearningDecision(response=self._progress_response())
+            response = self._progress_response()
+            path = self.learning_paths.current()
+            sequence = self.learning_paths.sequence(path.path_id) if path is not None else {}
+            nodes = sequence.get("nodes", [])
+            self.runtime.emit(
+                FridayEventType.VOICE_LEARNING_STATE,
+                state=self.runtime.state,
+                text=response,
+                metadata={
+                    "state": "progress_read",
+                    "read_only": True,
+                    "path_id": path.path_id if path is not None else None,
+                    "path_version": path.current_version if path is not None else None,
+                    "total_nodes": len(nodes),
+                    "supported_nodes": sum(
+                        item.get("evidence_state") == "satisfied"
+                        for item in nodes
+                    ),
+                },
+                transient=True,
+            )
+            return VoiceLearningDecision(response=response)
         if action is VoiceLearningAction.CONTINUE:
             return self._prepare_lesson(None, owner_turn_id=owner_turn_id)
         if action is VoiceLearningAction.EXPLAIN:

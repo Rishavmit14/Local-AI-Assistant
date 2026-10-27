@@ -6,7 +6,6 @@ from pathlib import Path
 
 from local_ai_assistant.common.repository_files import read_repo_file_bounded
 
-
 MAX_INSTRUCTION_FILE_BYTES = 1024 * 1024
 MAX_INSTRUCTION_PATHS = 256
 

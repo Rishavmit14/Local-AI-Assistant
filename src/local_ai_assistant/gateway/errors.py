@@ -1,6 +1,7 @@
 """Typed external integration failures."""
 from __future__ import annotations
 
+
 class GitHubError(RuntimeError):
     retryable = False
     category = "remote_error"

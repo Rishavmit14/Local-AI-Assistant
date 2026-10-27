@@ -5,14 +5,94 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "src"))
 
+_VOICE_WORKERS = {
+    "parakeet_full.py": "Parakeet",
+    "moonshine_medium.py": "Moonshine",
+    "pocket_worker.py": "Pocket/Anna",
+}
 
-def _candidate_environment(state_root: Path, model: str, qwen_port: int) -> None:
+
+def _friday_service_state() -> str:
+    """Read the production supervisor state, failing closed if it is unknown."""
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "is-active", "friday-local-ai.service"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(
+            "cannot verify production Friday service state; refusing a wake-enabled candidate"
+        ) from exc
+    state = result.stdout.strip()
+    if result.returncode not in {0, 3} or state not in {"active", "inactive"}:
+        raise RuntimeError(
+            "production Friday service state is unknown; refusing a wake-enabled candidate"
+        )
+    return state
+
+
+def _voice_processes() -> list[str]:
+    """Find any resident wake/TTS worker or default-device capture process."""
+    matches: list[str] = []
+    proc_root = Path("/proc")
+    for entry in proc_root.iterdir():
+        if not entry.name.isdigit() or int(entry.name) == os.getpid():
+            continue
+        try:
+            command = (entry / "cmdline").read_bytes().replace(b"\0", b" ").decode(
+                "utf-8", errors="replace"
+            )
+        except (OSError, ProcessLookupError):
+            continue
+        for marker, label in _VOICE_WORKERS.items():
+            if marker in command:
+                matches.append(f"{label} worker (PID {entry.name})")
+                break
+        else:
+            parts = command.split()
+            if (
+                parts
+                and Path(parts[0]).name == "arecord"
+                and "-D" in parts
+                and parts[parts.index("-D") + 1 : parts.index("-D") + 2] == ["default"]
+            ):
+                matches.append(f"default ALSA capture (PID {entry.name})")
+    return matches
+
+
+def assert_single_voice_stack() -> None:
+    """Refuse a wake-enabled isolated runtime beside production voice workers."""
+    state = _friday_service_state()
+    if state != "inactive":
+        raise RuntimeError(
+            "production Friday is active; stop friday-local-ai.service before starting "
+            "a wake-enabled candidate to prevent duplicate workers and microphone contention"
+        )
+    workers = _voice_processes()
+    if workers:
+        raise RuntimeError(
+            "voice workers or a default-device capture process are already running: "
+            + ", ".join(workers)
+        )
+
+
+def _candidate_environment(
+    state_root: Path,
+    model: str,
+    qwen_port: int,
+    *,
+    wake_enabled: bool = False,
+) -> None:
     for name in tuple(os.environ):
         if name.startswith("LOCAL_AI_"):
             os.environ.pop(name, None)
@@ -22,7 +102,7 @@ def _candidate_environment(state_root: Path, model: str, qwen_port: int) -> None
         "LOCAL_AI_MODEL": model,
         "LOCAL_AI_API_KEY": "local",
         "LOCAL_AI_LLM_TIMEOUT": "120",
-        "LOCAL_AI_WAKE_ENABLED": "false",
+        "LOCAL_AI_WAKE_ENABLED": "true" if wake_enabled else "false",
         "LOCAL_AI_PROACTIVE_ENABLED": "false",
         "LOCAL_AI_GATEWAY_ENABLED": "false",
         "LOCAL_AI_GITHUB_ENABLED": "false",
@@ -40,6 +120,11 @@ def main() -> int:
     parser.add_argument("--api-socket", type=Path, required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--qwen-port", type=int, default=18080)
+    parser.add_argument(
+        "--enable-wake",
+        action="store_true",
+        help="start real microphone/wake workers; requires production Friday to be stopped",
+    )
     args = parser.parse_args()
     state_root = args.state_root.resolve()
     if Path("/tmp") not in state_root.parents:
@@ -50,8 +135,15 @@ def main() -> int:
         parser.error("refusing to replace an existing candidate API socket")
     if not args.model.strip():
         parser.error("model must not be empty")
+    if args.enable_wake:
+        assert_single_voice_stack()
     state_root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    _candidate_environment(state_root, args.model, args.qwen_port)
+    _candidate_environment(
+        state_root,
+        args.model,
+        args.qwen_port,
+        wake_enabled=args.enable_wake,
+    )
 
     import uvicorn
 

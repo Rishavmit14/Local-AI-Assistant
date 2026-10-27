@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -82,7 +83,7 @@ def test_dirty_state_is_observed_without_modifying_checkout(tmp_path: Path):
 def test_malicious_package_scripts_are_never_executed(tmp_path: Path):
     root = repo(tmp_path)
     marker = tmp_path / "executed"
-    (root / "package.json").write_text('{"scripts":{"test":"touch %s"}}' % marker)
+    (root / "package.json").write_text(json.dumps({"scripts": {"test": f"touch {marker}"}}))
     profile = service(tmp_path).register("hostile", root)
     assert profile.validation.unsafe_scripts == ()
     assert not marker.exists()

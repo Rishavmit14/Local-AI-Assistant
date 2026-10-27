@@ -7,6 +7,7 @@ import json
 import os
 import re
 import stat
+import tempfile
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -632,16 +633,23 @@ class AgencyQualificationGate:
 
     @staticmethod
     def _write_exclusive(path: Path, value: dict[str, object]) -> None:
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
-        descriptor = os.open(path, flags, 0o600)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{path.name}.", dir=path.parent
+        )
+        temporary = Path(temporary_name)
         try:
-            payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-            with os.fdopen(descriptor, "wb", closefd=False) as stream:
+            with os.fdopen(descriptor, "wb") as stream:
+                os.fchmod(stream.fileno(), 0o600)
+                payload = json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
                 stream.write(payload)
                 stream.flush()
                 os.fsync(stream.fileno())
+            # Publish only after the full private payload is durable. A hard
+            # link keeps O_EXCL semantics without exposing an empty file while
+            # a concurrent owner/controller polls for the checkpoint.
+            os.link(temporary, path, follow_symlinks=False)
         finally:
-            os.close(descriptor)
+            temporary.unlink(missing_ok=True)
 
 
 def _visible_names(parent: Path, paths: OwnerPathResolver) -> set[str]:

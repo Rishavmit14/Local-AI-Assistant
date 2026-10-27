@@ -62,7 +62,10 @@ def test_grounded_research_answer_uses_canonical_sources_and_is_a_separate_contr
     )
     llm = LLM()
     runtime = FridayRuntime("research-answer")
-    forbidden = lambda *_args, **_kwargs: pytest.fail("normal-conversation hooks must not run")
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("normal-conversation hooks must not run")
+
     class CapabilityRouter:
         career_forge = object()
 

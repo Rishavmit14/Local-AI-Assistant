@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 import platform
-import shutil
 import stat
 import subprocess
 import sys
@@ -37,7 +36,6 @@ from .models import (
     ValidationResult,
 )
 from .review import deterministic_review, model_review
-
 
 MAX_VALIDATION_REPOSITORY_FILE_BYTES = 2_000_000
 

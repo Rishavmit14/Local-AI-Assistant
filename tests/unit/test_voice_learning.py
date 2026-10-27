@@ -219,6 +219,27 @@ def test_cancel_before_confirmation_does_not_write_an_attempt(tmp_path):
     assert coordinator.generalized.learning_state(subject_id)["attempts"] == []
 
 
+def test_voice_progress_read_emits_read_only_routing_evidence(tmp_path):
+    coordinator, career, paths, path, runtime = setup_coordinator(tmp_path)
+
+    response = handle(coordinator, "what is my current learning progress?")
+
+    event = next(
+        item for item in runtime.events_since()
+        if item.event_type.value == "voice.learning.state"
+    )
+    assert response.response is not None
+    assert event.metadata == {
+        "state": "progress_read",
+        "read_only": True,
+        "path_id": path.path_id,
+        "path_version": path.current_version,
+        "total_nodes": len(paths.sequence(path.path_id)["nodes"]),
+        "supported_nodes": 0,
+    }
+    assert career.resume() is None
+
+
 def test_incorrect_voice_assessment_recommends_reinforcement_without_mastery(tmp_path):
     coordinator, career, _, path, _ = setup_coordinator(tmp_path, reviewer=IncorrectReviewer())
     handle(coordinator, "continue my course")

@@ -1406,3 +1406,55 @@ def test_aec_interrupts_model_wait_and_routes_captured_owner_speech_as_next_turn
     assert transcriber.calls == [initial, interruption]
     assert any(event.event_type is FridayEventType.VOICE_TURN_CANCELLED for event in runtime.events_since())
     assert runtime.state is FridayRuntimeState.IDLE
+
+
+def test_aec_monitor_finishes_stop_utterance_after_playback_worker_returns() -> None:
+    initial = make_utterance(31)
+    interruption = make_utterance(32)
+    runtime = FridayRuntime("session-stop-capture-drain")
+    transcriber = FakeTranscriber(["Initial request", "Friday, stop."])
+    llm = FakeStreamingLLM([["A response that starts playback."]])
+    conversation = FridayConversationService(llm, runtime)
+    player = BlockingSpeechPlayer(first_play_waits_for_stop=True)
+
+    class DrainingFullTurnMonitor:
+        def capture_interruption(self, *, max_wait_seconds=None, allow_idle=False, stop_event=None):
+            assert allow_idle is True
+            deadline = time.monotonic() + 2.0
+            while not player.is_playing and time.monotonic() < deadline:
+                time.sleep(0.001)
+            assert player.is_playing is True
+            stop = player.stop()
+            assert stop.stopped is True
+            assert stop_event is not None and stop_event.wait(timeout=2.0)
+            # Model the real AEC segmenter completing speech-end silence after
+            # playback has returned and the voice turn has requested shutdown.
+            time.sleep(2.05)
+            return BargeInResult(
+                triggered=True,
+                detection_elapsed_seconds=0.2,
+                stop_result=stop,
+                utterance=interruption,
+                max_speech_probability=0.99,
+                outcome="triggered",
+            )
+
+    service = FridayVoiceConversationService(
+        transcriber,
+        conversation,
+        runtime,
+        speech_synthesizer=FakeSpeechSynthesizer(),
+        speech_player=player,
+        barge_in_monitor=DrainingFullTurnMonitor(),
+    )
+    service.start_listening()
+
+    assert "".join(service.stream_utterance(initial)) == "A response that starts playback."
+    assert transcriber.calls == [initial, interruption]
+    assert [call["prompt"] for call in llm.calls] == ["Initial request"]
+    assert player.stop_calls == 1
+    assert runtime.state is FridayRuntimeState.IDLE
+    assert any(
+        event.metadata.get("reason") == "voice_explicit_stop"
+        for event in runtime.events_since()
+    )

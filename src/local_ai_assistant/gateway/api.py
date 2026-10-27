@@ -8,6 +8,7 @@ from queue import Empty
 from typing import Any
 
 from local_ai_assistant.history.errors import HistoryDatabaseError, InvalidStatusTransition
+from local_ai_assistant.onboarding import RepositoryOnboardingError, RepositoryOnboardingService
 from local_ai_assistant.planning.models import plan_approval_token
 
 from .auth import (
@@ -16,12 +17,11 @@ from .auth import (
     GatewayAuthorizationError,
     GatewayRateLimiter,
 )
+from .evidence import review_summary, validation_summary
 from .github import verify_webhook_signature
 from .models import ExternalProvenance, GatewayScope
 from .publication import GitHubPublicationService
 from .service import IntegrationGatewayService
-from .evidence import review_summary, validation_summary
-from local_ai_assistant.onboarding import RepositoryOnboardingError, RepositoryOnboardingService
 
 
 def create_app(service: IntegrationGatewayService, *, auth: GatewayAuth, max_body_bytes: int = 1_048_576, max_task_text: int = 20_000, requests_per_minute: int = 30, webhook_secret: str | None = None, publication: GitHubPublicationService | None = None, onboarding: RepositoryOnboardingService | None = None):

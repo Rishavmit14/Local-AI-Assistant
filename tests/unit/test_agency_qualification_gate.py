@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import stat
+import tempfile
 import threading
 import time
 from datetime import UTC, datetime
@@ -20,9 +21,17 @@ from local_ai_assistant.desktop.visible_targets import VisibleTargetBinding
 
 
 def _private_json(path: Path, value: dict[str, object]) -> None:
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-        json.dump(value, stream)
+    descriptor, temporary_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    temporary = Path(temporary_name)
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(value, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, path, follow_symlinks=False)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _pre_dispatch_gate(tmp_path, monkeypatch, nonce, folder_name, *, bind=True):
