@@ -1,102 +1,98 @@
-# Friday handoff — Stage 32 accepted and source-closed; Stage 33 handoff ready
+# Friday handoff — Stage 32 deployed and verified; Stage 33 planning only
 
-Updated 2026-10-27 after Stage 32 publication. All physical A–S gates, final
-regressions, full source review, and the Stage 32 branch push are complete. The
-remote matched the accepted implementation SHA; this final handoff synchronization
-is documentation-only. Preserve the Stage 31 release and `main`. Do not deploy,
-advance `main`, or begin Stage 33 implementation.
+Updated 2026-10-27 after controlled production cutover. Stage 32 runtime source
+`512d1d521b44b853d7ffebd62222e087b199c3a3` is deployed and live checks passed.
+The exact package, publication, backups, state comparison, service health, and
+limits are recorded in `docs/operations/stage32-release-plan.md`. Stage 32's
+source-bound physical A–S acceptance and full regressions remain recorded below
+and in `ROADMAP.md`; this deployment performed no new physical speech test. Do
+not start Stage 33 implementation in this handoff.
 
-## Checkout and protected production
+## Current checkout and release state
 
-- Worktree: `/home/kumar-rishav/.codex/worktrees/friday-stage32-voice-learning/Local-AI-Assistant-terra-integration`
-- Branch: `stage-32/voice-first-learning-reliability`
-- Accepted implementation checkpoint: `af0ec81ed60ab5c888771b8c543850e60f51dfb6`,
-  pushed to `origin/stage-32/voice-first-learning-reliability`; remote HEAD
-  matched this SHA before this final documentation-only synchronization. The
-  current branch tip contains this handoff synchronization commit; resolve its
-  exact SHA with `git rev-parse HEAD` because a commit cannot record its own ID.
-- All 51 reviewed implementation, test, service-example, and canonical
-  documentation paths are committed in the accepted implementation checkpoint.
-  This final follow-up changes documentation only; the worktree is clean after
-  the handoff synchronization is committed.
-- Stage 31 immutable release: `075645a3198a37a9ff101a18614065ff8cc5c9e9`.
-  Canonical checkout `/AI/projects/Local-AI-Assistant` is protected and was
-  not modified. `main` and `origin/main` remain at
-  `67a44833844787c7fe5e81603e160aaa92a0a07f`. The Stage 32 implementation
-  commit and branch push are complete. No Stage 32 deployment, `main` advance,
-  or Stage 33 implementation has occurred.
+- Stage worktree: `/home/kumar-rishav/.codex/worktrees/friday-stage32-voice-learning/Local-AI-Assistant-terra-integration`
+- Branch: `stage-32/voice-first-learning-reliability`; runtime source and
+  immutable release: `512d1d521b44b853d7ffebd62222e087b199c3a3`.
+- The implementation checkpoint `512d1d...` is the exact source deployed.
+  A documentation-only release record follows it. After publication, local
+  `main`, `origin/main`, and `origin/stage-32/voice-first-learning-reliability`
+  must resolve to the final documentation checkpoint; obtain its exact ID with
+  `git rev-parse HEAD`. The deployed package remains source `512d1d...`.
+- Dedicated main worktree:
+  `/home/kumar-rishav/.codex/worktrees/friday-stage28-live-main/Local-AI-Assistant-terra-integration`.
+  It must be clean at the final published documentation checkpoint.
+- Protected canonical checkout `/AI/projects/Local-AI-Assistant` remains on
+  `stage-22/product-integration`, HEAD
+  `e43896623978e86b7bae6502b380462b455626be`, with pre-existing owner changes.
+  It was not used for this work and must remain untouched.
+- Immutable release directory:
+  `/home/kumar-rishav/.local/share/friday/api/releases/512d1d521b44b853d7ffebd62222e087b199c3a3/`.
+  `current` resolves to this release. Stage 31 package
+  `075645a3198a37a9ff101a18614065ff8cc5c9e9` remains available for recovery.
+- Active production services: API, UI, and vision; Qwen and vision endpoints
+  returned HTTP 200. Qwen and vision were not restarted. Friday voice is
+  LISTENING with wake armed, Pocket/Anna selected, AEC and ALC898 nodes present,
+  and advancing capture PCM. No active voice turn was observed.
 
-## Latest physical acceptance and exact continuation (2026-10-27)
+## Cutover evidence and product data
 
-- Latest physical candidate `a99591b3183d45bb83ce30b46372e7c1`, evidence
-  `/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261027T125146Z-f61afc463909/`.
-  Candidate manifest source revision matches the tested worktree snapshot
-  `uncommitted:277253b8bd17c4f2c72919399a50eee6cc146fe4:worktree-content-sha256:4d58847ff0851cf2176c8b2b06cfdc3a71f0f1d90edb3c31c3dc9a2e1c065ec4`.
-- All mandatory A–S gates passed, including spoken Stop, formal five-second
-  no-stale-playback with typed Owner confirmation, recovery wake, read-only
-  progress, isolated assessment, and Owner-confirmed Astra synchronization.
-  Resource preflight passed and the guard did not trigger. The isolated
-  assessment created one candidate attempt, marked it incorrect, awarded no
-  mastery, and wrote no production data.
-- Stop playback used runtime session `99c79c1de4a0448097c4b6235569d2b6` and
-  repeat turn `a11c4c59a8f04ce8b3f3c97c4ad91550`. Playback started at
-  12:55:40.455605Z (sequence 222). The Owner reports speech onset during
-  playback, but its exact onset was not separately recorded. Interruption
-  sequence 353 occurred at 12:55:56.998292Z; ASR finalized `Friday, stop.` at
-  sequence 359 at 12:55:57.415961Z; `voice_explicit_stop` followed at sequence
-  360 at 12:55:57.416027Z. Interruption-to-finalization was 417.669 ms and
-  interruption-to-Stop-state was 417.735 ms. Candidate logs record
-  `TTS_CANCELLED` then `PLAYBACK_COMPLETE`. Qwen generation had completed before
-  interruption; no active model cancellation was expected. Physical-onset
-  latency is unavailable. The five-second quiet gate passed before recovery
-  wake; no stale speech event occurred in that interval.
-- Independent restoration report
-  `/home/kumar-rishav/.local/state/friday-stage32-operator-restoration-qualification-20261026/stage32-physical-operator-ready-20261027T125146Z-f61afc463909/production-restoration-verification.json`
-  is `RESTORED_VERIFIED`. The Stage 31 release pointer is unchanged, production
-  DB fingerprints match, API/UI/Qwen/Qwen Vision returned 200, ALC898/AEC
-  cleanup passed, listening capture returned with advancing PCM, candidate
-  processes stopped, and the recovery timer is inactive. Operator currently
-  shows `PREPARED`; no candidate is active.
-- The final regression passed against the same implementation snapshot: repository
-  verification passed with **2,039 Python tests passed, 6 skipped**; full Ruff,
-  Python compilation, and dependency checks passed (101 installed packages
-  compatible); frontend tests passed **189**, ESLint, TypeScript, production
-  build, and frontend dependencies passed. The build retains its existing
-  large-chunk advisory. Final `git diff --check` passed after documentation
-  reconciliation. No frontend source or approved Astra UI change is included.
-- The final documentation-only synchronization records this handoff after the
-  accepted implementation commit. Its push must leave the remote Stage 32
-  branch at the current local tip. Preserve Stage 31 production and `main`;
-  Stage 33 is readiness handoff only, with no implementation here.
+The API became ready 53.718 seconds after start. Exact-release isolated smoke,
+post-cutover release smoke, and a 55.4-second/12-sample bounded stability and
+integrity watcher passed. All 13 frontend assets matched release hashes; API/UI
+and Career Forge/Learn routes returned 200. The existing active Career Forge
+mission, one earlier lesson attempt, one Practice Lab draft, six runs, and 16
+competency rows remain. Learning Paths schema v2 and Projects schema v3 are
+unchanged; there are no DLP paths/versions, Projects, or mission evidence.
+Checks wrote no learner or task data.
 
-## Stage 33 readiness handoff — no implementation started
+All 15 production SQLite stores passed integrity checks and match post-stop
+fingerprints. TaskHistory still has zero tasks, claims, and approvals. The
+computer-agency store retains 170 terminal tasks, 294 actions, 12 historical
+`in_doubt` and three `result_present` actions; no action was replayed. Scheduler
+next-due timestamps advanced normally. No restore timer is active and no
+rollback was invoked.
+Pre-cutover and post-API-stop online backups and service-config snapshots are
+restricted under the Stage 32 maintenance directory; their manifest digests are
+in the release plan.
 
-The roadmap has no accepted Stage 33 definition yet. The recommended objective
-is **Stage 33 — close the remaining Career Forge and Dynamic Learning Paths
-owner-facing integration gaps through the approved Astra UI**, using the
-product integration matrix to select a bounded next end-to-end flow. Stage 31
-qualifies one three-node ML engineering path; it does not establish Senior
-ML/AI readiness or whole-product completion. Stage 22 is engineering-qualified,
-while its exact owner/external E2E boundaries remain. Product rows 60 (owner
-experience completeness) and 61 (Dynamic Learning Paths) remain **PARTIAL**.
+Anonymous Owner-only API reads/mutations returned 401; wrong Origin returned
+403; unauthenticated UI proxy returned 401. Public capabilities and the empty
+desktop-action list returned 200. Protected computer/perception observation
+routes correctly returned 401 without a Friday Owner session. No new screen
+capture was made; the existing bounded GCA qualification was reused. Existing
+source-bound physical Stage 32 A–S acceptance is the speech evidence; no new
+post-deployment microphone cue was requested or performed.
 
-Preserve completed tutor, Practice Lab, selected-code, retention, interview,
-project, evidence, and publication boundaries. The retained-screen owner path
-is still integration-level rather than owner-qualified; a real GitHub
-publication depends on an onboarded repository and configured owner credential.
-Neither gap authorizes a simulated result or bypass. Continue to use the existing
-`LearningPathService`, Career Forge/Learner Twin, project/task-history,
-contextual-attachment, and typed Astra presentation authorities. Qualify a real
-owner journey through the approved Astra UI with canonical persisted state,
-provenance, truthful progress/recovery, and restart reconstruction. Preserve
-local Qwen/Pocket/Anna, owner authorization, evidence/mastery rules, and Stage 31
-voice ownership. Review `docs/qualification/PRODUCT_INTEGRATION_MATRIX.md` and
-`FRIDAY_PRODUCT_BASELINE.md` before finalizing future scope.
+## Recovery and next dependency
 
-When separately authorized, start in a fresh isolated worktree on a new
-`stage-33/<capability>` branch based on the accepted Stage 32 checkpoint. Do not
-continue on the Stage 32 branch or modify Stage 31 production. This handoff does
-not authorize Stage 33 implementation, deployment, `main` advancement, or
+No rollback was required. Keep learner/task history and in-doubt actions intact;
+never restore pre-cutover backups over newer state or replay an action. If a
+future incident requires rollback, use the immutable Stage 31 release through
+the controlled service procedure after fresh task/voice clearance and state
+backup, and assess Stage 32 writes before switching. Qwen and vision remain
+untouched.
+
+Stage 32 is the latest accepted and production-deployed capability. Stage 33
+has no accepted roadmap implementation yet and was not started. The recommended
+next objective is owner-facing Career Forge/Dynamic Learning Paths integration:
+qualify one real retained-screen coding-tutor journey through the approved
+Astra UI, using existing screen/code context and canonical Career Forge/DLP,
+Practice Lab, provenance, and recovery authorities. Product matrix rows 60 and
+61 remain PARTIAL; do not claim whole-product closure or implement Stage 33 in
+this release task. Preserve the exact next direction in the Stage 33 readiness
+handoff below.
+
+## Stage 33 readiness handoff — planning only; no implementation started
+
+The roadmap has no accepted Stage 33 definition yet. Review
+`docs/qualification/PRODUCT_INTEGRATION_MATRIX.md`,
+`FRIDAY_PRODUCT_BASELINE.md` §12.9, and `FRIDAY_OWNER_VISION_HISTORY.md` before
+scoping. The recommended first slice is a real retained-screen coding tutoring
+journey through approved Astra UI, backed by the existing screen/code context,
+local Qwen, Career Forge and Learning Paths authorities, and persisted
+provenance/restart reconstruction. Rows 60 and 61 remain PARTIAL. Preserve
+owner authorization, mastery/evidence rules, task isolation, rollback, local
+Qwen, and Pocket/Anna. This handoff does not start Stage 33 or authorize a new
 external publication.
 
 ## Previous physical Stop audit (superseded by the accepted run above)

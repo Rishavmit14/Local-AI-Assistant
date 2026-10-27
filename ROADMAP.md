@@ -1924,7 +1924,7 @@ symlink predicate; no application or data fault occurred. Rows 60 and 61 remain
 PARTIAL; this three-node journey does not establish Senior ML/AI Engineer
 readiness or complete Career Forge. Stage 32 was not started in this session.
 
-### Stage 32 — Voice-first learning and reliable interruption (**QUALIFIED — physical acceptance, full regressions, and Stage 32 branch publication verified on 2026-10-27**)
+### Stage 32 — Voice-first learning and reliable interruption (**QUALIFIED AND DEPLOYED — physical acceptance and full regressions passed; production release verified 2026-10-27**)
 
 #### Latest physical acceptance — all gates passed (2026-10-27 local, physical PASS)
 
@@ -2007,9 +2007,39 @@ AEC cleanup passed, candidate processes stopped, and the recovery timer was
 inactive. Stage 32 is physically accepted and source-closed. The 51-path implementation
 commit `af0ec81ed60ab5c888771b8c543850e60f51dfb6` is published on
 `stage-32/voice-first-learning-reliability`; remote verification resolved to
-the same SHA. The final documentation-only handoff synchronization follows
-that acceptance checkpoint. No deployment or `main` advance occurred. Stage 33
-remains handoff-only with no implementation in this worktree.
+the same SHA. The source-acceptance checkpoint itself did not yet include a
+production release. The controlled production release and following
+documentation checkpoint are recorded immediately below. Stage 33 remains
+handoff-only with no implementation in this worktree.
+
+#### Controlled production release — DEPLOYED AND VERIFIED (2026-10-27)
+
+The accepted runtime source `512d1d521b44b853d7ffebd62222e087b199c3a3`
+(tree `2fc80bf43cefac48ca175d4e927adcea6c29b55b`) is installed at the immutable
+release directory and selected by `/home/kumar-rishav/.local/share/friday/api/current`.
+Main was fast-forwarded from `67a44833844787c7fe5e81603e160aaa92a0a07f` to
+this exact runtime source; Stage 32 and main were remotely verified there before
+cutover. The subsequent docs-only release checkpoint is published on both refs.
+Stage 31's immutable release is retained. The release manifest SHA-256 is
+`3552d1d08e470555bbe14cf5b9c239e597f86bd4d2290edd318034d759a7c0fa`; all 686
+SHA256SUMS entries verify. There is no migration, lock change, or service
+configuration change.
+
+API/UI, Qwen, and vision returned 200 after cutover; Pocket/Anna, wake, AEC,
+capture, and workers were ready. Exact-release isolated smoke and live release
+checks passed, including all 13 frontend assets, protected-route denial,
+restoration of the existing mission/attempt/draft, and all 15 database integrity
+and fingerprint checks. A 55.4-second/12-sample stability watcher found no
+health, voice, memory, PSI, database, or timer fault. Qwen and vision were not
+restarted. No owner data or task/action history was changed; the 12 historical
+`in_doubt` and three `result_present` actions were not replayed. No new
+post-deployment speech cue or authenticated screen observation was performed;
+the physical A–S PASS is source-bound pre-deployment evidence, and protected
+screen routes correctly required an Owner session that was not present. Full
+checks, backup/config manifest digests, and recovery boundaries are in
+`docs/operations/stage32-release-plan.md`. Product rows 60 and 61 remain
+PARTIAL. Stage 33 was not started; see the current `CODEX_HANDOFF.md` for its
+recommended first owner-facing slice.
 
 #### Earlier physical barge-in result and correction in progress (2026-10-27 local, PARTIAL)
 

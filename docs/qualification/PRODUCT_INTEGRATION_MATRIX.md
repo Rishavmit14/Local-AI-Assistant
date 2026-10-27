@@ -1,6 +1,6 @@
 # Friday Product Integration Matrix
 
-**Audit date:** 2026-10-15; Stage 29 code publication and qualification
+**Audit date:** 2026-10-27; Stage 32 release state reconciled 2026-10-27; Stage 29 code publication and qualification
 reconciled 2026-10-15; Career Forge rows reconciled 2026-09-21; Astra frontend
 audit and Phases 1–2 source trace/owner qualification reconciled 2026-09-27;
 voice-action and live-vision candidate qualification reconciled 2026-10-07
@@ -8,6 +8,20 @@ voice-action and live-vision candidate qualification reconciled 2026-10-07
 **Scope:** owner-facing product reality, not a historical-stage scorecard.
 **Authority:** `FRIDAY_PRODUCT_BASELINE.md` §§1, 21–26; architecture and ADRs
 remain authority for safety and accepted boundaries.
+
+## Stage 32 voice-learning production status (2026-10-27)
+
+Stage 32 source `512d1d521b44b853d7ffebd62222e087b199c3a3` is deployed and
+its physical A–S qualification and full regressions passed. The production
+release preserved the existing learner/task data and performed no learning
+write. Its live release checks verified service/voice readiness, read-only
+capability and desktop-action responses, and fail-closed 401 responses from
+protected computer/perception routes without a Friday Owner session. No new
+screen capture or post-deployment spoken interaction was performed; the source-
+bound physical Stage 32 evidence is recorded in `ROADMAP.md`. This release does
+not qualify the retained-screen tutoring journey or close whole-product Career
+Forge. Rows 60 and 61 remain **PARTIAL**. See
+`docs/operations/stage32-release-plan.md` for exact release evidence and limits.
 
 ## Method and status discipline
 

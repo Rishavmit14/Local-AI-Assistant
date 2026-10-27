@@ -1,3 +1,41 @@
+# 2026-10-27 — Stage 32 controlled production release VERIFIED
+
+Released immutable application source `512d1d521b44b853d7ffebd62222e087b199c3a3`
+from the accepted Stage 32 branch to production. `main` was fast-forwarded from
+`67a44833844787c7fe5e81603e160aaa92a0a07f` to that source and pushed normally;
+the stage branch and main were remotely verified at the runtime source before
+cutover. A documentation-only release checkpoint now follows on both refs. The
+runtime package remains exactly `512d1d...` and is stored under the immutable
+release path. The Stage 31 package remains available for recovery.
+
+The release manifest and all 686 checksums verify. Existing Python 3.11.16
+runtime/dependency lock was reused; no migration, dependency, unit, drop-in, or
+environment change occurred. API and UI were controlled-restarted after task,
+voice, and execution clearance; Qwen and vision were not restarted. API/UI,
+Qwen, and vision returned HTTP 200. Pocket/Anna, wake, AEC capture and worker
+health returned ready. Exact-release smoke, all 13 frontend asset hashes, auth
+negative checks, mission/draft restoration, all 15 SQLite integrity and
+fingerprint checks, and the final 55.4-second/12-sample live stability watcher
+passed.
+
+One existing Career Forge lesson attempt, active mission, Practice Lab draft,
+six runs, and 16 competencies were preserved; no release check wrote learner
+or task data. Learning Paths schema v2 and Projects schema v3 remain unchanged;
+there are no paths/versions, projects, or mission evidence. TaskHistory has no
+tasks/claims/approvals. The computer-agency history (170 terminal tasks, 294
+actions, 12 `in_doubt`, three `result_present`) remains unchanged; no action
+was replayed. Backups and service-config snapshot manifests, exact package
+identity, operational checks, and limitations are in
+`docs/operations/stage32-release-plan.md`.
+
+This deployment reuses the source-bound Stage 32 physical A–S PASS and full
+regression; no new post-deployment speech cue was performed. No authenticated
+screen observation was made because protected perception routes correctly
+require a Friday Owner session; existing bounded GCA qualification was reused.
+No rollback occurred. Product matrix rows 60 and 61 remain PARTIAL. Stage 33
+was not started; the handoff recommends one real retained-screen tutoring
+journey through the approved Astra UI as the next scoped capability.
+
 # 2026-10-27 local — Stage 32 ACCEPTED AND SOURCE-CLOSED
 
 Candidate `a99591b3183d45bb83ce30b46372e7c1` completed all ten physical

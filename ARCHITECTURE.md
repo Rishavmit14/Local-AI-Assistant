@@ -1461,8 +1461,11 @@ projection, authorization denial, and SQLite reconstruction. A later
 source-bound physical candidate passed the learning, Pocket/Anna, repeat,
 barge-in, spoken Stop, quiet-window, read-only progress, isolated assessment,
 UI synchronization, and restoration gates; its complete evidence and latency
-limits are in `ROADMAP.md` and ADR 0055. This qualifies the Stage 32 candidate,
-not a deployment: Stage 31 remains the production release.
+limits are in `ROADMAP.md` and ADR 0055. The accepted runtime source
+`512d1d521b44b853d7ffebd62222e087b199c3a3` is deployed from an immutable
+release; the cutover and live qualification are recorded in
+`docs/operations/stage32-release-plan.md`. This release adds no database
+migration or model/runtime dependency.
 
 The Stage 32 qualification-only operator uses an independently supervised
 loopback systemd user service outside the candidate orchestrator's cgroup. Its
