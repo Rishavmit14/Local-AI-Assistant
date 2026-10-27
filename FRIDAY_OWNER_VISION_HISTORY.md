@@ -737,3 +737,28 @@ The owner wants Friday to feel like a private dependable AI colleague living on 
 Central lesson:
 
 > The next measure of success is not how much code Friday contains. It is how coherently the owner can use what Friday contains.
+
+# 31. 2026-10-27 — Stage 33 Telegram Remote Owner Control
+
+The Owner selected Telegram Remote Owner Control as the next development
+milestone after the qualified and deployed Stage 32 release. Friday should be
+reachable from a private Owner-paired Telegram chat on the Ubuntu laptop, with
+normal conversation, recorded voice notes and Anna replies, shared local
+memory and learning, screen awareness, desktop and coding work, progress,
+Stop/cancel, and owner-authorized privileged operations.
+
+The Owner's objective remains comprehensive computer operation, including
+privileged/root administration. The bot token is a transport credential, never
+a root credential. Consequential operations require an exact, expiring,
+transaction-bound cryptographic approval on the Owner's phone. Friday's trusted
+local broker, existing task authorization, consequence policy, isolation,
+validation, audit and recovery remain in control.
+
+The previously recommended screen-aware Career Forge integration becomes a
+provisional Stage 34 objective. All Stage 22 accepted work and requirements
+remain; product rows 60 and 61 retain their identities and PARTIAL status.
+Stage 33 is a design registration only until its implementation and full
+Owner-phone-to-laptop qualification are complete. Recorded voice messages do
+not imply native real-time Telegram phone calls, and a Mini App is optional.
+The canonical Stage 33 architecture and acceptance plan is
+docs/architecture/telegram-remote-owner.md.

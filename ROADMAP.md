@@ -2040,8 +2040,13 @@ the physical A–S PASS is source-bound pre-deployment evidence, and protected
 screen routes correctly required an Owner session that was not present. Full
 checks, backup/config manifest digests, and recovery boundaries are in
 `docs/operations/stage32-release-plan.md`. Product rows 60 and 61 remain
-PARTIAL. Stage 33 was not started; see the current `CODEX_HANDOFF.md` for its
-recommended first owner-facing slice.
+PARTIAL. At the Stage 32 release checkpoint, Stage 33 had not started and the
+handoff recommended a retained-screen tutoring slice. The Owner's later
+2026-10-27 decision supersedes that sequencing: Stage 33 is now PROPOSED /
+DESIGN-READY Telegram Remote Owner Control, with the prior Career Forge/DLP
+recommendation provisionally assigned to Stage 34. No Stage 33 implementation
+or runtime change is claimed; see docs/architecture/telegram-remote-owner.md
+and CODEX_HANDOFF.md.
 
 #### Earlier physical barge-in result and correction in progress (2026-10-27 local, PARTIAL)
 
@@ -3098,6 +3103,66 @@ the isolated spoken assessment confirmation remains untested. These are
 positive physical observations, but Stage 32 remains PARTIAL and is not ready
 for release preparation. Private evidence is under
 `/home/kumar-rishav/.local/state/friday-stage32-root-cause-20261018T063217Z/`.
+
+## Stage 33 — Telegram Remote Owner Control (**PROPOSED / DESIGN-READY; documentation only**)
+
+The Owner's 2026-10-27 decision registers Telegram Remote Owner Control as the
+next development milestone. This section records design scope only. There is no
+bot, Telegram credential, phone signer, poller service, production route, or
+implementation acceptance in this checkpoint.
+
+Stage 33 designs a private single-Owner Telegram bot using Ubuntu-initiated Bot
+API long polling. It adds no inbound Friday listener or public Friday API. A
+durable authenticated inbox/outbox binds the exact numeric Owner ID, private
+chat and bot identity; rejects replayed or stale commands; and preserves
+content-free audit, rate control, cursor recovery and single-owner request
+arbitration.
+
+Text and recorded voice notes route through the canonical Friday Conversation,
+local Qwen, existing Whisper boundary and Pocket/Anna provider. Memory,
+Career Forge, Learning Paths, Perception, Computer Agency, Objectives,
+TaskHistory, Gateway, GitHub publication, proactive notifications and
+cancellation remain with their existing authorities. Screenshots retain local
+capture provenance. Bot media is bounded and locally inspected.
+
+Consequential actions use a phone-side cryptographic approval over the exact
+canonical action/target/nonce/expiry/operation digest. Telegram buttons and
+ordinary text do not grant approval. The Bot API credential remains in a
+protected local service credential store. The poller never receives the laptop
+administrator credential or root-broker socket. Production Friday trust of
+the existing Owner Sovereign broker must be separately integrated and
+qualified before Stage 33 can claim privileged remote execution. Root
+privilege alone does not trigger confirmation; existing consequence policy
+still applies.
+
+Acceptance must cover the 14 real Owner-phone-to-laptop journeys and their
+negative, recovery and PASS evidence in
+docs/architecture/telegram-remote-owner.md. The runbook is
+docs/operations/telegram-remote-owner.md; the decision is ADR 0057. The
+initial core uses recorded voice notes only. Native real-time Telegram calls
+are unsupported. A Mini App remains optional and is not an authentication or
+approval prerequisite. Stage 33 must reuse the local Qwen model, existing
+vision and voice services, and Stage 32 resource guard; no additional
+general-purpose model is allowed.
+
+**Current status:** design-ready only. Implementation, bot provisioning,
+production broker integration, phone signer enrollment, candidate qualification,
+release and deployment remain future work. Product-matrix row 62 is ABSENT
+until implementation and owner-path qualification. Stage 32 services, data
+and historical in-doubt actions remain outside this documentation change.
+
+## Stage 34 — Career Forge advanced owner integration (**PROVISIONAL**)
+
+The earlier next-stage recommendation for a retained-screen coding-tutor
+journey is provisionally assigned to Stage 34, after Stage 33. Preserve the
+existing Career Forge advanced-integration requirements, accepted implementation,
+Stage 22 history and matrix identities. Stage 34 continues the full scope of
+product rows 60 and 61, both of which remain PARTIAL: screen-aware tutoring,
+contextual code/screen attachment, visible learning-path editing and sequencing,
+Career Forge missions and evidence, project/task integration, policy-governed
+desktop assistance, bounded autonomy, restart/recovery, and truthful owner-facing
+Astra/voice paths. No row is renumbered, no accepted work is discarded, and
+Stage 34 is a scheduling proposal rather than an acceptance claim.
 
 ## Dynamic Learning Paths — DLP-1–4 accepted and published (row 61, PARTIAL)
 

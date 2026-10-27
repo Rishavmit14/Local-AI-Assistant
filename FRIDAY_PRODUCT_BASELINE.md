@@ -1421,6 +1421,16 @@ Safe desktop foundation is restrictive; mature product must keep safety without 
 
 # 24. Priority Order
 
+**Current owner stage allocation (2026-10-27):** Stage 33 is Telegram Remote
+Owner Control and is PROPOSED / DESIGN-READY. The previously recommended
+screen-aware Career Forge/Dynamic Learning Paths integration is provisionally
+Stage 34. This changes sequencing only. The complete Stage 22 advanced
+integration scope and product-matrix rows 60 and 61 remain in place and PARTIAL;
+their identities and accepted work are unchanged. Stage 33 does not relax the
+Owner Sovereign, task, isolation, approval, audit, recovery, local Qwen,
+Pocket/Anna, or local-intelligence requirements.
+
+
 ## Priority 0 — Preserve accepted safety/recovery foundations
 
 ## Priority 1 — Make Friday feel like one functioning OS-level assistant
@@ -1433,7 +1443,7 @@ Safe desktop foundation is restrictive; mature product must keep safety without 
 - history/undo;
 - honest state.
 
-## Priority 2 — Career Forge Advanced Product Integration
+## Priority 2 — Career Forge Advanced Product Integration (provisional Stage 34 after Stage 33)
 
 Highest-priority specialization.
 

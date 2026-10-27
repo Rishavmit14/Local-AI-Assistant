@@ -1,3 +1,26 @@
+# 2026-10-27 — Stage 33 Telegram Remote Owner Control design registered
+
+The Owner selected Telegram Remote Owner Control as Stage 33 after the
+qualified/deployed Stage 32 release. Official Telegram Bot API, update,
+webhook, media, long-polling, rate/draft, Mini App and privacy documentation was
+reviewed. The actionable proposal specifies outbound long polling, exact
+numeric Owner/private-chat pairing, durable deduplicated ingress, age/rate
+controls, existing Friday service authorities, media bounds, task progress,
+real Stop/cancel, outage/reboot recovery, and phone-side cryptographic approval
+of consequential actions.
+
+The design preserves full Owner-authorized computer operation, including
+privileged/root actions through the existing trusted local broker. Production
+Friday is not yet trusted by that broker, so this is an explicit implementation
+and qualification prerequisite. No Bot API token, phone key, source code,
+service, database, production configuration or running service was changed.
+Rows 60 and 61 remain PARTIAL and keep their existing identities. The prior
+screen-aware Career Forge/DLP recommendation moves provisionally to Stage 34;
+its requirements and accepted work remain. The design is PROPOSED /
+DESIGN-READY, not an implementation or deployment acceptance. See
+docs/architecture/telegram-remote-owner.md,
+docs/operations/telegram-remote-owner.md, and ADR 0057.
+
 # 2026-10-27 — Stage 32 controlled production release VERIFIED
 
 Released immutable application source `512d1d521b44b853d7ffebd62222e087b199c3a3`
@@ -33,9 +56,12 @@ This deployment reuses the source-bound Stage 32 physical A–S PASS and full
 regression; no new post-deployment speech cue was performed. No authenticated
 screen observation was made because protected perception routes correctly
 require a Friday Owner session; existing bounded GCA qualification was reused.
-No rollback occurred. Product matrix rows 60 and 61 remain PARTIAL. Stage 33
-was not started; the handoff recommends one real retained-screen tutoring
-journey through the approved Astra UI as the next scoped capability.
+No rollback occurred. Product matrix rows 60 and 61 remain PARTIAL. At this release checkpoint,
+Stage 33 had not started and the then-current handoff recommended one
+retained-screen tutoring journey. The Owner's later 2026-10-27 sequencing
+decision moves that recommendation provisionally to Stage 34 and registers
+Stage 33 for Telegram Remote Owner Control; Stage 33 has no implementation or
+deployment in this checkpoint.
 
 # 2026-10-27 local — Stage 32 ACCEPTED AND SOURCE-CLOSED
 

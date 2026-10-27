@@ -1489,3 +1489,36 @@ threshold or memory limit changed. That resource-only checkpoint did not claim
 physical voice qualification; the later accepted physical gates and final
 source status are recorded in `ROADMAP.md` and `CODEX_HANDOFF.md`. See ADR 0056
 and `docs/architecture/voice-and-wake.md`.
+
+## Stage 33 — Telegram Remote Owner Control (PROPOSED / DESIGN-READY)
+
+Stage 33 is registered as a documentation-only proposal. A private Telegram
+bot will use Ubuntu-initiated long polling, a durable deduplicated inbox/outbox,
+an exact numeric Owner/private-chat binding, and a private local authenticated
+channel. It exposes no public Friday listener. Telegram-origin requests route to
+the existing Conversation, Memory, Career Forge, Perception, Computer Agency,
+Objective, TaskHistory, Gateway, GitHub publication and Proactive Event
+authorities; they do not add a competing executor or memory/task ledger.
+
+The bot credential remains a protected local transport secret. The bot cannot
+access the root broker or laptop administrator credential. Consequential
+actions require a signed phone approval bound to the exact action, target,
+nonce, expiry and operation digest. Production Friday's identity is not yet
+trusted by the Owner Sovereign broker, so Stage 33 must integrate and qualify
+that boundary before claiming privileged remote execution. Root privilege
+alone does not trigger confirmation.
+
+Recorded voice notes use existing Whisper and Pocket/Anna services with local
+Ogg/Opus encoding; no native real-time Telegram phone-call path is available in
+the reviewed Bot API. Mini Apps are optional later controls. Stage 33 retains
+local Qwen as Friday's only general-purpose model and preserves Stage 32
+resource and production-recovery policy. Full design, platform research,
+capability limits and acceptance evidence are in
+docs/architecture/telegram-remote-owner.md; operations are in
+docs/operations/telegram-remote-owner.md; see ADR 0057.
+
+The former proposed retained-screen Career Forge/DLP owner journey is now a
+provisional Stage 34 objective. Product matrix rows 60 and 61 remain PARTIAL
+with their existing identities, and the full Stage 22 advanced integration
+scope and accepted work remain. Stage 33 has no implementation, service,
+credential or deployment in this checkpoint.
