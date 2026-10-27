@@ -105,9 +105,9 @@ Post-deployment exact-release verification passed:
   Paths remained schema v2 with zero paths/versions; Projects remained schema
   v3 and empty. No mission evidence existed. No release check wrote learner or
   task data.
-- All 15 live SQLite databases passed integrity checks and matched post-stop
-  fingerprints. The only allowed background drift was the routine proactive
-  scheduler's advancing `next_due` timestamps.
+- All 15 live SQLite databases passed integrity checks. Every non-scheduler
+  store matched its post-stop fingerprint; the only allowed background drift
+  was the routine proactive scheduler's advancing `next_due` timestamps.
 - TaskHistory contained zero tasks, claims, or approvals. The computer-agency
   database retained 170 terminal tasks and 294 actions, including 12 historical
   `in_doubt` and three `result_present`; no action was replayed or altered.
@@ -124,9 +124,9 @@ Post-deployment exact-release verification passed:
   was observed. No new post-deployment speech cue was performed; the physical
   PASS is the exact-source pre-deployment Stage 32 qualification.
 - A 55.4-second watcher collected 12 samples. API/UI/Qwen/vision and voice
-  workers stayed healthy; all 15 stores remained integral with unchanged
-  fingerprints. At least 23.37 GiB RAM and 4.15 GiB swap were available; full
-  PSI remained near zero, with no OOM or restore timer.
+  workers stayed healthy; all 15 stores remained integral and non-scheduler
+  fingerprints were unchanged. At least 23.37 GiB RAM and 4.15 GiB swap were
+  available; full PSI remained near zero, with no OOM or restore timer.
 
 ## Owner state and recovery limits
 

@@ -14,9 +14,10 @@ environment change occurred. API and UI were controlled-restarted after task,
 voice, and execution clearance; Qwen and vision were not restarted. API/UI,
 Qwen, and vision returned HTTP 200. Pocket/Anna, wake, AEC capture and worker
 health returned ready. Exact-release smoke, all 13 frontend asset hashes, auth
-negative checks, mission/draft restoration, all 15 SQLite integrity and
-fingerprint checks, and the final 55.4-second/12-sample live stability watcher
-passed.
+negative checks, mission/draft restoration, all 15 SQLite integrity checks,
+unchanged non-scheduler fingerprints, and the final 55.4-second/12-sample live
+stability watcher passed. Only proactive-scheduler `next_due` timestamps
+advanced normally.
 
 One existing Career Forge lesson attempt, active mission, Practice Lab draft,
 six runs, and 16 competencies were preserved; no release check wrote learner

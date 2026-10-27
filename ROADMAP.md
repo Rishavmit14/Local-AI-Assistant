@@ -2028,11 +2028,13 @@ configuration change.
 API/UI, Qwen, and vision returned 200 after cutover; Pocket/Anna, wake, AEC,
 capture, and workers were ready. Exact-release isolated smoke and live release
 checks passed, including all 13 frontend assets, protected-route denial,
-restoration of the existing mission/attempt/draft, and all 15 database integrity
-and fingerprint checks. A 55.4-second/12-sample stability watcher found no
-health, voice, memory, PSI, database, or timer fault. Qwen and vision were not
-restarted. No owner data or task/action history was changed; the 12 historical
-`in_doubt` and three `result_present` actions were not replayed. No new
+restoration of the existing mission/attempt/draft, integrity checks for all 15
+databases, and unchanged non-scheduler fingerprints (the proactive scheduler's
+`next_due` timestamps advanced normally). A 55.4-second/12-sample stability
+watcher found no health, voice, memory, PSI, database, or timer fault. Qwen and
+vision were not restarted. No learner, task, or action-history data was changed;
+the 12 historical `in_doubt` and three `result_present` actions were not
+replayed. No new
 post-deployment speech cue or authenticated screen observation was performed;
 the physical A–S PASS is source-bound pre-deployment evidence, and protected
 screen routes correctly required an Owner session that was not present. Full

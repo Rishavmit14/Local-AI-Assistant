@@ -45,12 +45,12 @@ competency rows remain. Learning Paths schema v2 and Projects schema v3 are
 unchanged; there are no DLP paths/versions, Projects, or mission evidence.
 Checks wrote no learner or task data.
 
-All 15 production SQLite stores passed integrity checks and match post-stop
-fingerprints. TaskHistory still has zero tasks, claims, and approvals. The
-computer-agency store retains 170 terminal tasks, 294 actions, 12 historical
-`in_doubt` and three `result_present` actions; no action was replayed. Scheduler
-next-due timestamps advanced normally. No restore timer is active and no
-rollback was invoked.
+All 15 production SQLite stores passed integrity checks; all non-scheduler
+stores match post-stop fingerprints. Only the proactive scheduler's
+`next_due` timestamps advanced normally. TaskHistory still has zero tasks,
+claims, and approvals. The computer-agency store retains 170 terminal tasks,
+294 actions, 12 historical `in_doubt` and three `result_present` actions; no
+action was replayed. No restore timer is active and no rollback was invoked.
 Pre-cutover and post-API-stop online backups and service-config snapshots are
 restricted under the Stage 32 maintenance directory; their manifest digests are
 in the release plan.
