@@ -1924,7 +1924,7 @@ symlink predicate; no application or data fault occurred. Rows 60 and 61 remain
 PARTIAL; this three-node journey does not establish Senior ML/AI Engineer
 readiness or complete Career Forge. Stage 32 was not started in this session.
 
-### Stage 32 — Voice-first learning and reliable interruption (**PARTIAL — physical acceptance and full regressions passed; source publication pending**)
+### Stage 32 — Voice-first learning and reliable interruption (**QUALIFIED — physical acceptance, full regressions, and Stage 32 branch publication verified on 2026-10-27**)
 
 #### Latest physical acceptance — all gates passed (2026-10-27 local, physical PASS)
 
@@ -2004,10 +2004,12 @@ release pointer remained `075645a3198a37a9ff101a18614065ff8cc5c9e9`, production
 database fingerprints matched before/after, API/UI/Qwen/Qwen-Vision health
 checks returned 200, the microphone returned to listening with advancing PCM,
 AEC cleanup passed, candidate processes stopped, and the recovery timer was
-inactive. This proves physical acceptance, not final source acceptance. The full code
-regression and initial diff review passed. Final documentation reconciliation,
-Stage 32 commit, and branch-only push remain pending; do not deploy or advance
-`main`. Stage 33 is a handoff only and has no implementation in this worktree.
+inactive. Stage 32 is physically accepted and source-closed. The 51-path implementation
+commit `af0ec81ed60ab5c888771b8c543850e60f51dfb6` is published on
+`stage-32/voice-first-learning-reliability`; remote verification resolved to
+the same SHA. The final documentation-only handoff synchronization follows
+that acceptance checkpoint. No deployment or `main` advance occurred. Stage 33
+remains handoff-only with no implementation in this worktree.
 
 #### Earlier physical barge-in result and correction in progress (2026-10-27 local, PARTIAL)
 

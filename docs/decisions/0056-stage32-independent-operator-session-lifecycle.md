@@ -1,7 +1,6 @@
 # ADR 0056: Isolate the Stage 32 operator from candidate session lifecycle
 
-- **Status:** Accepted for the Stage 32 qualification candidate; physical gates
-  and full regressions passed, source closure pending
+- **Status:** Accepted for Stage 32 physical and source qualification (2026-10-27)
 - **Date:** 2026-10-26
 - **Extends:** ADR 0013 (production voice and wake), ADR 0055 (trusted voice
   learning and interruption boundary)
@@ -101,6 +100,6 @@ physical session completed all mandatory gates, including spoken Stop and the
 formal no-stale-playback window. Its restoration report is
 `RESTORED_VERIFIED`. The frontend suite passed 189 tests with ESLint, TypeScript,
 production build, and dependency checks. The existing large-chunk advisory
-remains. Stage 32 source publication and remote verification are the remaining
-closure steps. See `CODEX_HANDOFF.md`, `HISTORY.md`, and
+remains. Stage 32 source acceptance is published at
+`af0ec81ed60ab5c888771b8c543850e60f51dfb6`; remote verification passed. See `CODEX_HANDOFF.md`, `HISTORY.md`, and
 `docs/architecture/voice-and-wake.md` for full evidence.

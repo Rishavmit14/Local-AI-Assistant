@@ -127,8 +127,9 @@ playback. A 2026-10-27 Stage 32 physical audit found and fixed a shutdown race
 that violated this ordering. A later source-bound physical run finalized
 `Friday, stop.` through the interrupted turn's listener, entered the explicit
 Stop state, and passed the formal five-second no-stale-playback gate. The full
-repository/frontend regressions passed on the same source snapshot; Stage 32
-branch commit/publication remains pending. Physical onset timing was not
+repository/frontend regressions passed on the same source snapshot. The Stage 32
+implementation is published at `af0ec81ed60ab5c888771b8c543850e60f51dfb6` on
+its stage branch; remote SHA verification passed. Physical onset timing was not
 captured, and Qwen had completed generation before interruption.
 
 Wake microphone ownership is also lifecycle-safe under concurrent pause/stop. `FridayAlwaysOnWakeCapture` reads from a stream-local handle while the shared current-stream reference is protected by its state lock. `pause()` and `stop()` retire the shared stream before closing it; therefore EOF or `VoiceCaptureError` produced while a retired stream is unwinding is treated as intentional cancellation. A failure from the still-current stream remains a real capture failure and fails closed. Pause keeps the wake loop alive and quiescent, resume reacquires a fresh stream, and stop terminates the loop cleanly.

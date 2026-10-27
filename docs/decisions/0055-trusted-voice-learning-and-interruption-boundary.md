@@ -1,7 +1,6 @@
 # ADR 0055: Bind voice learning to canonical learner state
 
-- **Status:** Accepted for Stage 32 candidate physical qualification; source
-  closure pending
+- **Status:** Accepted for Stage 32 physical and source qualification (2026-10-27)
 - **Date:** 2026-10-16
 
 ## Context
@@ -70,7 +69,7 @@ command is lost before ASR, leaving the subsequent one-shot capture to time out.
 The Stage 32 monitor drains an already-triggered utterance and the caller waits
 up to the configured utterance limit plus a bounded margin. The 2026-10-27
 physical session exposed this race: playback stopped on interruption, but no
-finalized transcript was retained. A later source-bound physical run finalized `Friday, stop.` through the interrupted playback turn, entered the explicit Stop state, and passed the five-second no-stale-playback gate. The listener-start event carries the interrupted playback turn ID and is followed by the finalized transcript in the same runtime session. Its exact physical speech-onset timestamp was not captured, so onset-to-stop latency is unavailable; interruption-to-final-ASR was 417.669 ms. This closes the physical Stop qualification for that candidate. Full repository/frontend regressions passed on the source snapshot; Stage 32 source publication remains a separate acceptance step. Qwen generation was complete before interruption, so active model cancellation was not applicable; the independent five-second quiet-window gate and no-stale event interval establish externally observable speech cancellation.
+finalized transcript was retained. A later source-bound physical run finalized `Friday, stop.` through the interrupted playback turn, entered the explicit Stop state, and passed the five-second no-stale-playback gate. The listener-start event carries the interrupted playback turn ID and is followed by the finalized transcript in the same runtime session. Its exact physical speech-onset timestamp was not captured, so onset-to-stop latency is unavailable; interruption-to-final-ASR was 417.669 ms. This closes the physical Stop qualification for that candidate. Full repository/frontend regressions passed on the source snapshot. Stage 32 source acceptance is published at `af0ec81ed60ab5c888771b8c543850e60f51dfb6` on its stage branch. Qwen generation was complete before interruption, so active model cancellation was not applicable; the independent five-second quiet-window gate and no-stale event interval establish externally observable speech cancellation.
 
 ## Consequences
 

@@ -1,4 +1,4 @@
-# 2026-10-27 local — Stage 32 physical acceptance and full regression PASS; source closure pending
+# 2026-10-27 local — Stage 32 ACCEPTED AND SOURCE-CLOSED
 
 Candidate `a99591b3183d45bb83ce30b46372e7c1` completed all ten physical
 operator gates with the current source-bound manifest. Evidence directory:
@@ -43,9 +43,11 @@ Python compilation, and dependency checks passed with all 101 installed
 packages compatible; frontend tests passed **189**, ESLint, TypeScript,
 production build, and frontend dependency checks passed. The build emitted its
 existing large-chunk advisory. No frontend source or approved Astra UI change
-is included. Final documentation reconciliation, source review, Stage 32 branch
-commit/publication, and remote verification remain. No deployment, `main`
-advance, or Stage 33 implementation is authorized by this checkpoint.
+is included. Full source review and `git diff --check` passed. Acceptance commit
+`af0ec81ed60ab5c888771b8c543850e60f51dfb6` was pushed to
+`stage-32/voice-first-learning-reliability`, and the remote branch resolved to
+the same SHA. The final follow-up is documentation-only. Stage 31 remains
+protected; no deployment, `main` advance, or Stage 33 implementation occurred.
 
 # Previous 2026-10-27 local — Stage 32 Stop utterance capture race corrected; physical retest pending (PARTIAL)
 

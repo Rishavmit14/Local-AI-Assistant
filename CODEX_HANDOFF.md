@@ -1,28 +1,30 @@
-# Friday handoff — Stage 32 physical acceptance and regression passed; source closure pending
+# Friday handoff — Stage 32 accepted and source-closed; Stage 33 handoff ready
 
-Updated 2026-10-27. All physical Stage 32 gates and required full regressions
-passed on the current source-bound candidate. Complete remaining source review
-and documentation reconciliation, commit and publish the Stage 32 branch only,
-verify its remote SHA, then record the Stage 33 readiness handoff. Preserve every
-existing Stage 32 worktree change. Do not deploy, advance `main`, or begin Stage
-33 implementation.
+Updated 2026-10-27 after Stage 32 publication. All physical A–S gates, final
+regressions, full source review, and the Stage 32 branch push are complete. The
+remote matched the accepted implementation SHA; this final handoff synchronization
+is documentation-only. Preserve the Stage 31 release and `main`. Do not deploy,
+advance `main`, or begin Stage 33 implementation.
 
 ## Checkout and protected production
 
 - Worktree: `/home/kumar-rishav/.codex/worktrees/friday-stage32-voice-learning/Local-AI-Assistant-terra-integration`
 - Branch: `stage-32/voice-first-learning-reliability`
-- HEAD: `277253b8bd17c4f2c72919399a50eee6cc146fe4`
-- HEAD is a pre-existing local Stage 32 checkpoint (`Stage 32: instrument wake
-  capture diagnostics`) one commit ahead of `origin/stage-32/voice-first-learning-reliability`
-  at `9b6a3c50f6c366ef134a4e3cb7e5879dff97838d`. Preserve it; it is not the
-  final acceptance publication.
-- The worktree contains preserved uncommitted Stage 32 implementation, tests,
-  and documentation. Do not reset, clean, or discard it.
+- Accepted implementation checkpoint: `af0ec81ed60ab5c888771b8c543850e60f51dfb6`,
+  pushed to `origin/stage-32/voice-first-learning-reliability`; remote HEAD
+  matched this SHA before this final documentation-only synchronization. The
+  current branch tip contains this handoff synchronization commit; resolve its
+  exact SHA with `git rev-parse HEAD` because a commit cannot record its own ID.
+- All 51 reviewed implementation, test, service-example, and canonical
+  documentation paths are committed in the accepted implementation checkpoint.
+  This final follow-up changes documentation only; the worktree is clean after
+  the handoff synchronization is committed.
 - Stage 31 immutable release: `075645a3198a37a9ff101a18614065ff8cc5c9e9`.
   Canonical checkout `/AI/projects/Local-AI-Assistant` is protected and was
   not modified. `main` and `origin/main` remain at
-  `67a44833844787c7fe5e81603e160aaa92a0a07f`. No Stage 32 deployment, final
-  acceptance commit/push, `main` advance, or Stage 33 work has occurred.
+  `67a44833844787c7fe5e81603e160aaa92a0a07f`. The Stage 32 implementation
+  commit and branch push are complete. No Stage 32 deployment, `main` advance,
+  or Stage 33 implementation has occurred.
 
 ## Latest physical acceptance and exact continuation (2026-10-27)
 
@@ -55,19 +57,17 @@ existing Stage 32 worktree change. Do not deploy, advance `main`, or begin Stage
   cleanup passed, listening capture returned with advancing PCM, candidate
   processes stopped, and the recovery timer is inactive. Operator currently
   shows `PREPARED`; no candidate is active.
-- The final regression is complete against the same source snapshot: repository
+- The final regression passed against the same implementation snapshot: repository
   verification passed with **2,039 Python tests passed, 6 skipped**; full Ruff,
   Python compilation, and dependency checks passed (101 installed packages
   compatible); frontend tests passed **189**, ESLint, TypeScript, production
   build, and frontend dependencies passed. The build retains its existing
-  large-chunk advisory. `git diff --check` passed before the final documentation
-  reconciliation and must be rerun afterward. No frontend source or approved
-  Astra UI change is included.
-- Finish final canonical documentation and full path review, run
-  `git diff --check`, commit the qualified Stage 32 work, push only
-  `stage-32/voice-first-learning-reliability`, and verify the remote branch
-  SHA. Preserve Stage 31 production and `main`; Stage 33 is readiness handoff
-  only, with no implementation here.
+  large-chunk advisory. Final `git diff --check` passed after documentation
+  reconciliation. No frontend source or approved Astra UI change is included.
+- The final documentation-only synchronization records this handoff after the
+  accepted implementation commit. Its push must leave the remote Stage 32
+  branch at the current local tip. Preserve Stage 31 production and `main`;
+  Stage 33 is readiness handoff only, with no implementation here.
 
 ## Stage 33 readiness handoff — no implementation started
 
